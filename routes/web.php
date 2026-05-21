@@ -4,6 +4,7 @@ use App\Http\Controllers\LoginV2Controller;
 use App\Http\Controllers\AdminV2Controller;
 use App\Http\Controllers\ManajerController;
 use App\Http\Controllers\ReportOpsController;
+use App\Http\Middleware\EnsureAdminAccess;
 use App\Http\Middleware\PreventManagerDivisionAccess;
 use Illuminate\Support\Facades\Route;
 
@@ -15,8 +16,7 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [LoginV2Controller::class, 'logout'])->middleware('auth')->name('logout');
 
-// Preview tampilan admin tanpa login.
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', EnsureAdminAccess::class])->group(function () {
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');
     Route::get('/archive', [AdminV2Controller::class, 'archive'])->name('archive');
     Route::get('/log', [AdminV2Controller::class, 'log'])->name('log');
@@ -24,6 +24,36 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/datamaster', [AdminV2Controller::class, 'dataMaster'])->name('datamaster');
     Route::get('/backup', [AdminV2Controller::class, 'backup'])->name('backup');
     Route::get('/help', [AdminV2Controller::class, 'help'])->name('help');
+
+    Route::get('/reports/{report}', [AdminV2Controller::class, 'showReport'])->name('reports.show');
+    Route::get('/reports/{report}/download', [AdminV2Controller::class, 'downloadReport'])->name('reports.download');
+    Route::delete('/reports/{report}', [AdminV2Controller::class, 'destroyReport'])->name('reports.destroy');
+
+    Route::post('/users', [AdminV2Controller::class, 'storeUser'])->name('users.store');
+    Route::put('/users/{user}', [AdminV2Controller::class, 'updateUser'])->name('users.update');
+    Route::patch('/users/{user}/status', [AdminV2Controller::class, 'toggleUserStatus'])->name('users.status');
+    Route::delete('/users/{user}', [AdminV2Controller::class, 'destroyUser'])->name('users.destroy');
+
+    Route::post('/master/employees', [AdminV2Controller::class, 'storeEmployee'])->name('master.employees.store');
+    Route::put('/master/employees/{employee}', [AdminV2Controller::class, 'updateEmployee'])->name('master.employees.update');
+    Route::delete('/master/employees/{employee}', [AdminV2Controller::class, 'destroyEmployee'])->name('master.employees.destroy');
+    Route::post('/master/units', [AdminV2Controller::class, 'storeUnit'])->name('master.units.store');
+    Route::put('/master/units/{unit}', [AdminV2Controller::class, 'updateUnit'])->name('master.units.update');
+    Route::delete('/master/units/{unit}', [AdminV2Controller::class, 'destroyUnit'])->name('master.units.destroy');
+    Route::post('/master/trucks', [AdminV2Controller::class, 'storeTruck'])->name('master.trucks.store');
+    Route::put('/master/trucks/{truck}', [AdminV2Controller::class, 'updateTruck'])->name('master.trucks.update');
+    Route::delete('/master/trucks/{truck}', [AdminV2Controller::class, 'destroyTruck'])->name('master.trucks.destroy');
+    Route::post('/master/inventories', [AdminV2Controller::class, 'storeInventory'])->name('master.inventories.store');
+    Route::put('/master/inventories/{inventory}', [AdminV2Controller::class, 'updateInventory'])->name('master.inventories.update');
+    Route::delete('/master/inventories/{inventory}', [AdminV2Controller::class, 'destroyInventory'])->name('master.inventories.destroy');
+
+    Route::post('/backup/generate', [AdminV2Controller::class, 'generateBackup'])->name('backup.generate');
+    Route::put('/backup/schedule', [AdminV2Controller::class, 'updateBackupSchedule'])->name('backup.schedule');
+    Route::get('/backup/files/{file}', [AdminV2Controller::class, 'downloadBackup'])->name('backup.download');
+    Route::delete('/backup/files/{file}', [AdminV2Controller::class, 'destroyBackup'])->name('backup.destroy');
+    Route::post('/backup/files/{file}/restore', [AdminV2Controller::class, 'restoreBackup'])->name('backup.restore');
+
+    Route::post('/help/ticket', [AdminV2Controller::class, 'storeHelpTicket'])->name('help.ticket');
 });
 
 Route::middleware('auth')->group(function () {

@@ -30,6 +30,15 @@
         flex-wrap: wrap;
     }
 
+    .search-action-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1 1 540px;
+        max-width: 620px;
+        min-width: 0;
+    }
+
     .search-box {
         display: flex;
         align-items: center;
@@ -38,8 +47,9 @@
         border: 1px solid var(--smooth-border);
         border-radius: 50px;
         background-color: var(--main-bg);
-        flex: 1 1 380px;
-        max-width: 460px;
+        flex: 1 1 auto;
+        max-width: none;
+        min-width: 260px;
     }
 
     .search-box i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
@@ -75,6 +85,23 @@
     .btn-tool i { position: relative; top: 1px; }
     .btn-tool--primary { background-color: var(--blue-main); border-color: var(--blue-main); color: #fff; }
     .btn-tool--primary:hover { background-color: var(--blue-hover); border-color: var(--blue-hover); color: #fff; }
+
+    .search-action-group .btn-tool {
+        height: 44px;
+        flex-shrink: 0;
+        padding: 0 16px;
+    }
+
+    @media (max-width: 640px) {
+        .search-action-group {
+            flex: 1 1 100%;
+            max-width: none;
+        }
+
+        .search-box {
+            min-width: 0;
+        }
+    }
 
     /* =============================================
        TABLE
@@ -233,18 +260,67 @@
     }
 
     .user-status-switch.is-active .user-status-switch__label { color: var(--success); }
+
+    .signature-upload {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px;
+        border: 1px dashed var(--blue-main-25);
+        border-radius: 8px;
+        background-color: var(--main-bg);
+    }
+
+    .signature-upload__preview {
+        width: 120px;
+        height: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        background-color: var(--white);
+        overflow: hidden;
+        flex-shrink: 0;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .signature-upload__preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .signature-upload__control {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .signature-upload__hint {
+        font-size: 10px;
+        color: var(--muted);
+        font-weight: 400;
+    }
 </style>
 @endpush
 
 @section('content')
 @php
-    $users = [
+    $users = $users ?? collect([
         ['no' => 1, 'name' => 'Mustari S,T', 'username' => 'admin', 'role' => 'Admin', 'regu' => 'Regu B', 'status' => 'aktif',    'status_label' => 'Aktif'],
         ['no' => 2, 'name' => 'Mustari S,T', 'username' => 'admin', 'role' => 'Admin', 'regu' => 'Regu B', 'status' => 'nonaktif', 'status_label' => 'Non-Aktif'],
         ['no' => 3, 'name' => 'Mustari S,T', 'username' => 'admin', 'role' => 'Admin', 'regu' => 'Regu B', 'status' => 'aktif',    'status_label' => 'Aktif'],
         ['no' => 4, 'name' => 'Mustari S,T', 'username' => 'admin', 'role' => 'Admin', 'regu' => 'Regu B', 'status' => 'aktif',    'status_label' => 'Aktif'],
         ['no' => 5, 'name' => 'Mustari S,T', 'username' => 'admin', 'role' => 'Admin', 'regu' => 'Regu B', 'status' => 'aktif',    'status_label' => 'Aktif'],
-    ];
+    ]);
+
+    $roles = $roles ?? collect();
 @endphp
 
 <div class="page-header">
@@ -254,15 +330,18 @@
 
 @component('admin.layouts.card', ['title' => 'Daftar Pengguna'])
     <!-- Toolbar -->
-    <div class="archive-toolbar">
-        <div class="search-box">
-            <span><i class="fi fi-rr-search"></i></span>
-            <input type="text" placeholder="Cari Pengguna">
+    <form class="archive-toolbar" method="GET" action="{{ route('admin.user-manage') }}">
+        <div class="search-action-group">
+            <div class="search-box">
+                <span><i class="fi fi-rr-search"></i></span>
+                <input type="text" name="q" value="{{ $userSearch ?? '' }}" placeholder="Cari Pengguna">
+            </div>
+            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Cari</button>
         </div>
         <button type="button" class="btn-tool btn-tool--primary" id="btnAddUser">
             <i class="fi fi-rr-user-add"></i> Tambah Pengguna
         </button>
-    </div>
+    </form>
 
     <!-- Table -->
     <div class="table-responsive-wrapper">
@@ -282,45 +361,73 @@
                     data-user-name="{{ $u['name'] }}"
                     data-user-username="{{ $u['username'] }}"
                     data-user-role="{{ $u['role'] }}"
+                    data-user-role-id="{{ $u['role_id'] ?? '' }}"
                     data-user-regu="{{ $u['regu'] }}"
-                    data-user-status="{{ $u['status'] }}">
+                    data-user-group="{{ $u['group_value'] ?? $u['regu'] }}"
+                    data-user-status="{{ $u['status'] }}"
+                    data-user-update-url="{{ $u['update_url'] ?? '' }}"
+                    data-user-signature-url="{{ $u['signature_url'] ?? '' }}">
                     <td class="col-no">{{ $u['no'] }}</td>
                     <td class="col-name">{{ $u['name'] }}</td>
                     <td class="col-username">{{ $u['username'] }}</td>
                     <td class="col-role">{{ $u['role'] }}</td>
                     <td class="col-regu">{{ $u['regu'] }}</td>
                     <td class="col-status">
-                        <label class="user-status-switch {{ $u['status'] === 'aktif' ? 'is-active' : '' }}" title="Aktifkan atau nonaktifkan pengguna">
-                            <input type="checkbox" class="js-user-status-toggle" @checked($u['status'] === 'aktif') aria-label="Status pengguna {{ $u['name'] }}">
-                            <span class="user-status-switch__track"><span class="user-status-switch__thumb"></span></span>
-                            <span class="user-status-switch__label">{{ $u['status_label'] }}</span>
-                        </label>
+                        <form method="POST" action="{{ $u['status_url'] ?? '#' }}">
+                            @csrf
+                            @method('PATCH')
+                            <label class="user-status-switch {{ $u['status'] === 'aktif' ? 'is-active' : '' }}" title="Aktifkan atau nonaktifkan pengguna">
+                                <input type="checkbox"
+                                       class="js-user-status-toggle"
+                                       @checked($u['status'] === 'aktif')
+                                       aria-label="Status pengguna {{ $u['name'] }}"
+                                       data-confirm
+                                       data-confirm-submit="true"
+                                       data-confirm-tone="warning"
+                                       data-confirm-title="{{ $u['status'] === 'aktif' ? 'Nonaktifkan pengguna?' : 'Aktifkan pengguna?' }}"
+                                       data-confirm-subtitle="Status akun akan diperbarui."
+                                       data-confirm-message="Perubahan status langsung mempengaruhi akses login pengguna."
+                                       data-confirm-summary="{{ $u['name'] }} - {{ $u['role'] }}"
+                                       data-confirm-label="Ubah Status"
+                                       data-confirm-icon="fi fi-rr-refresh">
+                                <span class="user-status-switch__track"><span class="user-status-switch__thumb"></span></span>
+                                <span class="user-status-switch__label">{{ $u['status_label'] }}</span>
+                            </label>
+                        </form>
                     </td>
                     <td class="col-aksi">
                         <button type="button" class="btn-act edit js-user-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
                         <button type="button" class="btn-act view js-user-view" title="Lihat"><i class="fi fi-rr-eye"></i></button>
-                        <button type="button"
-                                class="btn-act delete"
-                                title="Hapus"
-                                data-confirm
-                                data-confirm-tone="danger"
-                                data-confirm-title="Hapus pengguna?"
-                                data-confirm-subtitle="Akun akan dihapus dari daftar pengguna."
-                                data-confirm-message="Pastikan pengguna ini memang tidak lagi membutuhkan akses ke sistem."
-                                data-confirm-summary="{{ $u['name'] }} - {{ $u['role'] }} - {{ $u['regu'] }}"
-                                data-confirm-label="Hapus Pengguna">
-                            <i class="fi fi-rr-trash"></i>
-                        </button>
+                        <form method="POST" action="{{ $u['destroy_url'] ?? '#' }}">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                    class="btn-act delete"
+                                    title="Hapus"
+                                    data-confirm
+                                    data-confirm-submit="true"
+                                    data-confirm-tone="danger"
+                                    data-confirm-title="Hapus pengguna?"
+                                    data-confirm-subtitle="Akun akan dihapus dari daftar pengguna."
+                                    data-confirm-message="Pastikan pengguna ini memang tidak lagi membutuhkan akses ke sistem."
+                                    data-confirm-summary="{{ $u['name'] }} - {{ $u['role'] }} - {{ $u['regu'] }}"
+                                    data-confirm-label="Hapus Pengguna">
+                                <i class="fi fi-rr-trash"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
             @endforeach
         </table>
     </div>
+    @include('admin.layouts.pagination', ['paginator' => $users, 'label' => 'pengguna'])
 @endcomponent
 
 <div class="modal-overlay" id="userFormModal" aria-hidden="true">
     <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="userFormTitle">
-        <form data-preview-submit>
+        <form method="POST" action="{{ route('admin.users.store') }}" id="userForm" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="_method" id="userFormMethod" value="POST">
             <div class="kss-modal__header">
                 <div class="kss-modal__icon">
                     <i class="fi fi-rr-user-add" id="userFormIcon"></i>
@@ -338,21 +445,21 @@
                 <div class="kss-modal__grid">
                     <div class="kss-modal__field">
                         <label for="userNameInput">Nama Lengkap</label>
-                        <input class="kss-modal__input" id="userNameInput" type="text" placeholder="Nama pengguna" data-modal-focus>
+                        <input class="kss-modal__input" id="userNameInput" name="name" type="text" placeholder="Nama pengguna" data-modal-focus required>
                     </div>
                     <div class="kss-modal__field">
                         <label for="userUsernameInput">Username</label>
-                        <input class="kss-modal__input" id="userUsernameInput" type="text" placeholder="username">
+                        <input class="kss-modal__input" id="userUsernameInput" name="username" type="text" placeholder="username" required>
                     </div>
                     <div class="kss-modal__field">
                         <label for="userRoleInput">Role</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="userRoleInput">
-                                <option>Admin</option>
-                                <option>Manajer</option>
-                                <option>Operasional</option>
-                                <option>Pemeliharaan</option>
-                                <option>Safety</option>
+                            <select class="kss-modal__native-select" id="userRoleInput" name="role_id" required>
+                                @foreach ($roles as $roleOption)
+                                    <option value="{{ $roleOption->id }}" @selected($roleOption->name === \App\Models\Role::OPERATIONAL)>
+                                        {{ \App\Models\Role::displayName($roleOption->name) }}
+                                    </option>
+                                @endforeach
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
@@ -360,11 +467,12 @@
                     <div class="kss-modal__field">
                         <label for="userReguInput">Regu</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="userReguInput">
-                                <option>Kantor</option>
-                                <option>Regu A</option>
-                                <option>Regu B</option>
-                                <option>Regu C</option>
+                            <select class="kss-modal__native-select" id="userReguInput" name="group">
+                                <option value="Kantor">Kantor</option>
+                                <option value="A">Regu A</option>
+                                <option value="B">Regu B</option>
+                                <option value="C">Regu C</option>
+                                <option value="D">Regu D</option>
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
@@ -372,14 +480,25 @@
                     <div class="kss-modal__field">
                         <label>Status</label>
                         <label class="user-status-switch is-active" id="userStatusInputWrap">
-                            <input type="checkbox" id="userStatusInput" checked>
+                            <input type="hidden" name="status" value="nonaktif">
+                            <input type="checkbox" id="userStatusInput" name="status" value="aktif" checked>
                             <span class="user-status-switch__track"><span class="user-status-switch__thumb"></span></span>
                             <span class="user-status-switch__label" id="userStatusInputLabel">Aktif</span>
                         </label>
                     </div>
                     <div class="kss-modal__field">
                         <label for="userPasswordInput">Password Awal</label>
-                        <input class="kss-modal__input" id="userPasswordInput" type="password" placeholder="Masukkan password awal">
+                        <input class="kss-modal__input" id="userPasswordInput" name="password" type="password" placeholder="Masukkan password awal">
+                    </div>
+                    <div class="kss-modal__field kss-modal__field--full">
+                        <label for="userSignatureInput">Tanda Tangan PNG</label>
+                        <div class="signature-upload">
+                            <div class="signature-upload__preview" id="userSignaturePreview">Belum ada tanda tangan</div>
+                            <div class="signature-upload__control">
+                                <input class="kss-modal__input" id="userSignatureInput" name="signature" type="file" accept="image/png">
+                                <span class="signature-upload__hint">Gunakan file PNG, maksimal 2 MB. Saat edit, kosongkan jika tidak ingin mengganti tanda tangan.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -403,6 +522,9 @@
         const userSubtitle = document.getElementById('userFormSubtitle');
         const userIcon = document.getElementById('userFormIcon');
         const userSubmit = document.getElementById('userFormSubmit');
+        const userForm = document.getElementById('userForm');
+        const userFormMethod = document.getElementById('userFormMethod');
+        const userStoreUrl = @json(route('admin.users.store'));
         const userStatusWrap = document.getElementById('userStatusInputWrap');
         const userStatusLabel = document.getElementById('userStatusInputLabel');
         const fields = {
@@ -412,7 +534,9 @@
             regu: document.getElementById('userReguInput'),
             status: document.getElementById('userStatusInput'),
             password: document.getElementById('userPasswordInput'),
+            signature: document.getElementById('userSignatureInput'),
         };
+        const signaturePreview = document.getElementById('userSignaturePreview');
 
         function setFieldsDisabled(disabled) {
             Object.values(fields).forEach(field => field.disabled = disabled);
@@ -429,26 +553,42 @@
         function fillUserForm(data = {}) {
             fields.name.value = data.name || '';
             fields.username.value = data.username || '';
-            fields.role.value = data.role || 'Operasional';
-            fields.regu.value = data.regu || 'Regu A';
+            fields.role.value = data.roleId || fields.role.options[0]?.value || '';
+            fields.regu.value = data.group || 'A';
             setUserStatus((data.status || 'aktif').toLowerCase() === 'aktif');
             fields.password.value = '';
             fields.password.placeholder = data.mode === 'edit' ? 'Kosongkan jika tidak diubah' : 'Masukkan password awal';
+            fields.password.required = data.mode !== 'edit' && data.mode !== 'view';
+            fields.signature.value = '';
+            setSignaturePreview(data.signatureUrl || '');
             window.KssAdminModal.syncSelects(userModal);
+        }
+
+        function setSignaturePreview(url) {
+            if (!signaturePreview) return;
+
+            if (url) {
+                signaturePreview.innerHTML = `<img src="${url}" alt="Preview tanda tangan">`;
+            } else {
+                signaturePreview.textContent = 'Belum ada tanda tangan';
+            }
         }
 
         function openUserModal(mode, row) {
             const data = row ? {
                 name: row.dataset.userName,
                 username: row.dataset.userUsername,
-                role: row.dataset.userRole,
-                regu: row.dataset.userRegu,
+                roleId: row.dataset.userRoleId,
+                group: row.dataset.userGroup,
                 status: row.dataset.userStatus,
+                signatureUrl: row.dataset.userSignatureUrl,
                 mode,
             } : { mode };
 
             fillUserForm(data);
             setFieldsDisabled(mode === 'view');
+            if (userForm) userForm.action = mode === 'edit' && row?.dataset.userUpdateUrl ? row.dataset.userUpdateUrl : userStoreUrl;
+            if (userFormMethod) userFormMethod.value = mode === 'edit' ? 'PUT' : 'POST';
 
             if (mode === 'add') {
                 userTitle.textContent = 'Tambah Pengguna';
@@ -472,6 +612,24 @@
         document.getElementById('btnAddUser')?.addEventListener('click', () => openUserModal('add'));
 
         fields.status?.addEventListener('change', () => setUserStatus(fields.status.checked));
+
+        fields.signature?.addEventListener('change', function () {
+            const file = fields.signature.files?.[0];
+
+            if (!file) {
+                setSignaturePreview('');
+                return;
+            }
+
+            if (file.type !== 'image/png') {
+                fields.signature.value = '';
+                setSignaturePreview('');
+                window.showAdminToast?.('error', 'File tidak valid', 'File tanda tangan harus berformat PNG.');
+                return;
+            }
+
+            setSignaturePreview(URL.createObjectURL(file));
+        });
 
         document.querySelectorAll('.js-user-status-toggle').forEach(function (toggle) {
             toggle.addEventListener('change', function () {

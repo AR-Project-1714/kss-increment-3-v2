@@ -44,6 +44,15 @@
         flex-wrap: wrap;
     }
 
+    .search-action-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1 1 540px;
+        max-width: 620px;
+        min-width: 0;
+    }
+
     .search-box {
         display: flex;
         align-items: center;
@@ -52,8 +61,9 @@
         border: 1px solid var(--smooth-border);
         border-radius: 50px;
         background-color: var(--main-bg);
-        flex: 1 1 380px;
-        max-width: 460px;
+        flex: 1 1 auto;
+        max-width: none;
+        min-width: 260px;
     }
 
     .search-box i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
@@ -89,6 +99,23 @@
     .btn-tool i { position: relative; top: 1px; }
     .btn-tool--primary { background-color: var(--blue-main); border-color: var(--blue-main); color: #fff; }
     .btn-tool--primary:hover { background-color: var(--blue-hover); border-color: var(--blue-hover); color: #fff; }
+
+    .search-action-group .btn-tool {
+        height: 44px;
+        flex-shrink: 0;
+        padding: 0 16px;
+    }
+
+    @media (max-width: 640px) {
+        .search-action-group {
+            flex: 1 1 100%;
+            max-width: none;
+        }
+
+        .search-box {
+            min-width: 0;
+        }
+    }
 
     /* =============================================
        MASTER DATA PANES (Tab switching)
@@ -179,29 +206,35 @@
 
 @section('content')
 @php
-    $employees = [
+    $employees = $employees ?? collect([
         ['no' => 1, 'npk' => '2000.1.010', 'name' => 'Mustari S,T',         'group' => 'Kantor', 'position' => 'Admin'],
         ['no' => 2, 'npk' => '2000.1.011', 'name' => 'Budi Santoso',        'group' => 'Regu A', 'position' => 'Operator'],
         ['no' => 3, 'npk' => '2000.1.012', 'name' => 'Andi Wijaya',         'group' => 'Regu B', 'position' => 'Mekanik'],
         ['no' => 4, 'npk' => '2000.1.013', 'name' => 'Siti Aminah',         'group' => 'Kantor', 'position' => 'Staff'],
-    ];
-    $units = [
+    ]);
+    $units = $units ?? collect([
         ['no' => 1, 'name' => 'Excavator PC200',    'type' => 'Alat Berat'],
         ['no' => 2, 'name' => 'Dump Truck HD465',   'type' => 'Kendaraan'],
         ['no' => 3, 'name' => 'Bulldozer D85ESS',   'type' => 'Alat Berat'],
         ['no' => 4, 'name' => 'Wheel Loader WA380', 'type' => 'Alat Berat'],
-    ];
-    $trucks = [
+    ]);
+    $trucks = $trucks ?? collect([
         ['no' => 1, 'name' => 'Hino 500',        'plate' => 'B 9012 KSS', 'desc' => 'Truk Angkut Material'],
         ['no' => 2, 'name' => 'Mitsubishi Fuso', 'plate' => 'B 9013 KSS', 'desc' => 'Truk Tangki Air'],
         ['no' => 3, 'name' => 'Isuzu Giga',      'plate' => 'B 9014 KSS', 'desc' => 'Truk Angkut Batu'],
         ['no' => 4, 'name' => 'Scania P360',     'plate' => 'B 9015 KSS', 'desc' => 'Truk Trailer'],
-    ];
-    $inventories = [
+    ]);
+    $inventories = $inventories ?? collect([
         ['no' => 1, 'name' => 'Helm Safety',        'category' => 'APD'],
         ['no' => 2, 'name' => 'Sepatu Boots',       'category' => 'APD'],
         ['no' => 3, 'name' => 'Oli Mesin SAE 40',   'category' => 'Sparepart'],
         ['no' => 4, 'name' => 'Ban Truck 1000-20',  'category' => 'Sparepart'],
+    ]);
+    $masterActions = $masterActions ?? [
+        'karyawan' => ['store' => '#'],
+        'unit' => ['store' => '#'],
+        'truck' => ['store' => '#'],
+        'inventaris' => ['store' => '#'],
     ];
 @endphp
 
@@ -216,15 +249,19 @@
 
 @component('admin.layouts.card', ['title' => 'Data Karyawan', 'titleId' => 'masterTitle'])
     <!-- Toolbar -->
-    <div class="archive-toolbar">
-        <div class="search-box">
-            <span><i class="fi fi-rr-search"></i></span>
-            <input type="text" placeholder="Cari Karyawan" id="masterSearch">
+    <form class="archive-toolbar" method="GET" action="{{ route('admin.datamaster') }}">
+        <input type="hidden" name="pane" id="masterPaneInput" value="{{ $activePane ?? 'karyawan' }}">
+        <div class="search-action-group">
+            <div class="search-box">
+                <span><i class="fi fi-rr-search"></i></span>
+                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="Cari Karyawan" id="masterSearch">
+            </div>
+            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Cari</button>
         </div>
-        <button class="btn-tool btn-tool--primary" id="masterAddBtn">
+        <button type="button" class="btn-tool btn-tool--primary" id="masterAddBtn">
             <i class="fi fi-rr-user-add" id="masterAddIcon"></i> <span id="masterAddText">Tambah Pengguna</span>
         </button>
-    </div>
+    </form>
 
     <!-- PANE: Master Employees -->
     <div class="master-pane active" data-pane="karyawan">
@@ -239,7 +276,7 @@
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @foreach ($employees as $e)
-                    <tr class="tbody d-flex justify-content-between align-items-center">
+                    <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $e['update_url'] ?? '' }}">
                         <td class="col-no">{{ $e['no'] }}</td>
                         <td class="col-npk">{{ $e['npk'] }}</td>
                         <td class="col-name">{{ $e['name'] }}</td>
@@ -247,7 +284,11 @@
                         <td class="col-position">{{ $e['position'] }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
-                            <button type="button" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            <form method="POST" action="{{ $e['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            </form>
                         </td>
                     </tr>
                 @endforeach
@@ -266,13 +307,17 @@
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @foreach ($units as $u)
-                    <tr class="tbody d-flex justify-content-between align-items-center">
+                    <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $u['update_url'] ?? '' }}">
                         <td class="col-no">{{ $u['no'] }}</td>
                         <td class="col-name">{{ $u['name'] }}</td>
                         <td class="col-type">{{ $u['type'] }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
-                            <button type="button" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            <form method="POST" action="{{ $u['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            </form>
                         </td>
                     </tr>
                 @endforeach
@@ -292,14 +337,18 @@
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @foreach ($trucks as $t)
-                    <tr class="tbody d-flex justify-content-between align-items-center">
+                    <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $t['update_url'] ?? '' }}">
                         <td class="col-no">{{ $t['no'] }}</td>
                         <td class="col-name">{{ $t['name'] }}</td>
                         <td class="col-plate">{{ $t['plate'] }}</td>
                         <td class="col-desc">{{ $t['desc'] }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
-                            <button type="button" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            <form method="POST" action="{{ $t['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            </form>
                         </td>
                     </tr>
                 @endforeach
@@ -318,24 +367,39 @@
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @foreach ($inventories as $i)
-                    <tr class="tbody d-flex justify-content-between align-items-center">
+                    <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $i['update_url'] ?? '' }}">
                         <td class="col-no">{{ $i['no'] }}</td>
                         <td class="col-name">{{ $i['name'] }}</td>
                         <td class="col-category">{{ $i['category'] }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
-                            <button type="button" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            <form method="POST" action="{{ $i['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            </form>
                         </td>
                     </tr>
                 @endforeach
             </table>
         </div>
     </div>
+    @if (($activePane ?? 'karyawan') === 'karyawan' && method_exists($employees, 'links'))
+        @include('admin.layouts.pagination', ['paginator' => $employees, 'label' => 'karyawan'])
+    @elseif (($activePane ?? 'karyawan') === 'unit' && method_exists($units, 'links'))
+        @include('admin.layouts.pagination', ['paginator' => $units, 'label' => 'unit'])
+    @elseif (($activePane ?? 'karyawan') === 'truck' && method_exists($trucks, 'links'))
+        @include('admin.layouts.pagination', ['paginator' => $trucks, 'label' => 'truck'])
+    @elseif (($activePane ?? 'karyawan') === 'inventaris' && method_exists($inventories, 'links'))
+        @include('admin.layouts.pagination', ['paginator' => $inventories, 'label' => 'inventaris'])
+    @endif
 @endcomponent
 
 <div class="modal-overlay" id="masterFormModal" aria-hidden="true">
     <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="masterFormTitle">
-        <form data-preview-submit>
+        <form method="POST" action="#" id="masterForm">
+            @csrf
+            <input type="hidden" name="_method" id="masterFormMethod" value="POST">
             <div class="kss-modal__header">
                 <div class="kss-modal__icon">
                     <i class="fi fi-rr-database" id="masterFormIcon"></i>
@@ -414,6 +478,7 @@
         const masterTitle    = document.getElementById('masterTitle');
         const masterCrumb     = document.getElementById('masterCrumb');
         const masterSearch    = document.getElementById('masterSearch');
+        const masterPaneInput = document.getElementById('masterPaneInput');
         const masterAddText   = document.getElementById('masterAddText');
         const masterAddIcon   = document.getElementById('masterAddIcon');
         const masterAddBtn    = document.getElementById('masterAddBtn');
@@ -425,6 +490,9 @@
         const masterFormIcon = document.getElementById('masterFormIcon');
         const masterFormFields = document.getElementById('masterFormFields');
         const masterFormSubmit = document.getElementById('masterFormSubmit');
+        const masterForm = document.getElementById('masterForm');
+        const masterFormMethod = document.getElementById('masterFormMethod');
+        const masterActions = @json($masterActions);
         let activeMasterPane = 'karyawan';
 
         function switchMasterPane(pane) {
@@ -436,6 +504,7 @@
             if (masterTitle)   masterTitle.textContent = cfg.title;
             if (masterCrumb)   masterCrumb.textContent = cfg.title;
             if (masterSearch)  masterSearch.placeholder = cfg.search;
+            if (masterPaneInput) masterPaneInput.value = pane;
             if (masterAddText) masterAddText.textContent = cfg.add;
             if (masterAddIcon) masterAddIcon.className = cfg.icon;
         }
@@ -522,6 +591,8 @@
                 : `Masukkan detail ${schema.label.toLowerCase()} baru ke master data.`;
             masterFormIcon.className = schema.icon;
             masterFormSubmit.innerHTML = `<i class="fi fi-rr-disk"></i> ${mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Data'}`;
+            if (masterForm) masterForm.action = mode === 'edit' && values.updateUrl ? values.updateUrl : (masterActions[pane]?.store || '#');
+            if (masterFormMethod) masterFormMethod.value = mode === 'edit' ? 'PUT' : 'POST';
 
             masterFormFields.replaceChildren();
             schema.fields.forEach((field, index) => addField(field, values[field.key], index));
@@ -541,7 +612,7 @@
             });
         });
 
-        const initialPane = new URLSearchParams(window.location.search).get('pane') || 'karyawan';
+        const initialPane = new URLSearchParams(window.location.search).get('pane') || @json($activePane ?? 'karyawan');
         switchMasterPane(initialPane);
 
         masterAddBtn?.addEventListener('click', function () {
@@ -551,7 +622,8 @@
         document.querySelectorAll('.js-master-edit').forEach(function (button) {
             button.addEventListener('click', function () {
                 const pane = button.closest('.master-pane')?.getAttribute('data-pane') || activeMasterPane;
-                openMasterForm('edit', pane, readMasterRow(button.closest('tr'), pane));
+                const row = button.closest('tr');
+                openMasterForm('edit', pane, { ...readMasterRow(row, pane), updateUrl: row?.dataset.updateUrl || '' });
             });
         });
 
@@ -569,6 +641,7 @@
                 button.dataset.confirmSummary = rowData.name || rowData.npk || cfg.title;
                 button.dataset.confirmLabel = 'Hapus Data';
                 button.dataset.confirmIcon = 'fi fi-rr-trash';
+                button.dataset.confirmSubmit = 'true';
                 window.KssAdminModal.confirm(button);
             });
         });

@@ -319,20 +319,20 @@
 
 @section('content')
 @php
-    $stats = [
+    $stats = $stats ?? [
         ['label' => 'Laporan Hari ini',  'value' => '12',    'icon' => 'fi fi-sr-calendar', 'color' => 'green'],
         ['label' => 'Laporan Pending',   'value' => '8',     'icon' => 'fi fi-sr-document', 'color' => 'orange'],
         ['label' => 'Laporan Bulan ini', 'value' => '34',    'icon' => 'fi fi-sr-folder',   'color' => 'cyan'],
         ['label' => 'Total Laporan',     'value' => '1.252', 'icon' => 'fi fi-sr-book-alt', 'color' => 'blue'],
     ];
 
-    $reports = [
+    $reports = $reports ?? collect([
         ['no' => 1, 'title' => 'Laporan Shift Harian', 'id' => '#1', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
         ['no' => 2, 'title' => 'Laporan Shift Harian', 'id' => '#2', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
         ['no' => 3, 'title' => 'Laporan Shift Harian', 'id' => '#3', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
         ['no' => 4, 'title' => 'Laporan Shift Harian', 'id' => '#4', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
         ['no' => 5, 'title' => 'Laporan Shift Harian', 'id' => '#5', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
-    ];
+    ]);
 @endphp
 
 <div class="page-header">
@@ -355,21 +355,23 @@
 
 <!-- Riwayat Laporan -->
 @component('admin.layouts.card', ['title' => 'Riwayat Laporan'])
+    <form method="GET" action="{{ route('admin.archive') }}" id="archiveFilterForm">
     <!-- Toolbar -->
     <div class="archive-toolbar">
         <div class="search-box">
             <span><i class="fi fi-rr-search"></i></span>
-            <input type="text" placeholder="Pencarian Laporan">
+            <input type="text" name="q" value="{{ $archiveSearch ?? '' }}" placeholder="Pencarian Laporan">
         </div>
         <div class="archive-toolbar__actions">
             <div class="filter-select-wrapper toolbar-sort-wrapper">
-                <select class="native-select">
-                    <option value="newest">Terbaru</option>
-                    <option value="oldest">Terlama</option>
+                <select class="native-select" name="sort">
+                    <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
+                    <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
             <button type="button" class="btn-tool" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
+            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Terapkan</button>
             <button type="button"
                     class="btn-tool btn-tool--primary"
                     data-confirm
@@ -389,16 +391,17 @@
     <div class="archive-filters collapsed" id="archiveFilters">
         <div class="filter-field">
             <label>Tanggal</label>
-            <input type="date" class="filter-input">
+            <input type="date" class="filter-input" name="tanggal" value="{{ $selectedDate ?? '' }}">
         </div>
         <div class="filter-field">
             <label>Regu</label>
             <div class="filter-select-wrapper">
-                <select class="native-select">
-                    <option value="all">Semua Regu</option>
-                    <option value="A">Regu A</option>
-                    <option value="B">Regu B</option>
-                    <option value="C">Regu C</option>
+                <select class="native-select" name="regu">
+                    <option value="all" @selected(($selectedGroup ?? 'ALL') === 'ALL')>Semua Regu</option>
+                    <option value="A" @selected(($selectedGroup ?? 'ALL') === 'A')>Regu A</option>
+                    <option value="B" @selected(($selectedGroup ?? 'ALL') === 'B')>Regu B</option>
+                    <option value="C" @selected(($selectedGroup ?? 'ALL') === 'C')>Regu C</option>
+                    <option value="D" @selected(($selectedGroup ?? 'ALL') === 'D')>Regu D</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
@@ -406,18 +409,19 @@
         <div class="filter-field">
             <label>Shift</label>
             <div class="filter-select-wrapper">
-                <select class="native-select">
-                    <option value="all">Semua Shift</option>
-                    <option value="pagi">Shift Pagi</option>
-                    <option value="sore">Shift Sore</option>
-                    <option value="malam">Shift Malam</option>
+                <select class="native-select" name="shift">
+                    <option value="all" @selected(($selectedShift ?? 'all') === 'all')>Semua Shift</option>
+                    <option value="pagi" @selected(($selectedShift ?? 'all') === 'pagi')>Shift Pagi</option>
+                    <option value="sore" @selected(($selectedShift ?? 'all') === 'sore')>Shift Sore</option>
+                    <option value="malam" @selected(($selectedShift ?? 'all') === 'malam')>Shift Malam</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
         </div>
-        <button type="button"
+        <a href="{{ route('admin.archive') }}"
                 class="btn-reset"
                 data-confirm
+                data-confirm-redirect="{{ route('admin.archive') }}"
                 data-confirm-tone="warning"
                 data-confirm-title="Reset filter arsip?"
                 data-confirm-subtitle="Pilihan filter akan dikembalikan ke kondisi awal."
@@ -425,8 +429,9 @@
                 data-confirm-label="Reset Filter"
                 data-confirm-icon="fi fi-rr-refresh">
             Reset
-        </button>
+        </a>
     </div>
+    </form>
 
     <!-- Table -->
     <div class="table-responsive-wrapper">
@@ -441,7 +446,7 @@
                 <th class="aksi">Aksi</th>
             </tr>
 
-            @foreach ($reports as $r)
+            @forelse ($reports as $r)
                 <tr class="tbody d-flex justify-content-between align-items-center">
                     <td class="nomor">{{ $r['no'] }}</td>
                     <td class="column-2">
@@ -452,7 +457,7 @@
                     <td>{{ $r['regu'] }}</td>
                     <td class="column-3">
                         <div class="shift {{ $r['shift'] }}">
-                            <span class="icon-shift"><i class="fi fi-rr-sunrise"></i></span>
+                            <span class="icon-shift"><i class="{{ $r['shift_icon'] ?? 'fi fi-rr-sunrise' }}"></i></span>
                             <span class="text">{{ $r['shift_label'] }}</span>
                         </div>
                     </td>
@@ -466,6 +471,7 @@
                         <button type="button"
                                 class="btn-act download"
                                 data-confirm
+                                data-confirm-redirect="{{ $r['download_url'] ?? '#' }}"
                                 data-confirm-tone="success"
                                 data-confirm-title="Download laporan?"
                                 data-confirm-subtitle="File laporan akan disiapkan untuk diunduh."
@@ -475,25 +481,35 @@
                                 data-confirm-icon="fi fi-rr-download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <button type="button" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></button>
-                        <button type="button"
-                                class="btn-act delete"
-                                title="Hapus"
-                                data-confirm
-                                data-confirm-tone="danger"
-                                data-confirm-title="Hapus arsip laporan?"
-                                data-confirm-subtitle="Laporan akan dihapus dari daftar arsip."
-                                data-confirm-message="Tindakan hapus arsip sebaiknya hanya dilakukan jika dokumen tidak lagi valid."
-                                data-confirm-summary="{{ $r['title'] }} {{ $r['id'] }} - {{ $r['date'] }}"
-                                data-confirm-label="Hapus Arsip"
-                                data-confirm-icon="fi fi-rr-trash">
-                            <i class="fi fi-rr-trash"></i>
-                        </button>
+                        <a href="{{ $r['view_url'] ?? '#' }}" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="{{ $r['destroy_url'] ?? '#' }}">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                    class="btn-act delete"
+                                    title="Hapus"
+                                    data-confirm
+                                    data-confirm-submit="true"
+                                    data-confirm-tone="danger"
+                                    data-confirm-title="Hapus arsip laporan?"
+                                    data-confirm-subtitle="Laporan akan dihapus dari daftar arsip."
+                                    data-confirm-message="Tindakan hapus arsip sebaiknya hanya dilakukan jika dokumen tidak lagi valid."
+                                    data-confirm-summary="{{ $r['summary'] ?? ($r['title'].' '.$r['id'].' - '.$r['date']) }}"
+                                    data-confirm-label="Hapus Arsip"
+                                    data-confirm-icon="fi fi-rr-trash">
+                                <i class="fi fi-rr-trash"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr class="tbody d-flex justify-content-center align-items-center">
+                    <td class="column-1 text-muted-custom" style="min-width: 100%; justify-content: center;">Belum ada laporan arsip.</td>
+                </tr>
+            @endforelse
         </table>
     </div>
+    @include('admin.layouts.pagination', ['paginator' => $reports, 'label' => 'laporan'])
 @endcomponent
 @endsection
 

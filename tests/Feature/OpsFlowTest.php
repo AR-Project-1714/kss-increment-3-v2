@@ -12,6 +12,8 @@ use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -66,6 +68,18 @@ class OpsFlowTest extends TestCase
 
     public function test_admin_views_are_registered_and_render_successfully(): void
     {
+        $role = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $admin = User::create([
+            'name' => 'Admin Views',
+            'username' => 'admin-views',
+            'email' => 'admin-views@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        $this->get(route('admin.index'))->assertRedirect(route('login'));
+
         foreach ([
             'admin.index' => 'Dashboard Sistem',
             'admin.archive' => 'Riwayat Laporan',
@@ -75,10 +89,107 @@ class OpsFlowTest extends TestCase
             'admin.backup' => 'Manajemen Backup',
             'admin.help' => 'Pusat Bantuan',
         ] as $routeName => $expectedText) {
-            $this->get(route($routeName))
+            $this->actingAs($admin)
+                ->get(route($routeName))
                 ->assertOk()
                 ->assertSee($expectedText, false);
         }
+    }
+
+    public function test_admin_flash_error_is_rendered_as_toast_message(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $admin = User::create([
+            'name' => 'Admin Toast',
+            'username' => 'admin-toast',
+            'email' => 'admin-toast@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['error' => 'Status pengguna gagal diperbarui.'])
+            ->get(route('admin.user-manage'))
+            ->assertOk()
+            ->assertSee('class="toast-message error"', false)
+            ->assertSee('Status pengguna gagal diperbarui.', false)
+            ->assertDontSee('kss-alert', false);
+    }
+
+    public function test_admin_can_run_core_admin_actions(): void
+    {
+        Storage::fake('local');
+
+        $adminRole = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $operationalRole = Role::firstOrCreate(['name' => Role::OPERATIONAL]);
+        $admin = User::create([
+            'name' => 'Admin Action',
+            'username' => 'admin-action',
+            'email' => 'admin-action@example.com',
+            'password' => 'password',
+            'role_id' => $adminRole->id,
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.store'), [
+                'name' => 'Operator Baru',
+                'username' => 'operator-baru',
+                'password' => 'password',
+                'role_id' => $operationalRole->id,
+                'group' => 'A',
+                'signature' => UploadedFile::fake()->create('signature.png', 8, 'image/png'),
+            ])
+            ->assertRedirect();
+
+        $createdUser = User::where('username', 'operator-baru')->firstOrFail();
+        $signaturePath = $createdUser->signature_path;
+
+        $this->assertDatabaseHas('users', [
+            'id' => $createdUser->id,
+            'status' => 'aktif',
+            'group' => 'A',
+        ]);
+        $this->assertNotNull($signaturePath);
+        $this->assertStringStartsWith('signatures/signature-operator-baru-', $signaturePath);
+        $this->assertFileExists(public_path($signaturePath));
+        @unlink(public_path($signaturePath));
+
+        $this->actingAs($admin)
+            ->patch(route('admin.users.status', $createdUser))
+            ->assertRedirect();
+
+        $this->assertSame('nonaktif', $createdUser->fresh()->status);
+
+        $this->actingAs($admin)
+            ->post(route('admin.master.units.store'), [
+                'name' => 'Unit Admin Test',
+                'type' => 'Support',
+            ])
+            ->assertRedirect(route('admin.datamaster', ['pane' => 'unit']));
+
+        $this->assertDatabaseHas('master_units', ['name' => 'Unit Admin Test']);
+
+        $this->actingAs($admin)
+            ->post(route('admin.backup.generate'))
+            ->assertRedirect();
+
+        $this->assertNotEmpty(Storage::disk('local')->files('admin-backups'));
+
+        $this->actingAs($admin)
+            ->post(route('admin.help.ticket'), [
+                'category' => 'Akun & Role',
+                'priority' => 'Normal',
+                'title' => 'Butuh bantuan admin',
+                'description' => 'Tolong cek akses pengguna baru.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('admin_activity_logs', [
+            'type' => 'support',
+            'description' => 'Membuat tiket bantuan: Butuh bantuan admin',
+        ]);
     }
 
     public function test_manager_is_redirected_away_from_operational_pages(): void

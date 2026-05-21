@@ -265,18 +265,21 @@
     .log-type.update { background-color: var(--orange-main-10); color: var(--orange-main); }
     .log-type.login  { background-color: var(--blue-main-10);   color: var(--blue-main); }
     .log-type.error  { background-color: var(--red-main-10);    color: var(--red-main); }
+    .log-type.blue   { background-color: var(--blue-main-10);   color: var(--blue-main); }
+    .log-type.green  { background-color: var(--success-10);     color: var(--success); }
+    .log-type.red    { background-color: var(--red-main-10);    color: var(--red-main); }
 </style>
 @endpush
 
 @section('content')
 @php
-    $stats = [
+    $stats = $stats ?? [
         ['label' => 'Total Pengguna Aktif',      'value' => '12',       'icon' => 'fi fi-sr-user',         'color' => 'blue'],
         ['label' => 'Kapasitas Server Terpakai', 'value' => '65%',      'icon' => 'fi fi-sr-database',     'color' => 'cyan'],
         ['label' => 'Status Backup Terakhir',    'value' => 'Berhasil', 'icon' => 'fi fi-sr-cloud-upload', 'color' => 'green'],
     ];
 
-    $logs = [
+    $logs = $logs ?? [
         ['user' => 'Administrator Sistem', 'sub' => 'Role: Admin',             'unknown' => false, 'time' => '11 Mei 2026, 11:23', 'type' => 'update', 'type_label' => 'Update', 'desc' => 'Admin menonaktifkan akun <strong>"karu_a"</strong>', 'ip' => '192.168.1.104'],
         ['user' => 'Mustari, S.H',         'sub' => 'Role: Manajer',           'unknown' => false, 'time' => '10 Mei 2026, 23:11', 'type' => 'login',  'type_label' => 'Login',  'desc' => '<strong>"Pak Mustari"</strong> login ke dalam sistem', 'ip' => '192.168.1.104'],
         ['user' => 'Unknown',              'sub' => 'Username: mgr_mustari',    'unknown' => true,  'time' => '10 Mei 2026, 23:08', 'type' => 'error',  'type_label' => 'Error',  'desc' => 'Gagal Login: Percobaan password salah 3x oleh <strong>"Pak Mustari"</strong>', 'ip' => '192.168.1.104'],
@@ -303,21 +306,23 @@
 
 <!-- Riwayat Aktivitas Sistem -->
 @component('admin.layouts.card', ['title' => 'Riwayat Aktivitas Sistem'])
+    <form method="GET" action="{{ route('admin.log') }}" id="logFilterForm">
     <!-- Toolbar -->
     <div class="archive-toolbar">
         <div class="search-box">
             <span><i class="fi fi-rr-search"></i></span>
-            <input type="text" placeholder="Pencarian Laporan">
+            <input type="text" name="q" value="{{ $activitySearch ?? '' }}" placeholder="Pencarian aktivitas">
         </div>
         <div class="archive-toolbar__actions">
             <div class="filter-select-wrapper toolbar-sort-wrapper">
-                <select class="native-select">
-                    <option value="newest">Terbaru</option>
-                    <option value="oldest">Terlama</option>
+                <select class="native-select" name="sort">
+                    <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
+                    <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
             <button type="button" class="btn-tool" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
+            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Terapkan</button>
             <button type="button"
                     class="btn-tool btn-tool--primary"
                     data-confirm
@@ -337,16 +342,18 @@
     <div class="archive-filters collapsed" id="archiveFilters">
         <div class="filter-field">
             <label>Tanggal</label>
-            <input type="date" class="filter-input">
+            <input type="date" class="filter-input" name="tanggal" value="{{ $selectedDate ?? '' }}">
         </div>
         <div class="filter-field">
             <label>Role</label>
             <div class="filter-select-wrapper">
-                <select class="native-select">
-                    <option value="all">Semua Role</option>
-                    <option value="admin">Admin</option>
-                    <option value="manajer">Manajer</option>
-                    <option value="karyawan">Karyawan</option>
+                <select class="native-select" name="role">
+                    <option value="all" @selected(($selectedRole ?? 'all') === 'all')>Semua Role</option>
+                    <option value="admin" @selected(($selectedRole ?? 'all') === 'admin')>Admin</option>
+                    <option value="manajer" @selected(($selectedRole ?? 'all') === 'manajer')>Manajer</option>
+                    <option value="operasional" @selected(($selectedRole ?? 'all') === 'operasional')>Operasional</option>
+                    <option value="pemeliharaan" @selected(($selectedRole ?? 'all') === 'pemeliharaan')>Pemeliharaan</option>
+                    <option value="safety" @selected(($selectedRole ?? 'all') === 'safety')>Safety</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
@@ -354,18 +361,22 @@
         <div class="filter-field">
             <label>Tipe Aktivitas</label>
             <div class="filter-select-wrapper">
-                <select class="native-select">
-                    <option value="all">Semua Tipe</option>
-                    <option value="login">Login</option>
-                    <option value="update">Update</option>
-                    <option value="error">Error</option>
+                <select class="native-select" name="type">
+                    <option value="all" @selected(($selectedType ?? 'all') === 'all')>Semua Tipe</option>
+                    <option value="update" @selected(($selectedType ?? 'all') === 'update')>Update</option>
+                    <option value="delete" @selected(($selectedType ?? 'all') === 'delete')>Hapus</option>
+                    <option value="backup" @selected(($selectedType ?? 'all') === 'backup')>Backup</option>
+                    <option value="support" @selected(($selectedType ?? 'all') === 'support')>Bantuan</option>
+                    <option value="login" @selected(($selectedType ?? 'all') === 'login')>Login</option>
+                    <option value="error" @selected(($selectedType ?? 'all') === 'error')>Error</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
         </div>
-        <button type="button"
+        <a href="{{ route('admin.log') }}"
                 class="btn-reset"
                 data-confirm
+                data-confirm-redirect="{{ route('admin.log') }}"
                 data-confirm-tone="warning"
                 data-confirm-title="Reset filter log?"
                 data-confirm-subtitle="Pilihan filter log akan dikembalikan ke kondisi awal."
@@ -373,8 +384,9 @@
                 data-confirm-label="Reset Filter"
                 data-confirm-icon="fi fi-rr-refresh">
             Reset
-        </button>
+        </a>
     </div>
+    </form>
 
     <!-- Table -->
     <div class="table-responsive-wrapper">
@@ -387,7 +399,7 @@
                 <th class="col-ip">IP Address</th>
             </tr>
 
-            @foreach ($logs as $l)
+            @forelse ($logs as $l)
                 <tr class="tbody d-flex justify-content-between align-items-center">
                     <td class="col-user">
                         <span class="log-user__name {{ $l['unknown'] ? 'unknown' : '' }}">{{ $l['user'] }}</span>
@@ -398,7 +410,11 @@
                     <td class="col-desc">{!! $l['desc'] !!}</td>
                     <td class="col-ip">{{ $l['ip'] }}</td>
                 </tr>
-            @endforeach
+            @empty
+                <tr class="tbody d-flex justify-content-center align-items-center">
+                    <td class="col-desc text-muted-custom" style="min-width: 100%; justify-content: center;">Belum ada aktivitas admin yang tercatat.</td>
+                </tr>
+            @endforelse
         </table>
     </div>
 @endcomponent

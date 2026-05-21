@@ -210,18 +210,20 @@
 @section('content')
 @php
     // Sample data — ganti dengan binding controller saat sudah ada backend.
-    $stats = [
+    $stats = $stats ?? [
         ['label' => 'Total Pengguna Aktif',      'value' => '12',  'icon' => 'fi fi-sr-user',         'color' => 'blue',  'success' => false],
         ['label' => 'Kapasitas Server Terpakai', 'value' => '65%', 'icon' => 'fi fi-sr-database',     'color' => 'cyan',  'success' => false],
         ['label' => 'Status Backup Terakhir',    'value' => 'Berhasil', 'icon' => 'fi fi-sr-cloud-upload', 'color' => 'green', 'success' => true],
     ];
 
-    $auditLogs = [
+    $auditLogs = $auditLogs ?? [
         ['time' => '10:24', 'type' => 'blue',  'text' => 'Admin menonaktifkan akun <strong>"karu_a"</strong>'],
         ['time' => '10:24', 'type' => 'red',   'text' => 'Gagal Login: Percobaan password salah 3x oleh <strong>"Pak Mustari"</strong>'],
         ['time' => '10:24', 'type' => 'green', 'text' => '<strong>"Pak Nurul Huda"</strong> berhasil membuat laporan operasional'],
         ['time' => '10:24', 'type' => 'dark',  'text' => '<strong>"Pak Sabarudin"</strong> login ke sistem'],
     ];
+
+    $roles = $roles ?? collect();
 @endphp
 
 <div class="page-header">
@@ -280,22 +282,27 @@
             </div>
         </div>
         <div class="quick-action-body">
-            <div class="quick-action-item"
-                 data-confirm
-                 data-confirm-tone="warning"
-                 data-confirm-title="Generate manual backup?"
-                 data-confirm-subtitle="Sistem akan membuat cadangan database."
-                 data-confirm-message="Gunakan aksi ini saat ingin mengambil cadangan terbaru di luar jadwal otomatis."
-                 data-confirm-summary="Output preview: file backup .zip"
-                 data-confirm-label="Generate Backup"
-                 data-confirm-icon="fi fi-rr-rotate-right">
-                <div class="quick-action-icon quick-action-icon--blue"><i class="fi fi-rr-rotate-right"></i></div>
-                <div class="quick-action-text">
-                    <div class="quick-action-title">Generate Manual Backup</div>
-                    <div class="quick-action-sub">Buat cadangan database (.zip)</div>
-                </div>
-                <span class="quick-action-chevron"><i class="fi fi-rr-angle-small-right"></i></span>
-            </div>
+            <form method="POST" action="{{ route('admin.backup.generate') }}">
+                @csrf
+                <button type="submit"
+                        class="quick-action-item w-100 border-0 bg-transparent text-start"
+                        data-confirm
+                        data-confirm-submit="true"
+                        data-confirm-tone="warning"
+                        data-confirm-title="Generate manual backup?"
+                        data-confirm-subtitle="Sistem akan membuat cadangan database."
+                        data-confirm-message="Gunakan aksi ini saat ingin mengambil cadangan terbaru di luar jadwal otomatis."
+                        data-confirm-summary="Output: file backup .json"
+                        data-confirm-label="Generate Backup"
+                        data-confirm-icon="fi fi-rr-rotate-right">
+                    <div class="quick-action-icon quick-action-icon--blue"><i class="fi fi-rr-rotate-right"></i></div>
+                    <div class="quick-action-text">
+                        <div class="quick-action-title">Generate Manual Backup</div>
+                        <div class="quick-action-sub">Buat cadangan data aplikasi (.json)</div>
+                    </div>
+                    <span class="quick-action-chevron"><i class="fi fi-rr-angle-small-right"></i></span>
+                </button>
+            </form>
             <div class="quick-action-item" data-modal-target="dashboardUserModal">
                 <div class="quick-action-icon quick-action-icon--green"><i class="fi fi-rr-user-add"></i></div>
                 <div class="quick-action-text">
@@ -311,7 +318,8 @@
 
 <div class="modal-overlay" id="dashboardUserModal" aria-hidden="true">
     <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="dashboardUserTitle">
-        <form data-preview-submit>
+        <form method="POST" action="{{ route('admin.users.store') }}" enctype="multipart/form-data">
+            @csrf
             <div class="kss-modal__header">
                 <div class="kss-modal__icon kss-modal__icon--success">
                     <i class="fi fi-rr-user-add"></i>
@@ -328,21 +336,21 @@
                 <div class="kss-modal__grid">
                     <div class="kss-modal__field">
                         <label for="dashboardUserName">Nama Lengkap</label>
-                        <input class="kss-modal__input" id="dashboardUserName" type="text" placeholder="Nama pengguna" data-modal-focus>
+                        <input class="kss-modal__input" id="dashboardUserName" name="name" type="text" placeholder="Nama pengguna" data-modal-focus required>
                     </div>
                     <div class="kss-modal__field">
                         <label for="dashboardUsername">Username</label>
-                        <input class="kss-modal__input" id="dashboardUsername" type="text" placeholder="username">
+                        <input class="kss-modal__input" id="dashboardUsername" name="username" type="text" placeholder="username" required>
                     </div>
                     <div class="kss-modal__field">
                         <label for="dashboardUserRole">Role</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="dashboardUserRole">
-                                <option>Operasional</option>
-                                <option>Admin</option>
-                                <option>Manajer</option>
-                                <option>Pemeliharaan</option>
-                                <option>Safety</option>
+                            <select class="kss-modal__native-select" id="dashboardUserRole" name="role_id" required>
+                                @foreach ($roles as $roleOption)
+                                    <option value="{{ $roleOption->id }}" @selected($roleOption->name === \App\Models\Role::OPERATIONAL)>
+                                        {{ \App\Models\Role::displayName($roleOption->name) }}
+                                    </option>
+                                @endforeach
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
@@ -350,18 +358,23 @@
                     <div class="kss-modal__field">
                         <label for="dashboardUserGroup">Regu</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="dashboardUserGroup">
-                                <option>Regu A</option>
-                                <option>Regu B</option>
-                                <option>Regu C</option>
-                                <option>Kantor</option>
+                            <select class="kss-modal__native-select" id="dashboardUserGroup" name="group">
+                                <option value="A">Regu A</option>
+                                <option value="B">Regu B</option>
+                                <option value="C">Regu C</option>
+                                <option value="D">Regu D</option>
+                                <option value="Kantor">Kantor</option>
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
                     </div>
                     <div class="kss-modal__field kss-modal__field--full">
-                        <label for="dashboardUserNote">Catatan</label>
-                        <textarea class="kss-modal__textarea" id="dashboardUserNote" placeholder="Catatan singkat untuk akun baru"></textarea>
+                        <label for="dashboardUserPassword">Password Awal</label>
+                        <input class="kss-modal__input" id="dashboardUserPassword" name="password" type="password" placeholder="Masukkan password awal" required>
+                    </div>
+                    <div class="kss-modal__field kss-modal__field--full">
+                        <label for="dashboardUserSignature">Tanda Tangan PNG</label>
+                        <input class="kss-modal__input" id="dashboardUserSignature" name="signature" type="file" accept="image/png">
                     </div>
                 </div>
             </div>

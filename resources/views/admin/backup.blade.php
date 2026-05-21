@@ -245,18 +245,31 @@
 
 @section('content')
 @php
-    $stats = [
+    $stats = $stats ?? [
         ['label' => 'Backup Terakhir', 'value' => '21 Mei 2026', 'icon' => 'fi fi-sr-cloud-check', 'color' => 'green'],
         ['label' => 'Total Cadangan', 'value' => '18', 'icon' => 'fi fi-sr-folder', 'color' => 'blue'],
         ['label' => 'Storage Terpakai', 'value' => '62%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan'],
         ['label' => 'Retensi Aktif', 'value' => '30 Hari', 'icon' => 'fi fi-sr-calendar', 'color' => 'orange'],
     ];
 
-    $backups = [
+    $backups = $backups ?? collect([
         ['name' => 'backup-kss-20260521-0200.zip', 'meta' => 'Database + lampiran tanda tangan', 'date' => '21 Mei 2026, 02:00', 'size' => '428 MB', 'type' => 'Otomatis', 'status' => 'success', 'status_label' => 'Berhasil'],
         ['name' => 'backup-kss-20260520-0200.zip', 'meta' => 'Database + file laporan', 'date' => '20 Mei 2026, 02:00', 'size' => '421 MB', 'type' => 'Otomatis', 'status' => 'success', 'status_label' => 'Berhasil'],
         ['name' => 'backup-kss-manual-20260519.zip', 'meta' => 'Backup manual sebelum maintenance', 'date' => '19 Mei 2026, 16:42', 'size' => '418 MB', 'type' => 'Manual', 'status' => 'success', 'status_label' => 'Berhasil'],
         ['name' => 'backup-kss-20260518-0200.zip', 'meta' => 'Database + file laporan', 'date' => '18 Mei 2026, 02:00', 'size' => '410 MB', 'type' => 'Otomatis', 'status' => 'warning', 'status_label' => 'Perlu Cek'],
+    ]);
+
+    $backupSchedule = $backupSchedule ?? [
+        'frequency' => 'Harian',
+        'time' => '02:00',
+        'retention' => '30 Hari',
+        'target' => 'Local Storage',
+    ];
+
+    $backupStorage = $backupStorage ?? [
+        'used_label' => '18.6 GB dipakai',
+        'capacity_label' => '30 GB tersedia',
+        'percent' => 62,
     ];
 @endphp
 
@@ -298,18 +311,22 @@
                 <button type="button" class="btn-tool" data-modal-target="backupScheduleModal">
                     <i class="fi fi-rr-calendar-clock"></i> Atur Jadwal
                 </button>
-                <button type="button"
-                        class="btn-tool btn-tool--primary"
-                        data-confirm
-                        data-confirm-tone="warning"
-                        data-confirm-title="Generate backup manual?"
-                        data-confirm-subtitle="Cadangan sistem akan dibuat dari kondisi data saat ini."
-                        data-confirm-message="Proses backup manual disiapkan untuk database, lampiran laporan, dan tanda tangan pengguna."
-                        data-confirm-summary="Estimasi ukuran: 430 MB"
-                        data-confirm-label="Generate Backup"
-                        data-confirm-icon="fi fi-rr-rotate-right">
-                    <i class="fi fi-rr-rotate-right"></i> Generate Backup
-                </button>
+                <form method="POST" action="{{ route('admin.backup.generate') }}">
+                    @csrf
+                    <button type="submit"
+                            class="btn-tool btn-tool--primary"
+                            data-confirm
+                            data-confirm-submit="true"
+                            data-confirm-tone="warning"
+                            data-confirm-title="Generate backup manual?"
+                            data-confirm-subtitle="Cadangan sistem akan dibuat dari kondisi data saat ini."
+                            data-confirm-message="Proses backup manual disiapkan untuk database, laporan, dan master data."
+                            data-confirm-summary="Output: file backup .json"
+                            data-confirm-label="Generate Backup"
+                            data-confirm-icon="fi fi-rr-rotate-right">
+                        <i class="fi fi-rr-rotate-right"></i> Generate Backup
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -336,6 +353,7 @@
                                     class="btn-act download"
                                     title="Download"
                                     data-confirm
+                                    data-confirm-redirect="{{ $backup['download_url'] ?? '#' }}"
                                     data-confirm-tone="success"
                                     data-confirm-title="Download backup?"
                                     data-confirm-subtitle="File backup akan disiapkan untuk diunduh."
@@ -345,32 +363,41 @@
                                     data-confirm-icon="fi fi-rr-download">
                                 <i class="fi fi-rr-download"></i>
                             </button>
-                            <button type="button"
-                                    class="btn-act restore"
-                                    title="Restore"
-                                    data-confirm
-                                    data-confirm-tone="warning"
-                                    data-confirm-title="Restore dari backup?"
-                                    data-confirm-subtitle="Data sistem akan dikembalikan ke titik cadangan yang dipilih."
-                                    data-confirm-message="Restore adalah tindakan sensitif. Verifikasi file dan waktu backup sebelum melanjutkan."
-                                    data-confirm-summary="{{ $backup['name'] }}"
-                                    data-confirm-label="Restore"
-                                    data-confirm-icon="fi fi-rr-time-past">
-                                <i class="fi fi-rr-time-past"></i>
-                            </button>
-                            <button type="button"
-                                    class="btn-act delete"
-                                    title="Hapus"
-                                    data-confirm
-                                    data-confirm-tone="danger"
-                                    data-confirm-title="Hapus file backup?"
-                                    data-confirm-subtitle="File backup akan dihapus dari daftar cadangan."
-                                    data-confirm-message="Pastikan file ini sudah melewati masa retensi atau sudah dipindahkan ke penyimpanan lain."
-                                    data-confirm-summary="{{ $backup['name'] }}"
-                                    data-confirm-label="Hapus Backup"
-                                    data-confirm-icon="fi fi-rr-trash">
-                                <i class="fi fi-rr-trash"></i>
-                            </button>
+                            <form method="POST" action="{{ $backup['restore_url'] ?? '#' }}">
+                                @csrf
+                                <button type="submit"
+                                        class="btn-act restore"
+                                        title="Restore"
+                                        data-confirm
+                                        data-confirm-submit="true"
+                                        data-confirm-tone="warning"
+                                        data-confirm-title="Restore dari backup?"
+                                        data-confirm-subtitle="Permintaan restore akan dicatat."
+                                        data-confirm-message="Restore adalah tindakan sensitif. File akan diverifikasi oleh admin server sebelum data dikembalikan."
+                                        data-confirm-summary="{{ $backup['name'] }}"
+                                        data-confirm-label="Catat Restore"
+                                        data-confirm-icon="fi fi-rr-time-past">
+                                    <i class="fi fi-rr-time-past"></i>
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ $backup['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="btn-act delete"
+                                        title="Hapus"
+                                        data-confirm
+                                        data-confirm-submit="true"
+                                        data-confirm-tone="danger"
+                                        data-confirm-title="Hapus file backup?"
+                                        data-confirm-subtitle="File backup akan dihapus dari daftar cadangan."
+                                        data-confirm-message="Pastikan file ini sudah melewati masa retensi atau sudah dipindahkan ke penyimpanan lain."
+                                        data-confirm-summary="{{ $backup['name'] }}"
+                                        data-confirm-label="Hapus Backup"
+                                        data-confirm-icon="fi fi-rr-trash">
+                                    <i class="fi fi-rr-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </div>
                 @endforeach
@@ -381,10 +408,10 @@
     <div class="side-panel">
         <div class="backup-card">
             <div class="backup-card__title"><i class="fi fi-sr-database"></i> Kapasitas Storage</div>
-            <div class="storage-meter"><span></span></div>
+            <div class="storage-meter"><span style="width: {{ $backupStorage['percent'] }}%;"></span></div>
             <div class="backup-meta">
-                <span>18.6 GB dipakai</span>
-                <span>30 GB tersedia</span>
+                <span>{{ $backupStorage['used_label'] }}</span>
+                <span>{{ $backupStorage['capacity_label'] }}</span>
             </div>
         </div>
 
@@ -393,19 +420,19 @@
             <div class="schedule-list">
                 <div class="schedule-item">
                     <span>Frekuensi</span>
-                    <strong>Harian</strong>
+                    <strong>{{ $backupSchedule['frequency'] }}</strong>
                 </div>
                 <div class="schedule-item">
                     <span>Jam Eksekusi</span>
-                    <strong>02:00 WITA</strong>
+                    <strong>{{ $backupSchedule['time'] }} WITA</strong>
                 </div>
                 <div class="schedule-item">
                     <span>Retensi</span>
-                    <strong>30 Hari</strong>
+                    <strong>{{ $backupSchedule['retention'] }}</strong>
                 </div>
                 <div class="schedule-item">
                     <span>Tujuan</span>
-                    <strong>Local Storage</strong>
+                    <strong>{{ $backupSchedule['target'] }}</strong>
                 </div>
             </div>
         </div>
@@ -413,7 +440,7 @@
         <div class="backup-card">
             <div class="backup-card__title"><i class="fi fi-sr-shield-check"></i> Validasi Terakhir</div>
             <div class="kss-modal__message">
-                Pemeriksaan checksum terakhir selesai pada 21 Mei 2026 pukul 02:11 WITA. Tidak ada file yang rusak.
+                Pemeriksaan backup terakhir mengikuti file cadangan terbaru yang tersimpan di storage lokal aplikasi.
             </div>
         </div>
     </div>
@@ -421,7 +448,9 @@
 
 <div class="modal-overlay" id="backupScheduleModal" aria-hidden="true">
     <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="backupScheduleTitle">
-        <form data-preview-submit>
+        <form method="POST" action="{{ route('admin.backup.schedule') }}">
+            @csrf
+            @method('PUT')
             <div class="kss-modal__header">
                 <div class="kss-modal__icon">
                     <i class="fi fi-rr-calendar-clock"></i>
@@ -439,26 +468,26 @@
                     <div class="kss-modal__field">
                         <label for="backupFrequency">Frekuensi</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="backupFrequency">
-                                <option>Harian</option>
-                                <option>Mingguan</option>
-                                <option>Bulanan</option>
+                            <select class="kss-modal__native-select" id="backupFrequency" name="frequency">
+                                <option @selected($backupSchedule['frequency'] === 'Harian')>Harian</option>
+                                <option @selected($backupSchedule['frequency'] === 'Mingguan')>Mingguan</option>
+                                <option @selected($backupSchedule['frequency'] === 'Bulanan')>Bulanan</option>
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
                     </div>
                     <div class="kss-modal__field">
                         <label for="backupTime">Jam Backup</label>
-                        <input class="kss-modal__input" id="backupTime" type="time" value="02:00">
+                        <input class="kss-modal__input" id="backupTime" name="time" type="time" value="{{ $backupSchedule['time'] }}">
                     </div>
                     <div class="kss-modal__field">
                         <label for="backupRetention">Retensi</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="backupRetention">
-                                <option>14 Hari</option>
-                                <option selected>30 Hari</option>
-                                <option>60 Hari</option>
-                                <option>90 Hari</option>
+                            <select class="kss-modal__native-select" id="backupRetention" name="retention">
+                                <option @selected($backupSchedule['retention'] === '14 Hari')>14 Hari</option>
+                                <option @selected($backupSchedule['retention'] === '30 Hari')>30 Hari</option>
+                                <option @selected($backupSchedule['retention'] === '60 Hari')>60 Hari</option>
+                                <option @selected($backupSchedule['retention'] === '90 Hari')>90 Hari</option>
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
@@ -466,10 +495,10 @@
                     <div class="kss-modal__field">
                         <label for="backupTarget">Tujuan Backup</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="backupTarget">
-                                <option>Local Storage</option>
-                                <option>External Drive</option>
-                                <option>Cloud Storage</option>
+                            <select class="kss-modal__native-select" id="backupTarget" name="target">
+                                <option @selected($backupSchedule['target'] === 'Local Storage')>Local Storage</option>
+                                <option @selected($backupSchedule['target'] === 'External Drive')>External Drive</option>
+                                <option @selected($backupSchedule['target'] === 'Cloud Storage')>Cloud Storage</option>
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>

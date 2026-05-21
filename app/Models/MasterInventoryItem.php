@@ -13,6 +13,7 @@ class MasterInventoryItem extends Model
 
     protected $fillable = [
         'name',
+        'category',
         'stock',
         'status',
     ];

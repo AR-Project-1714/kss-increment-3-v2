@@ -232,7 +232,7 @@
 
 @section('content')
 @php
-    $topics = [
+    $topics = $topics ?? [
         ['title' => 'Akun & Role', 'text' => 'Status akun, role pengguna, dan pembagian akses.', 'icon' => 'fi fi-sr-user', 'color' => ''],
         ['title' => 'Laporan Operasional', 'text' => 'Alur laporan, arsip, tanda tangan, dan export dokumen.', 'icon' => 'fi fi-sr-document', 'color' => 'green'],
         ['title' => 'Backup Sistem', 'text' => 'Jadwal cadangan, restore, dan validasi file backup.', 'icon' => 'fi fi-sr-cloud-upload', 'color' => 'orange'],
@@ -241,7 +241,7 @@
         ['title' => 'Integrasi File', 'text' => 'Lampiran laporan, tanda tangan, dan file export.', 'icon' => 'fi fi-sr-folder', 'color' => 'green'],
     ];
 
-    $faqs = [
+    $faqs = $faqs ?? [
         ['q' => 'Mengapa menu admin bisa dibuka tanpa login?', 'a' => 'Mode ini disiapkan sebagai preview tampilan agar halaman admin dapat diuji selama pengembangan. Proteksi autentikasi dapat dipasang kembali saat halaman masuk tahap produksi.'],
         ['q' => 'Apa yang perlu dicek jika backup gagal?', 'a' => 'Periksa kapasitas storage, izin tulis folder penyimpanan, koneksi database, dan log sistem pada waktu eksekusi backup.'],
         ['q' => 'Bagaimana status pengguna dinonaktifkan?', 'a' => 'Status pengguna dapat diubah lewat toggle pada tabel Kelola Pengguna. Pada integrasi backend, perubahan ini sebaiknya dikonfirmasi dan dicatat ke audit log.'],
@@ -339,7 +339,8 @@
 
 <div class="modal-overlay" id="supportTicketModal" aria-hidden="true">
     <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="supportTicketTitle">
-        <form data-preview-submit>
+        <form method="POST" action="{{ route('admin.help.ticket') }}">
+            @csrf
             <div class="kss-modal__header">
                 <div class="kss-modal__icon">
                     <i class="fi fi-rr-comment-alt"></i>
@@ -357,7 +358,7 @@
                     <div class="kss-modal__field">
                         <label for="ticketCategory">Kategori</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="ticketCategory">
+                            <select class="kss-modal__native-select" id="ticketCategory" name="category" required>
                                 <option>Akun & Role</option>
                                 <option>Laporan Operasional</option>
                                 <option>Backup Sistem</option>
@@ -370,7 +371,7 @@
                     <div class="kss-modal__field">
                         <label for="ticketPriority">Prioritas</label>
                         <div class="kss-modal__select-wrapper">
-                            <select class="kss-modal__native-select" id="ticketPriority">
+                            <select class="kss-modal__native-select" id="ticketPriority" name="priority" required>
                                 <option>Normal</option>
                                 <option>Tinggi</option>
                                 <option>Kritis</option>
@@ -380,11 +381,11 @@
                     </div>
                     <div class="kss-modal__field kss-modal__field--full">
                         <label for="ticketTitle">Judul Tiket</label>
-                        <input class="kss-modal__input" id="ticketTitle" type="text" placeholder="Ringkasan kendala" data-modal-focus>
+                        <input class="kss-modal__input" id="ticketTitle" name="title" type="text" placeholder="Ringkasan kendala" data-modal-focus required>
                     </div>
                     <div class="kss-modal__field kss-modal__field--full">
                         <label for="ticketDescription">Detail Bantuan</label>
-                        <textarea class="kss-modal__textarea" id="ticketDescription" placeholder="Tuliskan detail kendala atau permintaan bantuan"></textarea>
+                        <textarea class="kss-modal__textarea" id="ticketDescription" name="description" placeholder="Tuliskan detail kendala atau permintaan bantuan" required></textarea>
                     </div>
                 </div>
             </div>

@@ -86,20 +86,15 @@
 
     <!-- Logout -->
     <div class="sidebar__footer">
-        <a href="#"
-           class="sidebar__logout"
-           data-tooltip="Logout"
-           data-confirm
-           data-confirm-tone="danger"
-           data-confirm-title="Keluar dari admin preview?"
-           data-confirm-subtitle="Sesi preview admin akan ditutup."
-           data-confirm-message="Karena halaman admin sedang dibuat tanpa login, aksi ini hanya berupa konfirmasi tampilan."
-           data-confirm-summary="Preview tanpa autentikasi"
-           data-confirm-label="Keluar"
-           data-confirm-icon="fi fi-br-sign-out-alt">
-            <span class="nav-icon"><i class="fi fi-br-sign-out-alt"></i></span>
-            <span class="nav-label">Logout</span>
-        </a>
+        <form method="POST" action="{{ route('logout') }}">
+            @csrf
+            <button type="submit"
+                    class="sidebar__logout w-100 border-0"
+                    data-tooltip="Logout">
+                <span class="nav-icon"><i class="fi fi-br-sign-out-alt"></i></span>
+                <span class="nav-label">Logout</span>
+            </button>
+        </form>
     </div>
 
 </aside>
