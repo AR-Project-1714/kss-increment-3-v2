@@ -204,6 +204,16 @@
     }
 
     .quick-action-plus i { position: relative; top: 1px; }
+
+    /* =============================================
+       MOBILE — stack the two-column panel grid
+       ============================================= */
+    @media (max-width: 900px) {
+        .dashboard-panels {
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+    }
 </style>
 @endpush
 

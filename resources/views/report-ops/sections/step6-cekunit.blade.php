@@ -9,7 +9,7 @@
 
             <!-- SUB TAB NAVIGATION (Kendaraan, Inventaris, Lingkungan) -->
             <div class="inspection-header d-flex justify-content-between align-items-end align-self-stretch mb-2">
-                <div class="tab-group">
+                <div class="tab-group unit">
                     <div class="tab-sections active" id="subtab-unit">
                         <span class="icon"><i class="fi fi-rr-truck-side"></i></span>
                         <span>Unit Kendaraan</span>

@@ -239,11 +239,21 @@
             max-width: 0;
         }
 
+        /* ---- Main (logo + scrollable nav) ---- */
+        .sidebar__main {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
         /* ---- Navigation ---- */
         .sidebar__nav {
             display: flex;
             flex-direction: column;
-            flex: 1;
+            flex: 1 1 auto;
+            min-height: 0;
             margin-top: 6px;
             gap: 0;
             overflow-y: auto;
@@ -428,6 +438,7 @@
         .sidebar__footer {
             border-top: 1px solid var(--smooth-border);
             padding-top: 12px;
+            flex-shrink: 0;
         }
 
         .sidebar__logout {
@@ -941,14 +952,16 @@
             justify-content: center;
             font-size: 12px;
             flex-shrink: 0;
+
         }
 
-        .stat-card__icon i { position: relative; top: 1px; }
+        .stat-card__icon i { position: relative; top: 2px; }
 
         .stat-card__icon--blue   { background-color: var(--blue-main-10);   color: var(--blue-main); }
         .stat-card__icon--orange { background-color: var(--orange-main-10); color: var(--orange-main); }
         .stat-card__icon--green  { background-color: var(--success-10);     color: var(--success); }
         .stat-card__icon--cyan   { background-color: var(--cyan-main-10);   color: var(--cyan-main); }
+        .stat-card__icon--red    { background-color: var(--red-main-10);    color: var(--red-main); }
 
         /* =============================================
            PAGE FOOTER
@@ -1002,6 +1015,22 @@
 
         .modal-box--sm { width: min(420px, calc(100vw - 32px)); }
         .modal-box--wide { width: min(720px, calc(100vw - 32px)); }
+
+        /* Modal tambah/edit data master dibuat lebih besar & lega agar nyaman diisi.
+           overflow:visible (box + body) supaya dropdown select tidak terpotong/ketutup. */
+        #masterFormModal .modal-box { width: min(880px, calc(100vw - 40px)); overflow: visible; }
+        #masterFormModal .kss-modal__header { padding: 22px 26px 18px; border-radius: 10px 10px 0 0; }
+        #masterFormModal .kss-modal__body { padding: 22px 26px; gap: 18px; overflow: visible; }
+        #masterFormModal .kss-modal__footer { padding: 16px 26px 20px; border-radius: 0 0 10px 10px; }
+        #masterFormModal .kss-modal__grid { gap: 16px 18px; }
+        #masterFormModal .kss-modal__icon { width: 44px; height: 44px; font-size: 18px; }
+        #masterFormModal .kss-modal__title { font-size: 17px; }
+        #masterFormModal .kss-modal__subtitle { font-size: 12px; }
+        #masterFormModal .kss-modal__field label { font-size: 11px; }
+        #masterFormModal .kss-modal__input,
+        #masterFormModal .kss-modal__textarea { padding: 11px 13px; font-size: 13px; }
+        #masterFormModal .kss-modal__select-trigger { min-height: 44px; font-size: 13px; }
+        #masterFormModal .kss-modal__select-options { max-height: 280px; }
 
         .modal-box > form {
             display: flex;
@@ -1309,13 +1338,175 @@
 
         @media (max-width: 640px) {
             .modal-overlay { align-items: flex-end; padding: 12px; }
-            .modal-box { width: 100%; max-height: calc(100vh - 24px); }
+            .modal-box,
+            .modal-box--wide,
+            .modal-box--sm { width: 100%; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
             .kss-modal__grid { grid-template-columns: 1fr; }
             .kss-modal__field--full { grid-column: auto; }
             .kss-modal__footer { flex-direction: column-reverse; }
             .kss-modal__button { width: 100%; }
         }
+
+        /* =============================================
+           SIDEBAR BACKDROP (mobile drawer)
+           ============================================= */
+        .sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            padding: 0;
+            border: 0;
+            background-color: rgba(15, 23, 42, 0.48);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.24s ease, visibility 0.24s ease;
+        }
+
+        /* =============================================
+           MOBILE SIDEBAR (off-canvas drawer)
+           ============================================= */
+        @media (max-width: 900px) {
+            body {
+                display: block;
+                height: 100dvh;
+                min-height: 100dvh;
+            }
+
+            body.sidebar-mobile-open {
+                overflow: hidden;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                z-index: 1000;
+                width: min(82vw, 286px);
+                min-width: 0;
+                max-width: 286px;
+                height: 100dvh;
+                padding: 18px 16px;
+                border-right: 1px solid var(--smooth-border);
+                box-shadow: 18px 0 40px rgba(15, 23, 42, 0.16);
+                transform: translateX(-105%);
+                transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+            }
+
+            body.sidebar-mobile-open .sidebar {
+                transform: translateX(0);
+            }
+
+            body.sidebar-mobile-open .sidebar-backdrop {
+                opacity: 1;
+                visibility: visible;
+                pointer-events: auto;
+            }
+
+            /* On mobile the desktop "collapsed rail" is irrelevant — show full drawer */
+            body.sidebar-collapsed .sidebar {
+                width: min(82vw, 286px);
+                min-width: 0;
+                padding: 18px 16px;
+            }
+
+            body.sidebar-collapsed .sidebar__logo-text,
+            body.sidebar-collapsed .sidebar__section-label,
+            body.sidebar-collapsed .sidebar__nav-item .nav-label,
+            body.sidebar-collapsed .sidebar__logout .nav-label {
+                opacity: 1;
+                max-width: 170px;
+            }
+
+            body.sidebar-collapsed .sidebar__nav-item .nav-chevron {
+                opacity: 1;
+            }
+
+            body.sidebar-collapsed .sidebar__nav-item[data-tooltip]::after,
+            body.sidebar-collapsed .sidebar__logout[data-tooltip]::after {
+                display: none;
+            }
+
+            .main-wrapper {
+                width: 100%;
+                height: 100dvh;
+                min-height: 100dvh;
+            }
+
+            .navbar-top {
+                padding: 12px 16px;
+                position: sticky;
+                top: 0;
+                z-index: 80;
+            }
+
+            .navbar-top__left {
+                min-width: 0;
+                gap: 12px;
+            }
+
+            .greeting {
+                min-width: 0;
+            }
+
+            .navbar-top__user-name,
+            .navbar-top__user-role {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 56vw;
+            }
+
+            .btn-sidebar-toggle {
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+                font-size: 18px;
+            }
+
+            body.sidebar-collapsed .btn-sidebar-toggle i {
+                transform: none;
+            }
+
+            body.sidebar-mobile-open .btn-sidebar-toggle i {
+                transform: rotate(90deg);
+            }
+
+            .page-content {
+                padding: 16px 16px 0;
+                gap: 14px;
+            }
+
+            .page-title {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .page-content {
+                padding: 14px 12px 0;
+            }
+
+            /* Konsisten 2 kolom kartu statistik di layar kecil */
+            .stats-row {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 10px;
+            }
+
+            .page-title {
+                font-size: 17px;
+            }
+        }
     </style>
+
+    @include('components.kss-datetime-picker')
 
     {{-- CSS khusus per halaman (di-push dari masing-masing view) --}}
     @stack('styles')
@@ -1377,6 +1568,9 @@
 
     {{-- SIDEBAR (partial) --}}
     @include('admin.layouts.sidebar', ['active' => trim($__env->yieldContent('active'))])
+
+    {{-- Backdrop untuk sidebar mobile (off-canvas) --}}
+    <button type="button" class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Tutup sidebar"></button>
 
     <div class="main-wrapper">
 
@@ -1508,17 +1702,95 @@
 
             document.querySelectorAll('.toast-message').forEach((toast, index) => bindToastMessage(toast, index));
 
-            // 1. SIDEBAR TOGGLE
+            // 1. SIDEBAR TOGGLE (desktop collapse + mobile off-canvas drawer)
             const btnSidebarToggle = document.getElementById('btnSidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+            const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
+            const mobileSidebarQuery = window.matchMedia('(max-width: 900px)');
             let isSidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            const applySidebarState = () => body.classList.toggle('sidebar-collapsed', isSidebarCollapsed);
-            applySidebarState();
+
+            function applySidebarState() {
+                if (mobileSidebarQuery.matches) {
+                    body.classList.remove('sidebar-collapsed');
+                    return;
+                }
+                body.classList.toggle('sidebar-collapsed', isSidebarCollapsed);
+            }
+
+            function closeMobileSidebar() {
+                body.classList.remove('sidebar-mobile-open');
+                btnSidebarToggle?.setAttribute('aria-expanded', 'false');
+                sidebar?.setAttribute('aria-hidden', mobileSidebarQuery.matches ? 'true' : 'false');
+                if (mobileSidebarQuery.matches && sidebarToggleIcon) {
+                    sidebarToggleIcon.className = 'fi fi-rr-menu-burger';
+                }
+            }
+
+            function openMobileSidebar() {
+                body.classList.add('sidebar-mobile-open');
+                btnSidebarToggle?.setAttribute('aria-expanded', 'true');
+                sidebar?.setAttribute('aria-hidden', 'false');
+                if (sidebarToggleIcon) {
+                    sidebarToggleIcon.className = 'fi fi-br-cross';
+                }
+            }
+
+            function syncSidebarMode() {
+                applySidebarState();
+                if (mobileSidebarQuery.matches) {
+                    closeMobileSidebar();
+                    btnSidebarToggle?.setAttribute('title', 'Buka Menu');
+                    btnSidebarToggle?.setAttribute('aria-label', 'Buka menu navigasi');
+                } else {
+                    body.classList.remove('sidebar-mobile-open');
+                    sidebar?.setAttribute('aria-hidden', 'false');
+                    btnSidebarToggle?.setAttribute('aria-expanded', String(!isSidebarCollapsed));
+                    btnSidebarToggle?.setAttribute('title', 'Toggle Sidebar');
+                    btnSidebarToggle?.setAttribute('aria-label', 'Toggle sidebar');
+                    if (sidebarToggleIcon) {
+                        sidebarToggleIcon.className = 'fi fi-sr-angle-double-small-left';
+                    }
+                }
+            }
+
+            syncSidebarMode();
+
             if (btnSidebarToggle) {
                 btnSidebarToggle.addEventListener('click', function () {
+                    if (mobileSidebarQuery.matches) {
+                        if (body.classList.contains('sidebar-mobile-open')) {
+                            closeMobileSidebar();
+                        } else {
+                            openMobileSidebar();
+                        }
+                        return;
+                    }
                     isSidebarCollapsed = !isSidebarCollapsed;
                     applySidebarState();
+                    btnSidebarToggle.setAttribute('aria-expanded', String(!isSidebarCollapsed));
                     localStorage.setItem('sidebarCollapsed', isSidebarCollapsed);
                 });
+            }
+
+            sidebarBackdrop?.addEventListener('click', closeMobileSidebar);
+
+            sidebar?.querySelectorAll('a.sidebar__nav-item:not(.js-submenu-toggle), .sidebar__submenu-item, .sidebar__logout').forEach(function (item) {
+                item.addEventListener('click', function () {
+                    if (mobileSidebarQuery.matches) closeMobileSidebar();
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && body.classList.contains('sidebar-mobile-open')) {
+                    closeMobileSidebar();
+                }
+            });
+
+            if (typeof mobileSidebarQuery.addEventListener === 'function') {
+                mobileSidebarQuery.addEventListener('change', syncSidebarMode);
+            } else if (typeof mobileSidebarQuery.addListener === 'function') {
+                mobileSidebarQuery.addListener(syncSidebarMode);
             }
 
             // 2. SUBMENU TOGGLE (Data Master)

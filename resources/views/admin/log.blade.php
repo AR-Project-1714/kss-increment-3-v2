@@ -342,7 +342,7 @@
     <div class="archive-filters collapsed" id="archiveFilters">
         <div class="filter-field">
             <label>Tanggal</label>
-            <input type="date" class="filter-input" name="tanggal" value="{{ $selectedDate ?? '' }}">
+            <input type="hidden" name="tanggal" value="{{ $selectedDate ?? '' }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Pilih tanggal">
         </div>
         <div class="filter-field">
             <label>Role</label>
@@ -368,6 +368,7 @@
                     <option value="backup" @selected(($selectedType ?? 'all') === 'backup')>Backup</option>
                     <option value="support" @selected(($selectedType ?? 'all') === 'support')>Bantuan</option>
                     <option value="login" @selected(($selectedType ?? 'all') === 'login')>Login</option>
+                    <option value="security" @selected(($selectedType ?? 'all') === 'security')>Keamanan</option>
                     <option value="error" @selected(($selectedType ?? 'all') === 'error')>Error</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
@@ -394,7 +395,7 @@
             <tr class="thead d-flex justify-content-between align-items-center">
                 <th class="col-user">Pengguna</th>
                 <th class="col-time">Waktu</th>
-                <th class="col-type">Shift</th>
+                <th class="col-type">Tipe</th>
                 <th class="col-desc">Deskripsi Aktivitas</th>
                 <th class="col-ip">IP Address</th>
             </tr>

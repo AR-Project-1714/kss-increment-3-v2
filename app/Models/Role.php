@@ -25,6 +25,15 @@ class Role extends Model
         self::MANAGER,
     ];
 
+    /**
+     * Division (petugas operasional) roles that may access the report-ops pages.
+     */
+    public const DIVISION_ROLES = [
+        self::OPERATIONAL,
+        self::MAINTENANCE,
+        self::SAFETY,
+    ];
+
     protected $guarded = ['id'];
 
     public function users()
@@ -47,5 +56,39 @@ class Role extends Model
     public static function hasManagementAccess(?string $name): bool
     {
         return in_array(strtolower((string) $name), self::MANAGEMENT_ROLES, true);
+    }
+
+    /**
+     * Normalize a stored role name to its canonical key (handles the legacy "petugas" alias).
+     */
+    public static function normalize(?string $name): string
+    {
+        $name = strtolower(trim((string) $name));
+
+        return $name === 'petugas' ? self::OPERATIONAL : $name;
+    }
+
+    /**
+     * The dashboard route name a user should land on, based on their role.
+     */
+    public static function homeRoute(?string $name): string
+    {
+        return match (self::normalize($name)) {
+            self::ADMIN => 'admin.index',
+            self::MANAGER => 'manajer.index',
+            default => 'report-ops.index',
+        };
+    }
+
+    /**
+     * Whether the given role maps to a known dashboard (used to avoid redirect loops).
+     */
+    public static function hasKnownHome(?string $name): bool
+    {
+        $name = self::normalize($name);
+
+        return $name === self::ADMIN
+            || $name === self::MANAGER
+            || in_array($name, self::DIVISION_ROLES, true);
     }
 }

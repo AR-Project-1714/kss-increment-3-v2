@@ -1,9 +1,9 @@
 @php
-    $reportDateValue = old('report_date', isset($report) && $report->report_date ? $report->report_date->format('Y-m-d') : '');
+    $reportDateValue = old('report_date', isset($report) && $report->report_date ? $report->report_date->format('Y-m-d') : now()->toDateString());
     $shiftValue = old('shift', $report->shift ?? '');
     $normalizedShiftValue = match (strtolower((string) $shiftValue)) {
         '1', 'pagi', 'shift pagi', 'shift 1' => 'Pagi',
-        '2', 'siang', 'sore', 'shift siang', 'shift sore', 'shift 2' => 'Siang',
+        '2', 'siang', 'sore', 'shift siang', 'shift sore', 'shift 2' => 'Sore',
         '3', 'malam', 'shift malam', 'shift 3' => 'Malam',
         default => (string) $shiftValue,
     };
@@ -30,7 +30,7 @@
                         <span class="text-red">*</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="date" id="tanggal" name="report_date" class="custom-input" placeholder="mm/dd/yyyy" value="{{ $reportDateValue }}" onclick="this.showPicker()" required>
+                        <input type="date" id="tanggal" name="report_date" value="{{ $reportDateValue }}" class="custom-input" onclick="if (this.showPicker) this.showPicker()" data-validation-message="Tanggal laporan wajib diisi." required>
                         <i class="fi fi-rr-calendar input-icon"></i>
                     </div>
                 </div>
@@ -45,7 +45,7 @@
                         <select id="shift" name="shift" class="custom-input native-select" required>
                             <option value="" disabled @selected($normalizedShiftValue === '') hidden>Pilih Shift</option>
                             <option value="Pagi" @selected($normalizedShiftValue === 'Pagi')>Shift Pagi</option>
-                            <option value="Siang" @selected($normalizedShiftValue === 'Siang')>Shift Siang</option>
+                            <option value="Sore" @selected($normalizedShiftValue === 'Sore')>Shift Sore</option>
                             <option value="Malam" @selected($normalizedShiftValue === 'Malam')>Shift Malam</option>
                         </select>
                         <i class="fi fi-rr-angle-small-down input-icon"></i>

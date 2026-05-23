@@ -125,9 +125,10 @@
     .archive-filters {
         display: flex;
         align-items: flex-end;
-        justify-content: flex-end;
+        justify-content: flex-start;
         gap: 12px;
         flex-wrap: wrap;
+        margin-top: 16px;
         animation: filterSlideDown 0.3s ease;
     }
 
@@ -138,9 +139,33 @@
         to   { opacity: 1; transform: translateY(0); }
     }
 
-    .filter-field { display: flex; flex-direction: column; gap: 4px; }
+    .filter-field { display: flex; flex: 1 1 160px; max-width: 200px; flex-direction: column; gap: 4px; }
     .filter-field label { font-size: 10px; font-weight: 500; color: var(--black-secondary); }
-    .filter-field .filter-input { min-width: 150px; }
+    .filter-field .filter-input {
+        width: 100%;
+        min-width: 0;
+        height: 36px;
+        display: flex;
+        align-items: center;
+    }
+
+    .archive-filters .kss-date-trigger.filter-input {
+        min-height: 36px;
+        padding: 0 12px;
+        justify-content: flex-start;
+        border-radius: 8px;
+        font-size: 12px;
+    }
+
+    .archive-filters .kss-date-trigger.filter-input .kss-date-trigger__main {
+        width: 100%;
+    }
+
+    .archive-filters .kss-date-trigger.filter-input .kss-date-trigger__main i {
+        top: 0;
+        color: var(--blue-main);
+        font-size: 13px;
+    }
 
     .btn-reset {
         padding: 8px 16px;
@@ -156,8 +181,33 @@
     }
     .btn-reset:hover { background-color: var(--red-main-10); }
 
+    /* Toolbar right cluster + result count badge (match manajer) */
+    .archive-toolbar__right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .archive-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--blue-main);
+        background-color: var(--blue-main-10);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 10px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
     /* Custom dropdown */
     .filter-select-wrapper { position: relative; min-width: 150px; }
+    /* Panel selects sit in a column field: size to content so the arrow stays inside the box */
+    .archive-filters .filter-select-wrapper { width: 100%; min-width: 0; flex: 0 0 auto; }
     .toolbar-sort-wrapper { min-width: 120px; }
 
     .filter-select-trigger { display: flex; align-items: center; padding-right: 34px; cursor: pointer; }
@@ -211,6 +261,62 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
     /* =============================================
+       RESPONSIVE (toolbar + filters)
+       ============================================= */
+    @media (max-width: 920px) {
+        .archive-toolbar { align-items: stretch; }
+
+        .search-box {
+            flex-basis: 100%;
+            max-width: none;
+            width: 100%;
+        }
+
+        .archive-toolbar__actions,
+        .archive-toolbar__right {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        /* Only the toolbar (row) wrappers may flex-grow; panel wrappers stay content-sized */
+        .archive-toolbar__actions .filter-select-wrapper,
+        .archive-toolbar__actions .toolbar-sort-wrapper {
+            min-width: 140px;
+            flex: 1 1 140px;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .archive-toolbar__actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: stretch;
+        }
+
+        .archive-toolbar__actions .btn-reset {
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+
+        .btn-tool,
+        .btn-reset,
+        .filter-input,
+        .filter-select-trigger {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .archive-filters {
+            width: 100%;
+            justify-content: stretch;
+        }
+
+        .filter-field {
+            width: 100%;
+        }
+    }
+
+    /* =============================================
        TABLE
        ============================================= */
     .table-responsive-wrapper {
@@ -250,21 +356,31 @@
     .tbody td {
         display: flex;
         align-items: center;
-        padding: 0 10px;
+        padding: 10px;
         flex: 1 0 0;
         font-size: 12px;
         font-weight: 500;
         color: var(--black);
     }
 
-    .tbody td.nomor { width: 50px; flex: none; justify-content: center; padding: 12px 0; color: var(--black-secondary); }
+    .tbody td.nomor { width: 50px; flex: none; justify-content: center; padding: 10px 0; color: var(--black-secondary); }
 
     .tbody td.column-2 {
         min-width: 160px;
         flex-direction: column;
         justify-content: center;
         align-items: flex-start;
-        gap: 2px;
+        gap: 4px;
+    }
+
+    .archive-doc-title {
+        line-height: 1.25;
+        font-weight: 600;
+        color: var(--black);
+    }
+
+    .archive-doc-id {
+        line-height: 1.25;
     }
 
     .tbody td.column-1 { min-width: 160px; }
@@ -272,6 +388,37 @@
     .tbody td.column-3 { flex-direction: column; align-items: flex-start; gap: 10px; }
 
     .tbody td.aksi { gap: 8px; flex-wrap: nowrap; min-width: 230px; }
+
+    .report-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 20px;
+        background-color: var(--white);
+        box-shadow: 0 0 1px 0 var(--muted);
+        white-space: nowrap;
+    }
+
+    .letter-group {
+        display: flex;
+        width: 16px;
+        height: 16px;
+        padding: 5px;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50px;
+        font-size: 8px;
+        font-weight: 600;
+        color: var(--success);
+        background-color: var(--success-10);
+        flex-shrink: 0;
+    }
+
+    td.aksi form { margin: 0; }
+
+    td.aksi a.btn-act { text-decoration: none; }
 
     /* Status badges */
     .status {
@@ -288,6 +435,7 @@
     .status.approve { border: 1px solid var(--success);     color: var(--success);     background-color: var(--success-10); }
     .status.confirm { border: 1px solid var(--cyan-main);   color: var(--cyan-main);   background-color: var(--cyan-main-10); }
     .status.submit  { border: 1px solid var(--orange-main); color: var(--orange-main); background-color: var(--orange-main-10); }
+    .status.archive { border: 1px solid var(--blue-main);   color: var(--blue-main);   background-color: var(--blue-main-10); }
 
     /* Action buttons */
     td.aksi .btn-act {
@@ -327,17 +475,30 @@
     ];
 
     $reports = $reports ?? collect([
-        ['no' => 1, 'title' => 'Laporan Shift Harian', 'id' => '#1', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
-        ['no' => 2, 'title' => 'Laporan Shift Harian', 'id' => '#2', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
-        ['no' => 3, 'title' => 'Laporan Shift Harian', 'id' => '#3', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
-        ['no' => 4, 'title' => 'Laporan Shift Harian', 'id' => '#4', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
-        ['no' => 5, 'title' => 'Laporan Shift Harian', 'id' => '#5', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'approve', 'status_label' => 'Ditanda Tangani'],
+        ['no' => 1, 'title' => 'Laporan Shift Harian', 'id' => '#1', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'archive', 'status_label' => 'Diarsipkan'],
+        ['no' => 2, 'title' => 'Laporan Shift Harian', 'id' => '#2', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'archive', 'status_label' => 'Diarsipkan'],
+        ['no' => 3, 'title' => 'Laporan Shift Harian', 'id' => '#3', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'archive', 'status_label' => 'Diarsipkan'],
+        ['no' => 4, 'title' => 'Laporan Shift Harian', 'id' => '#4', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'archive', 'status_label' => 'Diarsipkan'],
+        ['no' => 5, 'title' => 'Laporan Shift Harian', 'id' => '#5', 'date' => '17-Januari-2026', 'regu' => 'Regu B', 'shift' => 'pagi', 'shift_label' => 'Shift Pagi', 'status' => 'archive', 'status_label' => 'Diarsipkan'],
     ]);
+
+    $selectedDivision = $selectedDivision ?? 'all';
+    $selectedStatus = $selectedStatus ?? 'all';
+    $hasPanelFilter = filled($selectedDate ?? '')
+        || ! in_array($selectedGroup ?? 'ALL', ['ALL', ''], true)
+        || ! in_array($selectedShift ?? 'all', ['all', ''], true)
+        || ! in_array($selectedDivision, ['all', ''], true)
+        || ! in_array($selectedStatus, ['all', ''], true);
+    $hasActiveFilter = filled($archiveSearch ?? '')
+        || $hasPanelFilter
+        || ($sort ?? 'newest') !== 'newest';
+    $archiveTotal = method_exists($reports, 'total') ? $reports->total() : $reports->count();
+    $archiveCountLabel = filled($archiveSearch ?? '') || $hasActiveFilter ? 'hasil' : 'laporan';
 @endphp
 
 <div class="page-header">
     <span class="page-title">Arsip Laporan</span>
-    <span class="page-subtitle">Daftar seluruh laporan yang telah disetujui secara digital.</span>
+    <span class="page-subtitle">Daftar seluruh laporan yang telah diserahkan, diterima, dan diarsipkan.</span>
 </div>
 
 <!-- Stats Row -->
@@ -362,41 +523,72 @@
             <span><i class="fi fi-rr-search"></i></span>
             <input type="text" name="q" value="{{ $archiveSearch ?? '' }}" placeholder="Pencarian Laporan">
         </div>
-        <div class="archive-toolbar__actions">
-            <div class="filter-select-wrapper toolbar-sort-wrapper">
-                <select class="native-select" name="sort">
-                    <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
-                    <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
-                </select>
-                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+        <div class="archive-toolbar__right">
+            <span class="archive-count">
+                <i class="fi fi-rr-folder-open"></i>
+                <span>{{ $archiveTotal }} {{ $archiveCountLabel }}</span>
+            </span>
+            <div class="archive-toolbar__actions">
+                <div class="filter-select-wrapper toolbar-sort-wrapper">
+                    <select class="native-select" name="sort" data-autosubmit-filter>
+                        <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
+                        <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
+                    </select>
+                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                </div>
+                <button type="button" class="btn-tool {{ $hasPanelFilter ? 'btn-tool--active' : '' }}" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
+                @if ($hasActiveFilter)
+                    <a href="{{ route('admin.archive') }}"
+                            class="btn-reset"
+                            data-confirm
+                            data-confirm-redirect="{{ route('admin.archive') }}"
+                            data-confirm-tone="warning"
+                            data-confirm-title="Reset filter arsip?"
+                            data-confirm-subtitle="Pilihan filter akan dikembalikan ke kondisi awal."
+                            data-confirm-message="Pencarian dan filter tanggal, divisi, regu, shift, serta status akan dikosongkan."
+                            data-confirm-label="Reset Filter"
+                            data-confirm-icon="fi fi-rr-refresh">
+                        Reset
+                    </a>
+                @endif
+                <button type="button"
+                        class="btn-tool btn-tool--primary"
+                        data-confirm
+                        data-confirm-tone="success"
+                        data-confirm-title="Ekspor arsip laporan?"
+                        data-confirm-subtitle="Data arsip akan disiapkan sebagai file unduhan."
+                        data-confirm-message="Gunakan ekspor untuk mengambil daftar laporan sesuai filter yang sedang aktif."
+                        data-confirm-summary="Format preview: Excel"
+                        data-confirm-label="Ekspor Data"
+                        data-confirm-icon="fi fi-rr-cloud-upload-alt">
+                    <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
+                </button>
             </div>
-            <button type="button" class="btn-tool" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
-            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Terapkan</button>
-            <button type="button"
-                    class="btn-tool btn-tool--primary"
-                    data-confirm
-                    data-confirm-tone="success"
-                    data-confirm-title="Ekspor arsip laporan?"
-                    data-confirm-subtitle="Data arsip akan disiapkan sebagai file unduhan."
-                    data-confirm-message="Gunakan ekspor untuk mengambil daftar laporan sesuai filter yang sedang aktif."
-                    data-confirm-summary="Format preview: Excel"
-                    data-confirm-label="Ekspor Data"
-                    data-confirm-icon="fi fi-rr-cloud-upload-alt">
-                <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
-            </button>
         </div>
     </div>
 
     <!-- Filters -->
-    <div class="archive-filters collapsed" id="archiveFilters">
+    <div class="archive-filters {{ $hasPanelFilter ? '' : 'collapsed' }}" id="archiveFilters">
         <div class="filter-field">
             <label>Tanggal</label>
-            <input type="date" class="filter-input" name="tanggal" value="{{ $selectedDate ?? '' }}">
+            <input type="hidden" name="tanggal" value="{{ $selectedDate ?? '' }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Pilih tanggal" data-autosubmit-filter>
+        </div>
+        <div class="filter-field">
+            <label>Divisi</label>
+            <div class="filter-select-wrapper">
+                <select class="native-select" name="divisi" data-autosubmit-filter>
+                    <option value="all" @selected($selectedDivision === 'all')>Semua Divisi</option>
+                    <option value="operasional" @selected($selectedDivision === 'operasional')>Operasional</option>
+                    <option value="pemeliharaan" @selected($selectedDivision === 'pemeliharaan')>Pemeliharaan</option>
+                    <option value="safety" @selected($selectedDivision === 'safety')>Safety</option>
+                </select>
+                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+            </div>
         </div>
         <div class="filter-field">
             <label>Regu</label>
             <div class="filter-select-wrapper">
-                <select class="native-select" name="regu">
+                <select class="native-select" name="regu" data-autosubmit-filter>
                     <option value="all" @selected(($selectedGroup ?? 'ALL') === 'ALL')>Semua Regu</option>
                     <option value="A" @selected(($selectedGroup ?? 'ALL') === 'A')>Regu A</option>
                     <option value="B" @selected(($selectedGroup ?? 'ALL') === 'B')>Regu B</option>
@@ -409,7 +601,7 @@
         <div class="filter-field">
             <label>Shift</label>
             <div class="filter-select-wrapper">
-                <select class="native-select" name="shift">
+                <select class="native-select" name="shift" data-autosubmit-filter>
                     <option value="all" @selected(($selectedShift ?? 'all') === 'all')>Semua Shift</option>
                     <option value="pagi" @selected(($selectedShift ?? 'all') === 'pagi')>Shift Pagi</option>
                     <option value="sore" @selected(($selectedShift ?? 'all') === 'sore')>Shift Sore</option>
@@ -418,18 +610,18 @@
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
         </div>
-        <a href="{{ route('admin.archive') }}"
-                class="btn-reset"
-                data-confirm
-                data-confirm-redirect="{{ route('admin.archive') }}"
-                data-confirm-tone="warning"
-                data-confirm-title="Reset filter arsip?"
-                data-confirm-subtitle="Pilihan filter akan dikembalikan ke kondisi awal."
-                data-confirm-message="Pencarian dan filter tanggal, regu, serta shift akan dikosongkan."
-                data-confirm-label="Reset Filter"
-                data-confirm-icon="fi fi-rr-refresh">
-            Reset
-        </a>
+        <div class="filter-field">
+            <label>Status</label>
+            <div class="filter-select-wrapper">
+                <select class="native-select" name="status" data-autosubmit-filter>
+                    <option value="all" @selected($selectedStatus === 'all')>Semua Status</option>
+                    <option value="submitted" @selected($selectedStatus === \App\Enums\ReportStatus::Submitted->value)>Diserahkan</option>
+                    <option value="acknowledged" @selected($selectedStatus === \App\Enums\ReportStatus::Acknowledged->value)>Diterima</option>
+                    <option value="approved" @selected($selectedStatus === \App\Enums\ReportStatus::Approved->value)>Diarsipkan</option>
+                </select>
+                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+            </div>
+        </div>
     </div>
     </form>
 
@@ -447,14 +639,24 @@
             </tr>
 
             @forelse ($reports as $r)
+                @php
+                    $reguName = trim((string) ($r['regu'] ?? '-'));
+                    $reguCodeSource = trim(preg_replace('/^(regu|group)\s*/i', '', $reguName));
+                    $reguCode = $reguCodeSource !== '' ? strtoupper(substr($reguCodeSource, 0, 1)) : '-';
+                @endphp
                 <tr class="tbody d-flex justify-content-between align-items-center">
                     <td class="nomor">{{ $r['no'] }}</td>
                     <td class="column-2">
-                        <span>{{ $r['title'] }}</span>
-                        <span class="fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
+                        <span class="archive-doc-title">{{ $r['title'] }}</span>
+                        <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
                     </td>
                     <td class="column-1">{{ $r['date'] }}</td>
-                    <td>{{ $r['regu'] }}</td>
+                    <td>
+                        <div class="report-group">
+                            <div class="letter-group">{{ $reguCode }}</div>
+                            <span class="text fsize-10 fw-600">{{ $reguName }}</span>
+                        </div>
+                    </td>
                     <td class="column-3">
                         <div class="shift {{ $r['shift'] }}">
                             <span class="icon-shift"><i class="{{ $r['shift_icon'] ?? 'fi fi-rr-sunrise' }}"></i></span>
@@ -577,6 +779,14 @@
         document.addEventListener('click', function () {
             document.querySelectorAll('.filter-select-options.open').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('.filter-select-trigger.focus-active').forEach(t => t.classList.remove('focus-active'));
+        });
+
+        // AUTO-SUBMIT FILTERS (instant execution, sama seperti halaman Manajer)
+        const archiveForm = document.getElementById('archiveFilterForm');
+        document.querySelectorAll('[data-autosubmit-filter]').forEach(function (control) {
+            control.addEventListener('change', function () {
+                if (archiveForm) archiveForm.submit();
+            });
         });
     });
 </script>

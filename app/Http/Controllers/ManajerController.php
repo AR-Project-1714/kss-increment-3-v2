@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReportStatus;
 use App\Models\DailyReport;
 use App\Models\Role;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -19,7 +20,7 @@ class ManajerController extends Controller
 
         $incomingReports = DailyReport::query()
             ->select($this->incomingReportColumns())
-            ->where('status', 'acknowledged')
+            ->where('status', ReportStatus::Acknowledged)
             ->latest('received_at')
             ->latest('updated_at')
             ->get();
@@ -47,6 +48,8 @@ class ManajerController extends Controller
         $selectedDate = $request->input('tanggal');
         $selectedGroup = strtoupper((string) $request->input('regu', 'all'));
         $selectedShift = strtolower((string) $request->input('shift', 'all'));
+        $selectedDivision = strtolower((string) $request->input('divisi', 'all'));
+        $selectedStatus = strtolower((string) $request->input('status', 'all'));
 
         $query = DailyReport::query()
             ->select($this->archiveListColumns())
@@ -58,6 +61,8 @@ class ManajerController extends Controller
         if ($selectedDate) {
             $query->whereDate('report_date', $selectedDate);
         }
+
+        $this->applyArchiveDivisionFilter($query, $selectedDivision);
 
         if ($selectedGroup !== '' && $selectedGroup !== 'ALL') {
             $query->where('group_name', $selectedGroup);
@@ -75,6 +80,16 @@ class ManajerController extends Controller
             }
         }
 
+        if ($selectedStatus !== '' && $selectedStatus !== 'all') {
+            $statusFilter = ReportStatus::tryFrom($selectedStatus);
+
+            if ($statusFilter !== null && in_array($statusFilter, $this->archiveStatuses(), true)) {
+                $query->where('status', $statusFilter);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
         $reports = $query
             ->when($sort === 'oldest', fn ($builder) => $builder->oldest('report_date')->oldest('updated_at')->oldest('id'))
             ->when($sort === 'newest', fn ($builder) => $builder->latest('report_date')->latest('updated_at')->latest('id'))
@@ -89,6 +104,8 @@ class ManajerController extends Controller
             'selectedDate' => $selectedDate,
             'selectedGroup' => $selectedGroup,
             'selectedShift' => $selectedShift,
+            'selectedDivision' => $selectedDivision,
+            'selectedStatus' => $selectedStatus,
         ]);
     }
 
@@ -124,13 +141,13 @@ class ManajerController extends Controller
     {
         $this->authorizeManagementAccess($request);
 
-        if ($report->status !== 'acknowledged') {
+        if ($report->status !== ReportStatus::Acknowledged) {
             return back()->with('error', 'Status laporan tidak valid untuk tanda tangan manajer.');
         }
 
         try {
             $report->update([
-                'status' => 'approved',
+                'status' => ReportStatus::Approved,
                 'approved_by' => $request->user()->id,
                 'approved_at' => now(),
             ]);
@@ -221,7 +238,7 @@ class ManajerController extends Controller
 
     private function dashboardStats(): array
     {
-        $activeStatuses = ['submitted', 'acknowledged', 'approved'];
+        $activeStatuses = [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved];
         $today = Carbon::today();
         $now = Carbon::now();
 
@@ -230,7 +247,7 @@ class ManajerController extends Controller
                 'todayReports' => DailyReport::whereIn('status', $activeStatuses)
                     ->whereDate('report_date', $today)
                     ->count(),
-                'pendingReports' => DailyReport::where('status', 'acknowledged')->count(),
+                'pendingReports' => DailyReport::where('status', ReportStatus::Acknowledged)->count(),
                 'monthlyReports' => DailyReport::whereIn('status', $activeStatuses)
                     ->whereMonth('report_date', $now->month)
                     ->whereYear('report_date', $now->year)
@@ -251,7 +268,7 @@ class ManajerController extends Controller
                 'todayReports' => DailyReport::whereIn('status', $archiveStatuses)
                     ->whereDate('report_date', $today)
                     ->count(),
-                'pendingReports' => DailyReport::where('status', 'acknowledged')->count(),
+                'pendingReports' => DailyReport::where('status', ReportStatus::Acknowledged)->count(),
                 'monthlyReports' => DailyReport::whereIn('status', $archiveStatuses)
                     ->whereMonth('report_date', $now->month)
                     ->whereYear('report_date', $now->year)
@@ -263,7 +280,16 @@ class ManajerController extends Controller
 
     private function archiveStatuses(): array
     {
-        return ['submitted', 'acknowledged', 'approved'];
+        return [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved];
+    }
+
+    private function applyArchiveDivisionFilter($query, string $division): void
+    {
+        if ($division === '' || $division === 'all' || $division === 'operasional') {
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
     }
 
     private function reportRelations(): array
@@ -419,10 +445,13 @@ class ManajerController extends Controller
 
     private function statusMeta(mixed $status): array
     {
-        return match ((string) $status) {
-            'submitted' => ['label' => 'Diserahkan', 'class' => 'submit'],
-            'acknowledged', 'approved' => ['label' => 'Ditanda Tangani', 'class' => 'approve'],
-            default => ['label' => ucfirst((string) $status), 'class' => 'submit'],
+        $value = $status instanceof ReportStatus ? $status->value : (string) $status;
+
+        return match ($value) {
+            ReportStatus::Submitted->value => ['label' => 'Diserahkan', 'class' => 'submit'],
+            ReportStatus::Acknowledged->value => ['label' => 'Diterima', 'class' => 'confirm'],
+            ReportStatus::Approved->value => ['label' => 'Diarsipkan', 'class' => 'archive'],
+            default => ['label' => ucfirst($value), 'class' => 'submit'],
         };
     }
 

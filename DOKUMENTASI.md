@@ -10,12 +10,14 @@ Aplikasi ini menggantikan proses pelaporan shift harian yang sebelumnya manual m
 
 **Status alur laporan:**
 
-| Status | Arti |
-|---|---|
-| `draft` | Laporan masih disimpan oleh pembuat, belum dikirim |
-| `submitted` | Diserahkan ke regu penerima, menunggu tanda tangan |
-| `acknowledged` | Sudah ditanda tangani oleh regu penerima |
-| `approved` | Dikonfirmasi (final) |
+| Status | Label UI | Arti |
+|---|---|---|
+| `draft` | Draft | Laporan masih disimpan oleh pembuat, belum dikirim |
+| `submitted` | Menunggu TTD | Diserahkan ke regu penerima, menunggu tanda tangan |
+| `acknowledged` | Menunggu Approval | Sudah ditanda tangani oleh regu penerima |
+| `approved` | Disetujui | Dikonfirmasi final oleh manajer (approval hanya milik manajer) |
+
+> Status laporan dikelola memakai PHP 8.1 Backed Enum `App\Enums\ReportStatus` (di-cast pada model `DailyReport`). Method `ReportStatus::label()` menyediakan label UI di atas. Approval final `acknowledged → approved` hanya dilakukan role `manajer`.
 
 ---
 
@@ -120,6 +122,8 @@ routes/web.php
 - Middleware `auth` mengamankan semua route aplikasi; `guest` untuk halaman login.
 - Akun `manajer` diarahkan ke `/manajer` setelah login dan dicegah mengakses halaman divisi seperti `/report-ops` oleh `PreventManagerDivisionAccess`.
 - Route manajer melakukan guard tambahan lewat `ManajerController::authorizeManagementAccess()` sehingga hanya role `manajer` dan `admin` yang dapat membuka halaman manajer.
+- **Rate limiting login**: proses login dibatasi 5 percobaan per kombinasi username/IP selama 60 detik, serta 20 percobaan per IP selama 5 menit untuk menahan brute force yang mengganti-ganti username. Login gagal, percobaan akun nonaktif, dan lockout brute force dicatat sebagai log keamanan di `admin_activity_logs`.
+- **Monitoring keamanan admin**: Dashboard admin menampilkan jumlah login gagal hari ini, sedangkan menu Log Aktivitas menyediakan filter tipe `Keamanan` untuk melihat percobaan login gagal dan brute force.
 
 ---
 
@@ -241,6 +245,27 @@ Responsive:
 - Tab Laporan Masuk dan tabel arsip dapat digeser horizontal saat layar kecil.
 - Tombol Logout sidebar memiliki state hover, active, dan focus-visible berbasis warna merah agar respons interaksi lebih jelas.
 
+### 5.8 Dashboard dan Administrasi Admin (`/admin`)
+
+Role `admin` memiliki area khusus untuk administrasi sistem. Area ini digunakan untuk memantau ringkasan sistem, mengelola akun, mengelola master data, memantau arsip, mencatat aktivitas, mengelola backup, dan membuka pusat bantuan.
+
+Menu utama:
+
+1. **Dashboard Sistem** - menampilkan ringkasan status laporan, pengguna, data master, backup, serta akses cepat ke aksi administratif.
+2. **Arsip Laporan** - menampilkan laporan operasional dalam format tabel yang konsisten dengan arsip manajer. Admin dapat melihat, download, dan hapus arsip, tetapi tidak melakukan approval laporan.
+3. **Log Aktivitas** - menampilkan catatan aktivitas administratif untuk kebutuhan audit.
+4. **Kelola Pengguna** - tambah/edit/hapus user, upload tanda tangan PNG, reset password awal, dan toggle status aktif/nonaktif langsung dari tabel.
+5. **Data Master** - CRUD data karyawan, unit, truck, dan inventaris dengan modal tambah/edit serta konfirmasi hapus.
+6. **Manajemen Backup** - generate backup manual, atur jadwal backup, download, hapus, dan catat permintaan restore.
+7. **Pusat Bantuan** - referensi bantuan admin, kontrol sistem, dan form tiket internal.
+
+Catatan akses:
+
+- Route admin dilindungi middleware `auth` dan `EnsureAdminAccess`.
+- Admin dapat mengelola data sistem, tetapi tombol persetujuan laporan tidak ditampilkan karena approval final hanya menjadi hak role `manajer`.
+- Pesan sukses/error di area admin memakai toast message agar konsisten dengan halaman operasional dan manajer.
+- Aksi destruktif seperti hapus user, hapus data master, hapus backup, dan restore backup memakai modal konfirmasi.
+
 ---
 
 ## 6. Skema Data (Ringkas)
@@ -326,6 +351,45 @@ DELETE /manajer/reports/{report}          -> hapus arsip laporan
 
 ---
 
+Route admin tambahan:
+
+```
+GET    /admin                             -> dashboard admin
+GET    /admin/archive                     -> arsip laporan admin
+GET    /admin/log                         -> log aktivitas admin
+GET    /admin/user-manage                 -> kelola pengguna
+GET    /admin/datamaster                  -> data master
+GET    /admin/backup                      -> manajemen backup
+GET    /admin/help                        -> pusat bantuan admin
+GET    /admin/reports/{report}            -> lihat laporan dari area admin
+GET    /admin/reports/{report}/download   -> download PDF arsip
+DELETE /admin/reports/{report}            -> hapus arsip laporan
+POST   /admin/users                       -> tambah user
+PUT    /admin/users/{user}                -> update user
+PATCH  /admin/users/{user}/status         -> aktif/nonaktif user
+DELETE /admin/users/{user}                -> hapus user
+POST   /admin/master/employees            -> tambah data karyawan
+PUT    /admin/master/employees/{employee} -> update data karyawan
+DELETE /admin/master/employees/{employee} -> hapus data karyawan
+POST   /admin/master/units                -> tambah data unit
+PUT    /admin/master/units/{unit}         -> update data unit
+DELETE /admin/master/units/{unit}         -> hapus data unit
+POST   /admin/master/trucks               -> tambah data truck
+PUT    /admin/master/trucks/{truck}       -> update data truck
+DELETE /admin/master/trucks/{truck}       -> hapus data truck
+POST   /admin/master/inventories          -> tambah data inventaris
+PUT    /admin/master/inventories/{inventory} -> update data inventaris
+DELETE /admin/master/inventories/{inventory} -> hapus data inventaris
+POST   /admin/backup/generate             -> generate backup manual
+PUT    /admin/backup/schedule             -> update jadwal backup
+GET    /admin/backup/files/{file}         -> download backup
+DELETE /admin/backup/files/{file}         -> hapus backup
+POST   /admin/backup/files/{file}/restore -> catat permintaan restore
+POST   /admin/help/ticket                 -> kirim tiket bantuan admin
+```
+
+---
+
 ## 8. Design System
 
 ### 8.1 Palet Warna (CSS Variables)
@@ -397,6 +461,9 @@ Didefinisikan di `:root` pada `resources/views/report-ops/layouts/app.blade.php`
 | `.report-tabs` / `.report-tab` | Tab laporan masuk manajer | Filter divisi dan horizontal scroll di mobile |
 | `.archive-suggest-dropdown` | Dropdown saran arsip | Live search arsip laporan manajer |
 | `.toast-message` / `.auth-toast` | Notifikasi toast | Pesan sukses/error dengan gaya liquid glass mengikuti box login |
+| `.kss-date-trigger` / `.kss-date-popover` | Date/time picker custom | Input tanggal, jam, dan datetime dengan format visual konsisten |
+| `.modal-overlay` / `.modal-box` | Modal admin/manajer | Konfirmasi aksi sensitif dan form tambah/edit data |
+| `.admin-pagination` | Pagination admin | Navigasi halaman tabel admin mengikuti gaya riwayat laporan |
 
 ### 8.5 Icon
 
@@ -482,6 +549,23 @@ Arsip manajer (`resources/views/manajer/archive.blade.php`) memiliki JavaScript 
 - menutup dropdown saat pointer keluar dari input, dropdown, dan safe gap kecil di antaranya;
 - auto-submit filter tanggal, regu, shift, dan urutan.
 
+Layout admin (`resources/views/admin/layouts/app.blade.php`) memiliki JavaScript untuk:
+
+- membuka/menutup modal form dan modal konfirmasi;
+- menampilkan toast sukses/error dari session flash dan validasi;
+- menjalankan aksi konfirmasi berbasis atribut `data-confirm-*`;
+- menjaga logout admin tetap submit langsung tanpa modal konfirmasi;
+- mengaktifkan interaksi sidebar, hover, active, dan submenu data master.
+
+Data master admin (`resources/views/admin/datamaster.blade.php`) memiliki pencarian otomatis:
+
+- input search memakai debounce agar request tidak berjalan pada setiap huruf;
+- tombol Cari dihilangkan karena submit dilakukan setelah user berhenti mengetik;
+- Enter tetap dapat dipakai untuk submit langsung;
+- pane aktif tetap dipertahankan lewat query `pane`.
+
+Komponen date/time picker custom (`resources/views/components/kss-datetime-picker.blade.php`) dipakai pada filter admin/manajer, jadwal backup, serta input datetime Muat Kantong dan Muat Curah. Komponen ini mendukung format 24 jam, tombol "Hari ini", tombol "Hapus", trigger custom yang seukuran input lain, dan event `kss-picker:advance` untuk navigasi keyboard ke input berikutnya.
+
 ---
 
 ## 10. Setup Lokal
@@ -519,6 +603,7 @@ Default URL: `http://localhost:8000` → diarahkan ke halaman login.
 - **Area manajer terpisah**: gunakan route `manajer.*` untuk review/download/delete/approve agar role manajer tidak perlu membuka route divisi.
 - **Status arsip manajer**: arsip menampilkan laporan berstatus `submitted`, `acknowledged`, dan `approved`; label user-facing tidak memakai istilah "diarsipkan".
 - **Performa list manajer**: gunakan select kolom ringkas untuk daftar dan load relasi penuh hanya saat detail/PDF.
+- **Dokumen landasan teori**: bahan teori, metode, dan logika implementasi untuk skripsi tersedia di [`LANDASAN_TEORI_SKRIPSI.md`](LANDASAN_TEORI_SKRIPSI.md).
 
 ---
 
@@ -546,4 +631,8 @@ Ringkasan pembaruan:
 - Tampilan manajer dibuat mobile responsive: sidebar off-canvas, stats card adaptif, tab laporan horizontal scroll.
 - Toast sukses/error memakai gaya liquid glass mengikuti box login, dan tombol logout manajer memiliki hover/active/focus state.
 - Query list manajer diringankan dan statistik dicache singkat agar rendering halaman lebih cepat.
-- Test fitur terbaru berada di `tests/Feature/OpsFlowTest.php`; hasil terakhir `php artisan test --filter=OpsFlowTest` lulus `16 tests`, `135 assertions`.
+- Modul admin aktif dengan dashboard, arsip, log aktivitas, kelola user, data master, backup, pusat bantuan, toast, modal konfirmasi, upload tanda tangan PNG, dan toggle status user.
+- Input tanggal Info Umum kembali memakai native HTML date yang otomatis terisi tanggal hari ini dan tetap bisa diganti. Input datetime Muat Kantong/Muat Curah memakai komponen custom 24 jam.
+- Pencarian data master admin memakai debounce tanpa tombol Cari.
+- Bahan landasan teori skripsi tersedia di [`LANDASAN_TEORI_SKRIPSI.md`](LANDASAN_TEORI_SKRIPSI.md).
+- Test fitur terbaru berada di `tests/Feature/OpsFlowTest.php`; hasil terakhir `php artisan test` lulus `23 tests`, `182 assertions`.

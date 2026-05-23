@@ -36,11 +36,11 @@
                     </div>
                     <div class="form-group">
                         <label>Tiba / Sandar</label>
-                        <div class="input-wrapper"><input type="datetime-local" name="berthing_time_urea_1" value="{{ old('berthing_time_urea_1') }}" class="datetime-picker-input" style="padding-right: 35px;" autocomplete="off"><span class="input-icon"><i class="fi fi-rr-clock"></i></span></div>
+                        <div class="input-wrapper"><input type="hidden" name="berthing_time_urea_1" value="{{ old('berthing_time_urea_1') }}" class="datetime-picker-input" data-kss-picker="datetime" data-trigger-class="custom-input" data-placeholder="Pilih tanggal & jam" autocomplete="off"></div>
                     </div>
                     <div class="form-group">
                         <label>Mulai Muat</label>
-                        <div class="input-wrapper"><input type="datetime-local" name="start_loading_time_urea_1" value="{{ old('start_loading_time_urea_1') }}" class="datetime-picker-input" style="padding-right: 35px;" autocomplete="off"><span class="input-icon"><i class="fi fi-rr-clock"></i></span></div>
+                        <div class="input-wrapper"><input type="hidden" name="start_loading_time_urea_1" value="{{ old('start_loading_time_urea_1') }}" class="datetime-picker-input" data-kss-picker="datetime" data-trigger-class="custom-input" data-placeholder="Pilih tanggal & jam" autocomplete="off"></div>
                     </div>
                 </div>
 

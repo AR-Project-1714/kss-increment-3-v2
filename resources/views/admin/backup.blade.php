@@ -193,6 +193,27 @@
 
     .backup-card__title i { color: var(--blue-main); position: relative; top: 1px; }
 
+    .backup-card--annual { border-color: var(--orange-main-10); }
+    .backup-card--annual .backup-card__title i { color: var(--orange-main); }
+
+    .annual-target {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        background-color: var(--main-bg);
+        border: 1px solid var(--smooth-border);
+    }
+
+    .annual-target__label { display: block; font-size: 10px; color: var(--muted); font-weight: 500; }
+    .annual-target__year { font-size: 20px; font-weight: 800; color: var(--black); }
+    .annual-target__count { font-size: 12px; font-weight: 600; color: var(--blue-main); }
+
+    .annual-btn { width: 100%; justify-content: center; }
+    .annual-note { margin-top: 10px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+
     .storage-meter {
         height: 8px;
         border-radius: 999px;
@@ -238,7 +259,16 @@
 
     @media (max-width: 1024px) {
         .backup-layout { grid-template-columns: 1fr; }
+        /* Izinkan kolom menyusut agar tabel di dalamnya bisa di-scroll, bukan meluber */
+        .backup-layout > * { min-width: 0; }
         .backup-health { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+        .backup-health { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .backup-toolbar { flex-direction: column; align-items: stretch; }
+        .backup-toolbar__actions { width: 100%; }
+        .backup-toolbar__actions .btn-tool { flex: 1 1 auto; justify-content: center; }
     }
 </style>
 @endpush
@@ -270,6 +300,13 @@
         'used_label' => '18.6 GB dipakai',
         'capacity_label' => '30 GB tersedia',
         'percent' => 62,
+    ];
+
+    $annualBackup = $annualBackup ?? [
+        'eligible' => false,
+        'year' => null,
+        'count' => 0,
+        'file_name' => null,
     ];
 @endphp
 
@@ -406,6 +443,47 @@
     @endcomponent
 
     <div class="side-panel">
+        <div class="backup-card backup-card--annual">
+            <div class="backup-card__title"><i class="fi fi-sr-time-past"></i> Backup Tahunan</div>
+            <div class="kss-modal__message" style="margin-bottom: 14px;">
+                Arsipkan seluruh laporan tahun sebelumnya ke satu file ZIP untuk dipindahkan ke penyimpanan lokal, lalu hapus dari sistem agar penyimpanan server lebih ringan.
+            </div>
+
+            @if ($annualBackup['eligible'])
+                <div class="annual-target">
+                    <div>
+                        <span class="annual-target__label">Tahun</span>
+                        <strong class="annual-target__year">{{ $annualBackup['year'] }}</strong>
+                    </div>
+                    <div class="annual-target__count">{{ number_format($annualBackup['count'], 0, ',', '.') }} laporan</div>
+                </div>
+
+                <form method="POST" action="{{ route('admin.backup.annual') }}" style="margin-top: 14px;">
+                    @csrf
+                    <button type="submit"
+                            class="btn-tool btn-tool--danger annual-btn"
+                            data-confirm
+                            data-confirm-submit="true"
+                            data-confirm-tone="danger"
+                            data-confirm-title="Backup & hapus laporan tahun {{ $annualBackup['year'] }}?"
+                            data-confirm-subtitle="Seluruh laporan tahun {{ $annualBackup['year'] }} akan diarsipkan ke ZIP lalu DIHAPUS permanen dari sistem."
+                            data-confirm-message="Pastikan Anda mengunduh file ZIP dan menyimpannya ke penyimpanan lokal setelah proses selesai. Tindakan ini tidak dapat dibatalkan."
+                            data-confirm-summary="{{ $annualBackup['file_name'] }} • {{ $annualBackup['count'] }} laporan"
+                            data-confirm-label="Backup & Arsipkan"
+                            data-confirm-icon="fi fi-rr-box-open">
+                        <i class="fi fi-rr-archive"></i> Backup Laporan {{ $annualBackup['year'] }}
+                    </button>
+                </form>
+            @else
+                <button type="button" class="btn-tool annual-btn" disabled style="opacity: 0.6; cursor: not-allowed;">
+                    <i class="fi fi-rr-lock"></i> Belum tersedia
+                </button>
+                <div class="annual-note">
+                    Tersedia saat sudah memasuki tahun baru dan masih ada laporan tahun sebelumnya yang tersimpan di sistem.
+                </div>
+            @endif
+        </div>
+
         <div class="backup-card">
             <div class="backup-card__title"><i class="fi fi-sr-database"></i> Kapasitas Storage</div>
             <div class="storage-meter"><span style="width: {{ $backupStorage['percent'] }}%;"></span></div>
@@ -478,7 +556,7 @@
                     </div>
                     <div class="kss-modal__field">
                         <label for="backupTime">Jam Backup</label>
-                        <input class="kss-modal__input" id="backupTime" name="time" type="time" value="{{ $backupSchedule['time'] }}">
+                        <input id="backupTime" name="time" type="hidden" value="{{ $backupSchedule['time'] }}" data-kss-picker="time" data-trigger-class="kss-modal__input" data-placeholder="Pilih jam backup">
                     </div>
                     <div class="kss-modal__field">
                         <label for="backupRetention">Retensi</label>

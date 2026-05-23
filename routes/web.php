@@ -4,8 +4,7 @@ use App\Http\Controllers\LoginV2Controller;
 use App\Http\Controllers\AdminV2Controller;
 use App\Http\Controllers\ManajerController;
 use App\Http\Controllers\ReportOpsController;
-use App\Http\Middleware\EnsureAdminAccess;
-use App\Http\Middleware\PreventManagerDivisionAccess;
+use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -16,7 +15,7 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [LoginV2Controller::class, 'logout'])->middleware('auth')->name('logout');
 
-Route::prefix('admin')->name('admin.')->middleware(['auth', EnsureAdminAccess::class])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN])->group(function () {
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');
     Route::get('/archive', [AdminV2Controller::class, 'archive'])->name('archive');
     Route::get('/log', [AdminV2Controller::class, 'log'])->name('log');
@@ -48,6 +47,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', EnsureAdminAccess::c
     Route::delete('/master/inventories/{inventory}', [AdminV2Controller::class, 'destroyInventory'])->name('master.inventories.destroy');
 
     Route::post('/backup/generate', [AdminV2Controller::class, 'generateBackup'])->name('backup.generate');
+    Route::post('/backup/annual', [AdminV2Controller::class, 'annualBackup'])->name('backup.annual');
     Route::put('/backup/schedule', [AdminV2Controller::class, 'updateBackupSchedule'])->name('backup.schedule');
     Route::get('/backup/files/{file}', [AdminV2Controller::class, 'downloadBackup'])->name('backup.download');
     Route::delete('/backup/files/{file}', [AdminV2Controller::class, 'destroyBackup'])->name('backup.destroy');
@@ -57,7 +57,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', EnsureAdminAccess::c
 });
 
 Route::middleware('auth')->group(function () {
-    Route::middleware(PreventManagerDivisionAccess::class)->group(function () {
+    Route::middleware('role:except,'.Role::ADMIN.','.Role::MANAGER)->group(function () {
         Route::get('/report-ops', [ReportOpsController::class, 'index'])->name('report-ops.index');
         Route::get('/report-ops/history/suggestions', [ReportOpsController::class, 'historySuggestions'])->name('report-ops.history.suggestions');
         Route::get('/report-ops/ship-operations/suggestions', [ReportOpsController::class, 'shipOperationSuggestions'])->name('report-ops.ship-operations.suggestions');
@@ -72,12 +72,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/report-ops/{report}/excel', [ReportOpsController::class, 'exportExcel'])->name('report-ops.excel');
     });
 
-    Route::get('/manajer', [ManajerController::class, 'index'])->name('manajer.index');
-    Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
-    Route::get('/manajer/archive/suggestions', [ManajerController::class, 'archiveSuggestions'])->name('manajer.archive.suggestions');
-    Route::get('/manajer/bantuan', [ManajerController::class, 'bantuan'])->name('manajer.bantuan');
-    Route::get('/manajer/reports/{report}', [ManajerController::class, 'show'])->name('manajer.reports.show');
-    Route::post('/manajer/reports/{report}/approve', [ManajerController::class, 'approve'])->name('manajer.reports.approve');
-    Route::get('/manajer/reports/{report}/download', [ManajerController::class, 'download'])->name('manajer.reports.download');
-    Route::delete('/manajer/reports/{report}', [ManajerController::class, 'destroy'])->name('manajer.reports.destroy');
+    Route::middleware('role:'.Role::MANAGER)->group(function () {
+        Route::get('/manajer', [ManajerController::class, 'index'])->name('manajer.index');
+        Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
+        Route::get('/manajer/archive/suggestions', [ManajerController::class, 'archiveSuggestions'])->name('manajer.archive.suggestions');
+        Route::get('/manajer/bantuan', [ManajerController::class, 'bantuan'])->name('manajer.bantuan');
+        Route::get('/manajer/reports/{report}', [ManajerController::class, 'show'])->name('manajer.reports.show');
+        Route::post('/manajer/reports/{report}/approve', [ManajerController::class, 'approve'])->name('manajer.reports.approve');
+        Route::get('/manajer/reports/{report}/download', [ManajerController::class, 'download'])->name('manajer.reports.download');
+        Route::delete('/manajer/reports/{report}', [ManajerController::class, 'destroy'])->name('manajer.reports.destroy');
+    });
 });

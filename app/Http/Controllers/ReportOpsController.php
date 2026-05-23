@@ -2,16 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReportStatus;
 use App\Models\DailyReport;
 use App\Models\MasterEmployee;
 use App\Models\MasterInventoryItem;
 use App\Models\MasterTruck;
 use App\Models\MasterUnit;
-use App\Models\Role;
 use App\Models\ShipOperation;
 use App\Models\UnitCheckLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -22,29 +23,30 @@ use Throwable;
 
 class ReportOpsController extends Controller
 {
+    private const MASTER_DATA_CACHE_TTL = 60 * 60 * 24;
+
+    private const PENDING_PDF_CACHE_TTL = 60 * 10;
+
     public function index()
     {
         $user = auth()->user();
         $userGroup = strtoupper((string) ($user->group ?? ''));
-        $isAdmin = $this->isAdmin($user);
 
         $this->pruneStaleDraftReports();
 
         $incomingReports = DailyReport::with(['creator', 'receiver', 'approver'])
-            ->when(! $isAdmin, function ($query) use ($userGroup) {
-                if ($userGroup === '') {
-                    return $query->whereRaw('1 = 0');
-                }
-
-                return $query->where('received_by_group', $userGroup);
-            })
-            ->where('status', 'submitted')
+            ->where('status', ReportStatus::Submitted)
+            ->when(
+                $userGroup === '',
+                fn ($query) => $query->whereRaw('1 = 0'),
+                fn ($query) => $query->where('received_by_group', $userGroup)
+            )
             ->latest('updated_at')
             ->get();
 
         $draftReports = DailyReport::with('creator')
             ->where('created_by', $user->id)
-            ->where('status', 'draft')
+            ->where('status', ReportStatus::Draft)
             ->latest('updated_at')
             ->get();
 
@@ -65,15 +67,13 @@ class ReportOpsController extends Controller
             'unitCheckLogs',
             'employeeLogs',
         ])
-            ->when(! $isAdmin, function ($query) use ($user, $userGroup) {
-                $query->where(function ($innerQuery) use ($user, $userGroup) {
-                    $innerQuery->where('created_by', $user->id);
+            ->where(function ($innerQuery) use ($user, $userGroup) {
+                $innerQuery->where('created_by', $user->id);
 
-                    if ($userGroup !== '') {
-                        $innerQuery->orWhere('group_name', $userGroup)
-                            ->orWhere('received_by_group', $userGroup);
-                    }
-                });
+                if ($userGroup !== '') {
+                    $innerQuery->orWhere('group_name', $userGroup)
+                        ->orWhere('received_by_group', $userGroup);
+                }
             });
 
         $this->applyHistorySearch($historyQuery, $historySearch);
@@ -93,7 +93,6 @@ class ReportOpsController extends Controller
     {
         $user = $request->user();
         $userGroup = strtoupper((string) ($user->group ?? ''));
-        $isAdmin = $this->isAdmin($user);
         $keyword = trim((string) $request->input('q', ''));
 
         $query = DailyReport::with([
@@ -107,15 +106,13 @@ class ReportOpsController extends Controller
             'unitCheckLogs',
             'employeeLogs',
         ])
-            ->when(! $isAdmin, function ($builder) use ($user, $userGroup): void {
-                $builder->where(function ($innerQuery) use ($user, $userGroup): void {
-                    $innerQuery->where('created_by', $user->id);
+            ->where(function ($innerQuery) use ($user, $userGroup): void {
+                $innerQuery->where('created_by', $user->id);
 
-                    if ($userGroup !== '') {
-                        $innerQuery->orWhere('group_name', $userGroup)
-                            ->orWhere('received_by_group', $userGroup);
-                    }
-                });
+                if ($userGroup !== '') {
+                    $innerQuery->orWhere('group_name', $userGroup)
+                        ->orWhere('received_by_group', $userGroup);
+                }
             });
 
         $this->applyHistorySearch($query, $keyword);
@@ -138,12 +135,14 @@ class ReportOpsController extends Controller
         };
 
         $statusMeta = function ($status): array {
-            return match ($status) {
-                'draft' => ['label' => 'Draft', 'class' => 'draft'],
-                'submitted' => ['label' => 'Diserahkan', 'class' => 'submit'],
-                'acknowledged' => ['label' => 'Ditanda Tangani', 'class' => 'approve'],
-                'approved' => ['label' => 'Dikonfirmasi', 'class' => 'confirm'],
-                default => ['label' => ucfirst((string) $status), 'class' => 'submit'],
+            $value = $status instanceof ReportStatus ? $status->value : (string) $status;
+
+            return match ($value) {
+                ReportStatus::Draft->value => ['label' => 'Draft', 'class' => 'draft'],
+                ReportStatus::Submitted->value => ['label' => 'Diserahkan', 'class' => 'submit'],
+                ReportStatus::Acknowledged->value => ['label' => 'Diterima', 'class' => 'confirm'],
+                ReportStatus::Approved->value => ['label' => 'Diarsipkan', 'class' => 'archive'],
+                default => ['label' => ucfirst($value), 'class' => 'submit'],
             };
         };
 
@@ -237,10 +236,10 @@ class ReportOpsController extends Controller
 
     public function store(Request $request)
     {
-        $status = $request->input('status') === 'draft' ? 'draft' : 'submitted';
+        $status = $request->input('status') === ReportStatus::Draft->value ? ReportStatus::Draft->value : ReportStatus::Submitted->value;
         $request->merge(['status' => $status]);
 
-        $validated = $request->validate($this->rules($status === 'draft', $request), [], $this->attributes());
+        $validated = $request->validate($this->rules($status === ReportStatus::Draft->value, $request), [], $this->attributes());
         $payload = $this->decodePayload($request->input('form_payload'));
 
         try {
@@ -272,7 +271,7 @@ class ReportOpsController extends Controller
                 ->with('error', 'Laporan belum bisa disimpan. Silakan periksa data lalu coba lagi.');
         }
 
-        $message = $status === 'draft'
+        $message = $status === ReportStatus::Draft->value
             ? 'Draft laporan berhasil disimpan.'
             : 'Laporan operasional berhasil dikirim.';
 
@@ -314,13 +313,13 @@ class ReportOpsController extends Controller
                 ->with('error', 'Draft sudah melewati 3 hari tanpa dilanjutkan, sehingga data draft tersebut dihapus otomatis.');
         }
 
-        $status = $report->status === 'draft' && $request->input('status') === 'draft'
-            ? 'draft'
-            : 'submitted';
+        $status = $report->status === ReportStatus::Draft && $request->input('status') === ReportStatus::Draft->value
+            ? ReportStatus::Draft->value
+            : ReportStatus::Submitted->value;
 
         $request->merge(['status' => $status]);
 
-        $validated = $request->validate($this->rules($status === 'draft', $request), [], $this->attributes());
+        $validated = $request->validate($this->rules($status === ReportStatus::Draft->value, $request), [], $this->attributes());
         $payload = $this->decodePayload($request->input('form_payload'));
 
         try {
@@ -350,7 +349,7 @@ class ReportOpsController extends Controller
                 ->with('error', 'Laporan belum bisa diperbarui. Silakan periksa data lalu coba lagi.');
         }
 
-        $message = $status === 'draft'
+        $message = $status === ReportStatus::Draft->value
             ? 'Draft laporan berhasil diperbarui.'
             : 'Laporan operasional berhasil dikirim.';
 
@@ -383,32 +382,18 @@ class ReportOpsController extends Controller
         abort_unless($this->canAccessReport($report, $user), 403);
 
         try {
-            if ($report->status === 'submitted') {
+            if ($report->status === ReportStatus::Submitted) {
                 if (! $this->canReceiveReport($report, $user)) {
                     return back()->with('error', 'Anda tidak dapat menandatangani laporan untuk regu lain.');
                 }
 
                 $report->update([
-                    'status' => 'acknowledged',
+                    'status' => ReportStatus::Acknowledged,
                     'received_by_user_id' => $user->id,
                     'received_at' => now(),
                 ]);
 
                 return back()->with('success', 'Laporan berhasil diterima dan ditanda tangani.');
-            }
-
-            if ($report->status === 'acknowledged') {
-                if (! $this->isAdmin($user)) {
-                    return back()->with('error', 'Hanya admin atau manajer yang dapat menyetujui laporan yang sudah diterima.');
-                }
-
-                $report->update([
-                    'status' => 'approved',
-                    'approved_by' => $user->id,
-                    'approved_at' => now(),
-                ]);
-
-                return back()->with('success', 'Laporan berhasil disetujui.');
             }
         } catch (Throwable $exception) {
             Log::error('Gagal menandatangani laporan operasional.', [
@@ -427,24 +412,45 @@ class ReportOpsController extends Controller
     {
         abort_unless($this->canAccessReport($report, auth()->user()), 403);
 
-        $report = $this->loadReport($report);
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            return view('report-ops.viewpdf', [
+                'report' => $this->loadReport($report),
+                'isPdf' => false,
+            ]);
+        }
 
-        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+        return response($this->renderReportPdf($report), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$this->reportExportFileName($report, 'pdf').'"',
+        ]);
+    }
+
+    private function renderReportPdf(DailyReport $report): string
+    {
+        $generate = function () use ($report): string {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('report-ops.pdf', [
-                'report' => $report,
+                'report' => $this->loadReport($report),
                 'isPdf' => true,
             ]);
 
             $pdf->setPaper([0, 0, 612.00, 1008.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
 
-            return $pdf->stream($this->reportExportFileName($report, 'pdf'));
+            return $pdf->output();
+        };
+
+        // Laporan approved sudah punya PDF arsip permanen di storage; hanya laporan
+        // yang belum di-approve yang di-cache sementara agar tidak digenerate ulang.
+        if ($report->status === ReportStatus::Approved) {
+            return $generate();
         }
 
-        return view('report-ops.viewpdf', [
-            'report' => $report,
-            'isPdf' => false,
-        ]);
+        return Cache::remember($this->pendingPdfCacheKey($report), self::PENDING_PDF_CACHE_TTL, $generate);
+    }
+
+    private function pendingPdfCacheKey(DailyReport $report): string
+    {
+        return sprintf('report_pdf.pending.%d.%d', $report->id, $report->updated_at?->timestamp ?? 0);
     }
 
     public function exportExcel(DailyReport $report)
@@ -904,7 +910,7 @@ class ReportOpsController extends Controller
 
         return match (true) {
             in_array($normalized, ['1', 'pagi', 'shift 1', 'shift pagi'], true) => 'Pagi',
-            in_array($normalized, ['2', 'siang', 'sore', 'shift 2', 'shift siang', 'shift sore'], true) => 'Siang',
+            in_array($normalized, ['2', 'siang', 'sore', 'shift 2', 'shift siang', 'shift sore'], true) => 'Sore',
             in_array($normalized, ['3', 'malam', 'shift 3', 'shift malam'], true) => 'Malam',
             default => $shift ? trim((string) $shift) : '-',
         };
@@ -961,7 +967,7 @@ class ReportOpsController extends Controller
         $senderGroup = strtoupper(trim((string) $request?->input('group_name')));
 
         return [
-            'status' => ['required', Rule::in(['draft', 'submitted'])],
+            'status' => ['required', Rule::in([ReportStatus::Draft->value, ReportStatus::Submitted->value])],
             'form_payload' => ['nullable', 'json'],
             'report_date' => [$requiredWhenSubmit, 'date'],
             'shift' => [$requiredWhenSubmit, 'string', 'max:20'],
@@ -1699,7 +1705,7 @@ class ReportOpsController extends Controller
     private function pruneStaleDraftReports(): int
     {
         return DailyReport::query()
-            ->where('status', 'draft')
+            ->where('status', ReportStatus::Draft)
             ->where(function ($query): void {
                 $query->where('updated_at', '<', $this->draftExpiryCutoff())
                     ->orWhere(function ($fallback): void {
@@ -1723,7 +1729,7 @@ class ReportOpsController extends Controller
 
     private function isStaleDraft(DailyReport $report): bool
     {
-        if ($report->status !== 'draft') {
+        if ($report->status !== ReportStatus::Draft) {
             return false;
         }
 
@@ -1857,13 +1863,30 @@ class ReportOpsController extends Controller
     private function masterData(?DailyReport $report = null): array
     {
         return [
-            'vehicles' => MasterUnit::select('id', 'name')->orderBy('id')->get(),
-            'inventories' => MasterInventoryItem::select('id', 'name', 'stock as qty')->orderBy('id')->get(),
-            'trucks' => MasterTruck::select('id', 'name', 'plate_number', 'description')->orderBy('id')->get(),
-            'employeesGrouped' => MasterEmployee::where('status', 'active')
-                ->orderBy('id')
-                ->get()
-                ->groupBy('group_name'),
+            'vehicles' => Cache::remember(
+                MasterUnit::MASTER_DATA_CACHE_KEY,
+                self::MASTER_DATA_CACHE_TTL,
+                fn () => MasterUnit::select('id', 'name')->orderBy('id')->get()->toArray()
+            ),
+            'inventories' => Cache::remember(
+                MasterInventoryItem::MASTER_DATA_CACHE_KEY,
+                self::MASTER_DATA_CACHE_TTL,
+                fn () => MasterInventoryItem::select('id', 'name', 'stock as qty')->orderBy('id')->get()->toArray()
+            ),
+            'trucks' => Cache::remember(
+                MasterTruck::MASTER_DATA_CACHE_KEY,
+                self::MASTER_DATA_CACHE_TTL,
+                fn () => MasterTruck::select('id', 'name', 'plate_number', 'description')->orderBy('id')->get()->toArray()
+            ),
+            'employeesGrouped' => Cache::remember(
+                MasterEmployee::MASTER_DATA_CACHE_KEY,
+                self::MASTER_DATA_CACHE_TTL,
+                fn () => MasterEmployee::where('status', 'active')
+                    ->orderBy('id')
+                    ->get()
+                    ->groupBy('group_name')
+                    ->toArray()
+            ),
             'lastUnitHandoverConditions' => $this->lastUnitHandoverConditions($report),
         ];
     }
@@ -1879,7 +1902,7 @@ class ReportOpsController extends Controller
         UnitCheckLog::query()
             ->select('unit_check_logs.*')
             ->join('daily_reports', 'daily_reports.id', '=', 'unit_check_logs.daily_report_id')
-            ->whereIn('daily_reports.status', ['submitted', 'acknowledged', 'approved'])
+            ->whereIn('daily_reports.status', [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved])
             ->when($report, fn ($query) => $query->where('daily_reports.id', '!=', $report->id))
             ->whereNotNull('unit_check_logs.condition_handed_over')
             ->where('unit_check_logs.condition_handed_over', '!=', '')
@@ -1952,11 +1975,11 @@ class ReportOpsController extends Controller
             return false;
         }
 
-        if ($this->isAdmin($user) || (int) $report->created_by === (int) $user->id) {
+        if ((int) $report->created_by === (int) $user->id) {
             return true;
         }
 
-        if ($report->status === 'draft') {
+        if ($report->status === ReportStatus::Draft) {
             return false;
         }
 
@@ -1974,20 +1997,20 @@ class ReportOpsController extends Controller
 
     private function canEditReport(DailyReport $report, mixed $user): bool
     {
-        if (! $user || ! in_array($report->status, ['draft', 'submitted'], true)) {
+        if (! $user || ! in_array($report->status, [ReportStatus::Draft, ReportStatus::Submitted], true)) {
             return false;
         }
 
-        return $this->isAdmin($user) || (int) $report->created_by === (int) $user->id;
+        return (int) $report->created_by === (int) $user->id;
     }
 
     private function canDeleteReport(DailyReport $report, mixed $user): bool
     {
-        if (! $user || $report->status !== 'draft') {
+        if (! $user || $report->status !== ReportStatus::Draft) {
             return false;
         }
 
-        return $this->isAdmin($user) || (int) $report->created_by === (int) $user->id;
+        return (int) $report->created_by === (int) $user->id;
     }
 
     private function canReceiveReport(DailyReport $report, mixed $user): bool
@@ -2001,11 +2024,6 @@ class ReportOpsController extends Controller
         return $userGroup !== ''
             && strtoupper((string) $report->received_by_group) === $userGroup
             && (int) $report->created_by !== (int) $user->id;
-    }
-
-    private function isAdmin(mixed $user): bool
-    {
-        return Role::hasManagementAccess($user->role->name ?? null);
     }
 
     private function decodePayload(?string $payload): ?array

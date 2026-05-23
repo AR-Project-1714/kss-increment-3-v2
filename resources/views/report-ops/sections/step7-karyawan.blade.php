@@ -18,7 +18,7 @@
                         <span>Relief & Lembur</span>
                     </div>
                     <div class="tab-sections" data-target="section-op7" style="cursor: pointer;">
-                        <span>OP.7 & Pengganti</span>
+                        <span class="op7">OP.7 & Pengganti</span>
                     </div>
                     <div class="tab-sections" data-target="section-lain" style="cursor: pointer;">
                         <span>Lain-lain</span>

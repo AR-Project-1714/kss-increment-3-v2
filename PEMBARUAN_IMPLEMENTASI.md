@@ -2,7 +2,7 @@
 
 Dokumen ini merangkum pembaruan yang sudah diterapkan pada Sistem Laporan Operasional KSS. Tujuannya untuk memudahkan pelacakan perubahan fitur, perilaku sistem, area file yang terdampak, dan test yang melindungi perubahan tersebut.
 
-Tanggal catatan: 21 Mei 2026
+Tanggal catatan: 23 Mei 2026
 
 ---
 
@@ -28,11 +28,35 @@ Fokus pembaruan terbaru:
 - Filter tanggal/regu/shift arsip manajer diposisikan di bawah baris pencarian.
 - Toast sukses/error memakai gaya liquid glass yang mengikuti styling box login.
 - Tombol Logout sidebar manajer memiliki hover, active, dan focus-visible state.
+- Modul admin aktif dengan dashboard, arsip laporan, log aktivitas, kelola pengguna, data master, backup, dan pusat bantuan.
+- Admin dapat upload tanda tangan PNG user ke `public/signatures`, mengubah status user dengan toggle tabel, dan memakai toast/modal konfirmasi untuk feedback aksi.
+- Pencarian Data Master admin memakai debounce tanpa tombol Cari.
+- Admin tidak memiliki tombol approval laporan; approval final tetap menjadi hak role `manajer`.
+- Input tanggal Info Umum dikembalikan ke native HTML date yang otomatis terisi tanggal hari ini dan tetap bisa diganti.
+- Input datetime Muat Kantong dan Muat Curah memakai date-time picker custom 24 jam dengan tombol "Hari ini", "Hapus", dan navigasi Enter.
+- Login memakai rate limiting berlapis untuk menahan brute force, dan percobaan login gagal/terblokir ditampilkan ke admin sebagai log keamanan.
+- Dokumentasi landasan teori skripsi ditambahkan di `LANDASAN_TEORI_SKRIPSI.md`.
+
+Pembaruan iterasi 23 Mei 2026:
+
+- Status laporan direfactor memakai PHP 8.1 Backed Enum `App\Enums\ReportStatus`.
+- Master data form laporan dan PDF laporan yang belum di-approve dicache untuk meringankan beban server.
+- Data Inventaris memiliki field Jumlah yang dipakai sebagai referensi qty di laporan.
+- Admin dapat melakukan Backup Tahunan: seluruh laporan tahun sebelumnya diarsipkan ke ZIP lalu dihapus dari sistem.
+- Suggestion operasi kapal memakai debounce lebih panjang dan menyembunyikan dropdown bila tidak ada hasil.
+- Input angka satuan ton menerima nilai desimal.
+- Operator OP.7 yang tidak masuk (sakit/cuti/tidak masuk) otomatis memunculkan baris karyawan pengganti dengan No.Forklift, Area, Masuk, dan Keluar terisi otomatis.
+- Tipe Unit pada Data Master disesuaikan dengan data unit nyata, dan modal data master diperbesar agar dropdown tidak terpotong.
+- Tombol Konfirmasi TTD manajer dan tombol Download menampilkan loading spinner saat diproses.
+- Sidebar admin dibuat agar tombol Logout selalu terlihat dengan area menu yang scrollable.
+- Cabang kode mati terkait approval di `ReportOpsController` dibersihkan; approval final tetap hak manajer.
+- Label shift "Siang" diseragamkan menjadi "Sore".
+- Analisis alur sistem ditambahkan di `ANALISIS_ALUR_SISTEM.md`.
 
 Verifikasi terakhir:
 
 - `php -l` untuk file PHP/Blade yang diubah: aman.
-- `php artisan test --filter=OpsFlowTest`: lulus `16 tests`, `135 assertions`.
+- `php artisan test`: lulus `25 tests`, `227 assertions`.
 
 ---
 
@@ -156,7 +180,7 @@ Aturan WITA:
 | Jam WITA | Shift | Jam Kerja |
 |---|---|---|
 | 07.00 - 14.59 | Pagi | 07.00 - 15.00 |
-| 15.00 - 22.59 | Siang | 15.00 - 23.00 |
+| 15.00 - 22.59 | Sore | 15.00 - 23.00 |
 | 23.00 - 06.59 | Malam | 23.00 - 07.00 |
 
 Perilaku:
@@ -684,6 +708,343 @@ Test terkait:
 
 - `test_history_search_finds_date_from_later_pagination_page`
 - `test_report_search_suggestions_accept_clear_partial_month_names`
+
+---
+
+## 26. Modul Admin Sistem
+
+Area admin sekarang memiliki fitur operasional yang berjalan dari route `/admin`.
+
+Fitur:
+
+- Dashboard sistem dengan ringkasan laporan, pengguna, data master, backup, dan aktivitas.
+- Arsip laporan dengan aksi lihat, download, dan hapus. Tombol approve tidak ditampilkan karena approval final hanya dilakukan oleh manajer.
+- Log aktivitas untuk memantau aksi administratif.
+- Kelola pengguna dengan modal tambah/edit, upload tanda tangan PNG, toggle status aktif/nonaktif, dan hapus user dengan konfirmasi.
+- Data master karyawan, unit, truck, dan inventaris dengan modal tambah/edit serta konfirmasi hapus.
+- Manajemen backup untuk generate backup manual, mengatur jadwal, download, hapus, dan mencatat permintaan restore.
+- Pusat bantuan admin dengan topik cepat dan form tiket bantuan.
+- Toast sukses/error menggantikan alert statis agar konsisten dengan halaman operasional dan manajer.
+- Logout admin berjalan langsung tanpa modal konfirmasi.
+
+File utama:
+
+- `app/Http/Controllers/AdminV2Controller.php`
+- `app/Http/Middleware/EnsureAdminAccess.php`
+- `routes/web.php`
+- `resources/views/admin/index.blade.php`
+- `resources/views/admin/archive.blade.php`
+- `resources/views/admin/log.blade.php`
+- `resources/views/admin/user-manage.blade.php`
+- `resources/views/admin/datamaster.blade.php`
+- `resources/views/admin/backup.blade.php`
+- `resources/views/admin/help.blade.php`
+- `resources/views/admin/layouts/app.blade.php`
+- `resources/views/admin/layouts/sidebar.blade.php`
+- `resources/views/admin/layouts/pagination.blade.php`
+
+Test terkait:
+
+- `test_admin_login_redirects_to_admin_dashboard`
+- `test_admin_routes_are_protected_by_admin_role`
+- `test_admin_user_modal_accepts_png_signature_upload`
+- `test_admin_can_create_master_unit`
+- `test_admin_can_generate_backup_file`
+- `test_admin_datamaster_search_uses_debounced_auto_submit`
+
+---
+
+## 27. Penyempurnaan Input Tanggal dan Date-Time Picker
+
+Input tanggal dan waktu diperbaiki agar sesuai kebutuhan entry data operasional.
+
+Perubahan:
+
+- Input tanggal pada Info Umum kembali memakai native HTML `type="date"`.
+- Tanggal Info Umum otomatis terisi tanggal hari ini pada form create, tetapi tetap dapat diganti oleh petugas.
+- Input datetime pada Muat Kantong dan Muat Curah memakai komponen custom `data-kss-picker="datetime"`.
+- Date-time picker memakai format 24 jam, ukuran popover diperkecil, dan trigger disejajarkan dengan input lain.
+- Tombol "Hari ini" dan "Hapus" tersedia pada picker.
+- Navigasi Enter dapat melanjutkan fokus ke input berikutnya.
+- Jika input berikutnya adalah date-time picker, menekan Enter dari input sebelumnya akan membuka kalender dan jam.
+
+File utama:
+
+- `resources/views/components/kss-datetime-picker.blade.php`
+- `resources/views/report-ops/layouts/app.blade.php`
+- `resources/views/report-ops/sections/step1-infoumum.blade.php`
+- `resources/views/report-ops/sections/step2-muatkantong.blade.php`
+- `resources/views/report-ops/sections/step3-muatcurah.blade.php`
+- `tests/Feature/OpsFlowTest.php`
+
+Test terkait:
+
+- `test_report_create_page_renders_required_form_controls`
+
+---
+
+## 28. Dokumentasi Teori Skripsi
+
+Dokumen baru `LANDASAN_TEORI_SKRIPSI.md` ditambahkan sebagai bahan penyusunan landasan teori dan metode penelitian.
+
+Isi utama:
+
+- Sistem informasi operasional.
+- Metode pengembangan incremental.
+- Arsitektur MVC dan Laravel Blade.
+- RBAC dan separation of duties.
+- CRUD data master.
+- Workflow status laporan.
+- Form multi-step dan payload JSON.
+- Validasi frontend/backend.
+- Pencarian server-side, debounce, dan pagination.
+- Upload tanda tangan PNG.
+- Export PDF/Excel.
+- Backup, audit log, toast, modal, responsive design, dan pengujian.
+
+File utama:
+
+- `LANDASAN_TEORI_SKRIPSI.md`
+- `README.md`
+- `DOKUMENTASI.md`
+
+---
+
+## 29. Refactor Status Laporan ke PHP Enum
+
+Status laporan yang sebelumnya berupa string (`draft`, `submitted`, `acknowledged`, `approved`) kini memakai PHP 8.1 Backed Enum.
+
+Perubahan:
+
+- Enum baru `App\Enums\ReportStatus` dengan method `label()` (Draft, Menunggu TTD, Menunggu Approval, Disetujui).
+- Model `DailyReport` memakai cast `'status' => ReportStatus::class`, sehingga `$report->status` mengembalikan instance enum.
+- Semua perbandingan/query di controller dan Blade memakai konstanta enum, bukan string mentah.
+- `<option value="...">` di HTML dan body request HTTP tetap string (input user); test `assertDatabaseHas` memakai `ReportStatus::X->value`.
+
+File utama:
+
+- `app/Enums/ReportStatus.php`
+- `app/Models/DailyReport.php`
+- `app/Http/Controllers/ReportOpsController.php`
+- `app/Http/Controllers/ManajerController.php`
+- `app/Http/Controllers/AdminV2Controller.php`
+- `app/Http/Controllers/AdminController.php`
+- `resources/views/report-ops/*.blade.php`, `resources/views/manajer/*.blade.php`, `resources/views/admin/archive.blade.php`
+- `tests/Feature/OpsFlowTest.php`
+
+---
+
+## 30. Caching Master Data dan PDF Laporan
+
+Pengambilan data master yang jarang berubah dan generate PDF laporan belum di-approve kini dicache.
+
+Master data:
+
+- `MasterUnit`, `MasterInventoryItem`, `MasterTruck`, `MasterEmployee` dicache via `Cache::remember` (TTL 24 jam) saat membangun form laporan.
+- Trait `App\Models\Concerns\InvalidatesMasterDataCache` meng-invalidasi cache otomatis saat data master di-create/update/delete (lewat model event `saved`/`deleted`).
+
+PDF sementara:
+
+- `ReportOpsController::exportPdf` men-cache output PDF laporan yang belum di-approve selama 10 menit (key memuat `id` + `updated_at` agar otomatis kedaluwarsa saat laporan berubah).
+- Laporan yang sudah approved tidak ikut cache sementara ini karena sudah punya PDF arsip permanen di storage.
+
+Catatan penting (gotcha):
+
+- Cache produksi memakai driver `database`, sedangkan test override ke `array`. Driver `database` menserialisasi nilai; **objek Eloquent yang dicache rusak menjadi `__PHP_Incomplete_Class` saat diambil**. Karena itu master data dicache sebagai **array biasa** (`->toArray()`), bukan koleksi Eloquent.
+
+File utama:
+
+- `app/Models/Concerns/InvalidatesMasterDataCache.php`
+- `app/Models/MasterUnit.php`, `MasterInventoryItem.php`, `MasterTruck.php`, `MasterEmployee.php`
+- `app/Http/Controllers/ReportOpsController.php`
+
+---
+
+## 31. Field Jumlah pada Data Inventaris
+
+Data Master Inventaris kini punya field Jumlah (kolom `stock`) yang menjadi referensi qty default pada laporan.
+
+Perubahan:
+
+- Form tambah/edit inventaris admin menambahkan input Jumlah; tabel inventaris menampilkan kolom Jumlah.
+- `storeInventory`/`updateInventory` memvalidasi & menyimpan `stock`.
+- Form laporan (Cek Unit) memakai `stock as qty` sebagai jumlah default baris inventaris.
+
+File utama:
+
+- `app/Http/Controllers/AdminV2Controller.php`
+- `resources/views/admin/datamaster.blade.php`
+- `resources/views/report-ops/create.blade.php`, `edit.blade.php`
+
+---
+
+## 32. Backup Tahunan Laporan
+
+Admin dapat mengarsipkan seluruh laporan tahun sebelumnya ke satu file ZIP untuk dipindahkan ke penyimpanan lokal, lalu menghapusnya dari sistem agar penyimpanan server lebih ringan.
+
+Perilaku:
+
+- Tombol Backup Tahunan di menu Manajemen Backup aktif hanya saat sudah memasuki tahun baru dan masih ada laporan tahun sebelumnya.
+- Menargetkan tahun lampau terlama yang masih tersimpan (sekali klik per tahun, dari yang terlama).
+- ZIP berisi `data .json` lengkap + PDF laporan, dengan format nama `Laporan_Harian_KSS_Tahun_{tahun}.zip`.
+- Setelah ZIP dibuat, laporan tahun tsb dihapus (detail ikut terhapus via foreign key cascade) dan PDF arsipnya dibersihkan.
+- Aksi memakai konfirmasi destruktif; ZIP muncul di daftar backup untuk diunduh lalu boleh dihapus dari server.
+
+File utama:
+
+- `app/Http/Controllers/AdminV2Controller.php` (`annualBackup`, `annualBackupYear`, `backupFiles`, `backupPath`)
+- `routes/web.php`
+- `resources/views/admin/backup.blade.php`
+
+---
+
+## 33. Penyesuaian Suggestion Operasi Kapal
+
+Suggestion nama kapal pada Muat Kantong/Curah disesuaikan agar tidak membebani server dan tidak menampilkan dropdown kosong.
+
+Perubahan:
+
+- Debounce dinaikkan menjadi 500 ms, jadi request hanya dikirim setelah petugas berhenti mengetik.
+- Jika hasil pencarian kosong, dropdown disembunyikan total (tidak lagi menampilkan kotak "Tidak ada kapal aktif").
+
+File utama:
+
+- `resources/views/report-ops/create.blade.php`, `edit.blade.php`
+
+---
+
+## 34. Input Angka Satuan Ton Mendukung Desimal
+
+Field angka satuan ton (kapasitas, qty) kini menerima nilai desimal.
+
+Perubahan:
+
+- Normalizer input angka memberi `step="any"` pada input number yang belum punya `step`, sehingga validasi browser tidak menolak angka desimal.
+- Tetap menjaga `min=0` dan `inputmode="decimal"` yang sudah ada.
+
+File utama:
+
+- `resources/views/report-ops/layouts/app.blade.php`
+
+---
+
+## 35. Pengganti Operator OP.7 Otomatis
+
+Pada Form Karyawan tab OP.7 & Pengganti, operator yang tidak masuk otomatis memunculkan baris karyawan pengganti.
+
+Perilaku:
+
+- Saat operator OP.7 ditandai Sakit, Cuti, atau Tidak Masuk, satu baris di tabel Pengganti terisi otomatis: No.Forklift dan Area Kerja dari operator tsb, serta Masuk/Keluar dari jam shift (field auto bersifat readonly).
+- Petugas cukup mengisi Nama penggantinya.
+- 2+ operator tidak masuk → barisnya bertambah. Baris bawaan template yang masih kosong diisi lebih dulu sebelum menambah baris baru.
+- Operator hadir lagi / baris OP.7 dihapus → baris pengganti otomatis hilang (baris bawaan dikembalikan menjadi baris manual kosong, baris buatan dibuang).
+- Bersifat event-driven, jadi tidak mengganggu data tersimpan saat membuka form edit.
+
+File utama:
+
+- `resources/views/report-ops/create.blade.php`, `edit.blade.php`
+- `resources/views/report-ops/layouts/app.blade.php` (style `.is-auto-filled`)
+
+---
+
+## 36. Penyesuaian Tipe Unit dan Modal Data Master
+
+Perbaikan UX pada modul Data Master admin.
+
+Perubahan:
+
+- Opsi Tipe Unit disesuaikan dengan data unit nyata: Trailer, Tronton, Dump Truck, Pick Up, Bus, Forklift, Wheel Loader, Excavator. Ini juga memperbaiki pre-select tipe saat edit unit.
+- Modal tambah/edit data master diperbesar dan dibuat `overflow: visible` agar dropdown select tidak terpotong / tidak perlu di-scroll di dalam modal.
+
+File utama:
+
+- `resources/views/admin/datamaster.blade.php`
+- `resources/views/admin/layouts/app.blade.php`
+
+---
+
+## 37. Loading State Konfirmasi TTD dan Download Manajer
+
+Aksi yang butuh proses kini memberi indikator loading.
+
+Perubahan:
+
+- Tombol Konfirmasi TTD (approval/arsip) menampilkan spinner + "Memproses..." dan dinonaktifkan saat form dikirim (mencegah klik ganda).
+- Tombol Download arsip menampilkan spinner + "Menyiapkan..." sebagai tanda proses download dimulai.
+- Diterapkan via event delegation pada layout manajer (juga mencakup elemen yang dirender dinamis).
+
+File utama:
+
+- `resources/views/manajer/layouts/app.blade.php`
+
+---
+
+## 38. Sidebar Admin: Tombol Logout Selalu Terlihat
+
+Saat menu sidebar admin memanjang, tombol Logout tidak lagi terdorong keluar layar.
+
+Perubahan:
+
+- Wrapper logo+navigasi dibuat flex column dengan `min-height: 0` dan `overflow: hidden`.
+- Area navigasi `overflow-y: auto` (scrollable), footer logout `flex-shrink: 0` (selalu menempel di bawah).
+- Berlaku juga untuk drawer versi mobile.
+
+File utama:
+
+- `resources/views/admin/layouts/sidebar.blade.php`
+- `resources/views/admin/layouts/app.blade.php`
+
+---
+
+## 39. Pembersihan Dead Code dan Penegasan Approval Manajer
+
+Approval final ditegaskan hanya milik manajer; cabang kode yang tidak pernah tereksekusi di `ReportOpsController` dibersihkan.
+
+Perubahan:
+
+- Cabang `acknowledged → approved` pada `sign()` dihapus (admin/manajer memang diblok dari route `/report-ops`).
+- Kondisi `isAdmin($user) ||` pada `canAccessReport`/`canEditReport`/`canDeleteReport` dan scoping `when(! $isAdmin, …)` di `index()`/`historySuggestions()` disederhanakan tanpa mengubah perilaku.
+- Method `isAdmin()` dan import `App\Models\Role` yang tak terpakai dihapus.
+- Jalur approval aktif tetap satu: `ManajerController::approve` (acknowledged → approved + arsip PDF).
+
+File utama:
+
+- `app/Http/Controllers/ReportOpsController.php`
+
+---
+
+## 40. Penyeragaman Label Shift Siang → Sore
+
+Label shift kedua diseragamkan menjadi "Sore" di Info Umum dan seluruh output terkait, konsisten dengan tabel laporan.
+
+Perilaku:
+
+- Dropdown shift dan default otomatis (jam 15.00–23.00 WITA) memakai nilai "Sore".
+- Label Excel memakai "Sore".
+- `siang` tetap dipertahankan sebagai alias input pada normalisasi & pencarian, sehingga laporan lama bernilai "Siang" otomatis ditampilkan sebagai "Sore".
+- Greeting navbar "Selamat Siang" (berdasarkan jam) tidak diubah karena bukan label shift.
+
+File utama:
+
+- `resources/views/report-ops/sections/step1-infoumum.blade.php`
+- `resources/views/report-ops/create.blade.php`, `edit.blade.php`
+- `app/Http/Controllers/ReportOpsController.php`
+
+---
+
+## 41. Dokumen Analisis Alur Sistem
+
+Dokumen `ANALISIS_ALUR_SISTEM.md` ditambahkan untuk mencatat hasil penelusuran alur sistem beserta temuan yang belum sesuai dan status tindak lanjutnya.
+
+Isi utama:
+
+- Ringkasan alur yang sudah benar (login, kontrol akses, alur status laporan, enum, caching).
+- Temuan: dead code `AdminController` (belum ditindak), dead branch `isAdmin` (selesai), multi-divisi pemeliharaan/safety setengah jadi (ditunda), stok inventaris (selesai), dan beberapa penyempurnaan minor.
+- Tabel prioritas dengan kolom status.
+
+File utama:
+
+- `ANALISIS_ALUR_SISTEM.md`
 
 ---
 

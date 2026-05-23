@@ -176,6 +176,7 @@
     .thead th.col-plate,    .tbody td.col-plate    { min-width: 120px; }
     .thead th.col-desc,     .tbody td.col-desc     { min-width: 200px; flex: 2 0 0; }
     .thead th.col-category, .tbody td.col-category { min-width: 130px; }
+    .thead th.col-stock,    .tbody td.col-stock    { min-width: 90px; }
     .thead th.col-aksi,     .tbody td.col-aksi     { min-width: 180px; gap: 8px; flex-wrap: nowrap; }
 
     /* Action buttons */
@@ -249,14 +250,13 @@
 
 @component('admin.layouts.card', ['title' => 'Data Karyawan', 'titleId' => 'masterTitle'])
     <!-- Toolbar -->
-    <form class="archive-toolbar" method="GET" action="{{ route('admin.datamaster') }}">
+    <form class="archive-toolbar" method="GET" action="{{ route('admin.datamaster') }}" id="masterSearchForm" autocomplete="off">
         <input type="hidden" name="pane" id="masterPaneInput" value="{{ $activePane ?? 'karyawan' }}">
         <div class="search-action-group">
             <div class="search-box">
                 <span><i class="fi fi-rr-search"></i></span>
-                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="Cari Karyawan" id="masterSearch">
+                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="Cari Karyawan" id="masterSearch" data-search-debounce="650" aria-label="Cari data master">
             </div>
-            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Cari</button>
         </div>
         <button type="button" class="btn-tool btn-tool--primary" id="masterAddBtn">
             <i class="fi fi-rr-user-add" id="masterAddIcon"></i> <span id="masterAddText">Tambah Pengguna</span>
@@ -364,6 +364,7 @@
                     <th class="col-no">No</th>
                     <th class="col-name">Name</th>
                     <th class="col-category">Category</th>
+                    <th class="col-stock">Jumlah</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @foreach ($inventories as $i)
@@ -371,6 +372,7 @@
                         <td class="col-no">{{ $i['no'] }}</td>
                         <td class="col-name">{{ $i['name'] }}</td>
                         <td class="col-category">{{ $i['category'] }}</td>
+                        <td class="col-stock">{{ $i['stock'] ?? 0 }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
                             <form method="POST" action="{{ $i['destroy_url'] ?? '#' }}">
@@ -452,8 +454,8 @@
                 label: 'Unit',
                 icon: 'fi fi-rr-truck-side',
                 fields: [
-                    { key: 'name', label: 'Nama Unit', placeholder: 'Excavator PC200' },
-                    { key: 'type', label: 'Tipe Unit', type: 'select', options: ['Alat Berat', 'Kendaraan', 'Forklift', 'Support'] },
+                    { key: 'name', label: 'Nama Unit', placeholder: 'Forklift KSS-01' },
+                    { key: 'type', label: 'Tipe Unit', type: 'select', options: ['Trailer', 'Tronton', 'Dump Truck', 'Pick Up', 'Bus', 'Forklift', 'Wheel Loader', 'Excavator'] },
                 ],
             },
             truck: {
@@ -471,6 +473,7 @@
                 fields: [
                     { key: 'name', label: 'Nama Inventaris', placeholder: 'Helm Safety' },
                     { key: 'category', label: 'Kategori', type: 'select', options: ['APD', 'Sparepart', 'Tools', 'Consumable'] },
+                    { key: 'stock', label: 'Jumlah', type: 'number', placeholder: '0' },
                 ],
             },
         };
@@ -478,6 +481,7 @@
         const masterTitle    = document.getElementById('masterTitle');
         const masterCrumb     = document.getElementById('masterCrumb');
         const masterSearch    = document.getElementById('masterSearch');
+        const masterSearchForm = document.getElementById('masterSearchForm');
         const masterPaneInput = document.getElementById('masterPaneInput');
         const masterAddText   = document.getElementById('masterAddText');
         const masterAddIcon   = document.getElementById('masterAddIcon');
@@ -494,6 +498,9 @@
         const masterFormMethod = document.getElementById('masterFormMethod');
         const masterActions = @json($masterActions);
         let activeMasterPane = 'karyawan';
+        let masterSearchTimer = null;
+        let lastSubmittedSearch = masterSearch ? masterSearch.value : '';
+        let lastSubmittedPane = masterPaneInput ? masterPaneInput.value : activeMasterPane;
 
         function switchMasterPane(pane) {
             const cfg = masterTabs[pane];
@@ -509,6 +516,27 @@
             if (masterAddIcon) masterAddIcon.className = cfg.icon;
         }
 
+        function scheduleMasterSearchSubmit(delay = null) {
+            if (!masterSearchForm || !masterSearch) return;
+
+            window.clearTimeout(masterSearchTimer);
+            const debounceMs = delay ?? Number(masterSearch.dataset.searchDebounce || 650);
+
+            masterSearchTimer = window.setTimeout(function () {
+                const currentSearch = masterSearch.value;
+                const currentPane = masterPaneInput ? masterPaneInput.value : activeMasterPane;
+                if (currentSearch === lastSubmittedSearch && currentPane === lastSubmittedPane) return;
+
+                lastSubmittedSearch = currentSearch;
+                lastSubmittedPane = currentPane;
+                if (typeof masterSearchForm.requestSubmit === 'function') {
+                    masterSearchForm.requestSubmit();
+                } else {
+                    masterSearchForm.submit();
+                }
+            }, debounceMs);
+        }
+
         function readMasterRow(row, pane) {
             const text = selector => row.querySelector(selector)?.textContent.trim() || '';
             if (pane === 'karyawan') {
@@ -520,7 +548,7 @@
             if (pane === 'truck') {
                 return { name: text('.col-name'), plate: text('.col-plate'), desc: text('.col-desc') };
             }
-            return { name: text('.col-name'), category: text('.col-category') };
+            return { name: text('.col-name'), category: text('.col-category'), stock: text('.col-stock') };
         }
 
         function addField(field, value, index) {
@@ -568,8 +596,13 @@
                 control.className = 'kss-modal__textarea';
             } else {
                 control = document.createElement('input');
-                control.type = 'text';
+                control.type = field.type === 'number' ? 'number' : 'text';
                 control.className = 'kss-modal__input';
+                if (field.type === 'number') {
+                    control.min = '0';
+                    control.step = '1';
+                    control.inputMode = 'numeric';
+                }
             }
 
             control.id = `masterField_${field.key}`;
@@ -614,6 +647,23 @@
 
         const initialPane = new URLSearchParams(window.location.search).get('pane') || @json($activePane ?? 'karyawan');
         switchMasterPane(initialPane);
+
+        masterSearch?.addEventListener('input', function () {
+            scheduleMasterSearchSubmit();
+        });
+
+        masterSearch?.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            scheduleMasterSearchSubmit(0);
+        });
+
+        masterSearchForm?.addEventListener('submit', function () {
+            window.clearTimeout(masterSearchTimer);
+            if (masterSearch) {
+                masterSearch.value = masterSearch.value.trim();
+            }
+        });
 
         masterAddBtn?.addEventListener('click', function () {
             openMasterForm('add', activeMasterPane);

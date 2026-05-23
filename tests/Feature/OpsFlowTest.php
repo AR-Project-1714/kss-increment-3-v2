@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ReportStatus;
+use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\LoadingActivity;
 use App\Models\MasterUnit;
@@ -96,6 +98,92 @@ class OpsFlowTest extends TestCase
         }
     }
 
+    public function test_archive_filters_include_division_status_and_show_manager_signed_reports_as_archived(): void
+    {
+        $adminRole = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $managerRole = Role::firstOrCreate(['name' => Role::MANAGER]);
+        $operatorRole = Role::firstOrCreate(['name' => Role::OPERATIONAL]);
+
+        $admin = User::create([
+            'name' => 'Admin Arsip',
+            'username' => 'admin-arsip',
+            'email' => 'admin-arsip@example.com',
+            'password' => 'password',
+            'role_id' => $adminRole->id,
+            'status' => 'aktif',
+        ]);
+
+        $manager = User::create([
+            'name' => 'Manajer Arsip',
+            'username' => 'manajer-arsip',
+            'email' => 'manajer-arsip@example.com',
+            'password' => 'password',
+            'role_id' => $managerRole->id,
+            'status' => 'aktif',
+        ]);
+
+        $operator = User::create([
+            'name' => 'Operator Arsip',
+            'username' => 'operator-arsip',
+            'email' => 'operator-arsip@example.com',
+            'password' => 'password',
+            'role_id' => $operatorRole->id,
+            'status' => 'aktif',
+            'group' => 'A',
+        ]);
+
+        $archivedReport = DailyReport::create([
+            'user_id' => $operator->id,
+            'created_by' => $operator->id,
+            'report_date' => '2026-05-21',
+            'shift' => 'Pagi',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '07:00 - 15:00',
+            'status' => 'approved',
+            'approved_by' => $manager->id,
+            'approved_at' => '2026-05-21 16:00:00',
+        ]);
+
+        $pendingReport = DailyReport::create([
+            'user_id' => $operator->id,
+            'created_by' => $operator->id,
+            'report_date' => '2026-05-21',
+            'shift' => 'Sore',
+            'group_name' => 'C',
+            'received_by_group' => 'D',
+            'time_range' => '15:00 - 23:00',
+            'status' => 'acknowledged',
+        ]);
+
+        $archivedDocumentId = '#OPS-2026-'.str_pad((string) $archivedReport->id, 3, '0', STR_PAD_LEFT);
+        $pendingDocumentId = '#OPS-2026-'.str_pad((string) $pendingReport->id, 3, '0', STR_PAD_LEFT);
+
+        $this->actingAs($admin)
+            ->get(route('admin.archive', ['divisi' => 'operasional', 'status' => 'approved']))
+            ->assertOk()
+            ->assertSee('name="divisi"', false)
+            ->assertSee('name="status"', false)
+            ->assertSee('Diarsipkan', false)
+            ->assertSee($archivedDocumentId, false)
+            ->assertDontSee($pendingDocumentId, false);
+
+        $this->actingAs($manager)
+            ->get(route('manajer.archive', ['tanggal' => '2026-05-21', 'status' => 'approved']))
+            ->assertOk()
+            ->assertSee('name="divisi"', false)
+            ->assertSee('name="status"', false)
+            ->assertSee('Diarsipkan', false)
+            ->assertSee($archivedDocumentId, false)
+            ->assertDontSee($pendingDocumentId, false);
+
+        $this->actingAs($manager)
+            ->get(route('manajer.archive', ['divisi' => 'safety']))
+            ->assertOk()
+            ->assertDontSee($archivedDocumentId, false)
+            ->assertDontSee($pendingDocumentId, false);
+    }
+
     public function test_admin_flash_error_is_rendered_as_toast_message(): void
     {
         $role = Role::firstOrCreate(['name' => Role::ADMIN]);
@@ -115,6 +203,27 @@ class OpsFlowTest extends TestCase
             ->assertSee('class="toast-message error"', false)
             ->assertSee('Status pengguna gagal diperbarui.', false)
             ->assertDontSee('kss-alert', false);
+    }
+
+    public function test_admin_datamaster_search_uses_debounced_auto_submit(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $admin = User::create([
+            'name' => 'Admin Master Search',
+            'username' => 'admin-master-search',
+            'email' => 'admin-master-search@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.datamaster'))
+            ->assertOk()
+            ->assertSee('id="masterSearchForm"', false)
+            ->assertSee('data-search-debounce="650"', false)
+            ->assertSee('scheduleMasterSearchSubmit', false)
+            ->assertDontSee('<i class="fi fi-rr-search"></i> Cari</button>', false);
     }
 
     public function test_admin_can_run_core_admin_actions(): void
@@ -207,12 +316,12 @@ class OpsFlowTest extends TestCase
         $this->actingAs($manager)
             ->get(route('report-ops.index'))
             ->assertRedirect(route('manajer.index'))
-            ->assertSessionHas('error', 'Akun manajer hanya dapat mengakses halaman manajer.');
+            ->assertSessionHas('error', 'Anda tidak memiliki akses ke halaman tersebut.');
 
         $this->actingAs($manager)
             ->getJson(route('report-ops.history.suggestions', ['q' => 'OPS']))
             ->assertForbidden()
-            ->assertJsonPath('message', 'Akun manajer hanya dapat mengakses halaman manajer.');
+            ->assertJsonPath('message', 'Anda tidak memiliki akses ke halaman tersebut.');
     }
 
     public function test_manager_can_review_reports_from_manager_route_only(): void
@@ -262,6 +371,70 @@ class OpsFlowTest extends TestCase
         $this->assertStringContainsString('Login belum berhasil', $html);
         $this->assertStringContainsString('has-auth-error', $html);
         $this->assertStringNotContainsString('alert alert-danger', $html);
+    }
+
+    public function test_failed_login_and_brute_force_attempts_are_logged_for_admin(): void
+    {
+        $adminRole = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $operationalRole = Role::firstOrCreate(['name' => Role::OPERATIONAL]);
+
+        $admin = User::create([
+            'name' => 'Admin Security',
+            'username' => 'admin-security',
+            'email' => 'admin-security@example.com',
+            'password' => 'password',
+            'role_id' => $adminRole->id,
+            'status' => 'aktif',
+        ]);
+
+        User::create([
+            'name' => 'Target Login',
+            'username' => 'target-login',
+            'email' => 'target-login@example.com',
+            'password' => 'password-benar',
+            'role_id' => $operationalRole->id,
+            'status' => 'aktif',
+            'group' => 'A',
+        ]);
+
+        $ip = '10.55.0.77';
+
+        for ($i = 0; $i < 5; $i++) {
+            $this
+                ->withServerVariables(['REMOTE_ADDR' => $ip])
+                ->from(route('login.index'))
+                ->post(route('login.authenticate'), [
+                    'username' => 'target-login',
+                    'password' => 'password-salah',
+                ])
+                ->assertRedirect(route('login.index'))
+                ->assertSessionHasErrors('username');
+        }
+
+        $this
+            ->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->from(route('login.index'))
+            ->post(route('login.authenticate'), [
+                'username' => 'target-login',
+                'password' => 'password-salah',
+            ])
+            ->assertRedirect(route('login.index'))
+            ->assertSessionHasErrors('username');
+
+        $this->assertTrue(AdminActivityLog::where('type', 'security')
+            ->where('description', 'like', 'Login gagal untuk username/email "target-login"%')
+            ->exists());
+
+        $this->assertTrue(AdminActivityLog::where('type', 'security')
+            ->where('description', 'like', 'Brute force login diblokir untuk username/email "target-login"%')
+            ->exists());
+
+        $this->actingAs($admin)
+            ->get(route('admin.log', ['type' => 'security']))
+            ->assertOk()
+            ->assertSee('Keamanan', false)
+            ->assertSee('Login gagal untuk username/email &quot;target-login&quot;', false)
+            ->assertSee('Brute force login diblokir untuk username/email &quot;target-login&quot;', false);
     }
 
     public function test_role_seeder_prepares_five_development_roles_and_migrates_legacy_petugas(): void
@@ -314,7 +487,7 @@ class OpsFlowTest extends TestCase
         $response->assertRedirect(route('report-ops.index'));
         $this->assertDatabaseHas('daily_reports', [
             'created_by' => $user->id,
-            'status' => 'draft',
+            'status' => ReportStatus::Draft->value,
         ]);
         $this->assertDatabaseHas('loading_activities', [
             'ship_name' => 'KM Draft',
@@ -349,7 +522,7 @@ class OpsFlowTest extends TestCase
             'created_by' => $user->id,
             'group_name' => 'B',
             'received_by_group' => 'B',
-            'status' => 'submitted',
+            'status' => ReportStatus::Submitted->value,
         ]);
     }
 
@@ -435,6 +608,9 @@ class OpsFlowTest extends TestCase
         $response = $this->actingAs($user)->get(route('report-ops.create'));
 
         $response->assertOk();
+        $response->assertSee('<input type="date" id="tanggal" name="report_date" value="'.now()->toDateString().'"', false);
+        $response->assertSee('name="arrival_time_1"', false);
+        $response->assertSee('data-kss-picker="datetime"', false);
         $this->assertStringContainsString('"vehicle":{"master":{"'.$unit->id.'":"Rusak"', $response->getContent());
         $this->assertStringContainsString(
             'makeRadioCell(`unit_logs[${index}][condition_handed_over]`, `unit_serah_${index}`, previousHandoverCondition(\'vehicle\', item))',
@@ -658,7 +834,7 @@ class OpsFlowTest extends TestCase
             $response = $this->actingAs($user)->get(route('report-ops.index', ['tab' => 'draft']));
 
             $response->assertOk();
-            $this->assertDatabaseHas('daily_reports', ['id' => $freshDraft->id, 'status' => 'draft']);
+            $this->assertDatabaseHas('daily_reports', ['id' => $freshDraft->id, 'status' => ReportStatus::Draft->value]);
             $this->assertDatabaseMissing('daily_reports', ['id' => $staleDraft->id]);
             $this->assertDatabaseMissing('loading_activities', ['id' => $staleActivity->id]);
 
@@ -713,7 +889,7 @@ class OpsFlowTest extends TestCase
 
         $this->assertDatabaseHas('daily_reports', [
             'id' => $report->id,
-            'status' => 'acknowledged',
+            'status' => ReportStatus::Acknowledged->value,
             'received_by_user_id' => $receiver->id,
         ]);
 
@@ -733,7 +909,7 @@ class OpsFlowTest extends TestCase
         $this->assertStringContainsString('aktivitas bongkar khusus', $historyHtml);
         $this->assertStringContainsString('Group Penerima', $historyHtml);
         $this->assertStringContainsString('Regu A', $historyHtml);
-        $this->assertStringContainsString('Ditanda Tangani', $historyHtml);
+        $this->assertStringContainsString('Diterima', $historyHtml);
 
         $searchResponse = $this->actingAs($receiver)->get(route('report-ops.index', [
             'tab' => 'riwayat',

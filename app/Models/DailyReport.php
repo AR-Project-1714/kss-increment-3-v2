@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ReportStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,6 +21,7 @@ class DailyReport extends Model
             'received_at' => 'datetime',
             'approved_at' => 'datetime',
             'payload' => 'array',
+            'status' => ReportStatus::class,
         ];
     }
 

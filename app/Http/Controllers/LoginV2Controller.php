@@ -2,16 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdminActivityLog;
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class LoginV2Controller extends Controller
 {
+    private const MAX_LOGIN_ATTEMPTS = 5;
+
+    private const LOGIN_DECAY_SECONDS = 60;
+
+    private const MAX_IP_ATTEMPTS = 20;
+
+    private const IP_DECAY_SECONDS = 300;
+
     public function index()
     {
         if (Auth::check()) {
@@ -41,6 +50,17 @@ class LoginV2Controller extends Controller
 
             $user = $request->user();
             if (($user->status ?? 'aktif') !== 'aktif') {
+                $this->recordLoginSecurityEvent(
+                    $request,
+                    'Login ditolak karena akun nonaktif: '.$login,
+                    $user,
+                    [
+                        'event' => 'inactive_account_login',
+                        'attempted_login' => $login,
+                        'field' => $field,
+                    ]
+                );
+
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -53,7 +73,27 @@ class LoginV2Controller extends Controller
             return $this->redirectBasedOnRole();
         }
 
-        RateLimiter::hit($this->throttleKey($request), 60);
+        RateLimiter::hit($this->throttleKey($request), self::LOGIN_DECAY_SECONDS);
+        RateLimiter::hit($this->ipThrottleKey($request), self::IP_DECAY_SECONDS);
+
+        $attempts = RateLimiter::attempts($this->throttleKey($request));
+        $attemptedUser = $this->attemptedUser($field, $login);
+
+        $this->recordLoginSecurityEvent(
+            $request,
+            'Login gagal untuk username/email "'.$login.'" (percobaan '.$attempts.'/'.self::MAX_LOGIN_ATTEMPTS.').',
+            $attemptedUser,
+            [
+                'event' => 'failed_login',
+                'attempted_login' => $login,
+                'field' => $field,
+                'attempts' => $attempts,
+                'max_attempts' => self::MAX_LOGIN_ATTEMPTS,
+                'ip_attempts' => RateLimiter::attempts($this->ipThrottleKey($request)),
+                'ip_max_attempts' => self::MAX_IP_ATTEMPTS,
+                'user_agent' => (string) $request->userAgent(),
+            ]
+        );
 
         throw ValidationException::withMessages([
             'username' => 'Username/email atau password salah.',
@@ -72,35 +112,90 @@ class LoginV2Controller extends Controller
 
     protected function redirectBasedOnRole()
     {
-        $user = Auth::user();
-        $roleName = strtolower((string) ($user->role->name ?? ''));
-
-        if ($roleName === Role::MANAGER && Route::has('manajer.index')) {
-            return redirect()->route('manajer.index');
-        }
-
-        if ($roleName === Role::ADMIN && Route::has('admin.index')) {
-            return redirect()->route('admin.index');
-        }
-
-        return redirect()->route('report-ops.index');
+        return redirect()->route(Role::homeRoute(Auth::user()?->role->name ?? null));
     }
 
     private function ensureIsNotRateLimited(Request $request): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey($request), 5)) {
-            return;
+        $limits = [
+            [
+                'key' => $this->throttleKey($request),
+                'max' => self::MAX_LOGIN_ATTEMPTS,
+                'event' => 'identity_rate_limited',
+                'description' => 'Brute force login diblokir untuk username/email "'.trim((string) $request->input('username')).'".',
+            ],
+            [
+                'key' => $this->ipThrottleKey($request),
+                'max' => self::MAX_IP_ATTEMPTS,
+                'event' => 'ip_rate_limited',
+                'description' => 'Brute force login diblokir dari IP '.$request->ip().'.',
+            ],
+        ];
+
+        foreach ($limits as $limit) {
+            if (! RateLimiter::tooManyAttempts($limit['key'], $limit['max'])) {
+                continue;
+            }
+
+            $seconds = RateLimiter::availableIn($limit['key']);
+            $this->recordLoginLockoutOnce($request, $limit['key'], $limit['description'], $limit['event'], $seconds);
+
+            throw ValidationException::withMessages([
+                'username' => "Terlalu banyak percobaan login. Coba lagi dalam {$seconds} detik.",
+            ]);
         }
-
-        $seconds = RateLimiter::availableIn($this->throttleKey($request));
-
-        throw ValidationException::withMessages([
-            'username' => "Terlalu banyak percobaan login. Coba lagi dalam {$seconds} detik.",
-        ]);
     }
 
     private function throttleKey(Request $request): string
     {
-        return Str::transliterate(Str::lower((string) $request->input('username')).'|'.$request->ip());
+        return 'login:identity:'.sha1(Str::transliterate(Str::lower(trim((string) $request->input('username')))).'|'.$request->ip());
+    }
+
+    private function ipThrottleKey(Request $request): string
+    {
+        return 'login:ip:'.sha1((string) $request->ip());
+    }
+
+    private function attemptedUser(string $field, string $login): ?User
+    {
+        return User::query()->where($field, $login)->first();
+    }
+
+    private function recordLoginLockoutOnce(Request $request, string $limitKey, string $description, string $event, int $seconds): void
+    {
+        $logKey = 'login:security-log:'.sha1($limitKey);
+
+        if (RateLimiter::tooManyAttempts($logKey, 1)) {
+            return;
+        }
+
+        RateLimiter::hit($logKey, max($seconds, 1));
+
+        $login = trim((string) $request->input('username'));
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        $this->recordLoginSecurityEvent(
+            $request,
+            $description,
+            $this->attemptedUser($field, $login),
+            [
+                'event' => $event,
+                'attempted_login' => $login,
+                'field' => $field,
+                'retry_after_seconds' => $seconds,
+                'user_agent' => (string) $request->userAgent(),
+            ]
+        );
+    }
+
+    private function recordLoginSecurityEvent(Request $request, string $description, ?User $user = null, array $properties = []): void
+    {
+        AdminActivityLog::create([
+            'user_id' => $user?->id,
+            'type' => 'security',
+            'description' => $description,
+            'ip_address' => $request->ip(),
+            'properties' => $properties ?: null,
+        ]);
     }
 }

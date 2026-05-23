@@ -1429,6 +1429,7 @@
         .status.approve { border: 1px solid var(--success);     color: var(--success);     background-color: var(--success-10); }
         .status.confirm { border: 1px solid var(--cyan-main);   color: var(--cyan-main);   background-color: var(--cyan-main-10); }
         .status.submit  { border: 1px solid var(--orange-main); color: var(--orange-main); background-color: var(--orange-main-10); }
+        .status.archive { border: 1px solid var(--blue-main);   color: var(--blue-main);   background-color: var(--blue-main-10); }
 
         /* Action buttons */
         td.aksi .btn-act {
@@ -1484,6 +1485,26 @@
             border-top-color: var(--blue-main);
             border-radius: 50%;
             animation: sk-rotate 0.8s linear infinite;
+        }
+
+        /* Inline spinner untuk tombol (konfirmasi TTD & download) */
+        .btn-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: sk-rotate 0.7s linear infinite;
+            vertical-align: -2px;
+            margin-right: 2px;
+        }
+
+        .btn-modal--confirm:disabled,
+        .btn-act.is-loading {
+            opacity: 0.85;
+            cursor: progress;
+            pointer-events: none;
         }
 
         .toast-viewport {
@@ -1977,6 +1998,7 @@
             }
         }
     </style>
+    @include('components.kss-datetime-picker')
     @stack('styles')
 </head>
 
@@ -2347,6 +2369,40 @@
                         m.classList.remove('show');
                     });
                 }
+            });
+
+            // ==========================================
+            // 4B. LOADING STATE (Konfirmasi TTD & Download)
+            // ==========================================
+
+            // Saat form konfirmasi (TTD/arsip, hapus) dikirim: tampilkan spinner di
+            // tombol konfirmasi & cegah klik ganda. Halaman reload setelah redirect,
+            // jadi tombol kembali normal dengan sendirinya.
+            document.addEventListener('submit', function (e) {
+                const confirmBtn = e.target.querySelector?.('.btn-modal--confirm');
+                if (!confirmBtn || confirmBtn.dataset.loading === 'true') return;
+
+                confirmBtn.dataset.loading = 'true';
+                confirmBtn.innerHTML = '<span class="btn-spinner"></span> Memproses...';
+                confirmBtn.disabled = true;
+            });
+
+            // Download laporan: spinner singkat sebagai tanda proses download dimulai
+            // (link unduhan tidak memuat ulang halaman, jadi dipulihkan via timeout).
+            document.addEventListener('click', function (e) {
+                const link = e.target.closest?.('a.btn-act.download');
+                if (!link || link.dataset.loading === 'true') return;
+
+                link.dataset.loading = 'true';
+                link.dataset.label = link.innerHTML;
+                link.classList.add('is-loading');
+                link.innerHTML = '<span class="btn-spinner"></span> Menyiapkan...';
+
+                window.setTimeout(function () {
+                    link.innerHTML = link.dataset.label;
+                    link.classList.remove('is-loading');
+                    link.dataset.loading = 'false';
+                }, 4000);
             });
 
             // ==========================================

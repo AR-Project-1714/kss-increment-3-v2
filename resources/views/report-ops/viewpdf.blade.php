@@ -742,7 +742,7 @@
                 <div style="margin-bottom: 20px;">Mengetahui,</div>
 
                 <div class="signature-box" style="height: 80px; margin-bottom: 5px;">
-                    @if($report->status == 'approved' && $report->approver && $report->approver->signature_path)
+                    @if($report->status === \App\Enums\ReportStatus::Approved && $report->approver && $report->approver->signature_path)
                         @php $sigPath = $report->approver->signature_path; @endphp
                         {{-- CEK FILE SELALU PAKAI public_path --}}
                         @if(file_exists(public_path($sigPath)))
@@ -764,7 +764,7 @@
                 <div style="margin-bottom: 20px;">Diterima / Melanjutkan,</div>
 
                 <div class="signature-box" style="height: 80px; margin-bottom: 5px;">
-                    @if(in_array($report->status, ['acknowledged', 'approved']) && $report->receiver && $report->receiver->signature_path)
+                    @if(in_array($report->status, [\App\Enums\ReportStatus::Acknowledged, \App\Enums\ReportStatus::Approved], true) && $report->receiver && $report->receiver->signature_path)
                         @php $sigPath = $report->receiver->signature_path; @endphp
                         @if(file_exists(public_path($sigPath)))
                             <img src="{{ getImgSrc($sigPath, $isPdf) }}" class="signature-img">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ReportStatus;
 use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\MasterEmployee;
@@ -14,6 +15,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -38,6 +40,8 @@ class AdminV2Controller extends Controller
         $selectedDate = $request->input('tanggal');
         $selectedGroup = strtoupper((string) $request->input('regu', 'all'));
         $selectedShift = strtolower((string) $request->input('shift', 'all'));
+        $selectedDivision = strtolower((string) $request->input('divisi', 'all'));
+        $selectedStatus = strtolower((string) $request->input('status', 'all'));
 
         $query = DailyReport::query()
             ->with(['creator:id,name,username,group', 'approver:id,name'])
@@ -48,6 +52,8 @@ class AdminV2Controller extends Controller
         if ($selectedDate) {
             $query->whereDate('report_date', $selectedDate);
         }
+
+        $this->applyArchiveDivisionFilter($query, $selectedDivision);
 
         if ($selectedGroup !== '' && $selectedGroup !== 'ALL') {
             $query->where('group_name', $selectedGroup);
@@ -61,6 +67,16 @@ class AdminV2Controller extends Controller
                         $shiftQuery->orWhereRaw('LOWER(shift) = ?', [$value]);
                     }
                 });
+            }
+        }
+
+        if ($selectedStatus !== '' && $selectedStatus !== 'all') {
+            $statusFilter = ReportStatus::tryFrom($selectedStatus);
+
+            if ($statusFilter !== null && in_array($statusFilter, $this->archiveStatuses(), true)) {
+                $query->where('status', $statusFilter);
+            } else {
+                $query->whereRaw('1 = 0');
             }
         }
 
@@ -80,6 +96,8 @@ class AdminV2Controller extends Controller
             'selectedDate' => $selectedDate,
             'selectedGroup' => $selectedGroup,
             'selectedShift' => $selectedShift,
+            'selectedDivision' => $selectedDivision,
+            'selectedStatus' => $selectedStatus,
         ]));
     }
 
@@ -253,6 +271,7 @@ class AdminV2Controller extends Controller
             'id' => $inventory->id,
             'name' => $inventory->name,
             'category' => $inventory->category ?: 'Umum',
+            'stock' => (int) $inventory->stock,
             'update_url' => route('admin.master.inventories.update', $inventory),
             'destroy_url' => route('admin.master.inventories.destroy', $inventory),
         ]);
@@ -281,6 +300,7 @@ class AdminV2Controller extends Controller
         $usedBytes = collect($backups)->sum('bytes');
         $capacityBytes = 30 * 1024 * 1024 * 1024;
         $usedPercent = $capacityBytes > 0 ? min(100, (int) round(($usedBytes / $capacityBytes) * 100)) : 0;
+        $annualYear = $this->annualBackupYear();
 
         return view('admin.backup', array_merge($this->shellData($request), [
             'stats' => [
@@ -295,6 +315,12 @@ class AdminV2Controller extends Controller
                 'used_label' => $this->formatBytes($usedBytes).' dipakai',
                 'capacity_label' => '30 GB tersedia',
                 'percent' => $usedPercent,
+            ],
+            'annualBackup' => [
+                'eligible' => $annualYear !== null,
+                'year' => $annualYear,
+                'count' => $annualYear !== null ? DailyReport::whereYear('report_date', $annualYear)->count() : 0,
+                'file_name' => $annualYear !== null ? 'Laporan_Harian_KSS_Tahun_'.$annualYear.'.zip' : null,
             ],
         ]));
     }
@@ -547,12 +573,13 @@ class AdminV2Controller extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:255'],
+            'stock' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $inventory = MasterInventoryItem::create([
             'name' => $data['name'],
             'category' => $data['category'] ?? 'Umum',
-            'stock' => 0,
+            'stock' => $data['stock'] ?? 0,
             'status' => 'active',
         ]);
 
@@ -566,11 +593,13 @@ class AdminV2Controller extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:255'],
+            'stock' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $inventory->update([
             'name' => $data['name'],
             'category' => $data['category'] ?? 'Umum',
+            'stock' => $data['stock'] ?? 0,
         ]);
 
         $this->recordActivity($request, 'update', 'Memperbarui master inventaris '.$inventory->name);
@@ -616,6 +645,114 @@ class AdminV2Controller extends Controller
         $this->recordActivity($request, 'backup', 'Membuat backup manual '.$filename);
 
         return back()->with('success', 'Backup manual berhasil dibuat.');
+    }
+
+    /**
+     * Backup tahunan: arsipkan SELURUH laporan tahun sebelumnya ke satu file ZIP
+     * (untuk dipindahkan ke penyimpanan lokal di luar sistem), lalu hapus laporan
+     * tersebut dari database agar penyimpanan server lebih ringan.
+     */
+    public function annualBackup(Request $request)
+    {
+        $year = $this->annualBackupYear();
+
+        if ($year === null) {
+            return back()->with('error', 'Backup tahunan belum tersedia. Fitur ini aktif saat sudah memasuki tahun baru dan masih ada laporan tahun sebelumnya di sistem.');
+        }
+
+        if (! class_exists(\ZipArchive::class)) {
+            return back()->with('error', 'Ekstensi ZIP tidak tersedia di server, backup tahunan tidak dapat dibuat.');
+        }
+
+        $reports = DailyReport::with([
+            'creator:id,name,username',
+            'receiver:id,name,username',
+            'approver:id,name,username',
+            'loadingActivities.timesheets',
+            'bulkLoadingActivities.logs',
+            'materialActivity.items',
+            'containerActivity.items',
+            'turbaActivity.deliveries',
+            'unitCheckLogs',
+            'employeeLogs',
+        ])
+            ->whereYear('report_date', $year)
+            ->orderBy('report_date')
+            ->orderBy('id')
+            ->get();
+
+        if ($reports->isEmpty()) {
+            return back()->with('error', 'Tidak ada laporan tahun '.$year.' yang bisa diarsipkan.');
+        }
+
+        $fileName = 'Laporan_Harian_KSS_Tahun_'.$year.'.zip';
+        Storage::disk('local')->makeDirectory('admin-backups');
+        $absolutePath = Storage::disk('local')->path('admin-backups/'.$fileName);
+
+        $zip = new \ZipArchive();
+        if ($zip->open($absolutePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return back()->with('error', 'Gagal membuat file arsip backup tahunan.');
+        }
+
+        $zip->addFromString(
+            'Laporan_Harian_KSS_Tahun_'.$year.'.json',
+            json_encode([
+                'generated_at' => now()->toIso8601String(),
+                'generated_by' => $request->user()?->only(['id', 'name', 'username']),
+                'year' => $year,
+                'total_reports' => $reports->count(),
+                'reports' => $reports->toArray(),
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+        );
+
+        foreach ($reports as $report) {
+            $pdfPath = storage_path('app/public/reports/report-'.$report->id.'.pdf');
+            if (is_file($pdfPath)) {
+                $zip->addFile($pdfPath, 'pdf/report-'.$report->id.'.pdf');
+            }
+        }
+
+        $zip->close();
+
+        $total = $reports->count();
+
+        DB::transaction(function () use ($reports): void {
+            foreach ($reports as $report) {
+                $pdfPath = storage_path('app/public/reports/report-'.$report->id.'.pdf');
+                if (is_file($pdfPath)) {
+                    @unlink($pdfPath);
+                }
+
+                // Tabel detail terhapus otomatis lewat foreign key cascadeOnDelete.
+                $report->delete();
+            }
+        });
+
+        $this->recordActivity($request, 'backup', 'Backup tahunan '.$year.': '.$total.' laporan diarsipkan ke '.$fileName.' lalu dihapus dari sistem.', [
+            'year' => $year,
+            'file' => $fileName,
+            'total_reports' => $total,
+        ]);
+
+        return back()->with('success', 'Backup laporan tahun '.$year.' berhasil ('.$total.' laporan) dan dihapus dari sistem untuk meringankan penyimpanan. Silakan unduh "'.$fileName.'" lalu simpan ke penyimpanan lokal Anda.');
+    }
+
+    /**
+     * Tahun laporan terlama yang sudah lewat (lebih kecil dari tahun berjalan) dan
+     * masih tersimpan. Mengembalikan null bila tidak ada — backup tahunan hanya
+     * berlaku untuk laporan tahun sebelumnya, bukan tahun yang sedang berjalan.
+     */
+    private function annualBackupYear(): ?int
+    {
+        $currentYear = (int) now()->year;
+
+        $oldest = DailyReport::query()
+            ->whereNotNull('report_date')
+            ->whereYear('report_date', '<', $currentYear)
+            ->orderBy('report_date')
+            ->value('report_date');
+
+        return $oldest !== null ? (int) Carbon::parse($oldest)->year : null;
     }
 
     public function updateBackupSchedule(Request $request)
@@ -768,11 +905,15 @@ class AdminV2Controller extends Controller
         $backupFiles = $this->backupFiles();
         $usedBytes = collect($backupFiles)->sum('bytes');
         $lastBackup = collect($backupFiles)->first();
+        $securityEventsToday = AdminActivityLog::where('type', 'security')
+            ->whereDate('created_at', Carbon::today())
+            ->count();
 
         return [
             ['label' => 'Total Pengguna Aktif', 'value' => (string) User::where('status', 'aktif')->count(), 'icon' => 'fi fi-sr-user', 'color' => 'blue', 'success' => false],
             ['label' => 'Kapasitas Storage Terpakai', 'value' => min(100, (int) round(($usedBytes / (30 * 1024 * 1024 * 1024)) * 100)).'%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan', 'success' => false],
             ['label' => 'Status Backup Terakhir', 'value' => $lastBackup ? $lastBackup['status_label'] : 'Belum Ada', 'icon' => 'fi fi-sr-cloud-upload', 'color' => $lastBackup ? 'green' : 'orange', 'success' => (bool) $lastBackup],
+            ['label' => 'Login Gagal Hari Ini', 'value' => (string) $securityEventsToday, 'icon' => 'fi fi-sr-shield-exclamation', 'color' => $securityEventsToday > 0 ? 'red' : 'green', 'success' => false],
         ];
     }
 
@@ -784,7 +925,7 @@ class AdminV2Controller extends Controller
 
         return [
             ['label' => 'Laporan Hari Ini', 'value' => (string) DailyReport::whereIn('status', $archiveStatuses)->whereDate('report_date', $today)->count(), 'icon' => 'fi fi-sr-calendar', 'color' => 'green'],
-            ['label' => 'Laporan Pending', 'value' => (string) DailyReport::where('status', 'acknowledged')->count(), 'icon' => 'fi fi-sr-document', 'color' => 'orange'],
+            ['label' => 'Laporan Pending', 'value' => (string) DailyReport::where('status', ReportStatus::Acknowledged)->count(), 'icon' => 'fi fi-sr-document', 'color' => 'orange'],
             ['label' => 'Laporan Bulan Ini', 'value' => (string) DailyReport::whereIn('status', $archiveStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count(), 'icon' => 'fi fi-sr-folder', 'color' => 'cyan'],
             ['label' => 'Total Laporan', 'value' => (string) DailyReport::whereIn('status', $archiveStatuses)->count(), 'icon' => 'fi fi-sr-book-alt', 'color' => 'blue'],
         ];
@@ -810,10 +951,14 @@ class AdminV2Controller extends Controller
     private function activityRow(AdminActivityLog $activity): array
     {
         $roleName = $activity->user?->role?->name;
+        $properties = $activity->properties ?? [];
+        $attemptedLogin = $properties['attempted_login'] ?? null;
 
         return [
-            'user' => $activity->user?->name ?? 'System',
-            'sub' => $activity->user ? 'Role: '.Role::displayName($roleName) : 'Aktivitas otomatis',
+            'user' => $activity->user?->name ?? ($attemptedLogin ? 'Unknown Login' : 'System'),
+            'sub' => $activity->user
+                ? 'Role: '.Role::displayName($roleName)
+                : ($attemptedLogin ? 'Username: '.$attemptedLogin : 'Aktivitas otomatis'),
             'unknown' => ! $activity->user,
             'time' => $activity->created_at?->locale('id')->translatedFormat('d F Y, H:i') ?? '-',
             'type' => $this->activityTone($activity->type),
@@ -875,7 +1020,16 @@ class AdminV2Controller extends Controller
 
     private function archiveStatuses(): array
     {
-        return ['submitted', 'acknowledged', 'approved'];
+        return [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved];
+    }
+
+    private function applyArchiveDivisionFilter(Builder $query, string $division): void
+    {
+        if ($division === '' || $division === 'all' || $division === 'operasional') {
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
     }
 
     private function reportRelations(): array
@@ -936,11 +1090,13 @@ class AdminV2Controller extends Controller
 
     private function statusMeta(mixed $status): array
     {
-        return match ((string) $status) {
-            'submitted' => ['label' => 'Diserahkan', 'class' => 'submit'],
-            'acknowledged' => ['label' => 'Diterima', 'class' => 'confirm'],
-            'approved' => ['label' => 'Ditanda Tangani', 'class' => 'approve'],
-            default => ['label' => ucfirst((string) $status), 'class' => 'submit'],
+        $value = $status instanceof ReportStatus ? $status->value : (string) $status;
+
+        return match ($value) {
+            ReportStatus::Submitted->value => ['label' => 'Diserahkan', 'class' => 'submit'],
+            ReportStatus::Acknowledged->value => ['label' => 'Diterima', 'class' => 'confirm'],
+            ReportStatus::Approved->value => ['label' => 'Diarsipkan', 'class' => 'archive'],
+            default => ['label' => ucfirst($value), 'class' => 'submit'],
         };
     }
 
@@ -985,19 +1141,20 @@ class AdminV2Controller extends Controller
         Storage::disk('local')->makeDirectory('admin-backups');
 
         return collect(Storage::disk('local')->files('admin-backups'))
-            ->filter(fn (string $path): bool => Str::endsWith($path, '.json') && basename($path) !== 'schedule.json')
+            ->filter(fn (string $path): bool => (Str::endsWith($path, '.json') || Str::endsWith($path, '.zip')) && basename($path) !== 'schedule.json')
             ->map(function (string $path): array {
                 $modified = Carbon::createFromTimestamp(Storage::disk('local')->lastModified($path));
                 $file = basename($path);
+                $isAnnual = Str::endsWith($file, '.zip');
 
                 return [
                     'name' => $file,
-                    'meta' => 'Snapshot data aplikasi',
+                    'meta' => $isAnnual ? 'Arsip laporan tahunan' : 'Snapshot data aplikasi',
                     'date' => $modified->locale('id')->translatedFormat('d F Y, H:i'),
                     'date_short' => $modified->locale('id')->translatedFormat('d M Y'),
                     'bytes' => Storage::disk('local')->size($path),
                     'size' => $this->formatBytes(Storage::disk('local')->size($path)),
-                    'type' => Str::contains($file, 'manual') ? 'Manual' : 'Otomatis',
+                    'type' => $isAnnual ? 'Tahunan' : (Str::contains($file, 'manual') ? 'Manual' : 'Otomatis'),
                     'status' => 'success',
                     'status_label' => 'Berhasil',
                     'download_url' => route('admin.backup.download', $file),
@@ -1032,7 +1189,7 @@ class AdminV2Controller extends Controller
     {
         $file = basename($file);
 
-        abort_if($file === '' || str_contains($file, '..') || ! Str::endsWith($file, '.json') || $file === 'schedule.json', 404);
+        abort_if($file === '' || str_contains($file, '..') || ! (Str::endsWith($file, '.json') || Str::endsWith($file, '.zip')) || $file === 'schedule.json', 404);
 
         return 'admin-backups/'.$file;
     }
@@ -1068,7 +1225,7 @@ class AdminV2Controller extends Controller
     private function activityTone(string $type): string
     {
         return match ($type) {
-            'delete', 'error' => 'red',
+            'delete', 'error', 'security' => 'red',
             'backup', 'support' => 'green',
             'login' => 'blue',
             default => 'blue',
@@ -1082,6 +1239,7 @@ class AdminV2Controller extends Controller
             'backup' => 'Backup',
             'support' => 'Bantuan',
             'login' => 'Login',
+            'security' => 'Keamanan',
             'error' => 'Error',
             default => 'Update',
         };

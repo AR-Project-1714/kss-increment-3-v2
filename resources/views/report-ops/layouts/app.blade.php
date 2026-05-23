@@ -886,6 +886,11 @@
             color: var(--dark-secondary);
             background-color: var(--dark-secondary-10);
         }
+        .status.archive {
+            border: 1px solid var(--blue-main);
+            color: var(--blue-main);
+            background-color: var(--blue-main-10);
+        }
 
         td.aksi {
             display: flex;
@@ -1344,6 +1349,9 @@
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+        /* Field pengganti OP.7 yang terisi otomatis (No.Forklift, Area, Masuk, Keluar) */
+        input.is-auto-filled { background-color: var(--blue-main-5); cursor: not-allowed; }
+
         .input-wrapper { position: relative; display: flex; align-items: center; width: 100%; align-self: stretch; height: 100%;}
 
         .custom-input {
@@ -1353,6 +1361,10 @@
         }
         .custom-input:focus, .custom-input.focus-active { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
         .custom-input::placeholder { color: var(--muted); }
+
+        .form-info-umum input[type="date"].custom-input {
+            cursor: pointer;
+        }
 
         select.custom-input { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
         select.custom-input option { background-color: var(--white); color: var(--dark-main); font-family: 'Poppins', sans-serif; padding: 10px; }
@@ -1387,9 +1399,10 @@
         }
 
         .input-icon, .tbl-icon-dropdown {
-            position: absolute; right: 15px; top: 12px; color: var(--blue-main); pointer-events: none;
-            font-size: 14px; display: flex; align-items: center; justify-content: center; z-index: 5;
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--blue-main); pointer-events: none;
+            min-height: 18px; line-height: 1; font-size: 14px; display: flex; align-items: center; justify-content: center; z-index: 5;
         }
+        .input-icon i, .tbl-icon-dropdown i { line-height: 1; }
         .text-placeholder { color: var(--muted) !important; }
 
         /* Dropdown Table Custom Select */
@@ -1463,14 +1476,38 @@
             position: absolute; right: 12px; width: 24px; height: 24px; opacity: 0; cursor: pointer; z-index: 10;
         }
 
+        .form-info-umum input[type="date"].custom-input::-webkit-calendar-picker-indicator {
+            display: block;
+            position: absolute;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 10;
+        }
+
         /* =========================================
            ACTIVITIES & TABS BONGKAR
            ========================================= */
+        /* Deretan tab kegiatan + tombol +/- harus mengikuti lebar form induk
+           dan turun ke baris baru bila penuh (anti-overflow di desktop & mobile). */
+        .tab-activity {
+            width: 100%;
+            max-width: 100%;
+            flex-wrap: wrap;
+            row-gap: 10px;
+        }
+
         .btn-activity {
             display: flex; width: 120px; padding: 6px 10px; justify-content: center; align-items: center;
             gap: 8px; border-radius: 8px; background-color: var(--white); border: 1px solid var(--blue-main-25);
             font-size: 12px; font-weight: 600; color: var(--dark-secondary); transition: .1s ease-out; cursor: pointer;
+            flex: 0 0 auto;
         }
+
+        /* Grup tombol +/- tetap utuh sebagai satu kesatuan saat tab membungkus baris. */
+        .plus-minus-tab { flex: 0 0 auto; }
         .btn-activity:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
         .btn-activity.active { background-color: var(--blue-main); box-shadow: 0 0 4px 0 var(--blue-main-40); color: var(--button-color); }
 
@@ -1744,6 +1781,16 @@
         .rentang-jam-wrapper { display: flex; align-items: center; gap: 15px; width: 100%; }
         .rentang-jam-wrapper .input-wrapper { flex: 1; border: 1px solid var(--divider); border-radius: 10px; overflow: hidden; background: var(--white); }
         .rentang-jam-wrapper .input-wrapper:focus-within { border-color: var(--blue-main); box-shadow: 0 0 0 2px var(--blue-main-10); }
+        .rentang-jam-wrapper .input-icon {
+            top: 50% !important;
+            left: 15px !important;
+            right: auto !important;
+            transform: translateY(-50%) !important;
+        }
+        .rentang-jam-wrapper .input-icon i {
+            position: static !important;
+            line-height: 1;
+        }
 
         button.set-all-good { display: flex; padding: 6px 12px; align-items: center; gap: 10px; border-radius: 8px; background-color: var(--success); border: none; font-size: 12px; font-weight: 600; color: var(--button-color); }
         button.set-all-good:hover { background-color: var(--success-hover); box-shadow: 0 0 4px 0 var(--success-40); }
@@ -2050,6 +2097,8 @@
         }
      </style>
 
+    @include('components.kss-datetime-picker')
+
 </head>
 <body>
     <!-- Dark mode init lebih awal agar overlay langsung pakai warna yang benar -->
@@ -2296,6 +2345,10 @@
 
                     input.min = '0';
                     input.setAttribute('inputmode', 'decimal');
+                    // Satuan ton boleh desimal; tanpa ini step default = 1 dan browser menolak angka koma.
+                    if (!input.hasAttribute('step')) {
+                        input.setAttribute('step', 'any');
+                    }
 
                     if (input.value === '') return;
 
@@ -2693,6 +2746,8 @@
                         nativeSelect.style.display = "none";
                         const triggerBox = document.createElement("div");
                         triggerBox.className = `${triggerClass} d-flex align-items-center`;
+                        triggerBox.tabIndex = 0;
+                        triggerBox.setAttribute('role', 'button');
 
                         const selectedOption = nativeSelect.options[nativeSelect.selectedIndex];
                         const textSpan = document.createElement("span");
@@ -2740,6 +2795,13 @@
                             optionsContainer.classList.toggle("open");
                             this.classList.toggle("focus-active");
                         });
+
+                        triggerBox.addEventListener("keydown", function(e) {
+                            if (!['Enter', ' '].includes(e.key)) return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.click();
+                        });
                     });
                 }
 
@@ -2749,6 +2811,58 @@
                 document.addEventListener("click", function() {
                     document.querySelectorAll(".custom-options-container, .tbl-custom-options").forEach(cont => cont.classList.remove("open"));
                     document.querySelectorAll(".custom-input.focus-active, .tbl-custom-select-trigger.focus-active").forEach(trig => trig.classList.remove("focus-active"));
+                });
+
+                function isReportControlVisible(control) {
+                    if (!control || control.disabled) return false;
+                    if (control.closest('.d-none, [hidden]')) return false;
+                    return Boolean(control.offsetWidth || control.offsetHeight || control.getClientRects().length);
+                }
+
+                function reportKeyboardControls() {
+                    const formScope = document.getElementById('mainReportForm') || document;
+                    return Array.from(formScope.querySelectorAll([
+                        'input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"])',
+                        'textarea',
+                        'button.kss-date-trigger',
+                        '.input-wrapper > div.custom-input[tabindex="0"]',
+                    ].join(','))).filter(isReportControlVisible);
+                }
+
+                function focusReportControl(control) {
+                    if (!control) return;
+
+                    control.focus({ preventScroll: true });
+                    control.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+
+                    if (control.classList.contains('kss-date-trigger')) {
+                        window.setTimeout(() => window.KssDateTimePicker?.open(control), 40);
+                    }
+                }
+
+                function focusNextReportControl(currentControl) {
+                    const controls = reportKeyboardControls();
+                    const currentIndex = controls.indexOf(currentControl);
+                    const nextControl = controls[currentIndex + 1];
+
+                    if (nextControl) {
+                        focusReportControl(nextControl);
+                    }
+                }
+
+                document.addEventListener('kss-picker:advance', event => {
+                    focusNextReportControl(event.detail?.trigger || event.target);
+                });
+
+                document.addEventListener('keydown', event => {
+                    if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+                    if (event.target.closest?.('.kss-date-popover, .flatpickr-calendar, .modal-overlay.show')) return;
+                    if (event.target.matches?.('textarea, button.kss-date-trigger')) return;
+                    if (!event.target.closest?.('#mainReportForm')) return;
+                    if (!event.target.matches?.('input, select, .custom-input, .tbl-custom-select-trigger')) return;
+
+                    event.preventDefault();
+                    focusNextReportControl(event.target);
                 });
 
                 // ==========================================

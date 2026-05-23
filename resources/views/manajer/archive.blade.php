@@ -153,6 +153,46 @@
             margin-top: 4px;
         }
 
+        .archive-filters .filter-field {
+            flex: 1 1 160px;
+            max-width: 200px;
+        }
+
+        .archive-filters .filter-field .filter-input,
+        .archive-filters .filter-select-trigger {
+            width: 100%;
+            min-width: 0;
+            height: 36px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Panel selects sit in a column field: keep them content-sized so the
+           absolutely-positioned arrow stays inside the box on mobile. */
+        .archive-filters .filter-select-wrapper {
+            width: 100%;
+            min-width: 0;
+            flex: 0 0 auto;
+        }
+
+        .archive-filters .kss-date-trigger.filter-input {
+            min-height: 36px;
+            padding: 0 12px;
+            justify-content: flex-start;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .archive-filters .kss-date-trigger.filter-input .kss-date-trigger__main {
+            width: 100%;
+        }
+
+        .archive-filters .kss-date-trigger.filter-input .kss-date-trigger__main i {
+            top: 0;
+            color: var(--blue-main);
+            font-size: 13px;
+        }
+
         .archive-empty {
             width: 100%;
             padding: 34px 18px;
@@ -240,7 +280,16 @@
         $archiveTotal = method_exists($reports, 'total') ? $reports->total() : $reports->count();
         $archiveFirstItem = method_exists($reports, 'firstItem') ? $reports->firstItem() : ($archiveTotal > 0 ? 1 : null);
         $archiveLastItem = method_exists($reports, 'lastItem') ? $reports->lastItem() : $reports->count();
-        $hasActiveFilter = $archiveSearch !== '' || filled($selectedDate) || !in_array($selectedGroup, ['ALL', ''], true) || !in_array($selectedShift, ['all', ''], true) || $sort !== 'newest';
+        $selectedDivision = $selectedDivision ?? 'all';
+        $selectedStatus = $selectedStatus ?? 'all';
+        $hasPanelFilter = filled($selectedDate)
+            || !in_array($selectedGroup, ['ALL', ''], true)
+            || !in_array($selectedShift, ['all', ''], true)
+            || !in_array($selectedDivision, ['all', ''], true)
+            || !in_array($selectedStatus, ['all', ''], true);
+        $hasActiveFilter = $archiveSearch !== ''
+            || $hasPanelFilter
+            || $sort !== 'newest';
         $documentId = function ($report): string {
             $date = $report->report_date ?: $report->created_at;
 
@@ -265,10 +314,13 @@
             };
         };
         $statusMeta = function ($status): array {
-            return match ((string) $status) {
-                'submitted' => ['label' => 'Diserahkan', 'class' => 'submit'],
-                'acknowledged', 'approved' => ['label' => 'Ditanda Tangani', 'class' => 'approve'],
-                default => ['label' => ucfirst((string) $status), 'class' => 'submit'],
+            $value = $status instanceof \App\Enums\ReportStatus ? $status->value : (string) $status;
+
+            return match ($value) {
+                \App\Enums\ReportStatus::Submitted->value => ['label' => 'Diserahkan', 'class' => 'submit'],
+                \App\Enums\ReportStatus::Acknowledged->value => ['label' => 'Diterima', 'class' => 'confirm'],
+                \App\Enums\ReportStatus::Approved->value => ['label' => 'Diarsipkan', 'class' => 'archive'],
+                default => ['label' => ucfirst($value), 'class' => 'submit'],
             };
         };
         $flattenSearchValues = function ($value) use (&$flattenSearchValues): array {
@@ -309,7 +361,7 @@
     <main class="page-content">
         <div class="page-header">
             <span class="page-title">Arsip Laporan</span>
-            <span class="page-subtitle">Daftar laporan yang berstatus diserahkan dan ditanda tangani.</span>
+            <span class="page-subtitle">Daftar laporan yang berstatus diserahkan, ditanda tangani, dan diarsipkan.</span>
         </div>
 
         @include('manajer.layouts.card')
@@ -362,17 +414,29 @@
                                     </select>
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>
-                                <button type="button" class="btn-tool" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
+                                <button type="button" class="btn-tool {{ $hasPanelFilter ? 'btn-tool--active' : '' }}" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
                                 @if ($hasActiveFilter)
                                     <a href="{{ route('manajer.archive') }}" class="btn-reset">Reset</a>
                                 @endif
                             </div>
                         </div>
 
-                        <div class="archive-filters collapsed" id="archiveFilters">
+                        <div class="archive-filters {{ $hasPanelFilter ? '' : 'collapsed' }}" id="archiveFilters">
                             <div class="filter-field">
                                 <label>Tanggal</label>
-                                <input type="date" name="tanggal" value="{{ $selectedDate }}" class="filter-input" data-autosubmit-filter>
+                                <input type="hidden" name="tanggal" value="{{ $selectedDate }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Pilih tanggal" data-autosubmit-filter>
+                            </div>
+                            <div class="filter-field">
+                                <label>Divisi</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="divisi" data-autosubmit-filter>
+                                        <option value="all" @selected($selectedDivision === 'all')>Semua Divisi</option>
+                                        <option value="operasional" @selected($selectedDivision === 'operasional')>Operasional</option>
+                                        <option value="pemeliharaan" @selected($selectedDivision === 'pemeliharaan')>Pemeliharaan</option>
+                                        <option value="safety" @selected($selectedDivision === 'safety')>Safety</option>
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
                             </div>
                             <div class="filter-field">
                                 <label>Regu</label>
@@ -394,6 +458,18 @@
                                         <option value="pagi" @selected($selectedShift === 'pagi')>Shift Pagi</option>
                                         <option value="sore" @selected($selectedShift === 'sore')>Shift Sore</option>
                                         <option value="malam" @selected($selectedShift === 'malam')>Shift Malam</option>
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+                            <div class="filter-field">
+                                <label>Status</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="status" data-autosubmit-filter>
+                                        <option value="all" @selected($selectedStatus === 'all')>Semua Status</option>
+                                        <option value="submitted" @selected($selectedStatus === \App\Enums\ReportStatus::Submitted->value)>Diserahkan</option>
+                                        <option value="acknowledged" @selected($selectedStatus === \App\Enums\ReportStatus::Acknowledged->value)>Diterima</option>
+                                        <option value="approved" @selected($selectedStatus === \App\Enums\ReportStatus::Approved->value)>Diarsipkan</option>
                                     </select>
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>
@@ -488,7 +564,7 @@
                                 <td colspan="7" class="border-0 p-0">
                                     <div class="archive-empty">
                                         <div class="fw-600 mb-1" style="color: var(--black);">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Laporan tidak ditemukan' : 'Arsip masih kosong' }}</div>
-                                        <div class="fsize-12">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Coba gunakan ID, tanggal, shift, regu, kapal, karyawan, atau isi laporan lain.' : 'Laporan berstatus diserahkan dan ditanda tangani akan tampil di sini.' }}</div>
+                                        <div class="fsize-12">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Coba gunakan ID, tanggal, shift, regu, divisi, status, kapal, karyawan, atau isi laporan lain.' : 'Laporan berstatus diserahkan, ditanda tangani, dan diarsipkan akan tampil di sini.' }}</div>
                                     </div>
                                 </td>
                             </tr>

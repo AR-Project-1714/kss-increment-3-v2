@@ -1,58 +1,70 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistem Laporan Operasional KSS
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi web internal untuk pencatatan laporan shift harian operasional KSS. Sistem ini mencakup pengisian laporan operasional, tanda tangan regu penerima, approval manajer, arsip laporan, data master, manajemen user, backup, dan pusat bantuan admin.
 
-## About Laravel
+## Ringkasan Fitur
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Login berbasis username dengan role `admin`, `manajer`, `operasional`, `pemeliharaan`, dan `safety`.
+- Form laporan operasional 7 langkah: Info Umum, Muat Kantong, Muat Curah, Bongkar, Tracking, Cek Unit, dan Karyawan.
+- Draft laporan, validasi step-by-step, tanda tangan regu penerima, export PDF/Excel, dan arsip laporan.
+- Dashboard manajer dengan approval final, arsip, pencarian, filter, dan pusat bantuan.
+- Dashboard admin dengan kelola pengguna, upload tanda tangan PNG, toggle status user, data master, log aktivitas, backup, dan pusat bantuan.
+- Pencarian server-side, debounce search, pagination, toast message, modal konfirmasi, serta date/time picker custom untuk input tanggal dan jam operasional.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.3+
+- Laravel 13
+- Blade
+- SQLite untuk development
+- Vite
+- Bootstrap utility via CDN
+- Tailwind CSS 4
+- DomPDF
+- PhpSpreadsheet
+- PHPUnit
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Setup Lokal
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+npm install
+npm run build
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+URL default:
 
-## Contributing
+```text
+http://localhost:8000
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Pengujian
 
-## Code of Conduct
+```bash
+php artisan test
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Dokumentasi
 
-## Security Vulnerabilities
+- [DOKUMENTASI.md](DOKUMENTASI.md) - dokumentasi teknis utama project.
+- [PEMBARUAN_IMPLEMENTASI.md](PEMBARUAN_IMPLEMENTASI.md) - catatan pembaruan fitur dan implementasi.
+- [LANDASAN_TEORI_SKRIPSI.md](LANDASAN_TEORI_SKRIPSI.md) - bahan teori, metode, dan logika implementasi yang dapat dikembangkan untuk skripsi.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Route Utama
 
-## License
+- `/` dan `/login` - halaman login.
+- `/report-ops` - dashboard petugas operasional.
+- `/report-ops/create` - form laporan operasional.
+- `/manajer` - dashboard manajer.
+- `/manajer/archive` - arsip laporan manajer.
+- `/admin` - dashboard admin.
+- `/admin/archive` - arsip laporan admin.
+- `/admin/user-manage` - kelola pengguna.
+- `/admin/datamaster` - data master.
+- `/admin/backup` - manajemen backup.
+- `/admin/help` - pusat bantuan admin.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

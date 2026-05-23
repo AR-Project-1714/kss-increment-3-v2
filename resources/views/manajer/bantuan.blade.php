@@ -250,12 +250,12 @@
                             </tr>
                             <tr>
                                 <td><code>acknowledged</code></td>
-                                <td>Ditanda Tangani</td>
+                                <td>Diterima</td>
                                 <td>Laporan sudah diterima regu tujuan dan bisa ditinjau oleh manajer dari dashboard.</td>
                             </tr>
                             <tr>
                                 <td><code>approved</code></td>
-                                <td>Ditanda Tangani</td>
+                                <td>Diarsipkan</td>
                                 <td>Laporan sudah dikonfirmasi manajer dan tersedia di Arsip Laporan.</td>
                             </tr>
                         </tbody>
@@ -287,7 +287,7 @@
                         <div class="help-card__content">
                             <span class="help-card__title">Filter dan Urutan</span>
                             <ul class="help-list">
-                                <li>Gunakan filter tanggal, regu, dan shift untuk mempersempit daftar.</li>
+                                <li>Gunakan filter tanggal, divisi, regu, shift, dan status untuk mempersempit daftar.</li>
                                 <li>Pilihan Terbaru/Terlama mengatur urutan laporan berdasarkan tanggal laporan.</li>
                                 <li>Tombol Reset mengembalikan daftar ke kondisi awal.</li>
                             </ul>

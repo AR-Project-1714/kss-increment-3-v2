@@ -609,20 +609,22 @@
             $normalized = strtolower(trim((string) $shift));
 
             return match (true) {
-                in_array($normalized, ['1', 'pagi', 'shift 1', 'shift pagi'], true) => ['label' => 'Shift Pagi', 'class' => 'pagi', 'icon' => 'fi fi-rr-sun'],
-                in_array($normalized, ['2', 'sore', 'siang', 'shift 2', 'shift sore', 'shift siang'], true) => ['label' => 'Shift Sore', 'class' => 'sore', 'icon' => 'fi fi-rr-sunrise'],
-                in_array($normalized, ['3', 'malam', 'shift 3', 'shift malam'], true) => ['label' => 'Shift Malam', 'class' => 'malam', 'icon' => 'fi fi-rr-moon'],
+                in_array($normalized, ['1', 'pagi', 'shift 1', 'shift pagi'], true) => ['label' => 'Shift Pagi', 'class' => 'pagi', 'icon' => 'fi fi-rr-sunrise'],
+                in_array($normalized, ['2', 'sore', 'siang', 'shift 2', 'shift sore', 'shift siang'], true) => ['label' => 'Shift Sore', 'class' => 'sore', 'icon' => 'fi fi-rr-sun'],
+                in_array($normalized, ['3', 'malam', 'shift 3', 'shift malam'], true) => ['label' => 'Shift Malam', 'class' => 'malam', 'icon' => 'fi fi-rr-moon-stars'],
                 default => ['label' => $shift ? 'Shift '.$shift : 'Shift -', 'class' => 'pagi', 'icon' => 'fi fi-rr-clock'],
             };
         };
 
         $statusMeta = function ($status): array {
-            return match ($status) {
-                'draft' => ['label' => 'Draft', 'class' => 'draft', 'icon' => 'fi fi-rr-blueprint'],
-                'submitted' => ['label' => 'Diserahkan', 'class' => 'submit', 'icon' => 'fi fi-rr-memo-circle-check'],
-                'acknowledged' => ['label' => 'Ditanda Tangani', 'class' => 'approve', 'icon' => 'fi fi-rr-attribution-pen'],
-                'approved' => ['label' => 'Dikonfirmasi', 'class' => 'confirm', 'icon' => 'fi fi-rr-check-circle'],
-                default => ['label' => ucfirst((string) $status), 'class' => 'submit', 'icon' => 'fi fi-rr-info'],
+            $value = $status instanceof \App\Enums\ReportStatus ? $status->value : (string) $status;
+
+            return match ($value) {
+                \App\Enums\ReportStatus::Draft->value => ['label' => 'Draft', 'class' => 'draft', 'icon' => 'fi fi-rr-blueprint'],
+                \App\Enums\ReportStatus::Submitted->value => ['label' => 'Diserahkan', 'class' => 'submit', 'icon' => 'fi fi-rr-memo-circle-check'],
+                \App\Enums\ReportStatus::Acknowledged->value => ['label' => 'Diterima', 'class' => 'confirm', 'icon' => 'fi fi-rr-memo-circle-check'],
+                \App\Enums\ReportStatus::Approved->value => ['label' => 'Diarsipkan', 'class' => 'archive', 'icon' => 'fi fi-rr-box-open'],
+                default => ['label' => ucfirst($value), 'class' => 'submit', 'icon' => 'fi fi-rr-info'],
             };
         };
 
@@ -688,10 +690,10 @@
         $userSignatureUrl = $signatureUrl($user?->signature_path);
 
         $canEdit = fn ($report) => ($isAdmin || (int) $report->created_by === (int) auth()->id())
-            && in_array($report->status, ['draft', 'submitted'], true);
+            && in_array($report->status, [\App\Enums\ReportStatus::Draft, \App\Enums\ReportStatus::Submitted], true);
         $canDelete = fn ($report) => ($isAdmin || (int) $report->created_by === (int) auth()->id())
-            && $report->status === 'draft';
-        $canSign = fn ($report) => $report->status === 'submitted'
+            && $report->status === \App\Enums\ReportStatus::Draft;
+        $canSign = fn ($report) => $report->status === \App\Enums\ReportStatus::Submitted
             && $userGroup !== ''
             && strtoupper((string) $report->received_by_group) === $userGroup
             && (int) $report->created_by !== (int) auth()->id();

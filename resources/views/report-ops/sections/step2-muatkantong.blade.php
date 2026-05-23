@@ -70,8 +70,7 @@
                     <div class="form-group">
                         <label for="tiba_sandar_kantong">Tiba / Sandar</label>
                         <div class="input-wrapper">
-                            <input type="datetime-local" id="tiba_sandar_kantong" name="arrival_time_1" value="{{ old('arrival_time_1') }}" class="datetime-picker-input" style="padding-right: 35px;" autocomplete="off">
-                            <span class="input-icon"><i class="fi fi-rr-clock"></i></span>
+                            <input type="hidden" id="tiba_sandar_kantong" name="arrival_time_1" value="{{ old('arrival_time_1') }}" class="datetime-picker-input" data-kss-picker="datetime" data-trigger-class="custom-input" data-placeholder="Pilih tanggal & jam" autocomplete="off">
                         </div>
                     </div>
                     <div class="form-group">

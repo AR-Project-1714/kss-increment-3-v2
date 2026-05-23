@@ -436,6 +436,12 @@
             background-color: var(--blue-main-10);
             color: var(--blue-main);
         }
+
+        .ship-operation-status-options input[value="completed"]:checked + span {
+            border-color: var(--success);
+            background-color: var(--success-10);
+            color: var(--success);
+        }
 </style>
 @endpush
 
@@ -749,8 +755,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!dropdown) return;
 
         if (!Array.isArray(items) || items.length === 0) {
-            dropdown.innerHTML = '<div class="ship-operation-suggestions-empty">Tidak ada kapal aktif.</div>';
-            dropdown.classList.add('show');
+            dropdown.innerHTML = '';
+            dropdown.classList.remove('show');
             return;
         }
 
@@ -814,7 +820,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                 if (error.name !== 'AbortError') renderShipOperationSuggestions(input, []);
             }
-        }, 160);
+        }, 500);
     }
 
     function applyShipOperation(input, item) {
@@ -1474,7 +1480,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isAbsentDescription(value) {
-        return ['cuti', 'tidak masuk'].includes(String(value || '').toLowerCase());
+        return ['sakit', 'cuti', 'tidak masuk'].includes(String(value || '').toLowerCase());
     }
 
     const OP7_FORKLIFT_DEFAULTS = [
@@ -1525,6 +1531,121 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function applyShiftTimesToEmployeeRows() {
         document.querySelectorAll('#section-shift .table-input .body, #section-op7 .table-wrapper:not(.red) .table-input .body').forEach(applyShiftTimesToRow);
+    }
+
+    // ===== Sinkronisasi otomatis OP.7 -> Daftar Pengganti =====
+    // Saat operator OP.7 ditandai cuti/tidak masuk, satu baris pengganti dibuat
+    // otomatis di tabel bawah dengan No.Forklift, Area Kerja, Masuk, & Keluar terisi
+    // otomatis dari operator tsb. Petugas cukup mengisi nama penggantinya.
+    let op7ReplacementUid = 0;
+
+    function op7RowIsAbsent(row) {
+        return row ? isAbsentDescription(row.querySelector('select[name$="[description]"]')?.value) : false;
+    }
+
+    function setReplacementAutoField(row, selector, value) {
+        const input = row.querySelector(selector);
+        if (!input) return;
+        input.value = value;
+        input.readOnly = true;
+        input.classList.add('is-auto-filled');
+    }
+
+    function buildReplacementRow(repTable, uid) {
+        const rows = rowsOf(repTable);
+        const template = rows[rows.length - 1];
+        if (!template) return null;
+
+        const clone = template.cloneNode(true);
+        clearRow(clone);
+        resetTableSelectHydration(clone);
+        clone.dataset.replacementFor = uid;
+        clone.dataset.replacementCreated = 'true';
+        // Baris otomatis: tidak dihapus manual (akan hilang sendiri saat operator hadir lagi)
+        clone.querySelector('.table-column.delete')?.style.setProperty('visibility', 'hidden');
+
+        repTable.insertBefore(clone, repTable.querySelector('.btn-tambah-baris'));
+        applyMasterDatalists(clone);
+        hydrateTableSelects(clone);
+        return clone;
+    }
+
+    // Cari baris pengganti yang masih kosong & belum tertaut (mis. baris bawaan template)
+    // agar diisi lebih dulu sebelum menambah baris baru.
+    function findAdoptableReplacementRow(repTable) {
+        return rowsOf(repTable).find(row =>
+            !row.dataset.replacementFor &&
+            !(row.querySelector('input[name$="[name]"]')?.value || '').trim()
+        ) || null;
+    }
+
+    // Kembalikan baris adopsi (baris bawaan) menjadi baris manual kosong saat operator hadir lagi.
+    function revertReplacementRow(row) {
+        delete row.dataset.replacementFor;
+        ['input[name$="[no_forklift_]"]', 'input[name$="[work_area]"]', 'input[name$="[time_in]"]', 'input[name$="[time_out]"]'].forEach(selector => {
+            const input = row.querySelector(selector);
+            if (!input) return;
+            input.readOnly = false;
+            input.classList.remove('is-auto-filled');
+            input.value = '';
+        });
+        row.querySelector('.table-column.delete')?.style.removeProperty('visibility');
+    }
+
+    function syncOp7Replacements() {
+        const op7Table = document.querySelector('#section-op7 .table-wrapper:not(.red) .table-input');
+        const repTable = document.querySelector('#section-op7 .table-wrapper.red .table-input');
+        if (!op7Table || !repTable) return;
+
+        const { timeIn, timeOut } = currentWorkTimes();
+        const op7Rows = rowsOf(op7Table);
+        const activeUids = [];
+
+        op7Rows.forEach(row => {
+            if (!op7RowIsAbsent(row)) return;
+            if (!row.dataset.op7Uid) row.dataset.op7Uid = 'op7-' + (++op7ReplacementUid);
+            activeUids.push(row.dataset.op7Uid);
+        });
+
+        // Operator sudah hadir lagi / dihapus: baris buatan dibuang, baris adopsi dikembalikan
+        rowsOf(repTable).forEach(row => {
+            const forUid = row.dataset.replacementFor;
+            if (!forUid || activeUids.includes(forUid)) return;
+
+            if (row.dataset.replacementCreated === 'true') {
+                row.remove();
+            } else {
+                revertReplacementRow(row);
+            }
+        });
+
+        // Isi / perbarui baris pengganti untuk tiap operator OP.7 yang tidak masuk.
+        // Baris bawaan yang masih kosong dipakai lebih dulu, baru menambah baris baru.
+        op7Rows.forEach(row => {
+            if (!op7RowIsAbsent(row)) return;
+            const uid = row.dataset.op7Uid;
+            const forklift = row.querySelector('input[name$="[no_forklift_]"]')?.value || '';
+            const area = row.querySelector('input[name$="[work_area]"]')?.value || '';
+
+            let repRow = rowsOf(repTable).find(r => r.dataset.replacementFor === uid);
+            if (!repRow) {
+                repRow = findAdoptableReplacementRow(repTable);
+                if (repRow) {
+                    repRow.dataset.replacementFor = uid;
+                    repRow.querySelector('.table-column.delete')?.style.setProperty('visibility', 'hidden');
+                } else {
+                    repRow = buildReplacementRow(repTable, uid);
+                    if (!repRow) return;
+                }
+            }
+
+            setReplacementAutoField(repRow, 'input[name$="[no_forklift_]"]', forklift);
+            setReplacementAutoField(repRow, 'input[name$="[work_area]"]', area);
+            setReplacementAutoField(repRow, 'input[name$="[time_in]"]', timeIn);
+            setReplacementAutoField(repRow, 'input[name$="[time_out]"]', timeOut);
+        });
+
+        reindexTable(repTable);
     }
 
     function employeeShiftRowHtml(employee, index) {
@@ -1682,7 +1803,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (currentWitaHour >= 15 && currentWitaHour < 23) {
-            return { shift: 'Siang', timeRange: '15.00 - 23.00' };
+            return { shift: 'Sore', timeRange: '15.00 - 23.00' };
         }
 
         return { shift: 'Malam', timeRange: '23.00 - 07.00' };
@@ -1874,6 +1995,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const newIndex = op7Rows.indexOf(clone);
             applyOp7ForkliftDefaults(clone, newIndex);
             applyShiftTimesToRow(clone);
+            syncOp7Replacements();
         }
     }
 
@@ -1882,14 +2004,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const row = button.closest('.body');
         if (!tableInput || !row) return;
 
+        const isOp7Source = tableInput.closest('#section-op7') && !tableInput.closest('.red');
+
         const rows = rowsOf(tableInput);
         if (rows.length <= 1) {
             clearRow(row);
+            if (isOp7Source) syncOp7Replacements();
             return;
         }
 
         row.remove();
         reindexTable(tableInput);
+        if (isOp7Source) syncOp7Replacements();
     }
 
     function updateAccumulation(input) {
@@ -2532,19 +2658,26 @@ document.addEventListener('DOMContentLoaded', function () {
         if (event.target.matches('[name="group_name"]')) {
             renderEmployeeShiftRows(event.target.value);
             renderOp7Rows(event.target.value);
+            syncOp7Replacements();
         }
 
         if (event.target.matches('[name="shift"]')) {
             syncTimeRangeWithShift();
             applyShiftTimesToEmployeeRows();
+            syncOp7Replacements();
         }
 
         if (event.target.matches('[name="time_range"]')) {
             applyShiftTimesToEmployeeRows();
+            syncOp7Replacements();
         }
 
         if (event.target.matches('select[name^="employee_shift_logs"][name$="[description]"], select[name^="op7_logs"][name$="[description]"]')) {
             applyShiftTimesToRow(event.target.closest('.body'));
+        }
+
+        if (event.target.matches('select[name^="op7_logs"][name$="[description]"]')) {
+            syncOp7Replacements();
         }
     });
 
@@ -2572,6 +2705,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (event.target.matches('[name*="qty_current"], [name*="qty_prev"], [name*="_current_"], [name*="_prev_"]')) {
             updateAccumulation(event.target);
+        }
+
+        if (event.target.matches('input[name^="op7_logs"][name$="[no_forklift_]"], input[name^="op7_logs"][name$="[work_area]"]')) {
+            syncOp7Replacements();
         }
     });
 });
