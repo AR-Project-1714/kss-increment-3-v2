@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ReportStatus;
+use App\Http\Controllers\Concerns\ResolvesReportMeta;
+use App\Http\Controllers\Concerns\SearchesReports;
 use App\Models\DailyReport;
 use App\Models\MasterEmployee;
 use App\Models\MasterInventoryItem;
@@ -10,6 +12,7 @@ use App\Models\MasterTruck;
 use App\Models\MasterUnit;
 use App\Models\ShipOperation;
 use App\Models\UnitCheckLog;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,6 +26,9 @@ use Throwable;
 
 class ReportOpsController extends Controller
 {
+    use ResolvesReportMeta;
+    use SearchesReports;
+
     private const MASTER_DATA_CACHE_TTL = 60 * 60 * 24;
 
     private const PENDING_PDF_CACHE_TTL = 60 * 10;
@@ -51,11 +57,15 @@ class ReportOpsController extends Controller
             ->get();
 
         $historySearch = trim((string) request('history_search', ''));
-        $activeTab = request('tab') === 'riwayat' || request()->has('history_page') || $historySearch !== ''
-            ? 'riwayat'
-            : 'laporan';
+        $receivedSearch = trim((string) request('received_search', ''));
 
-        $historyQuery = DailyReport::with([
+        $activeTab = match (true) {
+            request('tab') === 'diterima' || request()->has('received_page') || $receivedSearch !== '' => 'diterima',
+            request('tab') === 'riwayat' || request()->has('history_page') || $historySearch !== '' => 'riwayat',
+            default => 'laporan',
+        };
+
+        $reportRelations = [
             'creator',
             'receiver',
             'approver',
@@ -66,17 +76,19 @@ class ReportOpsController extends Controller
             'turbaActivity.deliveries',
             'unitCheckLogs',
             'employeeLogs',
-        ])
-            ->where(function ($innerQuery) use ($user, $userGroup) {
-                $innerQuery->where('created_by', $user->id);
+        ];
 
+        // Riwayat = laporan yang DIBUAT oleh regu pengguna sendiri (group pengirim).
+        $historyQuery = DailyReport::with($reportRelations)
+            ->where(function ($innerQuery) use ($user, $userGroup) {
                 if ($userGroup !== '') {
-                    $innerQuery->orWhere('group_name', $userGroup)
-                        ->orWhere('received_by_group', $userGroup);
+                    $innerQuery->where('group_name', $userGroup);
+                } else {
+                    $innerQuery->where('created_by', $user->id);
                 }
             });
 
-        $this->applyHistorySearch($historyQuery, $historySearch);
+        $this->applyReportSearch($historyQuery, $historySearch);
 
         $historyReports = $historyQuery
             ->latest('report_date')
@@ -86,7 +98,33 @@ class ReportOpsController extends Controller
 
         $historyReports->appends(['tab' => 'riwayat']);
 
-        return view('report-ops.index', compact('incomingReports', 'draftReports', 'historyReports', 'historySearch', 'activeTab'));
+        // Laporan Diterima = laporan yang MASUK dari regu lain (ditujukan ke regu pengguna).
+        $receivedQuery = DailyReport::with($reportRelations)
+            ->when(
+                $userGroup === '',
+                fn ($query) => $query->whereRaw('1 = 0'),
+                fn ($query) => $query->where('received_by_group', $userGroup)
+            );
+
+        $this->applyReportSearch($receivedQuery, $receivedSearch);
+
+        $receivedReports = $receivedQuery
+            ->latest('report_date')
+            ->latest('updated_at')
+            ->paginate(10, ['*'], 'received_page')
+            ->withQueryString();
+
+        $receivedReports->appends(['tab' => 'diterima']);
+
+        return view('report-ops.index', compact(
+            'incomingReports',
+            'draftReports',
+            'historyReports',
+            'historySearch',
+            'receivedReports',
+            'receivedSearch',
+            'activeTab'
+        ));
     }
 
     public function historySuggestions(Request $request)
@@ -95,27 +133,20 @@ class ReportOpsController extends Controller
         $userGroup = strtoupper((string) ($user->group ?? ''));
         $keyword = trim((string) $request->input('q', ''));
 
-        $query = DailyReport::with([
-            'creator',
-            'receiver',
-            'loadingActivities.timesheets',
-            'bulkLoadingActivities.logs',
-            'materialActivity.items',
-            'containerActivity.items',
-            'turbaActivity.deliveries',
-            'unitCheckLogs',
-            'employeeLogs',
-        ])
+        // Saran pencarian hanya merender metadata laporan (tanggal, shift, status, group);
+        // tidak ada relasi anak yang dipakai di output, jadi tidak perlu di-eager-load.
+        // Saran riwayat dibatasi pada laporan yang dibuat oleh regu pengguna sendiri,
+        // selaras dengan isi tab Riwayat.
+        $query = DailyReport::query()
             ->where(function ($innerQuery) use ($user, $userGroup): void {
-                $innerQuery->where('created_by', $user->id);
-
                 if ($userGroup !== '') {
-                    $innerQuery->orWhere('group_name', $userGroup)
-                        ->orWhere('received_by_group', $userGroup);
+                    $innerQuery->where('group_name', $userGroup);
+                } else {
+                    $innerQuery->where('created_by', $user->id);
                 }
             });
 
-        $this->applyHistorySearch($query, $keyword);
+        $this->applyReportSearch($query, $keyword);
 
         $reports = $query
             ->latest('report_date')
@@ -123,64 +154,71 @@ class ReportOpsController extends Controller
             ->limit(8)
             ->get();
 
-        $shiftMeta = function ($shift): array {
-            $normalized = strtolower(trim((string) $shift));
-
-            return match (true) {
-                in_array($normalized, ['1', 'pagi', 'shift 1', 'shift pagi'], true) => ['label' => 'Shift Pagi', 'class' => 'pagi'],
-                in_array($normalized, ['2', 'sore', 'siang', 'shift 2', 'shift sore', 'shift siang'], true) => ['label' => 'Shift Sore', 'class' => 'sore'],
-                in_array($normalized, ['3', 'malam', 'shift 3', 'shift malam'], true) => ['label' => 'Shift Malam', 'class' => 'malam'],
-                default => ['label' => $shift ? 'Shift '.$shift : 'Shift -', 'class' => 'pagi'],
-            };
-        };
-
-        $statusMeta = function ($status): array {
-            $value = $status instanceof ReportStatus ? $status->value : (string) $status;
-
-            return match ($value) {
-                ReportStatus::Draft->value => ['label' => 'Draft', 'class' => 'draft'],
-                ReportStatus::Submitted->value => ['label' => 'Diserahkan', 'class' => 'submit'],
-                ReportStatus::Acknowledged->value => ['label' => 'Diterima', 'class' => 'confirm'],
-                ReportStatus::Approved->value => ['label' => 'Diarsipkan', 'class' => 'archive'],
-                default => ['label' => ucfirst($value), 'class' => 'submit'],
-            };
-        };
-
-        $items = $reports->map(function (DailyReport $report) use ($shiftMeta, $statusMeta) {
-            $date = $report->report_date ?: $report->created_at;
-            $year = $date ? Carbon::parse($date)->format('Y') : now()->format('Y');
-            $documentId = '#OPS-'.$year.'-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
-
-            $shift = $shiftMeta($report->shift);
-            $status = $statusMeta($report->status);
-
-            return [
-                'id' => $report->id,
-                'document_id' => $documentId,
-                'title' => 'Laporan Shift Harian',
-                'report_date' => $report->report_date
-                    ? Carbon::parse($report->report_date)->locale('id')->translatedFormat('d F Y')
-                    : '-',
-                'updated_diff' => $report->updated_at
-                    ? Carbon::parse($report->updated_at)->locale('id')->diffForHumans()
-                    : '-',
-                'shift_label' => $shift['label'],
-                'shift_class' => $shift['class'],
-                'status_label' => $status['label'],
-                'status_class' => $status['class'],
-                'group_from' => strtoupper((string) $report->group_name) ?: '-',
-                'group_to' => strtoupper((string) $report->received_by_group) ?: '-',
-                'view_url' => route('report-ops.show', $report),
-                'pdf_url' => route('report-ops.pdf', $report),
-                'excel_url' => route('report-ops.excel', $report),
-            ];
-        })->values();
+        $items = $reports->map(fn (DailyReport $report): array => $this->reportSuggestionItem($report))->values();
 
         return response()->json([
             'keyword' => $keyword,
             'total' => $items->count(),
             'items' => $items,
         ]);
+    }
+
+    public function receivedSuggestions(Request $request)
+    {
+        $user = $request->user();
+        $userGroup = strtoupper((string) ($user->group ?? ''));
+        $keyword = trim((string) $request->input('q', ''));
+
+        // Saran tab "Laporan Diterima" dibatasi pada laporan yang ditujukan ke regu pengguna.
+        $query = DailyReport::query()
+            ->when(
+                $userGroup === '',
+                fn ($innerQuery) => $innerQuery->whereRaw('1 = 0'),
+                fn ($innerQuery) => $innerQuery->where('received_by_group', $userGroup)
+            );
+
+        $this->applyReportSearch($query, $keyword);
+
+        $items = $query
+            ->latest('report_date')
+            ->latest('updated_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (DailyReport $report): array => $this->reportSuggestionItem($report))
+            ->values();
+
+        return response()->json([
+            'keyword' => $keyword,
+            'total' => $items->count(),
+            'items' => $items,
+        ]);
+    }
+
+    private function reportSuggestionItem(DailyReport $report): array
+    {
+        $shift = $this->shiftMeta($report->shift);
+        $status = $this->statusMeta($report->status);
+
+        return [
+            'id' => $report->id,
+            'document_id' => $this->documentId($report),
+            'title' => 'Laporan Operasi Harian',
+            'report_date' => $report->report_date
+                ? Carbon::parse($report->report_date)->locale('id')->translatedFormat('d F Y')
+                : '-',
+            'updated_diff' => $report->updated_at
+                ? Carbon::parse($report->updated_at)->locale('id')->diffForHumans()
+                : '-',
+            'shift_label' => $shift['label'],
+            'shift_class' => $shift['class'],
+            'status_label' => $status['label'],
+            'status_class' => $status['class'],
+            'group_from' => strtoupper((string) $report->group_name) ?: '-',
+            'group_to' => strtoupper((string) $report->received_by_group) ?: '-',
+            'view_url' => route('report-ops.show', $report),
+            'pdf_url' => route('report-ops.pdf', $report),
+            'excel_url' => route('report-ops.excel', $report),
+        ];
     }
 
     public function shipOperationSuggestions(Request $request)
@@ -285,6 +323,8 @@ class ReportOpsController extends Controller
         return view('report-ops.viewpdf', [
             'report' => $this->loadReport($report),
             'isPdf' => false,
+            'backUrl' => route('report-ops.index'),
+            'pdfUrl' => route('report-ops.pdf', $report),
         ]);
     }
 
@@ -412,28 +452,30 @@ class ReportOpsController extends Controller
     {
         abort_unless($this->canAccessReport($report, auth()->user()), 403);
 
-        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+        if (! class_exists(Pdf::class)) {
             return view('report-ops.viewpdf', [
                 'report' => $this->loadReport($report),
                 'isPdf' => false,
+                'backUrl' => route('report-ops.index'),
+                'pdfUrl' => null,
             ]);
         }
 
         return response($this->renderReportPdf($report), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$this->reportExportFileName($report, 'pdf').'"',
+            'Content-Disposition' => 'inline; filename="'.$this->reportFileName($report, 'pdf').'"',
         ]);
     }
 
     private function renderReportPdf(DailyReport $report): string
     {
         $generate = function () use ($report): string {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('report-ops.pdf', [
+            $pdf = Pdf::loadView('report-ops.pdf', [
                 'report' => $this->loadReport($report),
                 'isPdf' => true,
             ]);
 
-            $pdf->setPaper([0, 0, 612.00, 1008.00], 'portrait');
+            $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
 
             return $pdf->output();
@@ -450,7 +492,7 @@ class ReportOpsController extends Controller
 
     private function pendingPdfCacheKey(DailyReport $report): string
     {
-        return sprintf('report_pdf.pending.%d.%d', $report->id, $report->updated_at?->timestamp ?? 0);
+        return sprintf('report_pdf.pending.f4.%d.%d', $report->id, $report->updated_at?->timestamp ?? 0);
     }
 
     public function exportExcel(DailyReport $report)
@@ -470,7 +512,7 @@ class ReportOpsController extends Controller
 
             $this->fillExcelReport($sheet, $report);
 
-            $fileName = $this->reportExportFileName($report, 'xlsx');
+            $fileName = $this->reportFileName($report, 'xlsx');
 
             return response()->streamDownload(function () use ($spreadsheet): void {
                 $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
@@ -493,7 +535,7 @@ class ReportOpsController extends Controller
 
     private function fillExcelReport(Worksheet $sheet, DailyReport $report): void
     {
-        $sheet->setTitle('Laporan Shift');
+        $sheet->setTitle('Laporan Operasi');
 
         $this->fillExcelGeneralInfo($sheet, $report);
         $this->fillExcelBagLoading($sheet, $report);
@@ -892,30 +934,6 @@ class ReportOpsController extends Controller
         $sheet->setCellValue($cell, $formula);
     }
 
-    private function reportExportFileName(DailyReport $report, string $extension): string
-    {
-        $date = $report->report_date
-            ? Carbon::parse($report->report_date)->format('Y-m-d')
-            : now()->format('Y-m-d');
-        $shift = $this->excelShiftLabel($report->shift);
-        $group = strtoupper(trim((string) $report->group_name)) ?: '-';
-        $extension = ltrim(strtolower($extension), '.');
-
-        return "Operasional-{$date}-Shift {$shift}-Group {$group}.{$extension}";
-    }
-
-    private function excelShiftLabel(mixed $shift): string
-    {
-        $normalized = strtolower(trim((string) $shift));
-
-        return match (true) {
-            in_array($normalized, ['1', 'pagi', 'shift 1', 'shift pagi'], true) => 'Pagi',
-            in_array($normalized, ['2', 'siang', 'sore', 'shift 2', 'shift siang', 'shift sore'], true) => 'Sore',
-            in_array($normalized, ['3', 'malam', 'shift 3', 'shift malam'], true) => 'Malam',
-            default => $shift ? trim((string) $shift) : '-',
-        };
-    }
-
     private function excelDay(mixed $value): ?string
     {
         return $this->formatExcelDateValue($value, 'l');
@@ -1016,6 +1034,11 @@ class ReportOpsController extends Controller
     {
         $reportDate = $request->input('report_date');
 
+        // Draft belum dikirim ke regu penerima, jadi operasi kapalnya tidak boleh
+        // ikut tersimpan/menjadi saran (suggestion) bagi laporan lain. Ship operation
+        // baru dibuat/diperbarui saat laporan benar-benar dikirim (status Submitted).
+        $isDraft = $report->status === ReportStatus::Draft;
+
         $this->pruneStaleShipOperations();
 
         for ($i = 1; $i <= 20; $i++) {
@@ -1026,6 +1049,14 @@ class ReportOpsController extends Controller
                 "destination_{$i}",
                 "capacity_{$i}",
                 "timesheets.{$i}",
+                "tally_warehouse_{$i}",
+                "driver_name_{$i}",
+                "truck_number_{$i}",
+                "tally_ship_{$i}",
+                "operator_ship_{$i}",
+                "forklift_ship_{$i}",
+                "operator_warehouse_{$i}",
+                "forklift_warehouse_{$i}",
             ])) {
                 continue;
             }
@@ -1060,7 +1091,9 @@ class ReportOpsController extends Controller
                 'forklift_warehouse' => $this->string($request->input("forklift_warehouse_{$i}")),
             ];
 
-            $shipOperation = $this->resolveShipOperation($report, $request, ShipOperation::TYPE_BAG_LOADING, $i, $loadingData);
+            $shipOperation = $isDraft
+                ? null
+                : $this->resolveShipOperation($report, $request, ShipOperation::TYPE_BAG_LOADING, $i, $loadingData);
             $loadingData['ship_operation_id'] = $shipOperation?->id;
 
             $loadingActivity = $report->loadingActivities()->create($loadingData);
@@ -1102,7 +1135,9 @@ class ReportOpsController extends Controller
                 'start_loading_time' => $this->dateTime($request->input("start_loading_time_urea_{$i}"), $reportDate),
             ];
 
-            $shipOperation = $this->resolveShipOperation($report, $request, ShipOperation::TYPE_BULK_LOADING, $i, $bulkData);
+            $shipOperation = $isDraft
+                ? null
+                : $this->resolveShipOperation($report, $request, ShipOperation::TYPE_BULK_LOADING, $i, $bulkData);
             $bulkData['ship_operation_id'] = $shipOperation?->id;
 
             $bulkActivity = $report->bulkLoadingActivities()->create($bulkData);
@@ -1145,7 +1180,7 @@ class ReportOpsController extends Controller
         $containerRows = $this->rows($request->input('unloading_containers', []));
         $hasContainerRows = array_filter(
             $containerRows,
-            fn (array $container): bool => $this->rowHasAny($container, ['time', 'type', 'qty_current', 'qty_prev', 'qty_total'])
+            fn (array $container): bool => $this->rowHasAny($container, ['time', 'status', 'qty_current', 'qty_prev', 'qty_total'])
         ) !== [];
 
         if ($this->hasAny($request, ['ship_name_container', 'agent_container', 'capacity_container', 'tally_muat', 'tally_gudang', 'driver_petugas_cont']) || $hasContainerRows) {
@@ -1159,7 +1194,7 @@ class ReportOpsController extends Controller
             ]);
 
             foreach ($containerRows as $container) {
-                if ($this->rowHasAny($container, ['time', 'type', 'qty_current', 'qty_prev', 'qty_total'])) {
+                if ($this->rowHasAny($container, ['time', 'status', 'qty_current', 'qty_prev', 'qty_total'])) {
                     $containerActivity->items()->create([
                         'time' => $this->time($container['time'] ?? null),
                         'status' => $this->string($container['status'] ?? null),
@@ -1368,293 +1403,6 @@ class ReportOpsController extends Controller
         }
     }
 
-    private function loadReport(DailyReport $report): DailyReport
-    {
-        return $report->load([
-            'creator',
-            'receiver',
-            'approver',
-            'loadingActivities.timesheets',
-            'bulkLoadingActivities.logs',
-            'materialActivity.items',
-            'containerActivity.items',
-            'turbaActivity.deliveries',
-            'unitCheckLogs',
-            'employeeLogs',
-        ]);
-    }
-
-    private function applyHistorySearch($query, string $keyword): void
-    {
-        if ($keyword === '') {
-            return;
-        }
-
-        $like = '%'.$keyword.'%';
-        $datePatterns = $this->buildDateSearchPatterns($keyword);
-
-        if (! empty($datePatterns)) {
-            $query->where(function ($dateQuery) use ($datePatterns): void {
-                foreach ($datePatterns as $pattern) {
-                    $dateQuery->orWhere('report_date', 'like', $pattern);
-                }
-            });
-
-            return;
-        }
-
-        $query->where(function ($searchQuery) use ($keyword, $like): void {
-            $this->whereColumnsLike($searchQuery, [
-                'shift',
-                'group_name',
-                'received_by_group',
-                'time_range',
-                'status',
-                'payload',
-            ], $like);
-
-            if (preg_match('/ops[-\s]?\d{4}[-\s]?(\d+)/i', $keyword, $match)) {
-                $searchQuery->orWhere('id', (int) $match[1]);
-            } elseif (ctype_digit($keyword)) {
-                $searchQuery->orWhere('id', (int) $keyword);
-            }
-
-            $searchQuery
-                ->orWhere('report_date', 'like', $like)
-                ->orWhereHas('creator', fn ($relation) => $this->whereColumnsLike($relation, ['name', 'username', 'email', 'group'], $like))
-                ->orWhereHas('receiver', fn ($relation) => $this->whereColumnsLike($relation, ['name', 'username', 'email', 'group'], $like))
-                ->orWhereHas('loadingActivities', function ($relation) use ($like): void {
-                    $relation->where(function ($activity) use ($like): void {
-                        $this->whereColumnsLike($activity, [
-                            'ship_name',
-                            'agent',
-                            'jetty',
-                            'destination',
-                            'capacity',
-                            'wo_number',
-                            'cargo_type',
-                            'marking',
-                            'operating_gang',
-                            'foreman',
-                            'tally_warehouse',
-                            'driver_name',
-                            'truck_number',
-                            'tally_ship',
-                            'operator_ship',
-                            'forklift_ship',
-                            'operator_warehouse',
-                            'forklift_warehouse',
-                        ], $like);
-
-                        $activity->orWhereHas('timesheets', fn ($timesheet) => $this->whereColumnsLike($timesheet, ['category', 'time', 'activity'], $like));
-                    });
-                })
-                ->orWhereHas('bulkLoadingActivities', function ($relation) use ($like): void {
-                    $relation->where(function ($activity) use ($like): void {
-                        $this->whereColumnsLike($activity, [
-                            'ship_name',
-                            'jetty',
-                            'destination',
-                            'agent',
-                            'stevedoring',
-                            'commodity',
-                            'capacity',
-                            'berthing_time',
-                            'start_loading_time',
-                        ], $like);
-
-                        $activity->orWhereHas('logs', fn ($log) => $this->whereColumnsLike($log, ['datetime', 'activity', 'cob'], $like));
-                    });
-                })
-                ->orWhereHas('materialActivity', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'ship_name',
-                    'agent',
-                    'capacity',
-                    'ship_tally_names',
-                    'forklift_operator_names',
-                    'delivery_tally_names',
-                    'driver_names',
-                    'working_hours',
-                ], $like))
-                ->orWhereHas('materialActivity.items', fn ($relation) => $this->whereColumnsLike($relation, ['raw_material_type', 'qty_current', 'qty_prev', 'qty_total'], $like))
-                ->orWhereHas('containerActivity', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'ship_name',
-                    'agent',
-                    'capacity',
-                    'ship_tally_names',
-                    'gudang_tally_names',
-                    'driver_names',
-                ], $like))
-                ->orWhereHas('containerActivity.items', fn ($relation) => $this->whereColumnsLike($relation, ['time', 'qty_current', 'qty_prev', 'qty_total', 'status'], $like))
-                ->orWhereHas('turbaActivity', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'tally_gudang_names',
-                    'forklift_operator_names',
-                    'driver_names',
-                    'working_hours',
-                ], $like))
-                ->orWhereHas('turbaActivity.deliveries', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'truck_name',
-                    'do_so_number',
-                    'capacity',
-                    'marking_type',
-                    'qty_current',
-                    'qty_prev',
-                    'qty_accumulated',
-                ], $like))
-                ->orWhereHas('unitCheckLogs', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'category',
-                    'item_name',
-                    'master_id',
-                    'fuel_level',
-                    'condition_received',
-                    'condition_handed_over',
-                    'quantity',
-                ], $like))
-                ->orWhereHas('employeeLogs', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'category',
-                    'name',
-                    'no_forklift_',
-                    'work_area',
-                    'personil_count',
-                    'time_in',
-                    'time_out',
-                    'work_time',
-                    'description',
-                ], $like));
-        });
-    }
-
-    private function whereColumnsLike($query, array $columns, string $like): void
-    {
-        $query->where(function ($columnQuery) use ($columns, $like): void {
-            foreach ($columns as $column) {
-                $columnQuery->orWhere($column, 'like', $like);
-            }
-        });
-    }
-
-    private function buildDateSearchPatterns(string $keyword): array
-    {
-        $months = [
-            'januari' => '01', 'jan' => '01', 'january' => '01',
-            'februari' => '02', 'feb' => '02', 'february' => '02', 'pebruari' => '02',
-            'maret' => '03', 'mar' => '03', 'march' => '03',
-            'april' => '04', 'apr' => '04',
-            'mei' => '05', 'may' => '05',
-            'juni' => '06', 'jun' => '06', 'june' => '06',
-            'juli' => '07', 'jul' => '07', 'july' => '07',
-            'agustus' => '08', 'agu' => '08', 'agus' => '08', 'ags' => '08', 'august' => '08', 'aug' => '08',
-            'september' => '09', 'sep' => '09', 'sept' => '09',
-            'oktober' => '10', 'okt' => '10', 'october' => '10', 'oct' => '10',
-            'november' => '11', 'nov' => '11', 'nop' => '11', 'nopember' => '11',
-            'desember' => '12', 'des' => '12', 'december' => '12', 'dec' => '12',
-        ];
-
-        $normalized = mb_strtolower(trim($keyword));
-
-        if ($normalized === '') {
-            return [];
-        }
-
-        $tokens = array_values(array_filter(
-            preg_split('/[\s,\/\-\.]+/', $normalized) ?: [],
-            fn ($token) => $token !== ''
-        ));
-
-        if (empty($tokens)) {
-            return [];
-        }
-
-        $resolveMonth = function (string $token) use ($months): ?string {
-            if (isset($months[$token])) {
-                return $months[$token];
-            }
-
-            if (strlen($token) < 2) {
-                return null;
-            }
-
-            $matches = [];
-
-            foreach ($months as $monthName => $monthNumber) {
-                if (str_starts_with($monthName, $token)) {
-                    $matches[$monthNumber] = true;
-                }
-            }
-
-            return count($matches) === 1 ? array_key_first($matches) : null;
-        };
-
-        foreach ($tokens as $token) {
-            if ($resolveMonth($token) === null && ! ctype_digit($token)) {
-                return [];
-            }
-        }
-
-        $monthFromName = null;
-        $year = null;
-        $numerics = [];
-
-        foreach ($tokens as $token) {
-            $resolvedMonth = $resolveMonth($token);
-
-            if ($resolvedMonth !== null) {
-                $monthFromName = $resolvedMonth;
-            } else {
-                $value = (int) $token;
-
-                if (strlen($token) === 4 && $value >= 1900 && $value <= 2100) {
-                    $year = $token;
-                } else {
-                    $numerics[] = $value;
-                }
-            }
-        }
-
-        if ($monthFromName === null && $year === null && count($numerics) === 1) {
-            return [];
-        }
-
-        $candidates = [];
-        $yearPart = $year ?? '%';
-
-        $pad = fn (int $value) => str_pad((string) $value, 2, '0', STR_PAD_LEFT);
-
-        if ($monthFromName !== null) {
-            if (empty($numerics)) {
-                $candidates[] = $yearPart.'-'.$monthFromName.'-%';
-            } else {
-                foreach ($numerics as $value) {
-                    if ($value >= 1 && $value <= 31) {
-                        $candidates[] = $yearPart.'-'.$monthFromName.'-'.$pad($value).'%';
-                    }
-                }
-            }
-        } elseif (count($numerics) === 1) {
-            $value = $numerics[0];
-
-            if ($year !== null && $value >= 1 && $value <= 12) {
-                $candidates[] = $yearPart.'-'.$pad($value).'-%';
-            }
-            if ($value >= 1 && $value <= 31) {
-                $candidates[] = $yearPart.'-%-'.$pad($value).'%';
-            }
-        } elseif (count($numerics) >= 2) {
-            [$first, $second] = $numerics;
-
-            if ($first >= 1 && $first <= 31 && $second >= 1 && $second <= 12) {
-                $candidates[] = $yearPart.'-'.$pad($second).'-'.$pad($first).'%';
-            }
-            if ($first >= 1 && $first <= 12 && $second >= 1 && $second <= 31 && $first !== $second) {
-                $candidates[] = $yearPart.'-'.$pad($first).'-'.$pad($second).'%';
-            }
-        } elseif ($year !== null) {
-            $candidates[] = $yearPart.'-%-%';
-        }
-
-        return array_values(array_unique($candidates));
-    }
-
     private function shipOperationSuggestionItem(ShipOperation $operation, ?int $excludeReportId = null): array
     {
         $accumulation = $this->shipOperationAccumulation($operation, $excludeReportId);
@@ -1687,33 +1435,12 @@ class ReportOpsController extends Controller
 
     private function pruneStaleShipOperations(): void
     {
-        $cutoff = now()->subDays(ShipOperation::ACTIVE_SUGGESTION_TTL_DAYS);
-
-        ShipOperation::query()
-            ->whereIn('type', [ShipOperation::TYPE_BAG_LOADING, ShipOperation::TYPE_BULK_LOADING])
-            ->where('status', ShipOperation::STATUS_ACTIVE)
-            ->where(function ($query) use ($cutoff): void {
-                $query->where('updated_at', '<', $cutoff)
-                    ->orWhere(function ($fallback) use ($cutoff): void {
-                        $fallback->whereNull('updated_at')
-                            ->where('created_at', '<', $cutoff);
-                    });
-            })
-            ->delete();
+        ShipOperation::pruneStaleActiveSuggestions();
     }
 
     private function pruneStaleDraftReports(): int
     {
-        return DailyReport::query()
-            ->where('status', ReportStatus::Draft)
-            ->where(function ($query): void {
-                $query->where('updated_at', '<', $this->draftExpiryCutoff())
-                    ->orWhere(function ($fallback): void {
-                        $fallback->whereNull('updated_at')
-                            ->where('created_at', '<', $this->draftExpiryCutoff());
-                    });
-            })
-            ->delete();
+        return DailyReport::pruneStaleDrafts();
     }
 
     private function deleteIfStaleDraft(DailyReport $report): bool
@@ -1866,7 +1593,7 @@ class ReportOpsController extends Controller
             'vehicles' => Cache::remember(
                 MasterUnit::MASTER_DATA_CACHE_KEY,
                 self::MASTER_DATA_CACHE_TTL,
-                fn () => MasterUnit::select('id', 'name')->orderBy('id')->get()->toArray()
+                fn () => MasterUnit::select('id', 'name', 'unit_code', 'unit_number', 'type')->orderBy('id')->get()->toArray()
             ),
             'inventories' => Cache::remember(
                 MasterInventoryItem::MASTER_DATA_CACHE_KEY,
@@ -1881,7 +1608,8 @@ class ReportOpsController extends Controller
             'employeesGrouped' => Cache::remember(
                 MasterEmployee::MASTER_DATA_CACHE_KEY,
                 self::MASTER_DATA_CACHE_TTL,
-                fn () => MasterEmployee::where('status', 'active')
+                fn () => MasterEmployee::forOperational()
+                    ->where('status', 'active')
                     ->orderBy('id')
                     ->get()
                     ->groupBy('group_name')

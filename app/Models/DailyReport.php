@@ -14,6 +14,26 @@ class DailyReport extends Model
 
     protected $guarded = ['id'];
 
+    /**
+     * Hapus draft yang sudah melewati masa simpan tanpa dilanjutkan.
+     * Dipakai on-request (saat membuka daftar/draft) maupun lewat penjadwal.
+     */
+    public static function pruneStaleDrafts(): int
+    {
+        $cutoff = now()->subDays(self::DRAFT_TTL_DAYS);
+
+        return static::query()
+            ->where('status', ReportStatus::Draft)
+            ->where(function ($query) use ($cutoff): void {
+                $query->where('updated_at', '<', $cutoff)
+                    ->orWhere(function ($fallback) use ($cutoff): void {
+                        $fallback->whereNull('updated_at')
+                            ->where('created_at', '<', $cutoff);
+                    });
+            })
+            ->delete();
+    }
+
     protected function casts(): array
     {
         return [

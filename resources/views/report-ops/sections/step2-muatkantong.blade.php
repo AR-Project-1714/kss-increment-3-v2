@@ -171,6 +171,29 @@
                         </div>
                         <div class="timeline-section"></div>
                     </div>
+                    <div class="timesheet-personnel-grid">
+                        <div class="form-group form-group--full">
+                            <label for="tally_warehouse_1">Tally Gudang</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-user-time"></i></span>
+                                <input type="text" id="tally_warehouse_1" name="tally_warehouse_1" value="{{ old('tally_warehouse_1') }}" placeholder="Nama tally gudang">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="driver_name_1">Driver</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-user-helmet-safety"></i></span>
+                                <input type="text" id="driver_name_1" name="driver_name_1" value="{{ old('driver_name_1') }}" placeholder="Nama driver">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="truck_number_1">No Truck</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-truck-side"></i></span>
+                                <input type="text" id="truck_number_1" name="truck_number_1" value="{{ old('truck_number_1') }}" placeholder="Nomor truck">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Timesheet Pemuatan -->
@@ -192,6 +215,43 @@
                             </button>
                         </div>
                         <div class="timeline-section"></div>
+                    </div>
+                    <div class="timesheet-personnel-grid">
+                        <div class="form-group">
+                            <label for="tally_ship_1">Tally Kapal</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-ship"></i></span>
+                                <input type="text" id="tally_ship_1" name="tally_ship_1" value="{{ old('tally_ship_1') }}" placeholder="Nama tally kapal">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="operator_ship_1">Operator</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-user-helmet-safety"></i></span>
+                                <input type="text" id="operator_ship_1" name="operator_ship_1" value="{{ old('operator_ship_1') }}" placeholder="Nama operator">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="forklift_ship_1">Forklift No.</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-forklift"></i></span>
+                                <input type="text" id="forklift_ship_1" name="forklift_ship_1" value="{{ old('forklift_ship_1') }}" placeholder="Nomor forklift">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="operator_warehouse_1">Operator Gudang</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-user-time"></i></span>
+                                <input type="text" id="operator_warehouse_1" name="operator_warehouse_1" value="{{ old('operator_warehouse_1') }}" placeholder="Nama operator gudang">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="forklift_warehouse_1">Forklift No.</label>
+                            <div class="input-wrapper">
+                                <span class="personnel-input-icon"><i class="fi fi-sr-forklift"></i></span>
+                                <input type="text" id="forklift_warehouse_1" name="forklift_warehouse_1" value="{{ old('forklift_warehouse_1') }}" placeholder="Nomor forklift">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

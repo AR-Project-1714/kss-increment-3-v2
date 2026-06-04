@@ -389,15 +389,7 @@
                             <button type="button"
                                     class="btn-act download"
                                     title="Download"
-                                    data-confirm
-                                    data-confirm-redirect="{{ $backup['download_url'] ?? '#' }}"
-                                    data-confirm-tone="success"
-                                    data-confirm-title="Download backup?"
-                                    data-confirm-subtitle="File backup akan disiapkan untuk diunduh."
-                                    data-confirm-message="Pastikan file ini disimpan di lokasi yang aman setelah diunduh."
-                                    data-confirm-summary="{{ $backup['name'] }}"
-                                    data-confirm-label="Download"
-                                    data-confirm-icon="fi fi-rr-download">
+                                    data-download-url="{{ $backup['download_url'] ?? '#' }}">
                                 <i class="fi fi-rr-download"></i>
                             </button>
                             <form method="POST" action="{{ $backup['restore_url'] ?? '#' }}">

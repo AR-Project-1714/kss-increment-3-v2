@@ -2,12 +2,12 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Laporan Harian Shift</title>
+    <title>Laporan Operasi Harian</title>
     <link rel="icon" href="{{ public_path('assets/Logo-compressed 1.png') }}">
     <style>
         @page {
-            /* Legal Size: 21.59cm x 35.56cm */
-            size: 21.59cm 35.56cm;
+            /* F4: 21.59cm x 33.02cm */
+            size: 21.59cm 33.02cm;
             margin: 0.5cm;
         }
         body {
@@ -135,7 +135,7 @@
 
             <!-- TENGAH: LOGO (20%) -->
             <td style="width: 20%; vertical-align: top; text-align: center;">
-                <img src="{{ public_path('assets/KSS.png') }}" alt="Logo KSS" class="logo-img">
+                <img src="{{ public_path('assets/KSS-pdf.png') }}" alt="Logo KSS" class="logo-img">
             </td>
 
             <!-- KANAN: INFO UMUM (40%) -->
@@ -403,7 +403,7 @@
                             @php $containers = $report->containerActivity->items; $cntMin = 3; @endphp
                             @foreach($containers as $cont)
                             <tr>
-                                <td class="text-center">{{ \Carbon\Carbon::parse($cont->time)->format('H:i') }}</td>
+                                <td class="text-center">{{ $cont->time ? \Carbon\Carbon::parse($cont->time)->format('H:i') : '' }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_current) }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_prev) }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_total) }}</td>
@@ -503,7 +503,7 @@
                                     @endphp
                                     <tr>
                                         <td class="text-center">{{ $unit->id }}</td>
-                                        <td>{{ $unit->name }}</td>
+                                        <td>{{ $unit->short_display_name }}</td>
                                         <td class="text-center">{{ $log->fuel_level ?? '' }}</td>
                                         <td class="text-center {{ $rec == 'Baik' ? 'text-green' : ($rec == 'Rusak' ? 'text-red' : '') }}">{{ $rec }}</td>
                                         <td class="text-center {{ $han == 'Baik' ? 'text-green' : ($han == 'Rusak' ? 'text-red' : '') }}">{{ $han }}</td>
@@ -632,15 +632,15 @@
 
         <!-- ADDED: TABEL KARYAWAN OP.7 & PENGGANTI (FULL WIDTH DI BAWAH) -->
         <div class="text-center border-all bg-gray text-bold" style="border-bottom:none; margin-top: 10px; padding: 1px;">KARYAWAN OP.7</div>
-        <table class="table-bordered w-100 mb-2">
+        <table class="table-bordered w-100 mb-2" style="table-layout: fixed;">
             <tr class="bg-gray">
-                <th style="width: 20px;">NO.</th>
-                <th>NAMA</th>
-                <th>NO. FORKLIFT</th>
-                <th>AREA KERJA</th>
-                <th style="width: 40px;">MASUK</th>
-                <th style="width: 40px;">KELUAR</th>
-                <th>KETERANGAN</th>
+                <th style="width: 4%;">NO.</th>
+                <th style="width: 22%;">NAMA</th>
+                <th style="width: 15%;">NO. FORKLIFT</th>
+                <th style="width: 23%;">AREA KERJA</th>
+                <th style="width: 7%;">MASUK</th>
+                <th style="width: 7%;">KELUAR</th>
+                <th style="width: 22%;">KETERANGAN</th>
             </tr>
             @php $op7Emps = $report->employeeLogs->where('category', 'op7')->values(); @endphp
             @foreach($op7Emps as $index => $emp)
@@ -660,15 +660,15 @@
         </table>
 
         <div class="text-center border-all bg-gray text-bold" style="border-bottom:none; margin-top: 10px; padding: 1px;">DAFTAR PENGGANTI OPERATOR YANG TIDAK MASUK</div>
-        <table class="table-bordered w-100">
+        <table class="table-bordered w-100" style="table-layout: fixed;">
             <tr class="bg-gray">
-                <th style="width: 20px;">NO.</th>
-                <th>NAMA PENGGANTI</th>
-                <th>NO. FORKLIFT</th>
-                <th>AREA KERJA</th>
-                <th style="width: 40px;">MASUK</th>
-                <th style="width: 40px;">KELUAR</th>
-                <th>MENGGANTIKAN / KET</th>
+                <th style="width: 4%;">NO.</th>
+                <th style="width: 22%;">NAMA PENGGANTI</th>
+                <th style="width: 15%;">NO. FORKLIFT</th>
+                <th style="width: 23%;">AREA KERJA</th>
+                <th style="width: 7%;">MASUK</th>
+                <th style="width: 7%;">KELUAR</th>
+                <th style="width: 22%;">MENGGANTIKAN / KET</th>
             </tr>
             @php $replacementEmps = $report->employeeLogs->where('category', 'replacement')->values(); @endphp
             @foreach($replacementEmps as $index => $emp)

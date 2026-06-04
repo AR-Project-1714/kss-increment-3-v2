@@ -25,12 +25,12 @@
                     <div class="rentang-jam-wrapper">
                         <div class="input-wrapper">
                             <span class="input-icon" style="top: 8px;left: 15px; right: auto; color: var(--blue-main);"><i class="fi fi-br-clock"></i></span>
-                            <input type="text" name="turba_work_start" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500;">
+                            <input type="text" name="turba_work_start" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
                         </div>
                         <i class="fi fi-rr-arrow-right" style="font-size: 12px; color: var(--dark-main);"></i>
                         <div class="input-wrapper">
                             <span class="input-icon" style="top:8px;left: 15px; right: auto; color: var(--red-main);"><i class="fi fi-br-clock"></i></span>
-                            <input type="text" name="turba_work_end" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500;">
+                            <input type="text" name="turba_work_end" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
                         </div>
                     </div>
                 </div>

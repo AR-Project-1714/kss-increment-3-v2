@@ -356,7 +356,7 @@
                 <th class="col-aksi">Aksi</th>
             </tr>
 
-            @foreach ($users as $u)
+            @forelse ($users as $u)
                 <tr class="tbody d-flex justify-content-between align-items-center"
                     data-user-name="{{ $u['name'] }}"
                     data-user-username="{{ $u['username'] }}"
@@ -417,7 +417,16 @@
                         </form>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                @php $userIsSearching = ($userSearch ?? '') !== ''; @endphp
+                @include('admin.layouts.empty-state', [
+                    'icon' => $userIsSearching ? 'fi fi-rr-search' : 'fi fi-rr-users',
+                    'title' => $userIsSearching ? 'Tidak ada pengguna yang cocok' : 'Belum ada pengguna',
+                    'message' => $userIsSearching
+                        ? 'Tidak ada pengguna yang sesuai dengan pencarian "'.$userSearch.'". Coba kata kunci lain atau periksa ejaannya.'
+                        : 'Tambahkan pengguna baru lewat tombol "Tambah Pengguna" untuk mulai mengelola akun dan hak akses.',
+                ])
+            @endforelse
         </table>
     </div>
     @include('admin.layouts.pagination', ['paginator' => $users, 'label' => 'pengguna'])
@@ -445,11 +454,11 @@
                 <div class="kss-modal__grid">
                     <div class="kss-modal__field">
                         <label for="userNameInput">Nama Lengkap</label>
-                        <input class="kss-modal__input" id="userNameInput" name="name" type="text" placeholder="Nama pengguna" data-modal-focus required>
+                        <input class="kss-modal__input" id="userNameInput" name="name" type="text" placeholder="cth, Budi Santoso" data-modal-focus required>
                     </div>
                     <div class="kss-modal__field">
                         <label for="userUsernameInput">Username</label>
-                        <input class="kss-modal__input" id="userUsernameInput" name="username" type="text" placeholder="username" required>
+                        <input class="kss-modal__input" id="userUsernameInput" name="username" type="text" placeholder="cth, budi.santoso" required>
                     </div>
                     <div class="kss-modal__field">
                         <label for="userRoleInput">Role</label>

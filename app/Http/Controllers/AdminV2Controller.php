@@ -3,14 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ReportStatus;
+use App\Http\Controllers\Concerns\BuildsDivisionArchive;
+use App\Http\Controllers\Concerns\ResolvesMaintenanceMeta;
+use App\Http\Controllers\Concerns\ResolvesReportMeta;
+use App\Http\Controllers\Concerns\SearchesReports;
 use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
+use App\Models\MaintenanceReport;
 use App\Models\MasterEmployee;
 use App\Models\MasterInventoryItem;
 use App\Models\MasterTruck;
 use App\Models\MasterUnit;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\SystemBackupService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,10 +26,14 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Throwable;
 
 class AdminV2Controller extends Controller
 {
+    use BuildsDivisionArchive;
+    use ResolvesMaintenanceMeta;
+    use ResolvesReportMeta;
+    use SearchesReports;
+
     public function index(Request $request)
     {
         return view('admin.index', array_merge($this->shellData($request), [
@@ -43,50 +53,15 @@ class AdminV2Controller extends Controller
         $selectedDivision = strtolower((string) $request->input('divisi', 'all'));
         $selectedStatus = strtolower((string) $request->input('status', 'all'));
 
-        $query = DailyReport::query()
-            ->with(['creator:id,name,username,group', 'approver:id,name'])
-            ->whereIn('status', $this->archiveStatuses());
-
-        $this->applyArchiveSearch($query, $archiveSearch);
-
-        if ($selectedDate) {
-            $query->whereDate('report_date', $selectedDate);
-        }
-
-        $this->applyArchiveDivisionFilter($query, $selectedDivision);
-
-        if ($selectedGroup !== '' && $selectedGroup !== 'ALL') {
-            $query->where('group_name', $selectedGroup);
-        }
-
-        if ($selectedShift !== '' && $selectedShift !== 'all') {
-            $shiftValues = $this->shiftSearchValues($selectedShift);
-            if ($shiftValues !== []) {
-                $query->where(function (Builder $shiftQuery) use ($shiftValues): void {
-                    foreach ($shiftValues as $value) {
-                        $shiftQuery->orWhereRaw('LOWER(shift) = ?', [$value]);
-                    }
-                });
-            }
-        }
-
-        if ($selectedStatus !== '' && $selectedStatus !== 'all') {
-            $statusFilter = ReportStatus::tryFrom($selectedStatus);
-
-            if ($statusFilter !== null && in_array($statusFilter, $this->archiveStatuses(), true)) {
-                $query->where('status', $statusFilter);
-            } else {
-                $query->whereRaw('1 = 0');
-            }
-        }
-
-        $reports = $query
-            ->when($sort === 'oldest', fn (Builder $builder) => $builder->oldest('report_date')->oldest('updated_at')->oldest('id'))
-            ->when($sort === 'newest', fn (Builder $builder) => $builder->latest('report_date')->latest('updated_at')->latest('id'))
-            ->paginate(10)
-            ->withQueryString();
-
-        $reports->getCollection()->transform(fn (DailyReport $report, int $index): array => $this->archiveRow($report, $reports->firstItem() + $index));
+        $reports = $this->buildDivisionArchivePaginator($request, [
+            'archiveSearch' => $archiveSearch,
+            'sort' => $sort,
+            'selectedDate' => $selectedDate,
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+            'selectedDivision' => $selectedDivision,
+            'selectedStatus' => $selectedStatus,
+        ], 'admin');
 
         return view('admin.archive', array_merge($this->shellData($request), [
             'stats' => $this->archiveCards(),
@@ -99,6 +74,19 @@ class AdminV2Controller extends Controller
             'selectedDivision' => $selectedDivision,
             'selectedStatus' => $selectedStatus,
         ]));
+    }
+
+    public function archiveSuggestions(Request $request)
+    {
+        $keyword = trim((string) $request->input('q', ''));
+
+        $items = $this->buildDivisionArchiveSuggestions($keyword, 'admin');
+
+        return response()->json([
+            'keyword' => $keyword,
+            'total' => $items->count(),
+            'items' => $items,
+        ]);
     }
 
     public function log(Request $request)
@@ -184,10 +172,28 @@ class AdminV2Controller extends Controller
 
     public function dataMaster(Request $request)
     {
-        $pane = in_array($request->input('pane'), ['karyawan', 'unit', 'truck', 'inventaris'], true)
+        $validPanes = ['karyawan', 'unit', 'truck', 'inventaris'];
+        $pane = in_array($request->input('pane'), $validPanes, true)
             ? $request->input('pane')
             : 'karyawan';
         $search = trim((string) $request->input('q', ''));
+
+        // Filter cepat (dropdown) per pane.
+        $empGroup = trim((string) $request->input('f_group', ''));
+        $empDivision = trim((string) $request->input('f_division', ''));
+        $empPosition = trim((string) $request->input('f_position', ''));
+        $unitType = trim((string) $request->input('f_type', ''));
+        $unitCategory = trim((string) $request->input('f_category', ''));
+
+        $paginationQuery = fn (string $targetPane): array => array_filter([
+            'pane' => $targetPane,
+            'q' => $targetPane === $pane ? $search : null,
+            'f_group' => $targetPane === 'karyawan' ? $empGroup : null,
+            'f_division' => $targetPane === 'karyawan' ? $empDivision : null,
+            'f_position' => $targetPane === 'karyawan' ? $empPosition : null,
+            'f_type' => $targetPane === 'unit' ? $unitType : null,
+            'f_category' => $targetPane === 'unit' ? $unitCategory : null,
+        ], fn ($value): bool => filled($value));
 
         $employees = MasterEmployee::query()
             ->when($pane === 'karyawan' && $search !== '', function (Builder $query) use ($search): void {
@@ -196,22 +202,35 @@ class AdminV2Controller extends Controller
                     ->where('npk', 'like', $like)
                     ->orWhere('name', 'like', $like)
                     ->orWhere('group_name', 'like', $like)
-                    ->orWhere('position', 'like', $like));
+                    ->orWhere('position', 'like', $like)
+                    ->orWhere('division', 'like', $like)
+                    ->orWhere('work_time', 'like', $like));
             })
+            ->when($pane === 'karyawan' && $empGroup !== '', fn (Builder $query) => $this->applyEmployeeGroupFilter($query, $empGroup))
+            ->when($pane === 'karyawan' && $empDivision !== '', fn (Builder $query) => $query->whereIn('division', $this->divisionFilterValues($empDivision)))
+            ->when($pane === 'karyawan' && $empPosition !== '', fn (Builder $query) => $query->where('position', $empPosition))
             ->orderBy('name')
             ->paginate(10, ['*'], 'employees_page')
-            ->withQueryString();
+            ->appends($paginationQuery('karyawan'));
 
         $units = MasterUnit::query()
             ->when($pane === 'unit' && $search !== '', function (Builder $query) use ($search): void {
                 $like = '%'.$search.'%';
                 $query->where(fn (Builder $builder) => $builder
                     ->where('name', 'like', $like)
-                    ->orWhere('type', 'like', $like));
+                    ->orWhere('type', 'like', $like)
+                    ->orWhere('unit_code', 'like', $like)
+                    ->orWhere('brand', 'like', $like)
+                    ->orWhere('unit_number', 'like', $like)
+                    ->orWhere('macro_category', 'like', $like));
             })
+            ->when($pane === 'unit' && $unitType !== '', fn (Builder $query) => $query->where('type', $unitType))
+            ->when($pane === 'unit' && $unitCategory !== '', fn (Builder $query) => $unitCategory === '-'
+                ? $query->whereNull('macro_category')
+                : $query->where('macro_category', $unitCategory))
             ->orderBy('name')
             ->paginate(10, ['*'], 'units_page')
-            ->withQueryString();
+            ->appends($paginationQuery('unit'));
 
         $trucks = MasterTruck::query()
             ->when($pane === 'truck' && $search !== '', function (Builder $query) use ($search): void {
@@ -223,7 +242,7 @@ class AdminV2Controller extends Controller
             })
             ->orderBy('name')
             ->paginate(10, ['*'], 'trucks_page')
-            ->withQueryString();
+            ->appends($paginationQuery('truck'));
 
         $inventories = MasterInventoryItem::query()
             ->when($pane === 'inventaris' && $search !== '', function (Builder $query) use ($search): void {
@@ -234,15 +253,17 @@ class AdminV2Controller extends Controller
             })
             ->orderBy('name')
             ->paginate(10, ['*'], 'inventories_page')
-            ->withQueryString();
+            ->appends($paginationQuery('inventaris'));
 
         $employees->getCollection()->transform(fn (MasterEmployee $employee, int $index): array => [
             'no' => $employees->firstItem() + $index,
             'id' => $employee->id,
-            'npk' => $employee->npk,
+            'npk' => $employee->npk ?: '-',
             'name' => $employee->name,
             'group' => $this->displayGroup($employee->group_name),
             'position' => $employee->position ?: '-',
+            'division' => $this->displayDivision($employee->division),
+            'work_time' => $employee->work_time ?: '-',
             'update_url' => route('admin.master.employees.update', $employee),
             'destroy_url' => route('admin.master.employees.destroy', $employee),
         ]);
@@ -252,6 +273,14 @@ class AdminV2Controller extends Controller
             'id' => $unit->id,
             'name' => $unit->name,
             'type' => $unit->type ?: '-',
+            'unit_code' => $unit->unit_code ?: '-',
+            'brand' => $unit->brand ?: '-',
+            'unit_number' => $unit->unit_number ?: '-',
+            'macro_category' => match ($unit->macro_category) {
+                MasterUnit::MACRO_TRUCK => 'Truck',
+                MasterUnit::MACRO_HEAVY => 'Heavy',
+                default => '-',
+            },
             'update_url' => route('admin.master.units.update', $unit),
             'destroy_url' => route('admin.master.units.destroy', $unit),
         ]);
@@ -279,6 +308,13 @@ class AdminV2Controller extends Controller
         return view('admin.datamaster', array_merge($this->shellData($request), [
             'activePane' => $pane,
             'masterSearch' => $search,
+            'masterFilters' => [
+                'group' => $empGroup,
+                'division' => $empDivision,
+                'position' => $empPosition,
+                'type' => $unitType,
+                'category' => $unitCategory,
+            ],
             'employees' => $employees,
             'units' => $units,
             'trucks' => $trucks,
@@ -340,6 +376,8 @@ class AdminV2Controller extends Controller
         return view('report-ops.viewpdf', [
             'report' => $this->loadReport($report),
             'isPdf' => false,
+            'backUrl' => route('admin.archive'),
+            'pdfUrl' => route('admin.reports.download', $report),
         ]);
     }
 
@@ -358,7 +396,7 @@ class AdminV2Controller extends Controller
                 'report' => $this->loadReport($report),
                 'isPdf' => true,
             ]);
-            $pdf->setPaper([0, 0, 612.00, 1008.00], 'portrait');
+            $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
 
             return $pdf->download($this->reportFileName($report, 'pdf'));
@@ -367,6 +405,8 @@ class AdminV2Controller extends Controller
         return view('report-ops.viewpdf', [
             'report' => $this->loadReport($report),
             'isPdf' => false,
+            'backUrl' => route('admin.archive'),
+            'pdfUrl' => null,
         ]);
     }
 
@@ -385,6 +425,64 @@ class AdminV2Controller extends Controller
         $this->recordActivity($request, 'delete', 'Menghapus arsip laporan '.$documentId);
 
         return back()->with('success', 'Arsip laporan berhasil dihapus.');
+    }
+
+    public function showMaintenanceReport(Request $request, MaintenanceReport $report)
+    {
+        abort_unless(in_array($report->status, $this->maintenanceArchiveStatuses(), true), 404);
+
+        return view('pemeliharaan.viewpdf', [
+            'report'  => $this->loadMaintenanceReport($report),
+            'isPdf'   => false,
+            'backUrl' => route('admin.archive'),
+            'pdfUrl'  => route('admin.maintenance-reports.download', $report),
+        ]);
+    }
+
+    public function downloadMaintenanceReport(MaintenanceReport $report)
+    {
+        abort_unless(in_array($report->status, $this->maintenanceArchiveStatuses(), true), 404);
+
+        $path = storage_path('app/public/maintenance-reports/maintenance-report-'.$report->id.'.pdf');
+
+        if (is_file($path)) {
+            return response()->download($path, $this->maintenanceFileName($report, 'pdf'));
+        }
+
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('pemeliharaan.pdf', [
+                'report' => $this->loadMaintenanceReport($report),
+                'isPdf'  => true,
+            ]);
+            $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
+            $pdf->setOption('isRemoteEnabled', true);
+
+            return $pdf->download($this->maintenanceFileName($report, 'pdf'));
+        }
+
+        return view('pemeliharaan.viewpdf', [
+            'report'  => $this->loadMaintenanceReport($report),
+            'isPdf'   => false,
+            'backUrl' => route('admin.archive'),
+            'pdfUrl'  => null,
+        ]);
+    }
+
+    public function destroyMaintenanceReport(Request $request, MaintenanceReport $report)
+    {
+        abort_unless(in_array($report->status, $this->maintenanceArchiveStatuses(), true), 404);
+
+        $documentId = $this->maintenanceDocumentId($report);
+
+        $path = storage_path('app/public/maintenance-reports/maintenance-report-'.$report->id.'.pdf');
+        if (is_file($path)) {
+            @unlink($path);
+        }
+
+        $report->delete();
+        $this->recordActivity($request, 'delete', 'Menghapus arsip laporan pemeliharaan '.$documentId);
+
+        return back()->with('success', 'Arsip laporan pemeliharaan berhasil dihapus.');
     }
 
     public function storeUser(Request $request)
@@ -451,18 +549,24 @@ class AdminV2Controller extends Controller
 
     public function storeEmployee(Request $request)
     {
+        $request->merge(['npk' => $this->nullableString($request->input('npk'))]);
+
         $data = $request->validate([
-            'npk' => ['required', 'string', 'max:50', 'unique:master_employees,npk'],
+            'npk' => ['nullable', 'string', 'max:50', 'unique:master_employees,npk'],
             'name' => ['required', 'string', 'max:255'],
             'group' => ['nullable', 'string', 'max:20'],
             'position' => ['nullable', 'string', 'max:255'],
+            'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_BOTH])],
+            'work_time' => ['nullable', Rule::in(['Non Shift', 'Shift', 'Relief', 'non shift', 'shift', 'relief'])],
         ]);
 
         $employee = MasterEmployee::create([
             'npk' => $data['npk'],
             'name' => $data['name'],
             'group_name' => $this->normalizeGroup($data['group'] ?? null),
-            'position' => $data['position'] ?? null,
+            'position' => $this->nullableSelectValue($data['position'] ?? null),
+            'division' => $this->normalizeDivision($data['division'] ?? null),
+            'work_time' => $this->normalizeWorkTime($data['work_time'] ?? null),
             'status' => 'active',
         ]);
 
@@ -473,18 +577,24 @@ class AdminV2Controller extends Controller
 
     public function updateEmployee(Request $request, MasterEmployee $employee)
     {
+        $request->merge(['npk' => $this->nullableString($request->input('npk'))]);
+
         $data = $request->validate([
-            'npk' => ['required', 'string', 'max:50', Rule::unique('master_employees', 'npk')->ignore($employee->id)],
+            'npk' => ['nullable', 'string', 'max:50', Rule::unique('master_employees', 'npk')->ignore($employee->id)],
             'name' => ['required', 'string', 'max:255'],
             'group' => ['nullable', 'string', 'max:20'],
             'position' => ['nullable', 'string', 'max:255'],
+            'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_BOTH])],
+            'work_time' => ['nullable', Rule::in(['Non Shift', 'Shift', 'Relief', 'non shift', 'shift', 'relief'])],
         ]);
 
         $employee->update([
             'npk' => $data['npk'],
             'name' => $data['name'],
             'group_name' => $this->normalizeGroup($data['group'] ?? null),
-            'position' => $data['position'] ?? null,
+            'position' => $this->nullableSelectValue($data['position'] ?? null),
+            'division' => $this->normalizeDivision($data['division'] ?? null),
+            'work_time' => $this->normalizeWorkTime($data['work_time'] ?? null),
         ]);
 
         $this->recordActivity($request, 'update', 'Memperbarui master karyawan '.$employee->name);
@@ -503,16 +613,11 @@ class AdminV2Controller extends Controller
 
     public function storeUnit(Request $request)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['nullable', 'string', 'max:255'],
-        ]);
+        $data = $this->validateUnit($request);
 
-        $unit = MasterUnit::create([
-            'name' => $data['name'],
-            'type' => $data['type'] ?? null,
+        $unit = MasterUnit::create(array_merge($data, [
             'status' => 'active',
-        ]);
+        ]));
 
         $this->recordActivity($request, 'update', 'Menambahkan master unit '.$unit->name);
 
@@ -521,15 +626,33 @@ class AdminV2Controller extends Controller
 
     public function updateUnit(Request $request, MasterUnit $unit)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['nullable', 'string', 'max:255'],
-        ]);
+        $data = $this->validateUnit($request);
 
         $unit->update($data);
         $this->recordActivity($request, 'update', 'Memperbarui master unit '.$unit->name);
 
         return redirect()->route('admin.datamaster', ['pane' => 'unit'])->with('success', 'Data unit berhasil diperbarui.');
+    }
+
+    private function validateUnit(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['nullable', 'string', 'max:255'],
+            'unit_code' => ['nullable', 'string', 'max:30'],
+            'brand' => ['nullable', 'string', 'max:80'],
+            'unit_number' => ['nullable', 'string', 'max:80'],
+            'macro_category' => ['nullable', Rule::in([MasterUnit::MACRO_TRUCK, MasterUnit::MACRO_HEAVY, '-', ''])],
+        ]);
+
+        $data['unit_code'] = $this->nullableUpper($data['unit_code'] ?? null);
+        $data['brand'] = $this->nullableUpper($data['brand'] ?? null);
+        $data['unit_number'] = $this->nullableUpper($data['unit_number'] ?? null);
+        $data['macro_category'] = in_array($data['macro_category'] ?? null, [MasterUnit::MACRO_TRUCK, MasterUnit::MACRO_HEAVY], true)
+            ? $data['macro_category']
+            : null;
+
+        return $data;
     }
 
     public function destroyUnit(Request $request, MasterUnit $unit)
@@ -616,32 +739,9 @@ class AdminV2Controller extends Controller
         return redirect()->route('admin.datamaster', ['pane' => 'inventaris'])->with('success', 'Data inventaris berhasil dihapus.');
     }
 
-    public function generateBackup(Request $request)
+    public function generateBackup(Request $request, SystemBackupService $backup)
     {
-        $filename = 'backup-kss-manual-'.now()->format('Ymd-His').'.json';
-        $path = 'admin-backups/'.$filename;
-        $payload = [
-            'generated_at' => now()->toIso8601String(),
-            'generated_by' => $request->user()?->only(['id', 'name', 'username']),
-            'summary' => [
-                'users' => User::count(),
-                'daily_reports' => DailyReport::count(),
-                'master_employees' => MasterEmployee::count(),
-                'master_units' => MasterUnit::count(),
-                'master_trucks' => MasterTruck::count(),
-                'master_inventory_items' => MasterInventoryItem::count(),
-            ],
-            'data' => [
-                'users' => User::with('role:id,name')->get(['id', 'name', 'email', 'username', 'role_id', 'status', 'group', 'created_at', 'updated_at']),
-                'daily_reports' => DailyReport::latest()->limit(500)->get(),
-                'master_employees' => MasterEmployee::all(),
-                'master_units' => MasterUnit::all(),
-                'master_trucks' => MasterTruck::all(),
-                'master_inventory_items' => MasterInventoryItem::all(),
-            ],
-        ];
-
-        Storage::disk('local')->put($path, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $filename = $backup->createSnapshot('manual', $request->user()?->only(['id', 'name', 'username']));
         $this->recordActivity($request, 'backup', 'Membuat backup manual '.$filename);
 
         return back()->with('success', 'Backup manual berhasil dibuat.');
@@ -689,7 +789,7 @@ class AdminV2Controller extends Controller
         Storage::disk('local')->makeDirectory('admin-backups');
         $absolutePath = Storage::disk('local')->path('admin-backups/'.$fileName);
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
         if ($zip->open($absolutePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
             return back()->with('error', 'Gagal membuat file arsip backup tahunan.');
         }
@@ -713,6 +813,20 @@ class AdminV2Controller extends Controller
         }
 
         $zip->close();
+
+        // Operasi destruktif: pastikan arsip benar-benar tertulis & konsisten sebelum
+        // menghapus laporan dari database, supaya data tidak hilang kalau ZIP korup
+        // (misalnya disk penuh saat menulis arsip).
+        $verify = new \ZipArchive;
+        $verified = $verify->open($absolutePath, \ZipArchive::CHECKCONS) === true
+            && $verify->numFiles > 0;
+        if ($verified) {
+            $verify->close();
+        }
+
+        if (! $verified || ! is_file($absolutePath) || filesize($absolutePath) === 0) {
+            return back()->with('error', 'Arsip backup tahunan gagal diverifikasi. Laporan TIDAK dihapus dari sistem, silakan coba lagi.');
+        }
 
         $total = $reports->count();
 
@@ -791,6 +905,13 @@ class AdminV2Controller extends Controller
         return back()->with('success', 'File backup berhasil dihapus.');
     }
 
+    /**
+     * Restore TIDAK dijalankan otomatis. File snapshot hanya berisi sebagian data
+     * (mis. laporan dibatasi 500 terbaru, tanpa seluruh relasi anak), sehingga
+     * memulihkannya otomatis berisiko menimpa/merusak data yang sedang berjalan.
+     * Aksi ini hanya mencatat permintaan; pemulihan tetap dilakukan manual oleh
+     * admin server terhadap database.
+     */
     public function restoreBackup(Request $request, string $file)
     {
         $path = $this->backupPath($file);
@@ -798,7 +919,7 @@ class AdminV2Controller extends Controller
 
         $this->recordActivity($request, 'backup', 'Mencatat permintaan restore dari '.basename($path));
 
-        return back()->with('success', 'Permintaan restore sudah dicatat. Restore data tetap perlu dijalankan manual oleh admin server.');
+        return back()->with('error', 'Restore tidak dijalankan otomatis oleh sistem. Permintaan sudah dicatat di log; pemulihan data harus dilakukan manual oleh admin server (unduh file lalu impor ke database).');
     }
 
     public function storeHelpTicket(Request $request)
@@ -913,21 +1034,19 @@ class AdminV2Controller extends Controller
             ['label' => 'Total Pengguna Aktif', 'value' => (string) User::where('status', 'aktif')->count(), 'icon' => 'fi fi-sr-user', 'color' => 'blue', 'success' => false],
             ['label' => 'Kapasitas Storage Terpakai', 'value' => min(100, (int) round(($usedBytes / (30 * 1024 * 1024 * 1024)) * 100)).'%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan', 'success' => false],
             ['label' => 'Status Backup Terakhir', 'value' => $lastBackup ? $lastBackup['status_label'] : 'Belum Ada', 'icon' => 'fi fi-sr-cloud-upload', 'color' => $lastBackup ? 'green' : 'orange', 'success' => (bool) $lastBackup],
-            ['label' => 'Login Gagal Hari Ini', 'value' => (string) $securityEventsToday, 'icon' => 'fi fi-sr-shield-exclamation', 'color' => $securityEventsToday > 0 ? 'red' : 'green', 'success' => false],
+            ['label' => 'Kejadian Keamanan Hari Ini', 'value' => (string) $securityEventsToday, 'icon' => 'fi fi-sr-shield-exclamation', 'color' => $securityEventsToday > 0 ? 'red' : 'green', 'success' => false],
         ];
     }
 
     private function archiveCards(): array
     {
-        $archiveStatuses = $this->archiveStatuses();
-        $today = Carbon::today();
-        $now = Carbon::now();
+        $counts = $this->archiveTotalCounts();
 
         return [
-            ['label' => 'Laporan Hari Ini', 'value' => (string) DailyReport::whereIn('status', $archiveStatuses)->whereDate('report_date', $today)->count(), 'icon' => 'fi fi-sr-calendar', 'color' => 'green'],
-            ['label' => 'Laporan Pending', 'value' => (string) DailyReport::where('status', ReportStatus::Acknowledged)->count(), 'icon' => 'fi fi-sr-document', 'color' => 'orange'],
-            ['label' => 'Laporan Bulan Ini', 'value' => (string) DailyReport::whereIn('status', $archiveStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count(), 'icon' => 'fi fi-sr-folder', 'color' => 'cyan'],
-            ['label' => 'Total Laporan', 'value' => (string) DailyReport::whereIn('status', $archiveStatuses)->count(), 'icon' => 'fi fi-sr-book-alt', 'color' => 'blue'],
+            ['label' => 'Laporan Hari Ini', 'value' => (string) $counts['today'], 'icon' => 'fi fi-sr-calendar', 'color' => 'green'],
+            ['label' => 'Laporan Pending', 'value' => (string) $counts['pending'], 'icon' => 'fi fi-sr-document', 'color' => 'orange'],
+            ['label' => 'Laporan Bulan Ini', 'value' => (string) $counts['month'], 'icon' => 'fi fi-sr-folder', 'color' => 'cyan'],
+            ['label' => 'Total Laporan', 'value' => (string) $counts['total'], 'icon' => 'fi fi-sr-book-alt', 'color' => 'blue'],
         ];
     }
 
@@ -976,7 +1095,7 @@ class AdminV2Controller extends Controller
 
         return [
             'no' => $number,
-            'title' => 'Laporan Shift Harian',
+            'title' => 'Laporan Operasi Harian',
             'id' => $this->documentId($report),
             'raw_id' => $report->id,
             'date' => $date ? Carbon::parse($date)->locale('id')->translatedFormat('d F Y') : '-',
@@ -990,6 +1109,77 @@ class AdminV2Controller extends Controller
             'view_url' => route('admin.reports.show', $report),
             'download_url' => route('admin.reports.download', $report),
             'destroy_url' => route('admin.reports.destroy', $report),
+            'search' => $this->archiveRowSearchBlob($report, $shift['label'], $status['label'], $date),
+        ];
+    }
+
+    /**
+     * Teks pencarian per baris untuk filter instan di sisi klien (halaman ini saja).
+     * Mengikuti perilaku dashboard manajer: metadata + isi payload laporan.
+     */
+    private function archiveRowSearchBlob(DailyReport $report, string $shiftLabel, string $statusLabel, mixed $date): string
+    {
+        $parts = array_merge([
+            'Laporan Operasi Harian',
+            $this->documentId($report),
+            $report->report_date?->format('Y-m-d'),
+            $date ? Carbon::parse($date)->locale('id')->translatedFormat('d F Y') : null,
+            $shiftLabel,
+            $statusLabel,
+            $this->displayGroup($report->group_name),
+            'Regu '.strtoupper((string) $report->received_by_group),
+            $report->creator?->name,
+            $report->approver?->name,
+        ], $this->flattenSearchable($report->payload));
+
+        return Str::lower(
+            collect($parts)
+                ->filter(fn ($value) => filled($value))
+                ->map(fn ($value) => trim(strip_tags((string) $value)))
+                ->implode(' ')
+        );
+    }
+
+    private function flattenSearchable(mixed $value): array
+    {
+        if (is_array($value)) {
+            $result = [];
+
+            foreach ($value as $key => $item) {
+                if (is_string($key)) {
+                    $result[] = str_replace(['_', '-'], ' ', $key);
+                }
+
+                array_push($result, ...$this->flattenSearchable($item));
+            }
+
+            return $result;
+        }
+
+        return is_scalar($value) && filled($value) ? [(string) $value] : [];
+    }
+
+    private function archiveSuggestionItem(DailyReport $report): array
+    {
+        $shift = $this->shiftMeta($report->shift);
+        $status = $this->statusMeta($report->status);
+        $date = $report->report_date ?: $report->created_at;
+
+        return [
+            'id' => $report->id,
+            'document_id' => $this->documentId($report),
+            'title' => 'Laporan Operasi Harian',
+            'report_date' => $date ? Carbon::parse($date)->locale('id')->translatedFormat('d F Y') : '-',
+            'updated_diff' => $report->updated_at ? Carbon::parse($report->updated_at)->locale('id')->diffForHumans() : '-',
+            'shift_label' => $shift['label'],
+            'shift_class' => $shift['class'],
+            'status_label' => $status['label'],
+            'status_class' => $status['class'],
+            'group_from' => strtoupper((string) $report->group_name) ?: '-',
+            'group_to' => strtoupper((string) $report->received_by_group) ?: '-',
+            'approver' => $report->approver?->name ?? '-',
+            'view_url' => route('admin.reports.show', $report),
+            'download_url' => route('admin.reports.download', $report),
         ];
     }
 
@@ -1016,124 +1206,6 @@ class AdminV2Controller extends Controller
             'signature_path' => $user->signature_path,
             'signature_url' => $user->signature_path ? asset($user->signature_path) : '',
         ];
-    }
-
-    private function archiveStatuses(): array
-    {
-        return [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved];
-    }
-
-    private function applyArchiveDivisionFilter(Builder $query, string $division): void
-    {
-        if ($division === '' || $division === 'all' || $division === 'operasional') {
-            return;
-        }
-
-        $query->whereRaw('1 = 0');
-    }
-
-    private function reportRelations(): array
-    {
-        return [
-            'creator',
-            'receiver',
-            'approver',
-            'loadingActivities.timesheets',
-            'bulkLoadingActivities.logs',
-            'materialActivity.items',
-            'containerActivity.items',
-            'turbaActivity.deliveries',
-            'unitCheckLogs',
-            'employeeLogs',
-        ];
-    }
-
-    private function loadReport(DailyReport $report): DailyReport
-    {
-        return $report->load($this->reportRelations());
-    }
-
-    private function documentId(DailyReport $report): string
-    {
-        try {
-            $date = $report->report_date ?: $report->created_at;
-            $year = $date ? Carbon::parse($date)->format('Y') : now()->format('Y');
-        } catch (Throwable) {
-            $year = now()->format('Y');
-        }
-
-        return '#OPS-'.$year.'-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
-    }
-
-    private function reportFileName(DailyReport $report, string $extension): string
-    {
-        $date = $report->report_date
-            ? Carbon::parse($report->report_date)->format('Y-m-d')
-            : now()->format('Y-m-d');
-        $shift = $this->shiftMeta($report->shift)['short'];
-        $group = $this->normalizeGroup($report->group_name) ?: '-';
-
-        return "Laporan-Operasional-{$date}-Shift-{$shift}-Regu-{$group}.{$extension}";
-    }
-
-    private function shiftMeta(mixed $shift): array
-    {
-        $normalized = strtolower(trim((string) $shift));
-
-        return match (true) {
-            in_array($normalized, ['1', 'pagi', 'shift 1', 'shift pagi'], true) => ['label' => 'Shift Pagi', 'short' => 'Pagi', 'class' => 'pagi', 'icon' => 'fi fi-rr-sunrise'],
-            in_array($normalized, ['2', 'sore', 'siang', 'shift 2', 'shift sore', 'shift siang'], true) => ['label' => 'Shift Sore', 'short' => 'Sore', 'class' => 'sore', 'icon' => 'fi fi-rr-sun'],
-            in_array($normalized, ['3', 'malam', 'shift 3', 'shift malam'], true) => ['label' => 'Shift Malam', 'short' => 'Malam', 'class' => 'malam', 'icon' => 'fi fi-rr-moon-stars'],
-            default => ['label' => $shift ? 'Shift '.$shift : 'Shift -', 'short' => $shift ? trim((string) $shift) : '-', 'class' => 'pagi', 'icon' => 'fi fi-rr-clock'],
-        };
-    }
-
-    private function statusMeta(mixed $status): array
-    {
-        $value = $status instanceof ReportStatus ? $status->value : (string) $status;
-
-        return match ($value) {
-            ReportStatus::Submitted->value => ['label' => 'Diserahkan', 'class' => 'submit'],
-            ReportStatus::Acknowledged->value => ['label' => 'Diterima', 'class' => 'confirm'],
-            ReportStatus::Approved->value => ['label' => 'Diarsipkan', 'class' => 'archive'],
-            default => ['label' => ucfirst($value), 'class' => 'submit'],
-        };
-    }
-
-    private function shiftSearchValues(string $shift): array
-    {
-        return match ($shift) {
-            'pagi' => ['1', 'pagi', 'shift 1', 'shift pagi'],
-            'sore' => ['2', 'sore', 'siang', 'shift 2', 'shift sore', 'shift siang'],
-            'malam' => ['3', 'malam', 'shift 3', 'shift malam'],
-            default => [],
-        };
-    }
-
-    private function applyArchiveSearch(Builder $query, string $keyword): void
-    {
-        if ($keyword === '') {
-            return;
-        }
-
-        $like = '%'.$keyword.'%';
-
-        $query->where(function (Builder $searchQuery) use ($keyword, $like): void {
-            $searchQuery
-                ->where('shift', 'like', $like)
-                ->orWhere('group_name', 'like', $like)
-                ->orWhere('received_by_group', 'like', $like)
-                ->orWhere('status', 'like', $like)
-                ->orWhere('report_date', 'like', $like)
-                ->orWhereHas('creator', fn (Builder $relation) => $relation->where('name', 'like', $like)->orWhere('username', 'like', $like))
-                ->orWhereHas('approver', fn (Builder $relation) => $relation->where('name', 'like', $like)->orWhere('username', 'like', $like));
-
-            if (preg_match('/ops[-\s]?\d{4}[-\s]?(\d+)/i', $keyword, $match)) {
-                $searchQuery->orWhere('id', (int) $match[1]);
-            } elseif (ctype_digit($keyword)) {
-                $searchQuery->orWhere('id', (int) $keyword);
-            }
-        });
     }
 
     private function backupFiles(): array
@@ -1250,22 +1322,121 @@ class AdminV2Controller extends Controller
         return Str::slug($username, '.').'@kss.local';
     }
 
+    /**
+     * Terapkan filter group untuk master karyawan. Token berasal dari dropdown
+     * filter dan dipetakan ke nilai group_name aktual di database (yang bisa
+     * tersimpan sebagai 'Group A' maupun 'A', dsb).
+     */
+    private function applyEmployeeGroupFilter(Builder $query, string $token): Builder
+    {
+        return match ($token) {
+            'kantor' => $query->whereNull('group_name'),
+            'bengkel' => $query->where('group_name', 'Bengkel'),
+            'A', 'B', 'C', 'D' => $query->whereIn('group_name', ['Group '.$token, $token]),
+            'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D' => $query->whereIn('group_name', ['OP.7 Group '.substr($token, -1), $token]),
+            default => $query,
+        };
+    }
+
+    /**
+     * Daftar nilai division yang cocok untuk filter (mengikutkan 'both').
+     */
+    private function divisionFilterValues(string $label): array
+    {
+        return match ($label) {
+            'Pemeliharaan' => [MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_BOTH],
+            'Safety (Coming Soon)', 'Safety' => [MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_BOTH],
+            default => [MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_BOTH],
+        };
+    }
+
     private function normalizeGroup(?string $group): ?string
     {
         $value = trim((string) $group);
 
-        if ($value === '' || strtolower($value) === 'kantor') {
+        if ($value === '' || in_array(Str::lower($value), ['-', 'kantor', 'tidak ada'], true)) {
             return null;
         }
 
-        $value = preg_replace('/^regu\s+/i', '', $value) ?? $value;
+        if (Str::lower($value) === 'bengkel') {
+            return 'Bengkel';
+        }
+
+        if (preg_match('/^op\.?\s*7\s*(?:group|grup|regu)?\s*([a-d])$/i', $value, $matches)) {
+            return 'OP.7 Group '.Str::upper($matches[1]);
+        }
+
+        $value = preg_replace('/^(?:regu|group|grup)\s+/i', '', $value) ?? $value;
 
         return strtoupper($value);
+    }
+
+    private function nullableUpper(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : Str::upper($value);
+    }
+
+    private function nullableString(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
+    private function nullableSelectValue(?string $value): ?string
+    {
+        $value = $this->nullableString($value);
+
+        return $value === '-' ? null : $value;
+    }
+
+    private function normalizeDivision(?string $division): string
+    {
+        $value = Str::lower(trim((string) $division));
+
+        return match ($value) {
+            'pemeliharaan' => MasterEmployee::DIVISION_MAINTENANCE,
+            'safety', 'safety (coming soon)' => MasterEmployee::DIVISION_SAFETY,
+            'keduanya', 'both' => MasterEmployee::DIVISION_BOTH,
+            default => MasterEmployee::DIVISION_OPERATIONAL,
+        };
+    }
+
+    private function normalizeWorkTime(?string $workTime): ?string
+    {
+        $value = Str::lower(trim((string) $workTime));
+
+        return match ($value) {
+            'non shift' => 'Non Shift',
+            'shift' => 'Shift',
+            'relief' => 'Relief',
+            default => null,
+        };
+    }
+
+    private function displayDivision(?string $division): string
+    {
+        return match ($division) {
+            MasterEmployee::DIVISION_MAINTENANCE => 'Pemeliharaan',
+            MasterEmployee::DIVISION_SAFETY => 'Safety (Coming Soon)',
+            MasterEmployee::DIVISION_BOTH => 'Keduanya',
+            default => 'Operasional',
+        };
     }
 
     private function displayGroup(?string $group): string
     {
         $value = $this->normalizeGroup($group);
+
+        if ($value === 'Bengkel') {
+            return 'Bengkel';
+        }
+
+        if ($value && preg_match('/^OP\.7 Group ([A-D])$/', $value, $matches)) {
+            return 'OP7 '.$matches[1];
+        }
 
         return $value ? 'Regu '.$value : 'Kantor';
     }

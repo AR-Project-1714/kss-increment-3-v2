@@ -76,6 +76,8 @@ class Role extends Model
         return match (self::normalize($name)) {
             self::ADMIN => 'admin.index',
             self::MANAGER => 'manajer.index',
+            self::MAINTENANCE => 'pemeliharaan.index',
+            self::SAFETY => 'safety.index',
             default => 'report-ops.index',
         };
     }

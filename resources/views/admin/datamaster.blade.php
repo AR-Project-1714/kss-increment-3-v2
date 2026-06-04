@@ -118,6 +118,134 @@
     }
 
     /* =============================================
+       FILTER (tombol toggle + panel, pola Arsip Laporan)
+       ============================================= */
+    .master-toolbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .btn-tool:hover { background-color: var(--blue-main-5); border-color: var(--blue-main-25); color: var(--blue-main); }
+    .btn-tool--primary:hover { background-color: var(--blue-hover); border-color: var(--blue-hover); color: #fff; }
+    .btn-tool--active { background-color: var(--blue-main-10); border-color: var(--blue-main); color: var(--blue-main); }
+    .btn-tool.is-hidden { display: none; }
+
+    .btn-reset {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border: 1px solid var(--red-main);
+        border-radius: 8px;
+        background-color: transparent;
+        color: var(--red-main);
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: 0.2s ease;
+    }
+    .btn-reset i { position: relative; top: 1px; }
+    .btn-reset:hover { background-color: var(--red-main-10, rgba(239,68,68,0.08)); }
+    .btn-reset.is-hidden { display: none; }
+
+    .master-filter-panel {
+        flex: 1 1 100%;
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+        animation: filterSlideDown 0.3s ease;
+    }
+
+    .master-filter-panel.collapsed { display: none; }
+
+    @keyframes filterSlideDown {
+        from { opacity: 0; transform: translateY(-12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .master-filter-group { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; width: 100%; }
+
+    .filter-field { display: flex; flex: 1 1 160px; min-width: 0; flex-direction: column; gap: 4px; }
+    .filter-field label { font-size: 10px; font-weight: 500; color: var(--black-secondary); }
+
+    /* Base input look (dipakai trigger custom dropdown) */
+    .filter-input {
+        font-family: inherit;
+        font-size: 12px;
+        color: var(--black);
+        background-color: var(--white);
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .filter-field .filter-input { width: 100%; min-width: 0; height: 38px; display: flex; align-items: center; }
+
+    /* Custom dropdown (pola Arsip Laporan) */
+    .native-select { display: none; }
+
+    .filter-select-wrapper { position: relative; width: 100%; min-width: 0; }
+
+    .filter-select-trigger { display: flex; align-items: center; padding-right: 34px; cursor: pointer; }
+    .filter-select-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .filter-select-trigger.focus-active { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
+
+    .select-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--blue-main);
+        font-size: 14px;
+        pointer-events: none;
+        display: flex;
+        transition: transform 0.2s ease;
+    }
+    .filter-select-trigger.focus-active ~ .select-arrow { transform: translateY(-50%) rotate(180deg); }
+
+    .filter-select-options {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        right: 0;
+        background-color: var(--white);
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        z-index: 999;
+        display: none;
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 6px 0;
+    }
+    .filter-select-options.open { display: block; animation: fadeIn 0.2s ease-out; }
+
+    .filter-select-option {
+        padding: 9px 14px;
+        font-size: 12px;
+        color: var(--black-secondary);
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .filter-select-option:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
+    .filter-select-option.selected {
+        background-color: var(--blue-main-5);
+        color: var(--blue-main);
+        border-left: 3px solid var(--blue-main);
+        font-weight: 500;
+    }
+
+    @media (max-width: 640px) {
+        .master-toolbar-actions { width: 100%; }
+        .filter-field { max-width: none; }
+        .master-filter-group { width: 100%; }
+    }
+
+    /* =============================================
        MASTER DATA PANES (Tab switching)
        ============================================= */
     .master-pane { display: none; }
@@ -169,9 +297,14 @@
     /* Columns */
     .thead th.col-no,       .tbody td.col-no       { width: 50px; flex: none; justify-content: center; padding: 12px 0; color: var(--black-secondary); }
     .thead th.col-name,     .tbody td.col-name     { min-width: 150px; }
+    .thead th.col-code,     .tbody td.col-code     { min-width: 85px; }
+    .thead th.col-brand,    .tbody td.col-brand    { min-width: 105px; }
+    .thead th.col-number,   .tbody td.col-number   { min-width: 110px; }
     .thead th.col-npk,      .tbody td.col-npk      { min-width: 110px; }
     .thead th.col-group,    .tbody td.col-group    { min-width: 100px; }
     .thead th.col-position, .tbody td.col-position { min-width: 100px; }
+    .thead th.col-division, .tbody td.col-division { min-width: 120px; }
+    .thead th.col-worktime, .tbody td.col-worktime { min-width: 110px; }
     .thead th.col-type,     .tbody td.col-type     { min-width: 120px; }
     .thead th.col-plate,    .tbody td.col-plate    { min-width: 120px; }
     .thead th.col-desc,     .tbody td.col-desc     { min-width: 200px; flex: 2 0 0; }
@@ -237,6 +370,57 @@
         'truck' => ['store' => '#'],
         'inventaris' => ['store' => '#'],
     ];
+    $masterUi = [
+        'karyawan'   => ['title' => 'Data Karyawan',   'search' => 'Cari Karyawan',   'add' => 'Tambah Karyawan',   'icon' => 'fi fi-rr-user-add'],
+        'unit'       => ['title' => 'Data Unit',       'search' => 'Cari Unit',       'add' => 'Tambah Unit',       'icon' => 'fi fi-rr-add'],
+        'truck'      => ['title' => 'Data Truck',      'search' => 'Cari Truck',      'add' => 'Tambah Truck',      'icon' => 'fi fi-rr-add'],
+        'inventaris' => ['title' => 'Data Inventaris', 'search' => 'Cari Inventaris', 'add' => 'Tambah Inventaris', 'icon' => 'fi fi-rr-add'],
+    ];
+
+    $activePane = $activePane ?? 'karyawan';
+    $activeMasterUi = $masterUi[$activePane] ?? $masterUi['karyawan'];
+    $masterSearch = $masterSearch ?? '';
+    $masterFilters = $masterFilters ?? ['group' => '', 'division' => '', 'position' => '', 'type' => '', 'category' => ''];
+
+    // Opsi filter dropdown (diselaraskan dengan modal tambah/edit).
+    $filterGroupOptions = [
+        '' => 'Semua Group', 'kantor' => 'Kantor', 'bengkel' => 'Bengkel',
+        'A' => 'Regu A', 'B' => 'Regu B', 'C' => 'Regu C', 'D' => 'Regu D',
+        'OP7 A' => 'OP7 A', 'OP7 B' => 'OP7 B', 'OP7 C' => 'OP7 C', 'OP7 D' => 'OP7 D',
+    ];
+    $filterDivisionOptions = [
+        '' => 'Semua Divisi', 'Operasional' => 'Operasional', 'Pemeliharaan' => 'Pemeliharaan', 'Safety (Coming Soon)' => 'Safety',
+    ];
+    $filterPositionOptions = array_merge(['' => 'Semua Jabatan'], array_combine(
+        ['Kepala Regu ( KARU )', 'Wakil Karu', 'Wakil Kepala Regu', 'Checker', 'Operator FL', 'Driver', 'Operator Exca/ WL', 'Kasi Pemeliharaan & Peralatan', 'Karu Peralatan', 'Karu Pemeliharaan', 'Mekanik', 'Helper', 'Rigger', 'Kepala Seksi', 'Kepala Regu', 'Operator OP.7'],
+        ['Kepala Regu ( KARU )', 'Wakil Karu', 'Wakil Kepala Regu', 'Checker', 'Operator FL', 'Driver', 'Operator Exca/ WL', 'Kasi Pemeliharaan & Peralatan', 'Karu Peralatan', 'Karu Pemeliharaan', 'Mekanik', 'Helper', 'Rigger', 'Kepala Seksi', 'Kepala Regu', 'Operator OP.7']
+    ));
+    $filterTypeOptions = array_merge(['' => 'Semua Tipe'], array_combine(
+        ['Trailer', 'Tronton', 'Dump Truck', 'Pick Up', 'Bus', 'Forklift', 'Wheel Loader', 'Excavator'],
+        ['Trailer', 'Tronton', 'Dump Truck', 'Pick Up', 'Bus', 'Forklift', 'Wheel Loader', 'Excavator']
+    ));
+    $filterCategoryOptions = [
+        '' => 'Semua Kategori', 'truck' => 'Truck', 'heavy' => 'Heavy', '-' => 'Tanpa Kategori',
+    ];
+
+    $masterFilterActive = [
+        'karyawan' => $masterFilters['group'] !== '' || $masterFilters['division'] !== '' || $masterFilters['position'] !== '',
+        'unit' => $masterFilters['type'] !== '' || $masterFilters['category'] !== '',
+    ];
+
+    // Pencarian/filter hanya berlaku pada pane yang sedang aktif, jadi pesan
+    // "tidak ada hasil" hanya muncul pada pane tersebut.
+    $masterEmptyState = function (string $pane, string $singular, string $icon) use ($activePane, $masterSearch, $masterFilterActive): array {
+        $isFiltering = $activePane === $pane && ($masterSearch !== '' || ($masterFilterActive[$pane] ?? false));
+
+        return [
+            'icon' => $isFiltering ? 'fi fi-rr-search' : $icon,
+            'title' => $isFiltering ? 'Tidak ada '.$singular.' yang cocok' : 'Belum ada data '.$singular,
+            'message' => $isFiltering
+                ? 'Tidak ada '.$singular.' yang sesuai dengan pencarian atau filter aktif. Coba ubah kata kunci atau atur ulang filter.'
+                : 'Tambahkan '.$singular.' baru lewat tombol di atas untuk melengkapi master data.',
+        ];
+    };
 @endphp
 
 <div class="page-header">
@@ -244,27 +428,109 @@
     <div class="page-breadcrumb">
         <span class="page-breadcrumb__root">Data Master</span>
         <span class="page-breadcrumb__sep"><i class="fi fi-rr-angle-small-right"></i></span>
-        <span class="page-breadcrumb__current" id="masterCrumb">Data Karyawan</span>
+        <span class="page-breadcrumb__current" id="masterCrumb">{{ $activeMasterUi['title'] }}</span>
     </div>
 </div>
 
-@component('admin.layouts.card', ['title' => 'Data Karyawan', 'titleId' => 'masterTitle'])
+@component('admin.layouts.card', ['title' => $activeMasterUi['title'], 'titleId' => 'masterTitle'])
     <!-- Toolbar -->
     <form class="archive-toolbar" method="GET" action="{{ route('admin.datamaster') }}" id="masterSearchForm" autocomplete="off">
         <input type="hidden" name="pane" id="masterPaneInput" value="{{ $activePane ?? 'karyawan' }}">
         <div class="search-action-group">
             <div class="search-box">
                 <span><i class="fi fi-rr-search"></i></span>
-                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="Cari Karyawan" id="masterSearch" data-search-debounce="650" aria-label="Cari data master">
+                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="{{ $activeMasterUi['search'] }}" id="masterSearch" data-search-debounce="650" aria-label="Cari data master">
             </div>
         </div>
-        <button type="button" class="btn-tool btn-tool--primary" id="masterAddBtn">
-            <i class="fi fi-rr-user-add" id="masterAddIcon"></i> <span id="masterAddText">Tambah Pengguna</span>
-        </button>
+        @php
+            $filterApplied = $masterFilterActive[$activePane] ?? false;
+            $hasFilterPane = in_array($activePane, ['karyawan', 'unit'], true);
+        @endphp
+        <div class="master-toolbar-actions">
+            <button type="button"
+                    @class(['btn-tool', 'btn-tool--active' => $filterApplied, 'is-hidden' => ! $hasFilterPane])
+                    id="masterFilterBtn" aria-expanded="{{ $filterApplied ? 'true' : 'false' }}">
+                <i class="fi fi-rr-filter"></i> Filter
+            </button>
+            <a href="{{ route('admin.datamaster', ['pane' => $activePane]) }}"
+               @class(['btn-reset', 'is-hidden' => ! $filterApplied && $masterSearch === ''])
+               id="masterFilterReset">
+                <i class="fi fi-rr-refresh"></i> Reset
+            </a>
+            <button type="button" class="btn-tool btn-tool--primary" id="masterAddBtn">
+                <i class="{{ $activeMasterUi['icon'] }}" id="masterAddIcon"></i> <span id="masterAddText">{{ $activeMasterUi['add'] }}</span>
+            </button>
+        </div>
+
+        {{-- Filter panel (muncul saat tombol Filter ditekan, pola Arsip Laporan) --}}
+        <div @class(['master-filter-panel', 'collapsed' => ! $filterApplied || ! $hasFilterPane]) id="masterFilterPanel">
+            {{-- Filter Karyawan --}}
+            <div class="master-filter-group" data-filter-pane="karyawan" @style(['display:none' => $activePane !== 'karyawan'])>
+                <div class="filter-field">
+                    <label>Divisi</label>
+                    <div class="filter-select-wrapper">
+                        <select name="f_division" class="native-select js-master-filter" aria-label="Filter Divisi">
+                            @foreach ($filterDivisionOptions as $val => $label)
+                                <option value="{{ $val }}" @selected($masterFilters['division'] === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                    </div>
+                </div>
+                <div class="filter-field">
+                    <label>Group</label>
+                    <div class="filter-select-wrapper">
+                        <select name="f_group" class="native-select js-master-filter" aria-label="Filter Group">
+                            @foreach ($filterGroupOptions as $val => $label)
+                                <option value="{{ $val }}" @selected($masterFilters['group'] === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                    </div>
+                </div>
+                <div class="filter-field">
+                    <label>Jabatan</label>
+                    <div class="filter-select-wrapper">
+                        <select name="f_position" class="native-select js-master-filter" aria-label="Filter Jabatan">
+                            @foreach ($filterPositionOptions as $val => $label)
+                                <option value="{{ $val }}" @selected($masterFilters['position'] === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Filter Unit --}}
+            <div class="master-filter-group" data-filter-pane="unit" @style(['display:none' => $activePane !== 'unit'])>
+                <div class="filter-field">
+                    <label>Tipe Unit</label>
+                    <div class="filter-select-wrapper">
+                        <select name="f_type" class="native-select js-master-filter" aria-label="Filter Tipe Unit">
+                            @foreach ($filterTypeOptions as $val => $label)
+                                <option value="{{ $val }}" @selected($masterFilters['type'] === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                    </div>
+                </div>
+                <div class="filter-field">
+                    <label>Kategori Pemeliharaan</label>
+                    <div class="filter-select-wrapper">
+                        <select name="f_category" class="native-select js-master-filter" aria-label="Filter Kategori Pemeliharaan">
+                            @foreach ($filterCategoryOptions as $val => $label)
+                                <option value="{{ $val }}" @selected($masterFilters['category'] === $val)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
     </form>
 
     <!-- PANE: Master Employees -->
-    <div class="master-pane active" data-pane="karyawan">
+    <div class="master-pane {{ $activePane === 'karyawan' ? 'active' : '' }}" data-pane="karyawan">
         <div class="table-responsive-wrapper">
             <table>
                 <tr class="thead d-flex justify-content-between align-items-center">
@@ -273,15 +539,19 @@
                     <th class="col-name">Name</th>
                     <th class="col-group">Group</th>
                     <th class="col-position">Position</th>
+                    <th class="col-division">Divisi</th>
+                    <th class="col-worktime">Jam Kerja</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
-                @foreach ($employees as $e)
+                @forelse ($employees as $e)
                     <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $e['update_url'] ?? '' }}">
                         <td class="col-no">{{ $e['no'] }}</td>
                         <td class="col-npk">{{ $e['npk'] }}</td>
                         <td class="col-name">{{ $e['name'] }}</td>
                         <td class="col-group">{{ $e['group'] }}</td>
                         <td class="col-position">{{ $e['position'] }}</td>
+                        <td class="col-division">{{ $e['division'] ?? 'Operasional' }}</td>
+                        <td class="col-worktime">{{ $e['work_time'] ?? '-' }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
                             <form method="POST" action="{{ $e['destroy_url'] ?? '#' }}">
@@ -291,26 +561,36 @@
                             </form>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    @include('admin.layouts.empty-state', $masterEmptyState('karyawan', 'karyawan', 'fi fi-rr-users-alt'))
+                @endforelse
             </table>
         </div>
     </div>
 
     <!-- PANE: Master Units -->
-    <div class="master-pane" data-pane="unit">
+    <div class="master-pane {{ $activePane === 'unit' ? 'active' : '' }}" data-pane="unit">
         <div class="table-responsive-wrapper">
             <table>
                 <tr class="thead d-flex justify-content-between align-items-center">
                     <th class="col-no">No</th>
                     <th class="col-name">Name</th>
+                    <th class="col-code">Kode</th>
+                    <th class="col-brand">Merk</th>
+                    <th class="col-number">Nomor</th>
                     <th class="col-type">Type</th>
+                    <th class="col-category">Kategori</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
-                @foreach ($units as $u)
+                @forelse ($units as $u)
                     <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $u['update_url'] ?? '' }}">
                         <td class="col-no">{{ $u['no'] }}</td>
                         <td class="col-name">{{ $u['name'] }}</td>
+                        <td class="col-code">{{ $u['unit_code'] }}</td>
+                        <td class="col-brand">{{ $u['brand'] }}</td>
+                        <td class="col-number">{{ $u['unit_number'] }}</td>
                         <td class="col-type">{{ $u['type'] }}</td>
+                        <td class="col-category">{{ $u['macro_category'] }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
                             <form method="POST" action="{{ $u['destroy_url'] ?? '#' }}">
@@ -320,13 +600,15 @@
                             </form>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    @include('admin.layouts.empty-state', $masterEmptyState('unit', 'unit', 'fi fi-rr-truck-side'))
+                @endforelse
             </table>
         </div>
     </div>
 
     <!-- PANE: Master Trucks -->
-    <div class="master-pane" data-pane="truck">
+    <div class="master-pane {{ $activePane === 'truck' ? 'active' : '' }}" data-pane="truck">
         <div class="table-responsive-wrapper">
             <table>
                 <tr class="thead d-flex justify-content-between align-items-center">
@@ -336,7 +618,7 @@
                     <th class="col-desc">Description</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
-                @foreach ($trucks as $t)
+                @forelse ($trucks as $t)
                     <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $t['update_url'] ?? '' }}">
                         <td class="col-no">{{ $t['no'] }}</td>
                         <td class="col-name">{{ $t['name'] }}</td>
@@ -351,13 +633,15 @@
                             </form>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    @include('admin.layouts.empty-state', $masterEmptyState('truck', 'truck', 'fi fi-rr-truck-moving'))
+                @endforelse
             </table>
         </div>
     </div>
 
     <!-- PANE: Master Inventory Items -->
-    <div class="master-pane" data-pane="inventaris">
+    <div class="master-pane {{ $activePane === 'inventaris' ? 'active' : '' }}" data-pane="inventaris">
         <div class="table-responsive-wrapper">
             <table>
                 <tr class="thead d-flex justify-content-between align-items-center">
@@ -367,7 +651,7 @@
                     <th class="col-stock">Jumlah</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
-                @foreach ($inventories as $i)
+                @forelse ($inventories as $i)
                     <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $i['update_url'] ?? '' }}">
                         <td class="col-no">{{ $i['no'] }}</td>
                         <td class="col-name">{{ $i['name'] }}</td>
@@ -382,7 +666,9 @@
                             </form>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    @include('admin.layouts.empty-state', $masterEmptyState('inventaris', 'inventaris', 'fi fi-rr-box-open'))
+                @endforelse
             </table>
         </div>
     </div>
@@ -439,41 +725,71 @@
             inventaris: { title: 'Data Inventaris', search: 'Cari Inventaris', add: 'Tambah Inventaris', icon: 'fi fi-rr-add' }
         };
 
+        const employeeGroupOptions = ['-', 'Bengkel', 'A', 'B', 'C', 'D', 'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D'];
+        const employeePositionOptions = [
+            '-',
+            'Kepala Regu ( KARU )',
+            'Wakil Karu',
+            'Wakil Kepala Regu',
+            'Checker',
+            'Operator FL',
+            'Driver',
+            'Operator Exca/ WL',
+            'Operator WL/ Exca',
+            'Kasi Pemeliharaan & Peralatan',
+            'Karu Peralatan',
+            'Karu Pemeliharaan',
+            'Mekanik',
+            'Helper',
+            'Rigger',
+            'Kepala Seksi',
+            'Kepala Regu',
+            'Operator OP.7',
+        ];
+        const employeeDivisionOptions = ['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)'];
+        const employeeWorkTimeOptions = ['Non Shift', 'Shift', 'Relief'];
+
         const masterSchemas = {
             karyawan: {
                 label: 'Karyawan',
                 icon: 'fi fi-rr-user',
                 fields: [
-                    { key: 'npk', label: 'NPK', placeholder: '2000.1.010' },
-                    { key: 'name', label: 'Nama Karyawan', placeholder: 'Nama lengkap' },
-                    { key: 'group', label: 'Group', type: 'select', options: ['Kantor', 'Regu A', 'Regu B', 'Regu C'] },
-                    { key: 'position', label: 'Posisi', placeholder: 'Operator' },
+                    { key: 'npk', label: 'NPK', placeholder: 'cth, 2000.1.010' },
+                    { key: 'name', label: 'Nama Karyawan', placeholder: 'cth, Budi Santoso' },
+                    { key: 'group', label: 'Group', type: 'select', options: employeeGroupOptions },
+                    { key: 'position', label: 'Jabatan', type: 'select', options: employeePositionOptions },
+                    { key: 'division', label: 'Divisi', type: 'select', options: employeeDivisionOptions },
+                    { key: 'work_time', label: 'Jam Kerja', type: 'select', options: employeeWorkTimeOptions },
                 ],
             },
             unit: {
                 label: 'Unit',
                 icon: 'fi fi-rr-truck-side',
                 fields: [
-                    { key: 'name', label: 'Nama Unit', placeholder: 'Forklift KSS-01' },
+                    { key: 'name', label: 'Nama Unit', placeholder: 'cth, Forklift KSS-01' },
+                    { key: 'unit_code', label: 'Kode Unit', placeholder: 'cth, FL / TRL' },
+                    { key: 'brand', label: 'Merk', placeholder: 'cth, YALE' },
+                    { key: 'unit_number', label: 'Nomor Unit', placeholder: 'cth, KSS-01' },
                     { key: 'type', label: 'Tipe Unit', type: 'select', options: ['Trailer', 'Tronton', 'Dump Truck', 'Pick Up', 'Bus', 'Forklift', 'Wheel Loader', 'Excavator'] },
+                    { key: 'macro_category', label: 'Kategori Pemeliharaan', type: 'select', options: ['-', 'truck', 'heavy'] },
                 ],
             },
             truck: {
                 label: 'Truck',
                 icon: 'fi fi-rr-truck-moving',
                 fields: [
-                    { key: 'name', label: 'Nama Truck', placeholder: 'Hino 500' },
-                    { key: 'plate', label: 'Nomor Polisi', placeholder: 'B 9012 KSS' },
-                    { key: 'desc', label: 'Deskripsi', type: 'textarea', placeholder: 'Fungsi atau catatan truck' },
+                    { key: 'name', label: 'Nama Truck', placeholder: 'cth, Hino 500' },
+                    { key: 'plate', label: 'Nomor Polisi', placeholder: 'cth, B 9012 KSS' },
+                    { key: 'desc', label: 'Deskripsi', type: 'textarea', placeholder: 'cth, Truk angkut material' },
                 ],
             },
             inventaris: {
                 label: 'Inventaris',
                 icon: 'fi fi-rr-box-open',
                 fields: [
-                    { key: 'name', label: 'Nama Inventaris', placeholder: 'Helm Safety' },
+                    { key: 'name', label: 'Nama Inventaris', placeholder: 'cth, Helm Safety' },
                     { key: 'category', label: 'Kategori', type: 'select', options: ['APD', 'Sparepart', 'Tools', 'Consumable'] },
-                    { key: 'stock', label: 'Jumlah', type: 'number', placeholder: '0' },
+                    { key: 'stock', label: 'Jumlah', type: 'number', placeholder: 'cth, 50' },
                 ],
             },
         };
@@ -496,8 +812,12 @@
         const masterFormSubmit = document.getElementById('masterFormSubmit');
         const masterForm = document.getElementById('masterForm');
         const masterFormMethod = document.getElementById('masterFormMethod');
+        const masterFilterBtn = document.getElementById('masterFilterBtn');
+        const masterFilterPanel = document.getElementById('masterFilterPanel');
+        const masterFilterGroups = document.querySelectorAll('.master-filter-group[data-filter-pane]');
+        const masterFilterPanes = ['karyawan', 'unit'];
         const masterActions = @json($masterActions);
-        let activeMasterPane = 'karyawan';
+        let activeMasterPane = @json($activePane ?? 'karyawan');
         let masterSearchTimer = null;
         let lastSubmittedSearch = masterSearch ? masterSearch.value : '';
         let lastSubmittedPane = masterPaneInput ? masterPaneInput.value : activeMasterPane;
@@ -514,6 +834,36 @@
             if (masterPaneInput) masterPaneInput.value = pane;
             if (masterAddText) masterAddText.textContent = cfg.add;
             if (masterAddIcon) masterAddIcon.className = cfg.icon;
+            syncMasterFilters(pane);
+        }
+
+        // Tampilkan tombol Filter hanya untuk pane yang punya filter; tampilkan
+        // grup filter milik pane aktif & nonaktifkan select pane lain agar tidak
+        // ikut terkirim ke URL.
+        function syncMasterFilters(pane) {
+            const hasFilters = masterFilterPanes.includes(pane);
+            if (masterFilterBtn) masterFilterBtn.classList.toggle('is-hidden', !hasFilters);
+            if (!hasFilters && masterFilterPanel) {
+                masterFilterPanel.classList.add('collapsed');
+                masterFilterBtn?.classList.remove('btn-tool--active');
+            }
+            masterFilterGroups.forEach(function (group) {
+                const isActive = group.getAttribute('data-filter-pane') === pane;
+                group.style.display = isActive ? 'flex' : 'none';
+                group.querySelectorAll('select').forEach(function (select) {
+                    select.disabled = !isActive;
+                });
+            });
+        }
+
+        function submitMasterFilter() {
+            if (!masterSearchForm) return;
+            window.clearTimeout(masterSearchTimer);
+            if (typeof masterSearchForm.requestSubmit === 'function') {
+                masterSearchForm.requestSubmit();
+            } else {
+                masterSearchForm.submit();
+            }
         }
 
         function scheduleMasterSearchSubmit(delay = null) {
@@ -540,10 +890,27 @@
         function readMasterRow(row, pane) {
             const text = selector => row.querySelector(selector)?.textContent.trim() || '';
             if (pane === 'karyawan') {
-                return { npk: text('.col-npk'), name: text('.col-name'), group: text('.col-group'), position: text('.col-position') };
+                const group = text('.col-group');
+
+                return {
+                    npk: text('.col-npk') === '-' ? '' : text('.col-npk'),
+                    name: text('.col-name'),
+                    group: group === 'Kantor' || group === '-' ? '-' : group.replace(/^Regu\s+/i, ''),
+                    position: text('.col-position') === '-' ? '' : text('.col-position'),
+                    division: text('.col-division') || 'Operasional',
+                    work_time: text('.col-worktime') === '-' ? 'Non Shift' : text('.col-worktime'),
+                };
             }
             if (pane === 'unit') {
-                return { name: text('.col-name'), type: text('.col-type') };
+                const category = text('.col-category');
+                return {
+                    name: text('.col-name'),
+                    unit_code: text('.col-code') === '-' ? '' : text('.col-code'),
+                    brand: text('.col-brand') === '-' ? '' : text('.col-brand'),
+                    unit_number: text('.col-number') === '-' ? '' : text('.col-number'),
+                    type: text('.col-type'),
+                    macro_category: category === 'Truck' ? 'truck' : (category === 'Heavy' ? 'heavy' : '-'),
+                };
             }
             if (pane === 'truck') {
                 return { name: text('.col-name'), plate: text('.col-plate'), desc: text('.col-desc') };
@@ -636,12 +1003,9 @@
 
         masterMenuItems.forEach(function (item) {
             item.addEventListener('click', function (e) {
-                e.preventDefault();
                 const pane = item.getAttribute('data-pane');
-                switchMasterPane(pane);
-
-                const nextUrl = new URL(item.href);
-                window.history.replaceState({}, '', nextUrl);
+                if (!pane || !masterTabs[pane]) return;
+                window.clearTimeout(masterSearchTimer);
             });
         });
 
@@ -667,6 +1031,70 @@
 
         masterAddBtn?.addEventListener('click', function () {
             openMasterForm('add', activeMasterPane);
+        });
+
+        masterFilterBtn?.addEventListener('click', function () {
+            if (!masterFilterPanel) return;
+            const isOpen = !masterFilterPanel.classList.toggle('collapsed');
+            masterFilterBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            masterFilterBtn.classList.toggle('btn-tool--active', isOpen);
+        });
+
+        document.querySelectorAll('.js-master-filter').forEach(function (select) {
+            select.addEventListener('change', submitMasterFilter);
+        });
+
+        // Custom dropdown bergaya Arsip Laporan untuk select filter.
+        document.querySelectorAll('.master-filter-panel .filter-select-wrapper').forEach(function (wrapper) {
+            const select = wrapper.querySelector('select');
+            if (!select) return;
+            select.style.display = 'none';
+
+            const trigger = document.createElement('div');
+            trigger.className = 'filter-input filter-select-trigger';
+            const label = document.createElement('span');
+            label.textContent = select.options[select.selectedIndex].text;
+            trigger.appendChild(label);
+            wrapper.insertBefore(trigger, select.nextSibling);
+
+            const list = document.createElement('div');
+            list.className = 'filter-select-options';
+            Array.from(select.options).forEach(function (opt, i) {
+                const item = document.createElement('div');
+                item.className = 'filter-select-option';
+                item.textContent = opt.text;
+                if (i === select.selectedIndex) item.classList.add('selected');
+                item.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    select.value = opt.value;
+                    label.textContent = opt.text;
+                    list.querySelectorAll('.filter-select-option').forEach(o => o.classList.remove('selected'));
+                    item.classList.add('selected');
+                    list.classList.remove('open');
+                    trigger.classList.remove('focus-active');
+                    select.dispatchEvent(new Event('change'));
+                });
+                list.appendChild(item);
+            });
+            wrapper.appendChild(list);
+
+            trigger.addEventListener('click', function (e) {
+                e.stopPropagation();
+                document.querySelectorAll('.filter-select-options.open').forEach(function (c) {
+                    if (c !== list) {
+                        c.classList.remove('open');
+                        const t = c.parentElement.querySelector('.filter-select-trigger');
+                        if (t) t.classList.remove('focus-active');
+                    }
+                });
+                list.classList.toggle('open');
+                trigger.classList.toggle('focus-active');
+            });
+        });
+
+        document.addEventListener('click', function () {
+            document.querySelectorAll('.filter-select-options.open').forEach(c => c.classList.remove('open'));
+            document.querySelectorAll('.filter-select-trigger.focus-active').forEach(t => t.classList.remove('focus-active'));
         });
 
         document.querySelectorAll('.js-master-edit').forEach(function (button) {

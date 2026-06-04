@@ -3,9 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\ReportStatus;
+use App\Enums\MaintenanceStatus;
+use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\LoadingActivity;
+use App\Models\MaintenanceReport;
+use App\Models\MasterEmployee;
 use App\Models\MasterUnit;
 use App\Models\Role;
 use App\Models\ShipOperation;
@@ -15,6 +19,7 @@ use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -226,6 +231,289 @@ class OpsFlowTest extends TestCase
             ->assertDontSee('<i class="fi fi-rr-search"></i> Cari</button>', false);
     }
 
+    public function test_admin_datamaster_unit_pagination_preserves_active_pane(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $admin = User::create([
+            'name' => 'Admin Master Pagination',
+            'username' => 'admin-master-pagination',
+            'email' => 'admin-master-pagination@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        foreach (range(1, 11) as $number) {
+            MasterUnit::create([
+                'name' => sprintf('Unit Pagination %02d', $number),
+                'type' => 'Support',
+                'status' => 'active',
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('admin.datamaster', ['pane' => 'unit']))
+            ->assertOk()
+            ->assertSee('<span class="page-breadcrumb__current" id="masterCrumb">Data Unit</span>', false)
+            ->assertSee('pane=unit&amp;units_page=2', false)
+            ->assertDontSee('employees_page=2', false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.datamaster', ['pane' => 'unit', 'units_page' => 2]))
+            ->assertOk()
+            ->assertSee('<div class="master-pane active" data-pane="unit">', false)
+            ->assertSee('Unit Pagination 11')
+            ->assertDontSee('Unit Pagination 01');
+    }
+
+    public function test_maintenance_report_uses_master_units_as_single_unit_source(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::MAINTENANCE]);
+        $user = User::create([
+            'name' => 'Petugas Pemeliharaan Master',
+            'username' => 'petugas-pml-master',
+            'email' => 'petugas-pml-master@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        $unit = MasterUnit::create([
+            'name' => 'Forklift KSS-01',
+            'type' => 'Forklift',
+            'unit_code' => 'FL',
+            'brand' => 'YALE',
+            'unit_number' => 'KSS-01',
+            'macro_category' => MasterUnit::MACRO_HEAVY,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Draft->value,
+                'report_date' => '2026-05-31',
+                'conditions' => [
+                    $unit->id => [
+                        'unit_label' => 'FL YALE KSS-01',
+                        'condition' => 'ready',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('pemeliharaan.index'));
+
+        $this->assertDatabaseHas('maintenance_unit_conditions', [
+            'master_unit_id' => $unit->id,
+            'unit_label' => 'FL YALE KSS-01',
+            'condition' => 'ready',
+        ]);
+    }
+
+    public function test_maintenance_create_form_uses_latest_unit_condition_as_default(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::MAINTENANCE]);
+        $user = User::create([
+            'name' => 'Petugas Pemeliharaan Carry',
+            'username' => 'petugas-pml-carry',
+            'email' => 'petugas-pml-carry@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        $unit = MasterUnit::create([
+            'name' => 'TRL UD KSS-01',
+            'type' => 'Trailer',
+            'unit_code' => 'TRL',
+            'brand' => 'UD',
+            'unit_number' => 'KSS-01',
+            'macro_category' => MasterUnit::MACRO_TRUCK,
+            'status' => 'active',
+        ]);
+
+        $olderReport = MaintenanceReport::create([
+            'report_date' => '2026-05-31',
+            'day_name' => 'Minggu',
+            'status' => MaintenanceStatus::Submitted->value,
+            'created_by' => $user->id,
+            'submitted_at' => now()->subDay(),
+        ]);
+        $olderReport->unitConditions()->create([
+            'master_unit_id' => $unit->id,
+            'unit_label' => 'TRL UD KSS-01',
+            'condition' => 'ready',
+        ]);
+
+        $latestReport = MaintenanceReport::create([
+            'report_date' => '2026-06-01',
+            'day_name' => 'Senin',
+            'status' => MaintenanceStatus::Submitted->value,
+            'created_by' => $user->id,
+            'submitted_at' => now(),
+        ]);
+        $latestReport->unitConditions()->create([
+            'master_unit_id' => $unit->id,
+            'unit_label' => 'TRL UD KSS-01',
+            'condition' => 'rusak',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('pemeliharaan.create'));
+
+        $response->assertOk();
+        $response->assertSee('value="TRL UD KSS-01"', false);
+        $response->assertSee('id="ct_rusak_'.$unit->id.'" value="rusak" data-cond-group="truck" checked', false);
+    }
+
+    public function test_maintenance_report_uses_master_employees_as_single_employee_source(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::MAINTENANCE]);
+        $user = User::create([
+            'name' => 'Petugas Pemeliharaan Employee',
+            'username' => 'petugas-pml-employee',
+            'email' => 'petugas-pml-employee@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        $employee = MasterEmployee::create([
+            'npk' => 'MNT-TST-001',
+            'name' => 'Mekanik Master',
+            'position' => 'Mekanik',
+            'division' => MasterEmployee::DIVISION_MAINTENANCE,
+            'work_time' => 'Non Shift',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Draft->value,
+                'report_date' => '2026-05-31',
+                'attendances' => [
+                    [
+                        'master_employee_id' => $employee->id,
+                        'employee_name' => 'Mekanik Master',
+                        'position' => 'Mekanik',
+                        'time_in' => '07:00',
+                        'time_out' => '16:00',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('pemeliharaan.index'));
+
+        $this->assertDatabaseHas('maintenance_attendances', [
+            'master_employee_id' => $employee->id,
+            'employee_name' => 'Mekanik Master',
+            'position' => 'Mekanik',
+        ]);
+    }
+
+    public function test_maintenance_master_tables_are_merged_into_general_master_tables(): void
+    {
+        $this->assertFalse(Schema::hasTable('maintenance_units'));
+        $this->assertFalse(Schema::hasTable('maintenance_employees'));
+        $this->assertFalse(Schema::hasColumn('maintenance_work_items', 'maintenance_unit_id'));
+        $this->assertFalse(Schema::hasColumn('maintenance_unit_conditions', 'maintenance_unit_id'));
+        $this->assertFalse(Schema::hasColumn('maintenance_attendances', 'maintenance_employee_id'));
+        $this->assertTrue(Schema::hasColumn('maintenance_work_items', 'master_unit_id'));
+        $this->assertTrue(Schema::hasColumn('maintenance_unit_conditions', 'master_unit_id'));
+        $this->assertTrue(Schema::hasColumn('maintenance_attendances', 'master_employee_id'));
+
+        $employee = MasterEmployee::create([
+            'name' => 'Karyawan Tanpa NPK',
+            'division' => MasterEmployee::DIVISION_MAINTENANCE,
+            'status' => 'active',
+        ]);
+
+        $this->assertDatabaseHas('master_employees', [
+            'id' => $employee->id,
+            'npk' => null,
+        ]);
+    }
+
+    public function test_maintenance_employee_roster_uses_latest_positions_and_npks(): void
+    {
+        $this->seed(\Database\Seeders\MasterEmployeeSeeder::class);
+        $this->seed(\Database\Seeders\MaintenanceEmployeeSeeder::class);
+
+        $expected = [
+            'Sungkono' => ['2000.1.007', 'Kepala Seksi'],
+            'Achmad Saiful Anwari' => ['2008.1.058', 'Kepala Regu'],
+            'Usman' => ['2023.K.017', 'Mekanik'],
+            'Arman' => ['2023.K.035', 'Mekanik'],
+            'Muhammad Suaiban' => ['2024.K.058', 'Helper'],
+            'Rahul' => ['2024.K.059', 'Helper'],
+            'Usriadi' => [null, 'Helper'],
+            'Fakhruddin' => [null, 'Helper'],
+            'Akhmad Yani Siregar' => ['2003.1.031', 'Kepala Regu'],
+            'Rizal Paselleri' => [null, 'Driver'],
+            'Irfan Teguh Andriyanto' => ['2023.K.019', 'Rigger'],
+            'Amiruddin' => ['2006.1.049', 'Checker'],
+        ];
+
+        foreach ($expected as $name => [$npk, $position]) {
+            $this->assertDatabaseHas('master_employees', [
+                'name' => $name,
+                'npk' => $npk,
+                'position' => $position,
+                'work_time' => 'Non Shift',
+            ]);
+        }
+    }
+
+    public function test_maintenance_create_form_renders_without_existing_report_rows(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::MAINTENANCE]);
+        $user = User::create([
+            'name' => 'Petugas Pemeliharaan Create',
+            'username' => 'petugas-pml-create',
+            'email' => 'petugas-pml-create@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        MasterUnit::create([
+            'name' => 'Forklift KSS-01',
+            'type' => 'Forklift',
+            'unit_code' => 'FL',
+            'brand' => 'YALE',
+            'unit_number' => 'KSS-01',
+            'macro_category' => MasterUnit::MACRO_HEAVY,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('pemeliharaan.create'))
+            ->assertOk()
+            ->assertSee('Form Laporan Harian Pemeliharaan')
+            ->assertSee('FL YALE KSS-01');
+    }
+
+    public function test_master_unit_short_display_name_uses_abbreviated_pdf_label(): void
+    {
+        $forklift = MasterUnit::create([
+            'name' => 'Forklift KSS-72',
+            'type' => 'Forklift',
+            'status' => 'active',
+        ]);
+
+        $trailer = MasterUnit::create([
+            'name' => 'Trailler KSS-01',
+            'type' => 'Trailler',
+            'status' => 'active',
+        ]);
+
+        $wheelLoader = MasterUnit::create([
+            'name' => 'WL.KSS-02',
+            'type' => 'Unit',
+            'status' => 'active',
+        ]);
+
+        $this->assertSame('FL KSS-72', $forklift->short_display_name);
+        $this->assertSame('TRL KSS-01', $trailer->short_display_name);
+        $this->assertSame('WL KSS-02', $wheelLoader->short_display_name);
+    }
+
     public function test_admin_can_run_core_admin_actions(): void
     {
         Storage::fake('local');
@@ -352,7 +640,7 @@ class OpsFlowTest extends TestCase
         $this->actingAs($manager)
             ->get(route('manajer.reports.show', $report))
             ->assertOk()
-            ->assertSee('Laporan Harian Shift', false);
+            ->assertSee('Laporan Operasi Harian', false);
     }
 
     public function test_login_errors_are_rendered_as_attention_toast(): void
@@ -491,6 +779,10 @@ class OpsFlowTest extends TestCase
         ]);
         $this->assertDatabaseHas('loading_activities', [
             'ship_name' => 'KM Draft',
+            'ship_operation_id' => null,
+        ]);
+        $this->assertDatabaseMissing('ship_operations', [
+            'ship_name' => 'KM Draft',
         ]);
     }
 
@@ -611,6 +903,14 @@ class OpsFlowTest extends TestCase
         $response->assertSee('<input type="date" id="tanggal" name="report_date" value="'.now()->toDateString().'"', false);
         $response->assertSee('name="arrival_time_1"', false);
         $response->assertSee('data-kss-picker="datetime"', false);
+        $response->assertSee('name="tally_warehouse_1"', false);
+        $response->assertSee('name="driver_name_1"', false);
+        $response->assertSee('name="truck_number_1"', false);
+        $response->assertSee('name="tally_ship_1"', false);
+        $response->assertSee('name="operator_ship_1"', false);
+        $response->assertSee('name="forklift_ship_1"', false);
+        $response->assertSee('name="operator_warehouse_1"', false);
+        $response->assertSee('name="forklift_warehouse_1"', false);
         $this->assertStringContainsString('"vehicle":{"master":{"'.$unit->id.'":"Rusak"', $response->getContent());
         $this->assertStringContainsString(
             'makeRadioCell(`unit_logs[${index}][condition_handed_over]`, `unit_serah_${index}`, previousHandoverCondition(\'vehicle\', item))',
@@ -645,6 +945,14 @@ class OpsFlowTest extends TestCase
             'qty_delivery_current_1' => '120',
             'qty_loading_current_1' => '90',
             'qty_damage_current_1' => '2',
+            'tally_warehouse_1' => 'Tally Gudang A',
+            'driver_name_1' => 'Driver A',
+            'truck_number_1' => 'KT 1234 XX',
+            'tally_ship_1' => 'Tally Kapal A',
+            'operator_ship_1' => 'Operator Kapal A',
+            'forklift_ship_1' => 'FL-01',
+            'operator_warehouse_1' => 'Operator Gudang A',
+            'forklift_warehouse_1' => 'FL-02',
             'ship_operation_status_1' => ShipOperation::STATUS_ACTIVE,
         ])->assertRedirect(route('report-ops.index'));
 
@@ -654,6 +962,14 @@ class OpsFlowTest extends TestCase
         $this->assertDatabaseHas('loading_activities', [
             'ship_name' => 'KM Berlanjut',
             'ship_operation_id' => $operation->id,
+            'tally_warehouse' => 'Tally Gudang A',
+            'driver_name' => 'Driver A',
+            'truck_number' => 'KT 1234 XX',
+            'tally_ship' => 'Tally Kapal A',
+            'operator_ship' => 'Operator Kapal A',
+            'forklift_ship' => 'FL-01',
+            'operator_warehouse' => 'Operator Gudang A',
+            'forklift_warehouse' => 'FL-02',
         ]);
 
         $this->actingAs($user)
@@ -846,7 +1162,7 @@ class OpsFlowTest extends TestCase
         }
     }
 
-    public function test_signed_report_leaves_incoming_reports_but_stays_in_history(): void
+    public function test_signed_report_moves_to_received_tab_for_receiver_not_own_history(): void
     {
         $sender = User::create([
             'name' => 'Petugas Pengirim',
@@ -899,24 +1215,83 @@ class OpsFlowTest extends TestCase
         $documentId = '#OPS-2026-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
         $html = $response->getContent();
         $incomingHtml = Str::between($html, 'id="content-laporan"', 'id="content-draft"');
-        $historyHtml = Str::after($html, 'id="content-riwayat"');
+        $ownHistoryHtml = Str::between($html, 'id="content-riwayat"', 'id="content-diterima"');
+        $receivedHtml = Str::after($html, 'id="content-diterima"');
 
+        // Sudah ditandatangani: tidak lagi di kotak masuk yang perlu aksi.
         $this->assertStringNotContainsString($documentId, $incomingHtml);
-        $this->assertStringContainsString($documentId, $historyHtml);
-        $this->assertStringContainsString('id="history-search-input"', $historyHtml);
-        $this->assertStringContainsString('data-history-row', $historyHtml);
-        $this->assertStringContainsString('km metadata test', $historyHtml);
-        $this->assertStringContainsString('aktivitas bongkar khusus', $historyHtml);
-        $this->assertStringContainsString('Group Penerima', $historyHtml);
-        $this->assertStringContainsString('Regu A', $historyHtml);
-        $this->assertStringContainsString('Diterima', $historyHtml);
+
+        // Bukan buatan regu penerima (A) -> tidak tampil di Riwayat (laporan regu sendiri).
+        $this->assertStringNotContainsString($documentId, $ownHistoryHtml);
+
+        // Tampil di tab "Laporan Diterima" lengkap dengan group pengirim & isi laporan.
+        $this->assertStringContainsString($documentId, $receivedHtml);
+        $this->assertStringContainsString('id="received-search-input"', $receivedHtml);
+        $this->assertStringContainsString('data-received-row', $receivedHtml);
+        $this->assertStringContainsString('km metadata test', $receivedHtml);
+        $this->assertStringContainsString('aktivitas bongkar khusus', $receivedHtml);
+        $this->assertStringContainsString('Group Pengirim', $receivedHtml);
+        $this->assertStringContainsString('Regu B', $receivedHtml);
+        $this->assertStringContainsString('Diterima', $receivedHtml);
 
         $searchResponse = $this->actingAs($receiver)->get(route('report-ops.index', [
-            'tab' => 'riwayat',
-            'history_search' => 'Metadata Test',
+            'tab' => 'diterima',
+            'received_search' => 'Metadata Test',
         ]));
         $searchResponse->assertOk();
-        $this->assertStringContainsString($documentId, Str::after($searchResponse->getContent(), 'id="content-riwayat"'));
+        $this->assertStringContainsString($documentId, Str::after($searchResponse->getContent(), 'id="content-diterima"'));
+    }
+
+    public function test_petugas_history_and_received_tabs_are_scoped_by_group(): void
+    {
+        $sender = User::create([
+            'name' => 'Karu B',
+            'username' => 'karu-b',
+            'email' => 'karu-b@example.com',
+            'password' => 'password',
+            'status' => 'aktif',
+            'group' => 'B',
+        ]);
+
+        // Laporan yang DIBUAT regu B (group pengirim B, dikirim ke A).
+        $ownReport = DailyReport::create([
+            'user_id' => $sender->id,
+            'created_by' => $sender->id,
+            'report_date' => '2026-05-20',
+            'shift' => 'Pagi',
+            'group_name' => 'B',
+            'received_by_group' => 'A',
+            'time_range' => '07:00 - 15:00',
+            'status' => 'acknowledged',
+        ]);
+
+        // Laporan dari regu A yang DITERIMA regu B.
+        $incomingReport = DailyReport::create([
+            'user_id' => $sender->id,
+            'created_by' => $sender->id,
+            'report_date' => '2026-05-21',
+            'shift' => 'Sore',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '15:00 - 23:00',
+            'status' => 'acknowledged',
+        ]);
+
+        $ownId = '#OPS-2026-'.str_pad((string) $ownReport->id, 3, '0', STR_PAD_LEFT);
+        $incomingId = '#OPS-2026-'.str_pad((string) $incomingReport->id, 3, '0', STR_PAD_LEFT);
+
+        $html = $this->actingAs($sender)->get(route('report-ops.index'))->assertOk()->getContent();
+
+        $ownHistoryHtml = Str::between($html, 'id="content-riwayat"', 'id="content-diterima"');
+        $receivedHtml = Str::after($html, 'id="content-diterima"');
+
+        // Riwayat regu B: hanya laporan buatan regu B.
+        $this->assertStringContainsString($ownId, $ownHistoryHtml);
+        $this->assertStringNotContainsString($incomingId, $ownHistoryHtml);
+
+        // Tab Diterima regu B: hanya laporan yang masuk dari regu lain.
+        $this->assertStringContainsString($incomingId, $receivedHtml);
+        $this->assertStringNotContainsString($ownId, $receivedHtml);
     }
 
     public function test_history_reports_are_paginated_per_ten(): void
@@ -1099,5 +1474,171 @@ class OpsFlowTest extends TestCase
                     'report_date' => $dateLabel,
                 ]);
         }
+    }
+
+    public function test_edit_page_renders_shared_report_form_with_update_method(): void
+    {
+        $user = User::create([
+            'name' => 'Petugas Edit',
+            'username' => 'petugas-edit',
+            'email' => 'petugas-edit@example.com',
+            'password' => 'password',
+            'status' => 'aktif',
+            'group' => 'A',
+        ]);
+
+        $report = DailyReport::create([
+            'user_id' => $user->id,
+            'created_by' => $user->id,
+            'report_date' => '2026-05-21',
+            'shift' => 'Pagi',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '07:00 - 15:00',
+            'status' => 'submitted',
+        ]);
+
+        $documentId = '#OPS-2026-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
+
+        // Halaman create & edit kini berbagi satu partial (report-ops.partials.report-form);
+        // pastikan mode edit memakai action update + method PUT dan menampilkan ID dokumen.
+        $this->actingAs($user)
+            ->get(route('report-ops.edit', $report))
+            ->assertOk()
+            ->assertSee('Edit Laporan Operasi Harian', false)
+            ->assertSee('name="_method" value="PUT"', false)
+            ->assertSee($documentId, false)
+            ->assertSee('name="report_date"', false);
+    }
+
+    public function test_admin_archive_search_matches_deep_report_content_and_suggestions(): void
+    {
+        $adminRole = Role::firstOrCreate(['name' => Role::ADMIN]);
+        $operatorRole = Role::firstOrCreate(['name' => Role::OPERATIONAL]);
+
+        $admin = User::create([
+            'name' => 'Admin Cari',
+            'username' => 'admin-cari',
+            'email' => 'admin-cari@example.com',
+            'password' => 'password',
+            'role_id' => $adminRole->id,
+            'status' => 'aktif',
+        ]);
+
+        $operator = User::create([
+            'name' => 'Operator Cari',
+            'username' => 'operator-cari',
+            'email' => 'operator-cari@example.com',
+            'password' => 'password',
+            'role_id' => $operatorRole->id,
+            'status' => 'aktif',
+            'group' => 'A',
+        ]);
+
+        $report = DailyReport::create([
+            'user_id' => $operator->id,
+            'created_by' => $operator->id,
+            'report_date' => '2026-05-21',
+            'shift' => 'Pagi',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '07:00 - 15:00',
+            'status' => 'approved',
+        ]);
+
+        $report->loadingActivities()->create([
+            'sequence' => 1,
+            'ship_name' => 'KM Pencarian Admin',
+        ]);
+
+        $documentId = '#OPS-2026-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
+
+        // Pencarian relasi dalam pada halaman arsip (server-side), seperti manajer.
+        $this->actingAs($admin)
+            ->get(route('admin.archive', ['q' => 'KM Pencarian Admin']))
+            ->assertOk()
+            ->assertSee($documentId, false);
+
+        // Endpoint saran mengembalikan laporan via nama kapal.
+        $this->actingAs($admin)
+            ->getJson(route('admin.archive.suggestions', ['q' => 'Pencarian Admin']))
+            ->assertOk()
+            ->assertJsonFragment(['document_id' => $documentId]);
+
+        // Parser tanggal parsial (mei) juga berlaku di saran admin.
+        $this->actingAs($admin)
+            ->getJson(route('admin.archive.suggestions', ['q' => 'me']))
+            ->assertOk()
+            ->assertJsonFragment(['document_id' => $documentId, 'report_date' => '21 Mei 2026']);
+    }
+
+    public function test_report_export_file_name_uses_laporan_ops_format(): void
+    {
+        $report = DailyReport::create([
+            'report_date' => '2026-05-21',
+            'shift' => 'Pagi',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '07:00 - 15:00',
+            'status' => 'approved',
+        ]);
+
+        // Akses langsung helper penamaan dari trait (protected) lewat kelas anonim.
+        $namer = new class
+        {
+            use ResolvesReportMeta;
+
+            public function name(DailyReport $report, string $extension): string
+            {
+                return $this->reportFileName($report, $extension);
+            }
+        };
+
+        $paddedId = str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
+
+        $this->assertSame("Laporan_Ops_{$paddedId}_2026_A.pdf", $namer->name($report, 'pdf'));
+        $this->assertSame("Laporan_Ops_{$paddedId}_2026_A.xlsx", $namer->name($report, 'xlsx'));
+    }
+
+    public function test_received_suggestions_are_scoped_to_incoming_reports(): void
+    {
+        $receiver = User::create([
+            'name' => 'Karu B Saran',
+            'username' => 'karu-b-saran',
+            'email' => 'karu-b-saran@example.com',
+            'password' => 'password',
+            'status' => 'aktif',
+            'group' => 'B',
+        ]);
+
+        // Laporan dari regu A yang ditujukan ke regu B (masuk ke tab Diterima regu B).
+        $incoming = DailyReport::create([
+            'user_id' => $receiver->id,
+            'created_by' => $receiver->id,
+            'report_date' => '2026-05-21',
+            'shift' => 'Pagi',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '07:00 - 15:00',
+            'status' => 'acknowledged',
+        ]);
+        $incoming->loadingActivities()->create([
+            'sequence' => 1,
+            'ship_name' => 'KM Saran Diterima',
+        ]);
+
+        $documentId = '#OPS-2026-'.str_pad((string) $incoming->id, 3, '0', STR_PAD_LEFT);
+
+        // Saran tab "Laporan Diterima" (scope received_by_group = B) menemukannya via nama kapal.
+        $this->actingAs($receiver)
+            ->getJson(route('report-ops.received.suggestions', ['q' => 'Saran Diterima']))
+            ->assertOk()
+            ->assertJsonFragment(['document_id' => $documentId]);
+
+        // Saran Riwayat (laporan buatan regu B) TIDAK memuatnya, karena ini buatan regu A.
+        $this->actingAs($receiver)
+            ->getJson(route('report-ops.history.suggestions', ['q' => 'Saran Diterima']))
+            ->assertOk()
+            ->assertJsonMissing(['document_id' => $documentId]);
     }
 }

@@ -19,6 +19,17 @@ Aplikasi ini menggantikan proses pelaporan shift harian yang sebelumnya manual m
 
 > Status laporan dikelola memakai PHP 8.1 Backed Enum `App\Enums\ReportStatus` (di-cast pada model `DailyReport`). Method `ReportStatus::label()` menyediakan label UI di atas. Approval final `acknowledged → approved` hanya dilakukan role `manajer`.
 
+### 1.1 Pendekatan Pengembangan Inkremental
+
+Sistem dibangun dengan model pengembangan **inkremental**: setiap increment menambahkan satu modul fungsional utuh di atas fondasi arsitektur yang sama (Laravel + Blade + Eloquent + design system bersama). Hingga dokumen ini diperbarui, **dua increment telah selesai dibangun**:
+
+| Increment | Lingkup | Komponen yang dibangun | Status |
+|---|---|---|---|
+| **Increment 1** | Fondasi sistem + **Modul Operasional** + area **Manajer** + area **Admin** | Autentikasi berbasis username & 5 role, alur laporan shift harian (multi-step, tanda tangan digital, export PDF/Excel), dashboard & arsip manajer dengan approval final, dashboard admin (kelola user, data master, backup, log aktivitas, pusat bantuan), design system, dan master data | ✅ Selesai |
+| **Increment 2** | **Modul Pemeliharaan** (Unit Kerja Pemeliharaan & Peralatan) | Dashboard petugas pemeliharaan, form laporan harian non-shift (Pekerjaan Utama/Prioritas, Kondisi Unit, Daftar Hadir, Pengesahan), alur 2 pihak `draft → submitted → approved`, approval di sisi manajer, integrasi arsip admin, dan penyatuan master data ke `master_units`/`master_employees` | ✅ Selesai |
+
+> **Catatan paradigma:** Modul Operasional berbasis **shift** dengan serah-terima antar regu (alur 3 tahap `submitted → acknowledged → approved`), sedangkan Modul Pemeliharaan berbasis **hari (Non Shift)** tanpa serah-terima (alur 2 tahap `submitted → approved`). Increment 2 memakai kembali role, layout, dan design system Increment 1, tetapi sengaja **tidak** memakai field Shift/Group/Jam Kerja/Regu Penerima. Rincian perancangan Increment 2 terdapat di [`PERANCANGAN_MODUL_PEMELIHARAAN.md`](PERANCANGAN_MODUL_PEMELIHARAAN.md).
+
 ---
 
 ## 2. Stack Teknologi
@@ -80,7 +91,11 @@ app/
     ├── MasterTruck.php             # Master truk
     ├── MasterInventoryItem.php     # Master inventaris
     ├── Role.php                    # Role (admin/manajer/operasional/pemeliharaan/safety)
-    └── User.php                    # User + relasi role
+    ├── User.php                    # User + relasi role
+    ├── MaintenanceReport.php       # [Increment 2] Laporan harian pemeliharaan
+    ├── MaintenanceWorkItem.php     # [Increment 2] Pekerjaan Utama & Prioritas
+    ├── MaintenanceUnitCondition.php# [Increment 2] Kondisi unit (ready/rusak)
+    └── MaintenanceAttendance.php   # [Increment 2] Daftar hadir karyawan
 database/migrations/
 ├── 2026_05_18_000001_add_ops_auth_columns_to_users_table.php
 ├── 2026_05_18_000002_create_operational_report_tables.php
@@ -108,6 +123,12 @@ resources/views/manajer/
     ├── card.blade.php               # Card statistik
     ├── navbar.blade.php             # Navbar manajer
     └── sidebar.blade.php            # Menu Dashboard / Arsip / Bantuan
+resources/views/pemeliharaan/        # [Increment 2] Modul Pemeliharaan
+├── index.blade.php                  # Dashboard petugas (Draft / Riwayat)
+├── create.blade.php / edit.blade.php# Form laporan harian (6 seksi)
+├── pdf.blade.php / viewpdf.blade.php
+├── layouts/                         # app + header + footer
+└── partials/                        # report-form, report-paper
 routes/web.php
 ```
 
@@ -266,6 +287,48 @@ Catatan akses:
 - Pesan sukses/error di area admin memakai toast message agar konsisten dengan halaman operasional dan manajer.
 - Aksi destruktif seperti hapus user, hapus data master, hapus backup, dan restore backup memakai modal konfirmasi.
 
+### 5.9 Modul Pemeliharaan (`/pemeliharaan`) — Increment 2
+
+Modul ini mendigitalkan dokumen fisik **"Laporan Harian Unit Kerja Pemeliharaan dan Peralatan"** beserta **Daftar Hadir Karyawan**-nya. Diakses oleh role `pemeliharaan` (akun **Kasi Pemeliharaan**) dan dilindungi middleware `role:pemeliharaan`. Berbeda dengan Operasional, laporan dibuat **sekali per hari (Non Shift)** dan **tidak ada serah-terima antar regu**.
+
+Alur status memakai enum `App\Enums\MaintenanceStatus` (di-cast pada `MaintenanceReport`):
+
+| Status | Label UI | Arti |
+|---|---|---|
+| `draft` | Draft | Tersimpan oleh Kasi, belum dikirim |
+| `submitted` | Diserahkan | Dikirim, menunggu persetujuan manajer |
+| `approved` | Diarsipkan | Disetujui/ditanda tangani manajer (final) |
+
+> Tidak ada tahap `acknowledged` di sini karena tidak ada serah-terima. Pengesahan bersifat **2 pihak**: Kasi Pemeliharaan (`created_by`) sebagai pembuat dan Manajer (`approved_by`) sebagai penyetuju.
+
+**Dashboard petugas** (`pemeliharaan.index`) menyederhanakan pola Operasional menjadi **dua tab** (tanpa "Laporan Masuk"):
+
+1. **Draft** — laporan `draft` milik Kasi, lengkap dengan tombol Lanjutkan Edit & hapus.
+2. **Riwayat Laporan** — daftar laporan yang sudah dikirim/disetujui (kolom Hari menggantikan Shift).
+
+**Form laporan multi-step** (`create`/`edit`) memakai layout & komponen yang sama dengan Operasional, dengan 6 seksi:
+
+| Seksi | Konten |
+|---|---|
+| Info Umum | Tanggal laporan + nama hari otomatis (tanpa Shift/Group/Jam Kerja) |
+| Pekerjaan Utama | 4 baris terikat Group I–IV (`work_type = utama`), unit dari master, status Selesai/Tidak |
+| Pekerjaan Prioritas | Baris dinamis (`work_type = prioritas`), mendukung entri unit bebas (mis. "BENGKEL") |
+| Kondisi Unit | Dua kelompok (`truck` / `heavy`) dengan penghitung **Ready/Rusak otomatis** real-time |
+| Daftar Hadir | Roster karyawan pemeliharaan ter-preload (Nama + Jabatan + "Non Shift"), jam masuk/pulang |
+| Pengesahan | Nama Kasi (otomatis dari akun), nama Karu Pemeliharaan & Karu Peralatan (informatif untuk PDF) |
+
+**Persetujuan manajer**: laporan `submitted` muncul pada tab **Pemeliharaan** di dashboard manajer. Manajer membuka detail lewat `manajer.pemeliharaan.show`, lalu menekan setuju (`manajer.pemeliharaan.approve`) untuk mengubah status menjadi `approved` (mengisi `approved_by`/`approved_at`). Tersedia juga download PDF dan hapus arsip dari sisi manajer.
+
+**Integrasi admin**: laporan pemeliharaan ikut tampil di arsip admin dengan aksi lihat (`admin.maintenance-reports.show`), download (`...download`), dan hapus (`...destroy`). Admin tidak melakukan approval.
+
+**Penyatuan master data**: rancangan awal memakai tabel terpisah `maintenance_units`/`maintenance_employees`, tetapi pada implementasi keduanya **disatukan ke `master_units` dan `master_employees`** (migration `2026_06_01_*`). `master_units` diperluas kolom `unit_code`, `brand`, `unit_number`, dan `macro_category` (`truck`/`heavy`); tabel `maintenance_work_items` & `maintenance_unit_conditions` kini mereferensikan `master_unit_id`. Dengan ini admin cukup mengelola satu set master data untuk kedua modul.
+
+**Lain-lain**:
+- **ID Dokumen**: format `#MNT-YYYY-NNN` (lihat trait `ResolvesMaintenanceMeta`).
+- **Export PDF**: `GET /pemeliharaan/{report}/pdf` (DomPDF, template `pemeliharaan/pdf.blade.php`).
+- **Draft kadaluarsa**: `MaintenanceReport::pruneStaleDrafts()` menghapus draft > 3 hari, dijalankan oleh command terjadwal `reports:prune-stale` (harian 01:30) bersama pembersihan draft & saran kapal Operasional.
+- **Views**: `resources/views/pemeliharaan/` (`index`, `create`, `edit`, `pdf`, `viewpdf`, `layouts/`, `partials/`).
+
 ---
 
 ## 6. Skema Data (Ringkas)
@@ -310,6 +373,15 @@ Index: `[status, report_date]`, `[group_name, received_by_group]`.
 ### `users` (extended)
 
 `username`, `role_id`, `status`, `signature_path`, `group` ditambahkan via migration auth, lalu daftar role dikembangkan menjadi 5 role lewat migration role.
+
+### Tabel Modul Pemeliharaan (Increment 2)
+
+- `maintenance_reports` — induk laporan harian (`report_date`, `day_name`, `status` enum draft/submitted/approved, `created_by`/`submitted_at`, `approved_by`/`approved_at`, `karu_pemeliharaan_name`, `karu_peralatan_name`)
+- `maintenance_work_items` (1:N, cascade) — Pekerjaan Utama + Prioritas (`work_type`, `work_group`, `master_unit_id`, `unit_label`, `description`, `assignee`, `is_completed`, `notes`, `sort_order`)
+- `maintenance_unit_conditions` (1:N, cascade) — Kondisi Unit per unit (`master_unit_id`, `condition` ready/rusak, `notes`; unik per `[report, unit]`)
+- `maintenance_attendances` (1:N, cascade) — Daftar Hadir (`maintenance_employee_id` opsional, snapshot `employee_name`/`position`, `time_in`, `time_out`, `notes`)
+
+> Master armada & roster pemeliharaan **disatukan ke `master_units` dan `master_employees`** (lihat §5.9), sehingga `maintenance_work_items`/`maintenance_unit_conditions` mereferensikan `master_unit_id` dan tabel `maintenance_units`/`maintenance_employees` lama tidak lagi dipakai sebagai master aktif.
 
 ---
 
@@ -386,6 +458,33 @@ GET    /admin/backup/files/{file}         -> download backup
 DELETE /admin/backup/files/{file}         -> hapus backup
 POST   /admin/backup/files/{file}/restore -> catat permintaan restore
 POST   /admin/help/ticket                 -> kirim tiket bantuan admin
+```
+
+---
+
+Route modul Pemeliharaan (Increment 2):
+
+```
+# Petugas pemeliharaan (role:pemeliharaan, prefix /pemeliharaan)
+GET    /pemeliharaan                       -> dashboard petugas (Draft / Riwayat)
+GET    /pemeliharaan/create                -> form buat laporan harian
+POST   /pemeliharaan                       -> simpan laporan (draft / submitted)
+GET    /pemeliharaan/{report}              -> lihat laporan
+GET    /pemeliharaan/{report}/edit         -> form edit
+PUT    /pemeliharaan/{report}              -> update laporan
+DELETE /pemeliharaan/{report}              -> hapus draft
+GET    /pemeliharaan/{report}/pdf          -> export PDF
+
+# Approval manajer (role:manajer)
+GET    /manajer/pemeliharaan/{report}          -> lihat laporan pemeliharaan
+POST   /manajer/pemeliharaan/{report}/approve  -> setujui (submitted -> approved)
+GET    /manajer/pemeliharaan/{report}/download -> download PDF
+DELETE /manajer/pemeliharaan/{report}          -> hapus arsip
+
+# Arsip admin (role:admin)
+GET    /admin/maintenance-reports/{report}          -> lihat laporan pemeliharaan
+GET    /admin/maintenance-reports/{report}/download -> download PDF
+DELETE /admin/maintenance-reports/{report}          -> hapus arsip
 ```
 
 ---
@@ -635,4 +734,9 @@ Ringkasan pembaruan:
 - Input tanggal Info Umum kembali memakai native HTML date yang otomatis terisi tanggal hari ini dan tetap bisa diganti. Input datetime Muat Kantong/Muat Curah memakai komponen custom 24 jam.
 - Pencarian data master admin memakai debounce tanpa tombol Cari.
 - Bahan landasan teori skripsi tersedia di [`LANDASAN_TEORI_SKRIPSI.md`](LANDASAN_TEORI_SKRIPSI.md).
+- **Increment 2 — Modul Pemeliharaan selesai dibangun**: dashboard petugas (2 tab Draft/Riwayat), form laporan harian Non Shift (Info Umum, Pekerjaan Utama/Prioritas, Kondisi Unit dengan penghitung Ready/Rusak otomatis, Daftar Hadir, Pengesahan), alur 2 pihak `draft → submitted → approved`, ID dokumen `#MNT-YYYY-NNN`, dan export PDF.
+- Approval laporan pemeliharaan tersedia di dashboard manajer (tab Pemeliharaan) dan arsipnya ikut tampil di area admin.
+- Master armada & roster pemeliharaan disatukan ke `master_units`/`master_employees` sehingga admin mengelola satu set data master untuk kedua modul.
+- Draft pemeliharaan kadaluarsa (> 3 hari) ikut dibersihkan oleh command terjadwal `reports:prune-stale`.
+- Rincian perancangan Increment 2 didokumentasikan di [`PERANCANGAN_MODUL_PEMELIHARAAN.md`](PERANCANGAN_MODUL_PEMELIHARAAN.md).
 - Test fitur terbaru berada di `tests/Feature/OpsFlowTest.php`; hasil terakhir `php artisan test` lulus `23 tests`, `182 assertions`.

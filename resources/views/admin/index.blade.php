@@ -141,19 +141,30 @@
        QUICK ACTION ITEMS
        ============================================= */
     .quick-action-body { display: flex; flex-direction: column; }
+    .quick-action-body > form { margin: 0; }
 
     .quick-action-item {
         display: flex;
         align-items: center;
         gap: 14px;
-        padding: 16px 0;
+        width: 100%;
+        padding: 16px 10px;
         border-bottom: 1px solid var(--smooth-border);
+        border-radius: 8px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        color: inherit;
+        transition: background-color 0.2s ease, transform 0.2s ease;
     }
 
-    .quick-action-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .quick-action-item:first-child { padding-top: 0; }
+    .quick-action-item:hover,
+    .quick-action-item:focus-visible {
+        background-color: var(--blue-main-5);
+        transform: translateY(-1px);
+        outline: none;
+    }
+
+    .quick-action-item:last-child { border-bottom: none; }
+    .quick-action-body > form .quick-action-item { border-bottom: 1px solid var(--smooth-border); }
 
     .quick-action-icon {
         width: 40px;
@@ -204,6 +215,118 @@
     }
 
     .quick-action-plus i { position: relative; top: 1px; }
+
+    .dashboard-user-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .dashboard-user-status input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .dashboard-user-status__track {
+        width: 38px;
+        height: 22px;
+        padding: 2px;
+        border-radius: 999px;
+        background-color: var(--red-main-10);
+        border: 1px solid rgba(210,0,0,0.22);
+        transition: 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .dashboard-user-status__thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: block;
+        background-color: var(--red-main);
+        box-shadow: 0 2px 5px rgba(15,23,42,0.16);
+        transition: transform 0.2s ease, background-color 0.2s ease;
+    }
+
+    .dashboard-user-status input:checked + .dashboard-user-status__track {
+        background-color: var(--success-10);
+        border-color: rgba(16,185,129,0.26);
+    }
+
+    .dashboard-user-status input:checked + .dashboard-user-status__track .dashboard-user-status__thumb {
+        transform: translateX(16px);
+        background-color: var(--success);
+    }
+
+    .dashboard-user-status__label {
+        min-width: 58px;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--red-main);
+    }
+
+    .dashboard-user-status.is-active .dashboard-user-status__label { color: var(--success); }
+
+    .signature-upload {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px;
+        border: 1px dashed var(--blue-main-25);
+        border-radius: 8px;
+        background-color: var(--main-bg);
+    }
+
+    .signature-upload__preview {
+        width: 120px;
+        height: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        background-color: var(--white);
+        overflow: hidden;
+        flex-shrink: 0;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    .signature-upload__preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+
+    .signature-upload__control {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .signature-upload__hint {
+        font-size: 10px;
+        color: var(--muted);
+        font-weight: 400;
+    }
+
+    @media (max-width: 640px) {
+        .signature-upload {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .signature-upload__preview {
+            width: 100%;
+        }
+    }
 
     /* =============================================
        MOBILE — stack the two-column panel grid
@@ -295,7 +418,7 @@
             <form method="POST" action="{{ route('admin.backup.generate') }}">
                 @csrf
                 <button type="submit"
-                        class="quick-action-item w-100 border-0 bg-transparent text-start"
+                        class="quick-action-item border-0 bg-transparent text-start"
                         data-confirm
                         data-confirm-submit="true"
                         data-confirm-tone="warning"
@@ -313,14 +436,14 @@
                     <span class="quick-action-chevron"><i class="fi fi-rr-angle-small-right"></i></span>
                 </button>
             </form>
-            <div class="quick-action-item" data-modal-target="dashboardUserModal">
+            <button type="button" class="quick-action-item border-0 bg-transparent text-start" data-modal-target="dashboardUserModal">
                 <div class="quick-action-icon quick-action-icon--green"><i class="fi fi-rr-user-add"></i></div>
                 <div class="quick-action-text">
                     <div class="quick-action-title">Tambah Pengguna Baru</div>
                     <div class="quick-action-sub">Registrasi akun petugas</div>
                 </div>
                 <span class="quick-action-plus text-success"><i class="fi fi-rr-plus-small"></i></span>
-            </div>
+            </button>
         </div>
     </div>
 
@@ -328,7 +451,7 @@
 
 <div class="modal-overlay" id="dashboardUserModal" aria-hidden="true">
     <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="dashboardUserTitle">
-        <form method="POST" action="{{ route('admin.users.store') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('admin.users.store') }}" id="dashboardUserForm" enctype="multipart/form-data">
             @csrf
             <div class="kss-modal__header">
                 <div class="kss-modal__icon kss-modal__icon--success">
@@ -369,22 +492,37 @@
                         <label for="dashboardUserGroup">Regu</label>
                         <div class="kss-modal__select-wrapper">
                             <select class="kss-modal__native-select" id="dashboardUserGroup" name="group">
+                                <option value="Kantor">Kantor</option>
                                 <option value="A">Regu A</option>
                                 <option value="B">Regu B</option>
                                 <option value="C">Regu C</option>
                                 <option value="D">Regu D</option>
-                                <option value="Kantor">Kantor</option>
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
                     </div>
-                    <div class="kss-modal__field kss-modal__field--full">
+                    <div class="kss-modal__field">
+                        <label>Status</label>
+                        <label class="dashboard-user-status is-active" id="dashboardUserStatusWrap">
+                            <input type="hidden" name="status" value="nonaktif">
+                            <input type="checkbox" id="dashboardUserStatus" name="status" value="aktif" checked>
+                            <span class="dashboard-user-status__track"><span class="dashboard-user-status__thumb"></span></span>
+                            <span class="dashboard-user-status__label" id="dashboardUserStatusLabel">Aktif</span>
+                        </label>
+                    </div>
+                    <div class="kss-modal__field">
                         <label for="dashboardUserPassword">Password Awal</label>
                         <input class="kss-modal__input" id="dashboardUserPassword" name="password" type="password" placeholder="Masukkan password awal" required>
                     </div>
                     <div class="kss-modal__field kss-modal__field--full">
                         <label for="dashboardUserSignature">Tanda Tangan PNG</label>
-                        <input class="kss-modal__input" id="dashboardUserSignature" name="signature" type="file" accept="image/png">
+                        <div class="signature-upload">
+                            <div class="signature-upload__preview" id="dashboardUserSignaturePreview">Belum ada tanda tangan</div>
+                            <div class="signature-upload__control">
+                                <input class="kss-modal__input" id="dashboardUserSignature" name="signature" type="file" accept="image/png">
+                                <span class="signature-upload__hint">Gunakan file PNG, maksimal 2 MB.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -398,3 +536,84 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const dashboardUserModal = document.getElementById('dashboardUserModal');
+        const dashboardUserForm = document.getElementById('dashboardUserForm');
+        const statusInput = document.getElementById('dashboardUserStatus');
+        const statusWrap = document.getElementById('dashboardUserStatusWrap');
+        const statusLabel = document.getElementById('dashboardUserStatusLabel');
+        const signatureInput = document.getElementById('dashboardUserSignature');
+        const signaturePreview = document.getElementById('dashboardUserSignaturePreview');
+        let previewUrl = null;
+
+        function setUserStatus(isActive) {
+            if (!statusInput || !statusWrap || !statusLabel) return;
+            statusInput.checked = isActive;
+            statusWrap.classList.toggle('is-active', isActive);
+            statusLabel.textContent = isActive ? 'Aktif' : 'Non-Aktif';
+        }
+
+        function clearPreviewUrl() {
+            if (!previewUrl) return;
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+
+        function setSignaturePreview(url) {
+            if (!signaturePreview) return;
+
+            if (url) {
+                signaturePreview.innerHTML = `<img src="${url}" alt="Preview tanda tangan">`;
+            } else {
+                signaturePreview.textContent = 'Belum ada tanda tangan';
+            }
+        }
+
+        statusInput?.addEventListener('change', () => setUserStatus(statusInput.checked));
+
+        document.querySelector('[data-modal-target="dashboardUserModal"]')?.addEventListener('click', function () {
+            dashboardUserForm?.reset();
+            clearPreviewUrl();
+            setSignaturePreview('');
+            setUserStatus(true);
+            window.KssAdminModal?.syncSelects(dashboardUserModal);
+        });
+
+        signatureInput?.addEventListener('change', function () {
+            const file = signatureInput.files?.[0];
+            clearPreviewUrl();
+
+            if (!file) {
+                setSignaturePreview('');
+                return;
+            }
+
+            if (file.type !== 'image/png') {
+                signatureInput.value = '';
+                setSignaturePreview('');
+                window.showAdminToast?.('error', 'File tidak valid', 'File tanda tangan harus berformat PNG.');
+                return;
+            }
+
+            previewUrl = URL.createObjectURL(file);
+            setSignaturePreview(previewUrl);
+        });
+
+        dashboardUserModal?.addEventListener('click', function (event) {
+            if (!event.target.closest('[data-modal-close]') && event.target !== dashboardUserModal) return;
+            clearPreviewUrl();
+        });
+
+        dashboardUserForm?.addEventListener('reset', function () {
+            clearPreviewUrl();
+            setSignaturePreview('');
+            setUserStatus(true);
+        });
+
+        setUserStatus(true);
+    });
+</script>
+@endpush

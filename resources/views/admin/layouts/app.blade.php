@@ -899,6 +899,56 @@
         }
 
         /* =============================================
+           TABLE EMPTY / NO-MATCH STATE
+           ============================================= */
+        .table-empty-row { border-bottom: none; }
+        .table-empty-row:hover { background-color: transparent; }
+
+        .table-empty-cell {
+            width: 100%;
+            min-width: 100%;
+            flex: 1 0 100%;
+            justify-content: center;
+            padding: 40px 16px !important;
+        }
+
+        .table-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .table-empty-state__icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+            font-size: 22px;
+        }
+
+        .table-empty-state__icon i { position: relative; top: 2px; }
+
+        .table-empty-state__title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--black);
+        }
+
+        .table-empty-state__text {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--muted);
+            max-width: 360px;
+            line-height: 1.55;
+        }
+
+        /* =============================================
            STATS CARDS
            ============================================= */
         .stats-row {
@@ -974,6 +1024,55 @@
             padding: 8px 20px;
             flex-shrink: 0;
             letter-spacing: 0.2px;
+        }
+
+        @keyframes sk-rotate {
+            to { transform: rotate(360deg); }
+        }
+
+        .sk-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background-color: var(--main-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+
+        .sk-overlay.sk-done {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .sk-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--smooth-border);
+            border-top-color: var(--blue-main);
+            border-radius: 50%;
+            animation: sk-rotate 0.8s linear infinite;
+        }
+
+        /* Inline spinner untuk tombol unduh (berhenti saat unduhan selesai) */
+        .btn-spinner {
+            display: inline-block;
+            width: 13px;
+            height: 13px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: sk-rotate 0.7s linear infinite;
+            vertical-align: -2px;
+            margin-right: 4px;
+        }
+
+        .btn-act.is-loading {
+            opacity: 0.85;
+            cursor: progress;
+            pointer-events: none;
         }
 
         /* =============================================
@@ -1170,6 +1269,13 @@
             outline: none;
             padding: 9px 12px;
             transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .kss-modal__input::placeholder,
+        .kss-modal__textarea::placeholder {
+            color: var(--muted);
+            opacity: 0.55;
+            font-weight: 400;
         }
 
         .kss-modal__select-wrapper {
@@ -1515,6 +1621,10 @@
 <body>
     {{-- Terapkan dark mode sebelum render agar tidak flicker --}}
     <script>if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');</script>
+
+    <div class="sk-overlay" id="sk-overlay">
+        <div class="sk-spinner"></div>
+    </div>
 
     @php
         $toastMessages = collect();
@@ -2078,6 +2188,55 @@
                 closeModal(form.closest('.modal-overlay'));
             });
 
+            function filenameFromDisposition(disposition) {
+                if (!disposition) return '';
+                const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+                if (!match) return '';
+                try { return decodeURIComponent(match[1]); } catch (e) { return match[1]; }
+            }
+
+            // Unduh berkas lewat fetch agar spinner pada tombol berhenti tepat saat
+            // unduhan selesai (perilaku sama seperti halaman petugas & manajer).
+            async function startAdminDownload(button, url) {
+                if (!button || !url || url === '#') return;
+                if (button.dataset.loading === 'true') return;
+
+                button.dataset.loading = 'true';
+                button.dataset.label = button.innerHTML;
+                button.classList.add('is-loading');
+                // Tombol berlabel teks tampilkan "Menyiapkan...", tombol ikon-saja
+                // cukup spinner agar bentuknya tidak melar.
+                const hasText = button.textContent.trim() !== '';
+                button.innerHTML = hasText
+                    ? '<span class="btn-spinner"></span> Menyiapkan...'
+                    : '<span class="btn-spinner" style="margin-right:0;"></span>';
+
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    });
+                    if (!response.ok) throw new Error('Gagal mengunduh berkas.');
+
+                    const blob = await response.blob();
+                    const filename = filenameFromDisposition(response.headers.get('Content-Disposition'));
+                    const objectUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = filename || '';
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+                } catch (error) {
+                    window.location.href = url;
+                } finally {
+                    button.innerHTML = button.dataset.label;
+                    button.classList.remove('is-loading');
+                    button.dataset.loading = 'false';
+                }
+            }
+
             if (confirmAction) {
                 confirmAction.addEventListener('click', function () {
                     const redirect = activeConfirmTrigger?.dataset.confirmRedirect;
@@ -2092,10 +2251,29 @@
                     activeConfirmTrigger = null;
                 });
             }
+
+            // Tombol unduh admin: langsung mengunduh tanpa pop up konfirmasi
+            // (perilaku sama seperti halaman manajer), dengan spinner di tombol.
+            document.addEventListener('click', function (e) {
+                const button = e.target.closest?.('[data-download-url]');
+                if (!button) return;
+                e.preventDefault();
+                startAdminDownload(button, button.dataset.downloadUrl);
+            });
         });
     </script>
 
     {{-- JS khusus per halaman --}}
     @stack('scripts')
+
+    <script>
+        window.addEventListener('load', function () {
+            var sk = document.getElementById('sk-overlay');
+            if (sk) {
+                sk.classList.add('sk-done');
+                setTimeout(function () { sk.remove(); }, 600);
+            }
+        });
+    </script>
 </body>
 </html>

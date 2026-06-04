@@ -3,7 +3,13 @@
     $active : penanda menu aktif — 'dashboard' | 'archive' | 'log' | 'user' | 'master'
     Catatan: ganti href="#" dengan route() / url() saat routing sudah dibuat.
 --}}
-@php($active = $active ?? 'dashboard')
+@php
+    $active = $active ?? 'dashboard';
+    $activeMasterPane = request()->routeIs('admin.datamaster')
+        && in_array(request('pane', 'karyawan'), ['karyawan', 'unit', 'truck', 'inventaris'], true)
+            ? request('pane', 'karyawan')
+            : 'karyawan';
+@endphp
 
 <aside class="sidebar" id="sidebar">
 
@@ -55,10 +61,10 @@
                     <div class="sidebar__submenu">
                         <div class="sidebar__submenu-line"></div>
                         <div class="sidebar__submenu-items">
-                            <a href="{{ route('admin.datamaster', ['pane' => 'karyawan']) }}" class="sidebar__submenu-item {{ $active === 'master' ? 'active' : '' }}" data-pane="karyawan">Data Karyawan</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'unit']) }}" class="sidebar__submenu-item" data-pane="unit">Data Unit</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'truck']) }}" class="sidebar__submenu-item" data-pane="truck">Data Truck</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'inventaris']) }}" class="sidebar__submenu-item" data-pane="inventaris">Data Inventaris</a>
+                            <a href="{{ route('admin.datamaster', ['pane' => 'karyawan']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'karyawan' ? 'active' : '' }}" data-pane="karyawan">Data Karyawan</a>
+                            <a href="{{ route('admin.datamaster', ['pane' => 'unit']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'unit' ? 'active' : '' }}" data-pane="unit">Data Unit</a>
+                            <a href="{{ route('admin.datamaster', ['pane' => 'truck']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'truck' ? 'active' : '' }}" data-pane="truck">Data Truck</a>
+                            <a href="{{ route('admin.datamaster', ['pane' => 'inventaris']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'inventaris' ? 'active' : '' }}" data-pane="inventaris">Data Inventaris</a>
                         </div>
                     </div>
                 </div>

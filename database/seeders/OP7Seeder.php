@@ -73,6 +73,8 @@ class OP7Seeder extends Seeder
                     'name' => $name,
                     'group_name' => 'OP.7 Group '.$groupCode,
                     'position' => 'Operator OP.7',
+                    'division' => 'operasional',
+                    'work_time' => 'Shift',
                     'status' => 'active',
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -83,7 +85,7 @@ class OP7Seeder extends Seeder
         DB::table('master_employees')->upsert(
             $employees,
             ['npk'],
-            ['name', 'group_name', 'position', 'status', 'updated_at']
+            ['name', 'group_name', 'position', 'division', 'work_time', 'status', 'updated_at']
         );
     }
 }

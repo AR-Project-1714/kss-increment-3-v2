@@ -74,12 +74,12 @@
                                 <div class="rentang-jam-wrapper">
                                     <div class="input-wrapper">
                                         <span class="input-icon" style="top: 8px;left: 15px; right: auto; color: var(--blue-main);"><i class="fi fi-br-clock"></i></span>
-                                        <input type="text" name="material_work_start" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500;">
+                                        <input type="text" name="material_work_start" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
                                     </div>
                                     <i class="fi fi-rr-arrow-right" style="font-size: 12px; color: var(--dark-main);"></i>
                                     <div class="input-wrapper">
                                         <span class="input-icon" style="top:8px;left: 15px; right: auto; color: var(--red-main);"><i class="fi fi-br-clock"></i></span>
-                                        <input type="text" name="material_work_end" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500;">
+                                        <input type="text" name="material_work_end" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
                                     </div>
                                 </div>
                             </div>
@@ -102,7 +102,7 @@
                         <div class="table-input w-100">
                             <div class="head">
                                 <div class="table-column no"><span>No</span></div>
-                                <div class="table-column main"><span>Jenis</span></div>
+                                <div class="table-column main"><span>Jam</span></div>
                                 <div class="table-column small"><span>Sekarang</span></div>
                                 <div class="table-column small"><span>Lalu</span></div>
                                 <div class="table-column small"><span>Total</span></div>
@@ -112,7 +112,7 @@
                             <div class="body">
                                 <div class="table-column no"><span>1</span></div>
                                 <div class="table-column main">
-                                    <div class="table-input-wrapper"><span class="icon"><i class="fi fi-sr-marker"></i></span><input type="text" name="unloading_containers[0][type]" placeholder="Tujuan"></div>
+                                    <div class="table-input-wrapper"><span class="icon"><i class="fi fi-rr-clock"></i></span><input type="text" name="unloading_containers[0][time]" class="time-picker-input" placeholder="00:00" autocomplete="off" inputmode="numeric" maxlength="5"></div>
                                 </div>
                                 <div class="table-column small"><input type="number" name="unloading_containers[0][qty_current]" class="form-control-custom" placeholder="0"></div>
                                 <div class="table-column small"><input type="number" name="unloading_containers[0][qty_prev]" class="form-control-custom" placeholder="0" readonly></div>

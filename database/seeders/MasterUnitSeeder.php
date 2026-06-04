@@ -58,12 +58,75 @@ class MasterUnitSeeder extends Seeder
             ['id' => 43, 'name' => 'Bus KSS-10', 'type' => 'Bus'],
         ];
 
-        $data = array_map(fn (array $unit): array => array_merge($unit, [
-            'status' => 'active',
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]), $units);
+        $data = array_map(function (array $unit) use ($now): array {
+            $unitCode = $this->unitCodeFromType($unit['type']);
+            $unitNumber = $this->unitNumberFromName($unit['name']);
 
-        DB::table('master_units')->upsert($data, ['id'], ['name', 'type', 'status', 'updated_at']);
+            return array_merge($unit, [
+                'unit_code' => $unitCode,
+                'brand' => $this->brandFor($unitCode, $unitNumber),
+                'unit_number' => $unitNumber,
+                'macro_category' => $this->macroCategoryFromType($unit['type']),
+                'status' => 'active',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }, $units);
+
+        DB::table('master_units')->upsert($data, ['id'], ['name', 'type', 'unit_code', 'brand', 'unit_number', 'macro_category', 'status', 'updated_at']);
+    }
+
+    private function unitCodeFromType(string $type): ?string
+    {
+        return match (strtolower(trim($type))) {
+            'trailer', 'trailler' => 'TRL',
+            'tronton' => 'TRT',
+            'dump truck' => 'DT',
+            'forklift' => 'FL',
+            'wheel loader' => 'WL',
+            'excavator' => 'EXC',
+            'pick up' => 'PU',
+            'bus' => 'BUS',
+            default => null,
+        };
+    }
+
+    private function macroCategoryFromType(string $type): ?string
+    {
+        return match (strtolower(trim($type))) {
+            'trailer', 'trailler', 'tronton', 'dump truck' => 'truck',
+            'forklift', 'wheel loader', 'excavator' => 'heavy',
+            default => null,
+        };
+    }
+
+    private function unitNumberFromName(string $name): ?string
+    {
+        if (! preg_match('/\b(KSS|KAD)[\s.-]*(\d+)\b/i', $name, $matches)) {
+            return null;
+        }
+
+        return strtoupper($matches[1]).'-'.str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+    }
+
+    private function brandFor(?string $unitCode, ?string $unitNumber): ?string
+    {
+        if ($unitCode === 'TRL') {
+            return 'UD';
+        }
+
+        if (in_array($unitCode, ['TRT', 'DT'], true)) {
+            return 'HINO';
+        }
+
+        if ($unitCode !== 'FL') {
+            return null;
+        }
+
+        return in_array($unitNumber, [
+            'KSS-01', 'KSS-03', 'KSS-04', 'KSS-05',
+            'KSS-70', 'KSS-71', 'KSS-72', 'KSS-73', 'KSS-74', 'KSS-75',
+            'KSS-100', 'KSS-101', 'KSS-102', 'KSS-103',
+        ], true) ? 'YALE' : 'TOYOTA';
     }
 }

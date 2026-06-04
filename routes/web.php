@@ -1,9 +1,11 @@
 <?php
 
-use App\Http\Controllers\LoginV2Controller;
 use App\Http\Controllers\AdminV2Controller;
+use App\Http\Controllers\LoginV2Controller;
 use App\Http\Controllers\ManajerController;
+use App\Http\Controllers\ReportMaintenanceController;
 use App\Http\Controllers\ReportOpsController;
+use App\Http\Controllers\ReportSafetyController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +20,7 @@ Route::post('/logout', [LoginV2Controller::class, 'logout'])->middleware('auth')
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN])->group(function () {
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');
     Route::get('/archive', [AdminV2Controller::class, 'archive'])->name('archive');
+    Route::get('/archive/suggestions', [AdminV2Controller::class, 'archiveSuggestions'])->name('archive.suggestions');
     Route::get('/log', [AdminV2Controller::class, 'log'])->name('log');
     Route::get('/user-manage', [AdminV2Controller::class, 'userManage'])->name('user-manage');
     Route::get('/datamaster', [AdminV2Controller::class, 'dataMaster'])->name('datamaster');
@@ -27,6 +30,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
     Route::get('/reports/{report}', [AdminV2Controller::class, 'showReport'])->name('reports.show');
     Route::get('/reports/{report}/download', [AdminV2Controller::class, 'downloadReport'])->name('reports.download');
     Route::delete('/reports/{report}', [AdminV2Controller::class, 'destroyReport'])->name('reports.destroy');
+    Route::get('/maintenance-reports/{report}', [AdminV2Controller::class, 'showMaintenanceReport'])->name('maintenance-reports.show');
+    Route::get('/maintenance-reports/{report}/download', [AdminV2Controller::class, 'downloadMaintenanceReport'])->name('maintenance-reports.download');
+    Route::delete('/maintenance-reports/{report}', [AdminV2Controller::class, 'destroyMaintenanceReport'])->name('maintenance-reports.destroy');
 
     Route::post('/users', [AdminV2Controller::class, 'storeUser'])->name('users.store');
     Route::put('/users/{user}', [AdminV2Controller::class, 'updateUser'])->name('users.update');
@@ -57,9 +63,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
 });
 
 Route::middleware('auth')->group(function () {
-    Route::middleware('role:except,'.Role::ADMIN.','.Role::MANAGER)->group(function () {
+    Route::middleware('role:except,'.Role::ADMIN.','.Role::MANAGER.','.Role::MAINTENANCE.','.Role::SAFETY)->group(function () {
         Route::get('/report-ops', [ReportOpsController::class, 'index'])->name('report-ops.index');
         Route::get('/report-ops/history/suggestions', [ReportOpsController::class, 'historySuggestions'])->name('report-ops.history.suggestions');
+        Route::get('/report-ops/received/suggestions', [ReportOpsController::class, 'receivedSuggestions'])->name('report-ops.received.suggestions');
         Route::get('/report-ops/ship-operations/suggestions', [ReportOpsController::class, 'shipOperationSuggestions'])->name('report-ops.ship-operations.suggestions');
         Route::get('/report-ops/create', [ReportOpsController::class, 'create'])->name('report-ops.create');
         Route::post('/report-ops', [ReportOpsController::class, 'store'])->name('report-ops.store');
@@ -72,6 +79,30 @@ Route::middleware('auth')->group(function () {
         Route::get('/report-ops/{report}/excel', [ReportOpsController::class, 'exportExcel'])->name('report-ops.excel');
     });
 
+    // Modul Pemeliharaan — hanya untuk peran pemeliharaan (akun Kasi Pemeliharaan).
+    Route::middleware('role:'.Role::MAINTENANCE)->prefix('pemeliharaan')->name('pemeliharaan.')->group(function () {
+        Route::get('/', [ReportMaintenanceController::class, 'index'])->name('index');
+        Route::get('/create', [ReportMaintenanceController::class, 'create'])->name('create');
+        Route::post('/', [ReportMaintenanceController::class, 'store'])->name('store');
+        Route::get('/{report}', [ReportMaintenanceController::class, 'show'])->name('show');
+        Route::get('/{report}/edit', [ReportMaintenanceController::class, 'edit'])->name('edit');
+        Route::put('/{report}', [ReportMaintenanceController::class, 'update'])->name('update');
+        Route::delete('/{report}', [ReportMaintenanceController::class, 'destroy'])->name('destroy');
+        Route::get('/{report}/pdf', [ReportMaintenanceController::class, 'exportPdf'])->name('pdf');
+    });
+
+    // Modul Safety/K3 — hanya untuk peran safety (akun Karu Safety: Usman Ali).
+    Route::middleware('role:'.Role::SAFETY)->prefix('report-safety')->name('safety.')->group(function () {
+        Route::get('/', [ReportSafetyController::class, 'history'])->name('index');
+        Route::get('/create', [ReportSafetyController::class, 'create'])->name('create');
+        Route::post('/', [ReportSafetyController::class, 'store'])->name('store');
+        Route::get('/{report}', [ReportSafetyController::class, 'show'])->name('show');
+        Route::get('/{report}/edit', [ReportSafetyController::class, 'edit'])->name('edit');
+        Route::put('/{report}', [ReportSafetyController::class, 'update'])->name('update');
+        Route::delete('/{report}', [ReportSafetyController::class, 'destroy'])->name('destroy');
+        Route::get('/{report}/pdf', [ReportSafetyController::class, 'exportPdf'])->name('pdf');
+    });
+
     Route::middleware('role:'.Role::MANAGER)->group(function () {
         Route::get('/manajer', [ManajerController::class, 'index'])->name('manajer.index');
         Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
@@ -81,5 +112,17 @@ Route::middleware('auth')->group(function () {
         Route::post('/manajer/reports/{report}/approve', [ManajerController::class, 'approve'])->name('manajer.reports.approve');
         Route::get('/manajer/reports/{report}/download', [ManajerController::class, 'download'])->name('manajer.reports.download');
         Route::delete('/manajer/reports/{report}', [ManajerController::class, 'destroy'])->name('manajer.reports.destroy');
+
+        // Persetujuan laporan pemeliharaan (alur submitted -> approved).
+        Route::get('/manajer/pemeliharaan/{report}', [ManajerController::class, 'showMaintenance'])->name('manajer.pemeliharaan.show');
+        Route::post('/manajer/pemeliharaan/{report}/approve', [ManajerController::class, 'approveMaintenance'])->name('manajer.pemeliharaan.approve');
+        Route::get('/manajer/pemeliharaan/{report}/download', [ManajerController::class, 'downloadMaintenance'])->name('manajer.pemeliharaan.download');
+        Route::delete('/manajer/pemeliharaan/{report}', [ManajerController::class, 'destroyMaintenance'])->name('manajer.pemeliharaan.destroy');
+
+        // Persetujuan laporan K3/Safety (alur submitted -> approved).
+        Route::get('/manajer/safety/{report}', [ManajerController::class, 'showSafety'])->name('manajer.safety.show');
+        Route::post('/manajer/safety/{report}/approve', [ManajerController::class, 'approveSafety'])->name('manajer.safety.approve');
+        Route::get('/manajer/safety/{report}/download', [ManajerController::class, 'downloadSafety'])->name('manajer.safety.download');
+        Route::delete('/manajer/safety/{report}', [ManajerController::class, 'destroySafety'])->name('manajer.safety.destroy');
     });
 });

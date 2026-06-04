@@ -837,6 +837,7 @@
 
         /* Report Tabs */
         .report-tabs {
+            position: relative;
             display: flex;
             align-items: center;
             gap: 20px;
@@ -852,6 +853,8 @@
         .report-tabs::-webkit-scrollbar { display: none; }
 
         .report-tab {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: center;
             flex: 0 0 auto;
@@ -870,8 +873,22 @@
 
         .report-tab.active {
             color: var(--blue-main);
-            border-bottom: 2px solid var(--blue-main);
+            border-bottom-color: transparent;
             font-weight: 600;
+        }
+
+        .tab-slide-indicator {
+            position: absolute;
+            left: 0;
+            bottom: -1px;
+            width: 0;
+            height: 2px;
+            border-radius: 999px;
+            background: var(--blue-main);
+            transform: translateX(0);
+            transition: transform .34s cubic-bezier(.22,1,.36,1), width .34s cubic-bezier(.22,1,.36,1);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .report-tab__count {
@@ -2160,6 +2177,47 @@
 
             document.querySelectorAll('.toast-message').forEach((toast, index) => bindToastMessage(toast, index));
 
+            function initSlidingTabIndicators() {
+                [
+                    { containerSelector: '.report-tabs', itemSelector: '.report-tab', indicatorClass: 'tab-slide-indicator' },
+                ].forEach(config => {
+                    document.querySelectorAll(config.containerSelector).forEach(container => {
+                        let indicator = container.querySelector(`.${config.indicatorClass}`);
+                        if (!indicator) {
+                            indicator = document.createElement('div');
+                            indicator.className = config.indicatorClass;
+                            container.appendChild(indicator);
+                        }
+
+                        const updateIndicator = () => {
+                            const active = container.querySelector(`${config.itemSelector}.active`);
+                            if (!active) {
+                                indicator.style.opacity = '0';
+                                return;
+                            }
+
+                            indicator.style.opacity = '1';
+                            indicator.style.width = `${active.offsetWidth}px`;
+                            indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+                        };
+
+                        requestAnimationFrame(updateIndicator);
+
+                        if (container.dataset.slidingIndicatorBound === 'true') return;
+
+                        container.dataset.slidingIndicatorBound = 'true';
+                        const observer = new MutationObserver(() => requestAnimationFrame(updateIndicator));
+                        observer.observe(container, { subtree: true, attributes: true, attributeFilter: ['class'] });
+                        container.addEventListener('scroll', () => requestAnimationFrame(updateIndicator), { passive: true });
+                        window.addEventListener('resize', () => requestAnimationFrame(updateIndicator));
+                        document.fonts?.ready?.then(() => requestAnimationFrame(updateIndicator));
+                    });
+                });
+            }
+
+            initSlidingTabIndicators();
+            window.syncTabIndicators = initSlidingTabIndicators;
+
             // ==========================================
             // 1. SIDEBAR TOGGLE
             // ==========================================
@@ -2387,22 +2445,52 @@
                 confirmBtn.disabled = true;
             });
 
-            // Download laporan: spinner singkat sebagai tanda proses download dimulai
-            // (link unduhan tidak memuat ulang halaman, jadi dipulihkan via timeout).
-            document.addEventListener('click', function (e) {
+            // Download laporan: ambil berkas lewat fetch agar spinner berhenti tepat
+            // saat unduhan selesai (bukan lagi timer perkiraan).
+            const filenameFromDisposition = (disposition) => {
+                if (!disposition) return '';
+                const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+                if (!match) return '';
+                try { return decodeURIComponent(match[1]); } catch (_) { return match[1]; }
+            };
+
+            document.addEventListener('click', async function (e) {
                 const link = e.target.closest?.('a.btn-act.download');
                 if (!link || link.dataset.loading === 'true') return;
+                e.preventDefault();
+
+                const url = link.getAttribute('href');
+                if (!url || url === '#') return;
 
                 link.dataset.loading = 'true';
                 link.dataset.label = link.innerHTML;
                 link.classList.add('is-loading');
                 link.innerHTML = '<span class="btn-spinner"></span> Menyiapkan...';
 
-                window.setTimeout(function () {
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    });
+                    if (!response.ok) throw new Error('Gagal mengunduh berkas.');
+
+                    const blob = await response.blob();
+                    const filename = filenameFromDisposition(response.headers.get('Content-Disposition'));
+                    const objectUrl = URL.createObjectURL(blob);
+                    const anchor = document.createElement('a');
+                    anchor.href = objectUrl;
+                    anchor.download = filename || '';
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
+                    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+                } catch (error) {
+                    window.location.href = url;
+                } finally {
                     link.innerHTML = link.dataset.label;
                     link.classList.remove('is-loading');
                     link.dataset.loading = 'false';
-                }, 4000);
+                }
             });
 
             // ==========================================
@@ -2422,9 +2510,11 @@
                 const filter = tab.getAttribute('data-filter');
                 const countEl = tab.querySelector('.report-tab__count');
                 if (countEl) {
-                    countEl.textContent = filter === 'all'
+                    const reportCount = filter === 'all'
                         ? reportItems.length
                         : document.querySelectorAll('.report-item[data-category="' + filter + '"]').length;
+                    countEl.textContent = reportCount > 0 ? reportCount : '';
+                    countEl.hidden = reportCount <= 0;
                 }
                 tab.addEventListener('click', function () {
                     reportTabs.forEach(function (t) { t.classList.remove('active'); });

@@ -442,6 +442,7 @@
 
         /* === TABS STYLES (MODIFIED SCROLL) === */
         .tab-content {
+            position: relative;
             border-bottom: 1px solid var(--divider);
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
@@ -467,6 +468,8 @@
         }
 
         .list-tab {
+            position: relative;
+            z-index: 1;
             display: flex;
             padding: 10px 0;
             flex-direction: column;
@@ -486,8 +489,22 @@
         }
 
         .list-tab.active {
-            border-bottom: 1.5px solid var(--blue-active);
+            border-bottom-color: transparent;
             color: var(--blue-active);
+        }
+
+        .tab-slide-indicator {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 0;
+            height: 2px;
+            border-radius: 999px;
+            background: var(--blue-active);
+            transform: translateX(0);
+            transition: transform .34s cubic-bezier(.22,1,.36,1), width .34s cubic-bezier(.22,1,.36,1);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .list-tab.active .list-item:hover {
@@ -1298,6 +1315,7 @@
            MAIN NAVIGATION TABS (TABS FORM)
            ========================================= */
         .tab-form {
+            position: relative;
             display: flex; padding: 5px; align-items: center; align-content: center;
             gap: 5px 10px; align-self: stretch; flex-wrap: nowrap; border-radius: 10px;
             background-color: var(--white); box-shadow: 0 2px 4px 0 var(--blue-main-10);
@@ -1310,13 +1328,31 @@
         .tab-form::-webkit-scrollbar-thumb:hover { background: var(--blue-hover); }
 
         .list-form-tab {
+            position: relative;
+            z-index: 1;
             display: flex; min-width: 130px; padding: 6px 12px; justify-content: center; align-items: center;
             gap: 8px; flex: 1 0 auto; flex-shrink: 0; white-space: nowrap; font-size: 12px; font-weight: 500;
             color: var(--dark-secondary); cursor: pointer; border-radius: 8px; transition: .2s ease-out;
         }
         .list-form-tab:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
-        .list-form-tab.active { color: var(--button-color); background: var(--blue-main); box-shadow: 0 0 4px 0 var(--blue-main-40); }
-        .list-form-tab .icon-tab { position: relative; top: 2px; }
+        .list-form-tab.active { color: var(--button-color); background: transparent; box-shadow: none; }
+        .list-form-tab.active:hover { background: transparent; color: var(--button-color); }
+        .list-form-tab .icon-tab { position: relative; top: 1px; }
+
+        .tab-form-indicator {
+            position: absolute;
+            left: 0;
+            top: 5px;
+            bottom: 5px;
+            width: 0;
+            border-radius: 8px;
+            background: var(--blue-main);
+            box-shadow: 0 0 4px 0 var(--blue-main-40);
+            transform: translateX(0);
+            transition: transform .34s cubic-bezier(.22,1,.36,1), width .34s cubic-bezier(.22,1,.36,1);
+            pointer-events: none;
+            z-index: 0;
+        }
 
         /* =========================================
            FORM CONTAINERS & HEADERS
@@ -1332,7 +1368,7 @@
             font-size: 14px; color: var(--blue-main); display: flex; width: 30px; height: 30px;
             padding: 10px; justify-content: center; align-items: center; border-radius: 6px; background-color: var(--blue-main-10); font-weight: 600;
         }
-        .icon-title-form i { position: relative; top: 2px; }
+        .icon-title-form i { position: relative; top: 2.5px; }
         .counter-form {
             display: flex; width: 90px; padding: 4px 10px; justify-content: center; align-items: center;
             border-radius: 20px; background-color: var(--white); border: 1px solid var(--blue-main-10); font-size: 10px; color: var(--muted);
@@ -1393,16 +1429,11 @@
             flex: 0 0 auto;
         }
 
-        .input-icon .fi-rr-clock {
-            position: relative;
-            top:-3px;
-        }
-
         .input-icon, .tbl-icon-dropdown {
             position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--blue-main); pointer-events: none;
             min-height: 18px; line-height: 1; font-size: 14px; display: flex; align-items: center; justify-content: center; z-index: 5;
         }
-        .input-icon i, .tbl-icon-dropdown i { line-height: 1; }
+        .input-icon i, .tbl-icon-dropdown i { line-height: 1; position: static; }
         .text-placeholder { color: var(--muted) !important; }
 
         /* Dropdown Table Custom Select */
@@ -1562,6 +1593,15 @@
         .load .card-form-group input[type="number"]:focus { outline: 3px solid var(--orange-main-10); box-shadow: 0 0 1px 0 var(--orange-main); background-color: var(--orange-input-focus); }
         .damage .card-form-group input[type="number"]:focus { outline: 3px solid var(--red-main-10); box-shadow: 0 0 1px 0 var(--red-main); background-color: var(--red-input-focus); }
 
+        /* Saat lebar tidak cukup untuk tiga kartu sejajar, stack penuh agar
+           Pengiriman & Pemuatan selebar Kerusakan (tidak jadi 2+1 yang timpang). */
+        @media (max-width: 960px) {
+            .summary-section .form-card {
+                flex: 1 0 100% !important;
+                min-width: 100% !important;
+            }
+        }
+
         /* =========================================
            TIMESHEET COMPONENT
            ========================================= */
@@ -1628,6 +1668,92 @@
         .load .timeline-item .content:hover { outline: 3px solid var(--orange-main-10); }
         .load .clock { color: var(--orange-main); }
 
+        .timesheet-personnel-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+            align-self: stretch;
+            padding-top: 14px;
+            border-top: 1px solid var(--divider);
+        }
+        .timesheet-personnel-grid .form-group {
+            min-width: 0;
+            flex: none;
+        }
+        .timesheet-personnel-grid .form-group--full {
+            grid-column: 1 / -1;
+        }
+        .load .timesheet-personnel-grid {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+        .load .timesheet-personnel-grid .form-group:nth-child(1),
+        .load .timesheet-personnel-grid .form-group:nth-child(2),
+        .load .timesheet-personnel-grid .form-group:nth-child(3) {
+            grid-column: span 2;
+        }
+        .load .timesheet-personnel-grid .form-group:nth-child(4) {
+            grid-column: span 3;
+        }
+        .load .timesheet-personnel-grid .form-group:nth-child(5) {
+            grid-column: span 3;
+        }
+        .timesheet-personnel-grid .form-group label {
+            color: var(--dark-secondary);
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+        }
+        .timesheet-personnel-grid .input-wrapper input[type="text"] {
+            padding-left: 40px;
+        }
+        .personnel-input-icon {
+            position: absolute;
+            left: 15px;
+            top: calc(50% + 1px);
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1;
+            pointer-events: none;
+            transform: translateY(-50%);
+        }
+        .personnel-input-icon i { position: relative; top: 1px; }
+        .deliv .timesheet-personnel-grid .personnel-input-icon { color: var(--blue-main); }
+        .load .timesheet-personnel-grid .personnel-input-icon { color: var(--orange-main); }
+        .load .timesheet-personnel-grid .form-group input[type="text"]:focus {
+            outline: 3px solid var(--orange-main-10);
+            box-shadow: 0 0 1px 0 var(--orange-main);
+            background-color: var(--orange-input-focus);
+        }
+
+        @media (max-width: 560px) {
+            .timesheet-personnel-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .load .timesheet-personnel-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timesheet-personnel-grid .form-group--full {
+                grid-column: auto;
+            }
+
+            .load .timesheet-personnel-grid .form-group:nth-child(4),
+            .load .timesheet-personnel-grid .form-group:nth-child(5) {
+                grid-column: auto;
+            }
+
+            .load .timesheet-personnel-grid .form-group:nth-child(1),
+            .load .timesheet-personnel-grid .form-group:nth-child(2),
+            .load .timesheet-personnel-grid .form-group:nth-child(3) {
+                grid-column: auto;
+            }
+        }
+
         /* Timeline Items */
         .timeline-section { display: flex; min-height: 220px; flex: 1 1 auto; flex-direction: column; align-items: flex-start; gap: 15px; align-self: stretch; }
         .timeline-section:empty { min-height: 0; }
@@ -1682,6 +1808,9 @@
         .table-column.small { flex: 1; min-width: 120px; justify-content: center; }
         .table-column.small input { color: var(--dark-main); }
         .table-column.delete { width: 60px; justify-content: center; text-align: center; }
+        /* Kolom No & Hapus tidak boleh menyusut agar baris (mis. nomor 2 digit
+           seperti "10") tetap sejajar dengan baris lain saat tabel di-scroll. */
+        .table-column.no, .table-column.delete { flex-shrink: 0; }
 
         .table-column.medium { display: flex; min-width: 150px; padding: 0 10px; align-items: center; gap: 10px; flex: 1 0 0; }
         .table-column.double { display: flex; max-width: 280px; padding: 0 10px; flex-direction: column; justify-content: center; align-items: center; gap: 10px; flex: 1 0 0; }
@@ -1700,6 +1829,75 @@
         .table-column.absent i.red { color: var(--red-main); }
         .table-column.absent input { text-align: center; }
 
+        /* Mobile: tabel karyawan (Shift, Relief/Lembur, OP.7 & Pengganti, Lain-lain)
+           dilebarkan mengikuti kolom agar header sejajar dengan isi dan latar
+           header (mis. OP.7 Pengganti yang merah) tidak terpotong saat di-scroll. */
+        @media (max-width: 920px) {
+            .tab-content-karyawan .table-input { min-width: max-content; }
+        }
+
+        /* =========================================
+           OP.7 EXCHANGE ARROWS (animated)
+           Panah biru turun & merah naik bergerak bergantian untuk
+           menggambarkan pertukaran operator -> pengganti.
+           ========================================= */
+        .exchange { gap: 30px; padding: 4px 0; }
+
+        .exchange-arrow {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            font-size: 22px;
+            transition: transform .25s ease;
+        }
+
+        .exchange-arrow i { position: relative; display: block; }
+        .exchange-arrow.down { color: var(--blue-main); background-color: var(--blue-main-10); box-shadow: 0 6px 16px var(--blue-main-10); }
+        .exchange-arrow.up   { color: var(--red-main);  background-color: var(--red-main-10);  box-shadow: 0 6px 16px var(--red-main-10); }
+
+        /* Cincin pulsa yang melebar keluar */
+        .exchange-arrow::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            opacity: 0;
+            animation: exchangeRing 2.4s ease-out infinite;
+        }
+        .exchange-arrow.up::before { animation-delay: 1.2s; }
+
+        /* Ikon memantul ke arah masing-masing (berlawanan fase) */
+        .exchange-arrow.down i { animation: exchangeBobDown 1.8s ease-in-out infinite; }
+        .exchange-arrow.up i   { animation: exchangeBobUp 1.8s ease-in-out infinite; }
+
+        .exchange-arrow:hover { transform: translateY(-2px) scale(1.06); }
+
+        @keyframes exchangeRing {
+            0%   { transform: scale(.85); opacity: .5; }
+            70%  { opacity: 0; }
+            100% { transform: scale(1.55); opacity: 0; }
+        }
+        @keyframes exchangeBobDown {
+            0%, 100% { transform: translateY(-5px); opacity: .6; }
+            50%      { transform: translateY(5px);  opacity: 1; }
+        }
+        @keyframes exchangeBobUp {
+            0%, 100% { transform: translateY(5px);  opacity: .6; }
+            50%      { transform: translateY(-5px); opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .exchange-arrow::before,
+            .exchange-arrow.down i,
+            .exchange-arrow.up i { animation: none !important; }
+            .exchange-arrow i { opacity: 1; }
+        }
+
         .table-divide { display: flex; padding: 10px 20px; align-items: center; align-self: stretch; background-color: var(--blue-main-25, #cfe2ff); font-size: 12px; font-weight: 600; }
 
         /* Inner Inputs within tables */
@@ -1707,7 +1905,14 @@
             display: flex; padding: 8px 15px; align-items: center; gap: 10px; align-self: stretch;
             border-radius: 8px; background-color: var(--white); border: 1px solid var(--divider); width: 100%; box-sizing: border-box;
         }
-        .table-input-wrapper i { font-size: 12px; color: var(--blue-main); position: relative; top: 0px; }
+        .table-input-wrapper .icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transform: translateY(2px);
+        }
+        .table-input-wrapper i { font-size: 12px; color: var(--blue-main); position: relative; top: 0px; line-height: 1; }
         .container-content .table-input-wrapper i { color: var(--orange-main) !important; }
         .table-input-wrapper input { font-weight: 500; font-size: 12px; color: var(--dark-main); border: none; outline: none; width: 100%; background: transparent; }
         .table-input-wrapper:focus-within { outline: 3px solid var(--blue-main-10); box-shadow: 0 0 1px 0 var(--blue-main); background-color: var(--blue-input-focus); }
@@ -1747,7 +1952,8 @@
             gap: 8px; flex: 1 0 0; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;
         }
         .tab-sections:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
-        .tab-sections.active { color: var(--button-color, #fff); background-color: var(--blue-main, #0d6efd); }
+        .tab-sections.active { color: var(--button-color, #fff); background-color: var(--blue-main, #0d6efd); box-shadow: 0 0 4px 0 var(--blue-main-40); }
+        .tab-sections.active:hover { color: var(--button-color, #fff); background-color: var(--blue-main, #0d6efd); }
         .tab-sections i { position: relative; top: 1px; }
 
         /* Custom Radio Buttons */
@@ -2337,6 +2543,48 @@
                 const toastMessages = document.querySelectorAll('.toast-message');
                 toastMessages.forEach((toast, index) => bindToastMessage(toast, index));
 
+                function initSlidingTabIndicators() {
+                    [
+                        { containerSelector: '.tab-content', itemSelector: '.list-tab', indicatorClass: 'tab-slide-indicator' },
+                        { containerSelector: '.tab-form', itemSelector: '.list-form-tab', indicatorClass: 'tab-form-indicator' },
+                    ].forEach(config => {
+                        document.querySelectorAll(config.containerSelector).forEach(container => {
+                            let indicator = container.querySelector(`.${config.indicatorClass}`);
+                            if (!indicator) {
+                                indicator = document.createElement('div');
+                                indicator.className = config.indicatorClass;
+                                container.appendChild(indicator);
+                            }
+
+                            const updateIndicator = () => {
+                                const active = container.querySelector(`${config.itemSelector}.active`);
+                                if (!active) {
+                                    indicator.style.opacity = '0';
+                                    return;
+                                }
+
+                                indicator.style.opacity = '1';
+                                indicator.style.width = `${active.offsetWidth}px`;
+                                indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+                            };
+
+                            requestAnimationFrame(updateIndicator);
+
+                            if (container.dataset.slidingIndicatorBound === 'true') return;
+
+                            container.dataset.slidingIndicatorBound = 'true';
+                            const observer = new MutationObserver(() => requestAnimationFrame(updateIndicator));
+                            observer.observe(container, { subtree: true, attributes: true, attributeFilter: ['class'] });
+                            container.addEventListener('scroll', () => requestAnimationFrame(updateIndicator), { passive: true });
+                            window.addEventListener('resize', () => requestAnimationFrame(updateIndicator));
+                            document.fonts?.ready?.then(() => requestAnimationFrame(updateIndicator));
+                        });
+                    });
+                }
+
+                initSlidingTabIndicators();
+                window.syncTabIndicators = initSlidingTabIndicators;
+
                 // ==========================================
                 // 2C. NUMBER INPUT SAFETY
                 // ==========================================
@@ -2427,6 +2675,7 @@
                 const finishModal = document.getElementById('finishModal');
                 const btnFinalSubmit = document.getElementById('btnFinalSubmit');
                 const mainForm = document.getElementById('mainReportForm');
+                const finishReceiverLabel = document.querySelector('[data-finish-receiver-label]');
 
                 // Modals Script 1
                 const signatureModal = document.getElementById('signatureModal');
@@ -2440,8 +2689,24 @@
                 if(deleteDraftModal) triggerBtnsDelete.forEach(btn => btn.addEventListener('click', () => deleteDraftModal.classList.add('show')));
                 if(editHistoryModal) triggerBtnsEditHistory.forEach(btn => btn.addEventListener('click', () => editHistoryModal.classList.add('show')));
 
+                function updateFinishReceiverLabel() {
+                    if (!finishReceiverLabel) return;
+
+                    const receiver = mainForm?.querySelector('[name="received_by_group"]') || document.querySelector('[name="received_by_group"]');
+                    const receiverGroup = String(receiver?.value || '').trim().toUpperCase();
+                    finishReceiverLabel.textContent = receiverGroup ? `Regu ${receiverGroup}` : 'regu penerima yang dipilih';
+                }
+
+                document.querySelector('[name="received_by_group"]')?.addEventListener('change', updateFinishReceiverLabel);
+                updateFinishReceiverLabel();
+
                 // Bind Event Buka Modal Script 2
-                if(btnOpenConfirm && finishModal) btnOpenConfirm.addEventListener('click', () => finishModal.classList.add('show'));
+                if(btnOpenConfirm && finishModal) {
+                    btnOpenConfirm.addEventListener('click', () => {
+                        updateFinishReceiverLabel();
+                        finishModal.classList.add('show');
+                    });
+                }
 
                 // Fungsi Tutup Semua Modal
                 function closeAllModals() {
@@ -2618,6 +2883,15 @@
                 let currentStepIndex = 0;
 
                 if(tabs.length > 0 && steps.length > 0) {
+                    function scrollToFormTabs() {
+                        const tabForm = document.querySelector('.tab-form');
+                        if (!tabForm) return;
+
+                        const topGap = window.innerWidth <= 768 ? 16 : 40;
+                        const targetTop = Math.max(0, tabForm.getBoundingClientRect().top + window.scrollY - topGap);
+                        window.scrollTo({ top: targetTop, behavior: 'smooth' });
+                    }
+
                     function showStep(index) {
                         if(index < 0 || index >= steps.length) return;
 
@@ -2633,7 +2907,7 @@
 
                         tabs[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                         currentStepIndex = index;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        requestAnimationFrame(scrollToFormTabs);
                     }
 
                     tabs.forEach((tab, index) => tab.addEventListener('click', () => showStep(index)));
@@ -2645,16 +2919,19 @@
                 // 5. ALL LOGIC TABS (Laporan, Bongkar, Karyawan, dll)
                 // ==========================================
 
-                // A. Laporan, Draft, Riwayat
+                // A. Laporan, Draft, Riwayat, Diterima
                 const tabLaporan = document.getElementById('tab-laporan');
                 const tabDraft = document.getElementById('tab-draft');
                 const tabRiwayat = document.getElementById('tab-riwayat');
+                const tabDiterima = document.getElementById('tab-diterima');
                 const contentLaporan = document.getElementById('content-laporan');
                 const contentDraft = document.getElementById('content-draft');
                 const contentRiwayat = document.getElementById('content-riwayat');
+                const contentDiterima = document.getElementById('content-diterima');
                 let currentTabIndex = 0;
                 if (tabDraft?.classList.contains('active')) currentTabIndex = 1;
                 if (tabRiwayat?.classList.contains('active')) currentTabIndex = 2;
+                if (tabDiterima?.classList.contains('active')) currentTabIndex = 3;
 
                 function switchMainTab(newTab, newContent, newIndex, isFlex) {
                     if (currentTabIndex === newIndex) return;
@@ -2663,10 +2940,12 @@
                     if(contentLaporan) { contentLaporan.classList.add('d-none'); contentLaporan.classList.remove('d-flex', 'animate-slide-right', 'animate-slide-left'); }
                     if(contentDraft) { contentDraft.classList.add('d-none'); contentDraft.classList.remove('d-flex', 'animate-slide-right', 'animate-slide-left'); }
                     if(contentRiwayat) { contentRiwayat.classList.add('d-none'); contentRiwayat.classList.remove('animate-slide-right', 'animate-slide-left'); }
+                    if(contentDiterima) { contentDiterima.classList.add('d-none'); contentDiterima.classList.remove('animate-slide-right', 'animate-slide-left'); }
 
                     if(tabLaporan) tabLaporan.classList.remove('active');
                     if(tabDraft) tabDraft.classList.remove('active');
                     if(tabRiwayat) tabRiwayat.classList.remove('active');
+                    if(tabDiterima) tabDiterima.classList.remove('active');
 
                     newContent.classList.remove('d-none');
                     if (isFlex) newContent.classList.add('d-flex');
@@ -2678,6 +2957,7 @@
                 if(tabLaporan) tabLaporan.addEventListener('click', (e) => { e.preventDefault(); switchMainTab(tabLaporan, contentLaporan, 0, true); });
                 if(tabDraft) tabDraft.addEventListener('click', (e) => { e.preventDefault(); switchMainTab(tabDraft, contentDraft, 1, true); });
                 if(tabRiwayat) tabRiwayat.addEventListener('click', (e) => { e.preventDefault(); switchMainTab(tabRiwayat, contentRiwayat, 2, false); });
+                if(tabDiterima) tabDiterima.addEventListener('click', (e) => { e.preventDefault(); switchMainTab(tabDiterima, contentDiterima, 3, false); });
 
                 // B. Sub Bongkar (Bahan Baku vs Container)
                 const tabBtnBahanBaku = document.getElementById('tab-btn-bahan-baku');

@@ -66,7 +66,7 @@
                         <span class="fsize-14 fw-600">Laporan Harian</span>
                     </div>
                     <div class="timesheet-content">
-                        <div class="timesheet-input d-flex flex-wrap w-100" style="gap: 15px;">
+                        <div class="timesheet-input cob-line d-flex flex-wrap w-100" style="gap: 15px;">
                             <div class="timesheet-input-wrapper">
                                 <input type="text" name="bulk_logs[1][0][time]" placeholder="00:00" class="time-picker-input" autocomplete="off" inputmode="numeric" maxlength="5">
                                 <span class="icon"><i class="fi fi-rr-clock"></i></span>

@@ -73,11 +73,13 @@ class MasterEmployeeSeeder extends Seeder
 
         $data = array_map(fn (array $employee): array => array_merge($employee, [
             'position' => null,
+            'division' => 'operasional',
+            'work_time' => 'Shift',
             'status' => 'active',
             'created_at' => $now,
             'updated_at' => $now,
         ]), $employees);
 
-        DB::table('master_employees')->upsert($data, ['npk'], ['name', 'group_name', 'position', 'status', 'updated_at']);
+        DB::table('master_employees')->upsert($data, ['npk'], ['name', 'group_name', 'position', 'division', 'work_time', 'status', 'updated_at']);
     }
 }

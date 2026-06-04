@@ -90,8 +90,8 @@
 
         .history-table th.column-1,
         .history-table .tbody td.column-2:not(.date-column):not(.shift-column):not(.status-column):not(.receiver-column) {
-            flex: 0 0 170px !important;
-            max-width: 170px;
+            flex: 0 0 165px !important;
+            max-width: 165px;
         }
 
         .history-table .thead th,
@@ -102,7 +102,7 @@
 
         .history-table th.nomor,
         .history-table td.nomor {
-            width: 40px;
+            width: 38px;
         }
 
         .history-table th.column-1,
@@ -112,23 +112,23 @@
 
         .history-table th.receiver-column,
         .history-table td.receiver-column {
-            flex: 0 0 110px;
-            max-width: 110px;
-            min-width: 110px;
+            flex: 0 0 112px;
+            max-width: 112px;
+            min-width: 112px;
         }
 
         .history-table .thead th.date-column,
         .history-table .tbody td.date-column {
-            flex: 0 0 195px;
-            max-width: 210px;
-            min-width: 195px;
+            flex: 0 0 180px;
+            max-width: 185px;
+            min-width: 180px;
         }
 
         .history-table .thead th.status-column,
         .history-table .tbody td.status-column {
-            flex: 0 0 140px;
-            max-width: 150px;
-            min-width: 140px;
+            flex: 0 0 128px;
+            max-width: 132px;
+            min-width: 128px;
         }
 
         .history-table .tbody td.status-column .status {
@@ -137,9 +137,9 @@
 
         .history-table .thead th.shift-column,
         .history-table .tbody td.shift-column {
-            flex: 0 0 115px;
-            max-width: 130px;
-            min-width: 115px;
+            flex: 0 0 108px;
+            max-width: 112px;
+            min-width: 108px;
         }
 
         .history-table .tbody td.shift-column .shift {
@@ -148,9 +148,9 @@
 
         .history-table th.action-column,
         .history-table td.aksi {
-            flex: 0 0 215px;
-            max-width: 215px;
-            min-width: 215px;
+            flex: 0 0 245px;
+            max-width: 245px;
+            min-width: 245px;
         }
 
         .history-table th.action-column {
@@ -163,12 +163,20 @@
         }
 
         .history-table .history-actions {
-            gap: 4px;
+            gap: 3px;
         }
 
         .history-table td.aksi .btn {
-            padding: 5px 8px;
-            font-size: 11px;
+            padding: 5px 7px;
+            gap: 4px;
+            font-size: 10px;
+        }
+
+        .history-table td.aksi .btn.print-report {
+            width: 28px;
+            min-width: 28px;
+            padding-left: 0;
+            padding-right: 0;
         }
 
         .history-table td.aksi .btn .button-icon i,
@@ -516,8 +524,17 @@
 
         .sign-modal-note {
             margin: 0;
-            color: var(--dark-secondary);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            color: var(--muted);
             line-height: 1.6;
+        }
+
+        .sign-modal-note i {
+            position: relative;
+            top: 3px;
+            flex-shrink: 0;
         }
 
         .pop-up.footer .btn.check-report {
@@ -528,6 +545,28 @@
 
         .pop-up.footer .btn.check-report:hover {
             background-color: var(--orange-hover);
+            transform: translateY(-2px);
+        }
+
+        .history-actions .btn.print-report {
+            background-color: var(--cyan-main);
+            color: #ffffff;
+            justify-content: center;
+        }
+
+        .history-actions .btn.print-report:hover {
+            background-color: #0284c7;
+            transform: translateY(-2px);
+        }
+
+        .history-actions .btn.delete-icon {
+            background-color: var(--red-main);
+            color: #ffffff;
+            justify-content: center;
+        }
+
+        .history-actions .btn.delete-icon:hover {
+            background-color: var(--red-hover);
             transform: translateY(-2px);
         }
 
@@ -590,6 +629,12 @@
         $historyFirstItem = method_exists($historyReports, 'firstItem') ? $historyReports->firstItem() : ($historyTotal > 0 ? 1 : null);
         $historyLastItem = method_exists($historyReports, 'lastItem') ? $historyReports->lastItem() : $historyReports->count();
         $showHistorySearch = $historyTotal > 0 || $historySearch !== '';
+
+        $receivedSearch = trim((string) ($receivedSearch ?? request('received_search', '')));
+        $receivedTotal = method_exists($receivedReports, 'total') ? $receivedReports->total() : $receivedReports->count();
+        $receivedFirstItem = method_exists($receivedReports, 'firstItem') ? $receivedReports->firstItem() : ($receivedTotal > 0 ? 1 : null);
+        $receivedLastItem = method_exists($receivedReports, 'lastItem') ? $receivedReports->lastItem() : $receivedReports->count();
+        $showReceivedSearch = $receivedTotal > 0 || $receivedSearch !== '';
 
         $documentId = function ($report): string {
             $date = $report->report_date ?: $report->created_at;
@@ -707,7 +752,7 @@
             </div>
             <a href="{{ route('report-ops.create') }}" class="btn-new d-flex justify-content-center align-items-center gap-10 br-12 action-link" style="cursor: pointer;">
                 <div class="icon-new"><i class="fi fi-rr-add fs-12"></i></div>
-                <span class="white pure fsize-14 fw-500">Buat Laporan</span>
+                <span class="white pure fsize-14 fw-500">Buat Laporan Operasional</span>
             </a>
         </div>
 
@@ -774,6 +819,17 @@
                         @endif
                     </div>
                 </a>
+                <a class="list-tab {{ $activeTab === 'diterima' ? 'active' : '' }}" id="tab-diterima">
+                    <div class="list-item">
+                        <div class="icon-tab">
+                            <i class="fi fi-rr-inbox-in"></i>
+                        </div>
+                        <span class="text-tab">Laporan Diterima</span>
+                        @if ($receivedTotal > 0)
+                            <div class="tab-amount fsize-10 fw-500">{{ $receivedTotal }}</div>
+                        @endif
+                    </div>
+                </a>
             </div>
 
             <div id="content-laporan" class="report-in {{ $activeTab === 'laporan' ? 'd-flex' : 'd-none' }} flex-column align-items-start align-self-stretch gap-20 w-100">
@@ -792,7 +848,7 @@
                                 </div>
                             </div>
                             <div class="report-title d-flex flex-column align-items-start align-self-stretch">
-                                <span class="title fsize-16 fw-600 text-main align-self-stretch">Laporan Shift Harian</span>
+                                <span class="title fsize-16 fw-600 text-main align-self-stretch">Laporan Operasi Harian</span>
                                 <span class="id fsize-10 text-muted align-self-stretch">ID Dokumen: {{ $documentId($report) }}</span>
                             </div>
                             <div class="report-group d-flex align-items-center gap-10 br-20 white-bg">
@@ -856,7 +912,7 @@
                         <div class="draft-report">
                             <div class="draft-detail">
                                 <div class="draft-title d-flex flex-column align-items-start align-self-stretch">
-                                    <span class="title fsize-16 fw-600 text-main align-self-stretch">Draft Laporan Shift Harian</span>
+                                    <span class="title fsize-16 fw-600 text-main align-self-stretch">Draft Laporan Operasi Harian</span>
                                     <span class="id fsize-10 text-muted align-self-stretch">ID Dokumen: {{ $documentId($report) }}</span>
                                 </div>
                                 <div class="last-edit d-flex align-items-center align-self-stretch text-muted fsize-10" style="gap:5px">
@@ -941,7 +997,7 @@
                             @php($status = $statusMeta($report->status))
                             <?php
                                 $historySearchParts = array_merge([
-                                    'Laporan Shift Harian',
+                                    'Laporan Operasi Harian',
                                     $documentId($report),
                                     optional($report->report_date)->format('Y-m-d'),
                                     $formatDate($report->report_date),
@@ -969,7 +1025,7 @@
                             >
                                 <td class="nomor">{{ $historyFirstItem ? $historyFirstItem + $loop->index : $loop->iteration }}</td>
                                 <td class="column-2">
-                                    <span>Laporan Shift Harian</span>
+                                    <span>Laporan Operasi Harian</span>
                                     <span class="fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
                                 </td>
                                 <td class="column-2 date-column">
@@ -1016,10 +1072,12 @@
                                                 <span>Edit</span>
                                             </button>
                                         @endif
+                                        <a href="{{ route('report-ops.show', $report) }}?print=1" class="btn print-report action-link" target="_blank" rel="noopener" title="Print laporan" aria-label="Print laporan">
+                                            <span><i class="fi fi-rr-print"></i></span>
+                                        </a>
                                         @if ($canDelete($report))
-                                            <button type="button" class="btn edit action-modal-trigger" data-open-modal="delete-draft-modal-{{ $report->id }}">
-                                                <span><i class="fi fi-rr-trash"></i></span>
-                                                <span>Hapus</span>
+                                            <button type="button" class="btn delete-icon action-modal-trigger" data-open-modal="delete-draft-modal-{{ $report->id }}" title="Hapus laporan" aria-label="Hapus laporan">
+                                                <i class="fi fi-rr-trash"></i>
                                             </button>
                                         @endif
                                     </div>
@@ -1093,6 +1151,197 @@
                     </div>
                 @endif
             </div>
+
+            <div id="content-diterima" class="w-100 {{ $activeTab === 'diterima' ? '' : 'd-none' }}">
+                @if ($showReceivedSearch)
+                    <form method="GET" action="{{ route('report-ops.index') }}" id="received-search-form" class="history-searchbar" autocomplete="off">
+                        <input type="hidden" name="tab" value="diterima">
+                        <div class="history-search-input">
+                            <span class="history-search-icon"><i class="fi fi-rr-search"></i></span>
+                            <input
+                                type="search"
+                                id="received-search-input"
+                                name="received_search"
+                                class="custom-input"
+                                placeholder="Cari ID, tanggal (mis. Mei 2026), shift, group pengirim, atau isi laporan..."
+                                value="{{ $receivedSearch }}"
+                                data-initial-value="{{ $receivedSearch }}"
+                                data-page-start="{{ $receivedFirstItem ?? 1 }}"
+                                data-suggest-url="{{ route('report-ops.received.suggestions') }}"
+                                autocomplete="off"
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-expanded="false"
+                                aria-controls="received-suggest-dropdown"
+                            >
+                            <button type="button" id="received-search-clear" class="history-search-clear d-none" aria-label="Bersihkan pencarian">
+                                <i class="fi fi-br-cross-small"></i>
+                            </button>
+                            <div id="received-suggest-dropdown" class="history-suggest-dropdown" role="listbox" aria-label="Saran pencarian laporan diterima"></div>
+                        </div>
+                        <span
+                            id="received-search-count"
+                            class="history-search-meta fsize-10 fw-600"
+                            data-total="{{ $receivedTotal }}"
+                            data-label="{{ $receivedSearch !== '' ? 'hasil' : 'laporan' }}"
+                        >
+                            <i class="fi fi-rr-folder-open"></i>
+                            <span>{{ $receivedSearch !== '' ? $receivedTotal.' hasil' : $receivedTotal.' laporan' }}</span>
+                        </span>
+                    </form>
+                @endif
+
+                <div class="table-responsive-wrapper">
+                    <table class="w-100 history-table">
+                        <tr class="thead d-flex justify-content-between align-items-center bg-blue br-4 align-self-stretch">
+                            <th class="nomor">No</th>
+                            <th class="column-1">Info Dokumen</th>
+                            <th class="column-1 date-column">Tanggal Laporan</th>
+                            <th class="shift-column">Shift</th>
+                            <th class="receiver-column">Group Pengirim</th>
+                            <th class="status-column">Status</th>
+                            <th class="action-column">Aksi</th>
+                        </tr>
+                        @forelse ($receivedReports as $report)
+                            @php($shift = $shiftMeta($report->shift))
+                            @php($status = $statusMeta($report->status))
+                            <?php
+                                $receivedSearchParts = array_merge([
+                                    'Laporan Operasi Harian',
+                                    $documentId($report),
+                                    optional($report->report_date)->format('Y-m-d'),
+                                    $formatDate($report->report_date),
+                                    $formatDiff($report->updated_at),
+                                    $shift['label'],
+                                    $status['label'],
+                                    'Group '.strtoupper((string) $report->group_name),
+                                    'Regu '.strtoupper((string) $report->group_name),
+                                ], $flattenSearchValues($report));
+
+                                $receivedSearchText = \Illuminate\Support\Str::lower(
+                                    collect($receivedSearchParts)
+                                        ->filter(fn ($value) => filled($value))
+                                        ->map(fn ($value) => trim(strip_tags((string) $value)))
+                                        ->implode(' ')
+                                );
+                            ?>
+                            <tr
+                                class="tbody d-flex justify-content-between align-items-center align-self-stretch"
+                                style="padding: 6px 0;"
+                                data-received-row
+                                data-received-search="{{ $receivedSearchText }}"
+                            >
+                                <td class="nomor">{{ $receivedFirstItem ? $receivedFirstItem + $loop->index : $loop->iteration }}</td>
+                                <td class="column-2">
+                                    <span>Laporan Operasi Harian</span>
+                                    <span class="fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
+                                </td>
+                                <td class="column-2 date-column">
+                                    <span>{{ $formatDate($report->report_date) }}</span>
+                                    <span class="fsize-10 fw-400 text-muted">Terakhir diedit: {{ $formatDiff($report->updated_at) }}</span>
+                                </td>
+                                <td class="column-3 shift-column">
+                                    <div class="shift {{ $shift['class'] }}">
+                                        <span class="icon-shift"><i class="{{ $shift['icon'] }}"></i></span>
+                                        <span class="text">{{ $shift['label'] }}</span>
+                                    </div>
+                                </td>
+                                <td class="column-3 receiver-column">
+                                    <div class="report-group d-flex align-items-center gap-6 br-20 white-bg">
+                                        <div class="letter-group out">{{ strtoupper((string) $report->group_name) ?: '-' }}</div>
+                                        <span class="text fsize-10 fw-600">Regu {{ strtoupper((string) $report->group_name) ?: '-' }}</span>
+                                    </div>
+                                </td>
+                                <td class="column-3 status-column">
+                                    <div class="status {{ $status['class'] }}">
+                                        <span class="icon-status"><i class="{{ $status['icon'] }}"></i></span>
+                                        <span class="text">{{ $status['label'] }}</span>
+                                    </div>
+                                </td>
+                                <td class="aksi">
+                                    <div class="history-actions">
+                                        <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
+                                            <span><i class="fi fi-rr-eye"></i></span>
+                                            <span>Lihat</span>
+                                        </a>
+                                        <a href="{{ route('report-ops.pdf', $report) }}" class="btn export-pdf action-link" data-export-loading>
+                                            <span class="button-icon"><i class="fi fi-rr-file-pdf"></i></span>
+                                            <span class="spinner-icon" aria-hidden="true"></span>
+                                            <span>PDF</span>
+                                        </a>
+                                        <a href="{{ route('report-ops.excel', $report) }}" class="btn export-excel action-link" data-export-loading>
+                                            <span class="button-icon"><i class="fi fi-rr-file-excel"></i></span>
+                                            <span class="spinner-icon" aria-hidden="true"></span>
+                                            <span>Excel</span>
+                                        </a>
+                                        <a href="{{ route('report-ops.show', $report) }}?print=1" class="btn print-report action-link" target="_blank" rel="noopener" title="Print laporan" aria-label="Print laporan">
+                                            <span><i class="fi fi-rr-print"></i></span>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="border-0 p-0">
+                                    <div class="empty-laporan d-flex flex-column align-items-center justify-content-center align-self-stretch p-empty gap-10 w-100">
+                                        <span class="icon-empty"><i class="{{ $receivedSearch !== '' ? 'fi fi-rr-search-alt' : 'fi fi-rr-inbox' }}"></i></span>
+                                        <div class="empty-text d-flex flex-column align-items-center align-self-stretch" style="gap: 5px;">
+                                            <span class="align-self-stretch text-center fw-600">{{ $receivedSearch !== '' ? 'Laporan Tidak Ditemukan' : 'Belum Ada Laporan Masuk' }}</span>
+                                            <span class="align-self-stretch text-center fsize-12 text-secondary">
+                                                {{ $receivedSearch !== '' ? 'Coba gunakan ID, tanggal, shift, regu pengirim, nama kapal, atau isi laporan lain.' : 'Laporan dari regu lain yang ditujukan ke regu Anda akan tampil di sini setelah Anda menerimanya.' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                        @if ($receivedReports->count() > 0)
+                            <tr id="received-search-empty" class="history-search-empty d-none">
+                                <td colspan="7" class="border-0 p-0">
+                                    <div class="empty-laporan d-flex flex-column align-items-center justify-content-center align-self-stretch p-empty gap-10 w-100">
+                                        <span class="icon-empty"><i class="fi fi-rr-search-alt"></i></span>
+                                        <div class="empty-text d-flex flex-column align-items-center align-self-stretch" style="gap: 5px;">
+                                            <span class="align-self-stretch text-center fw-600">Laporan Tidak Ditemukan</span>
+                                            <span class="align-self-stretch text-center fsize-12 text-secondary">Coba gunakan ID, tanggal, shift, regu pengirim, kapal, atau isi laporan lain. Tekan Enter untuk mencari ke seluruh laporan diterima.</span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endif
+                    </table>
+                </div>
+
+                @if (method_exists($receivedReports, 'hasPages') && $receivedReports->hasPages())
+                    <div class="history-pagination">
+                        <div class="history-pagination-info fsize-11 fw-500">
+                            Menampilkan {{ $receivedFirstItem }}-{{ $receivedLastItem }} dari {{ $receivedTotal }} {{ $receivedSearch !== '' ? 'hasil' : 'laporan' }}
+                        </div>
+                        <div class="history-page-list">
+                            @if ($receivedReports->onFirstPage())
+                                <span class="history-page-disabled"><i class="fi fi-rr-angle-small-left"></i></span>
+                            @else
+                                <a href="{{ $receivedReports->previousPageUrl() }}" class="history-page-link" aria-label="Halaman sebelumnya">
+                                    <i class="fi fi-rr-angle-small-left"></i>
+                                </a>
+                            @endif
+
+                            @foreach ($receivedReports->getUrlRange(1, $receivedReports->lastPage()) as $page => $url)
+                                <a href="{{ $url }}" class="history-page-link {{ $receivedReports->currentPage() === $page ? 'active' : '' }}" aria-label="Halaman {{ $page }}">
+                                    {{ $page }}
+                                </a>
+                            @endforeach
+
+                            @if ($receivedReports->hasMorePages())
+                                <a href="{{ $receivedReports->nextPageUrl() }}" class="history-page-link" aria-label="Halaman berikutnya">
+                                    <i class="fi fi-rr-angle-small-right"></i>
+                                </a>
+                            @else
+                                <span class="history-page-disabled"><i class="fi fi-rr-angle-small-right"></i></span>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+            </div>
         </div>
     </div>
 @endsection
@@ -1134,8 +1383,10 @@
                             </div>
                         </div>
                         <p class="fsize-12 sign-modal-note">
-                            Laporan dari Regu {{ strtoupper((string) $report->group_name) ?: '-' }} akan diterima oleh Regu {{ strtoupper((string) $report->received_by_group) ?: '-' }}.
-                            Periksa isi laporan terlebih dahulu jika masih ada data yang perlu dipastikan.
+                            <i class="fi fi-rr-info"></i>
+                            <span>
+                                Laporan ini diterima grup Anda dari Regu {{ strtoupper((string) $report->group_name) ?: '-' }}, lalu akan dikirim ke manajer setelah tanda tangan dikonfirmasi.
+                            </span>
                         </p>
                     </div>
 
@@ -1282,13 +1533,52 @@
                 });
             });
 
+            const filenameFromDisposition = (disposition) => {
+                if (!disposition) return '';
+                const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+                if (!match) return '';
+                try { return decodeURIComponent(match[1]); } catch (_) { return match[1]; }
+            };
+
             document.querySelectorAll('[data-export-loading]').forEach(button => {
-                button.addEventListener('click', function () {
+                button.addEventListener('click', async function (event) {
+                    event.preventDefault();
+
+                    // Cegah klik ganda saat unduhan sedang berjalan.
+                    if (this.classList.contains('is-loading')) return;
+
+                    const url = this.getAttribute('href');
+                    if (!url) return;
+
                     this.classList.add('is-loading');
 
-                    window.setTimeout(() => {
+                    try {
+                        // Ambil berkas lewat fetch agar tahu persis kapan file selesai
+                        // diterima — spinner berhenti tepat saat unduhan selesai,
+                        // tanpa timer/perkiraan waktu.
+                        const response = await fetch(url, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+
+                        if (!response.ok) throw new Error('Gagal mengunduh berkas.');
+
+                        const blob = await response.blob();
+                        const filename = filenameFromDisposition(response.headers.get('Content-Disposition'));
+                        const objectUrl = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = objectUrl;
+                        link.download = filename || '';
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+                    } catch (error) {
+                        // Bila fetch gagal, jatuh ke navigasi biasa sebagai cadangan.
+                        window.location.href = url;
+                    } finally {
                         this.classList.remove('is-loading');
-                    }, 4000);
+                    }
                 });
             });
 
@@ -1626,6 +1916,245 @@
             });
 
             updateHistoryRowsFilter();
+
+            // ====== Tab "Laporan Diterima": filter instan + saran (autocomplete) + cari ke server ======
+            const receivedSearchInput = document.getElementById('received-search-input');
+
+            if (receivedSearchInput) {
+                const receivedSearchForm = document.getElementById('received-search-form');
+                const receivedSearchClear = document.getElementById('received-search-clear');
+                const receivedSearchCountBadge = document.getElementById('received-search-count');
+                const receivedSearchCount = receivedSearchCountBadge?.querySelector('span');
+                const receivedSearchEmpty = document.getElementById('received-search-empty');
+                const receivedSuggestDropdown = document.getElementById('received-suggest-dropdown');
+                const receivedSearchBox = receivedSearchInput.closest('.history-search-input');
+                const receivedRows = Array.from(document.querySelectorAll('[data-received-row]'));
+                const receivedPageStart = Number(receivedSearchInput.dataset.pageStart || 1);
+                const receivedServerTotal = Number(receivedSearchCountBadge?.dataset.total || receivedRows.length);
+                const receivedServerLabel = receivedSearchCountBadge?.dataset.label || 'laporan';
+                const receivedInitialValue = receivedSearchInput.dataset.initialValue || '';
+                const receivedSuggestUrl = receivedSearchInput.dataset.suggestUrl || '';
+                const receivedDebounceMs = 250;
+                const receivedMinLength = 2;
+                let receivedTimer = null;
+                let receivedController = null;
+                let receivedItems = [];
+                let receivedActiveIndex = -1;
+
+                function updateReceivedRowsFilter() {
+                    const keyword = normalizeHistoryKeyword(receivedSearchInput.value);
+                    const initialKeyword = normalizeHistoryKeyword(receivedInitialValue);
+                    let visibleCount = 0;
+
+                    receivedRows.forEach(row => {
+                        const target = normalizeHistoryKeyword(row.dataset.receivedSearch || row.textContent);
+                        const isMatch = keyword === '' || target.includes(keyword);
+                        row.classList.toggle('d-none', !isMatch);
+
+                        if (isMatch) {
+                            visibleCount += 1;
+                            const numberCell = row.querySelector('.nomor');
+                            if (numberCell) numberCell.textContent = receivedPageStart + visibleCount - 1;
+                        }
+                    });
+
+                    if (receivedSearchEmpty) {
+                        receivedSearchEmpty.classList.toggle('d-none', keyword === '' || visibleCount > 0);
+                    }
+
+                    if (receivedSearchClear) {
+                        receivedSearchClear.classList.toggle('d-none', keyword === '');
+                    }
+
+                    if (receivedSearchCount) {
+                        receivedSearchCount.textContent = (keyword === '' || keyword === initialKeyword)
+                            ? `${receivedServerTotal} ${receivedServerLabel}`
+                            : `${visibleCount} dari ${receivedRows.length} di halaman ini`;
+                    }
+                }
+
+                function closeReceivedDropdown() {
+                    if (receivedTimer) { window.clearTimeout(receivedTimer); receivedTimer = null; }
+                    if (receivedController) { receivedController.abort(); receivedController = null; }
+                    if (!receivedSuggestDropdown) return;
+                    receivedSuggestDropdown.classList.remove('show');
+                    receivedSuggestDropdown.innerHTML = '';
+                    receivedItems = [];
+                    receivedActiveIndex = -1;
+                    receivedSearchInput.setAttribute('aria-expanded', 'false');
+                }
+
+                function renderReceivedState(html) {
+                    if (!receivedSuggestDropdown) return;
+                    receivedSuggestDropdown.innerHTML = html;
+                    receivedSuggestDropdown.classList.add('show');
+                    receivedSearchInput.setAttribute('aria-expanded', 'true');
+                }
+
+                function renderReceivedItems(payload) {
+                    if (!receivedSuggestDropdown) return;
+                    receivedItems = Array.isArray(payload?.items) ? payload.items : [];
+                    receivedActiveIndex = receivedItems.length > 0 ? 0 : -1;
+
+                    if (receivedItems.length === 0) {
+                        renderReceivedState(`<div class="history-suggest-empty">Tidak ada laporan yang cocok. Coba kata kunci lain seperti tanggal, ID, atau nama kapal.</div>`);
+                        return;
+                    }
+
+                    const header = `<div class="history-suggest-header">${receivedItems.length} saran teratas</div>`;
+                    const list = receivedItems.map((item, index) => {
+                        const statusClass = `status-${escapeHtml(item.status_class || 'submit')}`;
+                        const shiftClass = `shift-${escapeHtml(item.shift_class || 'pagi')}`;
+                        return `
+                            <button type="button" class="history-suggest-item${index === 0 ? ' is-active' : ''}" data-index="${index}">
+                                <div class="history-suggest-item-title">
+                                    <span>${escapeHtml(item.title)} · ${escapeHtml(item.report_date)}</span>
+                                    <span class="history-suggest-item-id">${escapeHtml(item.document_id)}</span>
+                                </div>
+                                <div class="history-suggest-item-meta">
+                                    <span class="chip ${shiftClass}">${escapeHtml(item.shift_label)}</span>
+                                    <span class="chip">Regu ${escapeHtml(item.group_from)} → ${escapeHtml(item.group_to)}</span>
+                                    <span class="chip ${statusClass}">${escapeHtml(item.status_label)}</span>
+                                    <span>Terakhir diedit ${escapeHtml(item.updated_diff)}</span>
+                                </div>
+                            </button>
+                        `;
+                    }).join('');
+
+                    renderReceivedState(header + list);
+                }
+
+                function setActiveReceived(index) {
+                    if (!receivedSuggestDropdown) return;
+                    const nodes = receivedSuggestDropdown.querySelectorAll('.history-suggest-item');
+                    if (!nodes.length) return;
+                    receivedActiveIndex = ((index % nodes.length) + nodes.length) % nodes.length;
+                    nodes.forEach((node, i) => node.classList.toggle('is-active', i === receivedActiveIndex));
+                    nodes[receivedActiveIndex]?.scrollIntoView({ block: 'nearest' });
+                }
+
+                async function fetchReceivedSuggestions(keyword) {
+                    if (!receivedSuggestUrl || !receivedSuggestDropdown) return;
+                    if (receivedController) receivedController.abort();
+                    receivedController = new AbortController();
+                    renderReceivedState(`<div class="history-suggest-loading">Memuat saran...</div>`);
+
+                    try {
+                        const url = new URL(receivedSuggestUrl, window.location.origin);
+                        url.searchParams.set('q', keyword);
+                        const response = await fetch(url.toString(), {
+                            signal: receivedController.signal,
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin',
+                        });
+                        if (!response.ok) throw new Error('request failed');
+                        renderReceivedItems(await response.json());
+                    } catch (error) {
+                        if (error.name === 'AbortError') return;
+                        renderReceivedState(`<div class="history-suggest-empty">Tidak bisa memuat saran. Coba lagi.</div>`);
+                    }
+                }
+
+                function openReceivedDropdownFromSearch() {
+                    if (!receivedSuggestDropdown) return;
+                    const keyword = receivedSearchInput.value.trim();
+                    if (normalizeHistoryKeyword(keyword).length >= receivedMinLength) fetchReceivedSuggestions(keyword);
+                }
+
+                function isPointerInsideReceivedArea(event) {
+                    if (!receivedSearchBox || !receivedSuggestDropdown?.classList.contains('show')) return false;
+                    const searchRect = receivedSearchBox.getBoundingClientRect();
+                    const dropdownRect = receivedSuggestDropdown.getBoundingClientRect();
+                    const safeGap = 10;
+                    const left = Math.min(searchRect.left, dropdownRect.left) - safeGap;
+                    const right = Math.max(searchRect.right, dropdownRect.right) + safeGap;
+                    const top = Math.min(searchRect.top, dropdownRect.top) - safeGap;
+                    const bottom = Math.max(searchRect.bottom, dropdownRect.bottom) + safeGap;
+                    return event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom;
+                }
+
+                function submitReceivedSearch(keyword) {
+                    if (!receivedSearchForm) return;
+                    const url = new URL(receivedSearchForm.action, window.location.origin);
+                    url.searchParams.set('tab', 'diterima');
+                    url.searchParams.delete('received_page');
+
+                    const normalized = String(keyword || '').trim();
+                    if (normalized !== '') {
+                        url.searchParams.set('received_search', normalized);
+                    } else {
+                        url.searchParams.delete('received_search');
+                    }
+
+                    window.location.assign(url.toString());
+                }
+
+                function scheduleReceivedSearch() {
+                    if (receivedTimer) window.clearTimeout(receivedTimer);
+                    updateReceivedRowsFilter();
+                    const keyword = receivedSearchInput.value.trim();
+                    if (keyword === '') { closeReceivedDropdown(); return; }
+                    if (receivedSuggestDropdown && normalizeHistoryKeyword(keyword).length >= receivedMinLength) {
+                        receivedTimer = window.setTimeout(() => fetchReceivedSuggestions(keyword), receivedDebounceMs);
+                    } else {
+                        closeReceivedDropdown();
+                    }
+                }
+
+                if (receivedSearchForm) {
+                    receivedSearchForm.addEventListener('submit', () => {
+                        if (receivedTimer) window.clearTimeout(receivedTimer);
+                        closeReceivedDropdown();
+                    });
+                }
+
+                receivedSearchInput.addEventListener('input', scheduleReceivedSearch);
+                receivedSearchInput.addEventListener('focus', openReceivedDropdownFromSearch);
+                receivedSearchInput.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') {
+                        if (receivedTimer) window.clearTimeout(receivedTimer);
+                        receivedSearchInput.value = '';
+                        updateReceivedRowsFilter();
+                        closeReceivedDropdown();
+                        if (normalizeHistoryKeyword(receivedInitialValue) !== '') submitReceivedSearch('');
+                        return;
+                    }
+                    if (event.key === 'ArrowDown' && receivedItems.length) {
+                        event.preventDefault();
+                        setActiveReceived(receivedActiveIndex + 1);
+                    } else if (event.key === 'ArrowUp' && receivedItems.length) {
+                        event.preventDefault();
+                        setActiveReceived(receivedActiveIndex - 1);
+                    }
+                });
+
+                if (receivedSearchBox) {
+                    receivedSearchBox.addEventListener('click', event => {
+                        const item = event.target.closest('.history-suggest-item');
+                        if (item) {
+                            if (receivedTimer) window.clearTimeout(receivedTimer);
+                            const index = Number(item.dataset.index || -1);
+                            const keyword = String(receivedItems[index]?.document_id || receivedSearchInput.value || '').trim();
+                            receivedSearchInput.value = keyword;
+                            submitReceivedSearch(keyword);
+                            return;
+                        }
+                        if (!event.target.closest('.history-suggest-dropdown')) openReceivedDropdownFromSearch();
+                    });
+                }
+
+                document.addEventListener('mousemove', event => {
+                    if (!receivedSuggestDropdown?.classList.contains('show')) return;
+                    if (!isPointerInsideReceivedArea(event)) closeReceivedDropdown();
+                });
+
+                document.addEventListener('click', event => {
+                    if (!receivedSuggestDropdown) return;
+                    if (!event.target.closest('.history-search-input')) closeReceivedDropdown();
+                });
+
+                updateReceivedRowsFilter();
+            }
         });
     </script>
 @endpush

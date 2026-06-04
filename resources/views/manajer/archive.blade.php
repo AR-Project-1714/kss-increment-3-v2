@@ -124,6 +124,105 @@
             font-weight: 600;
         }
 
+        .shift.nonshift {
+            background-color: var(--blue-main-5);
+            color: var(--black-secondary);
+        }
+
+        .division-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .division-badge i {
+            position: relative;
+            top: 1px;
+            font-size: 11px;
+        }
+
+        .division-badge.operasional {
+            color: var(--blue-main);
+            background-color: var(--blue-main-10);
+        }
+
+        .division-badge.pemeliharaan {
+            color: var(--orange-main);
+            background-color: var(--orange-main-10);
+        }
+
+        .division-badge.safety {
+            color: var(--success);
+            background-color: var(--success-10);
+        }
+
+        .archive-body .table-responsive-wrapper table {
+            min-width: 1100px;
+        }
+
+        .archive-body .thead,
+        .archive-body .tbody {
+            justify-content: flex-start !important;
+        }
+
+        .archive-body .thead th,
+        .archive-body .tbody td {
+            padding-left: 6px;
+            padding-right: 6px;
+            flex: 0 0 auto;
+        }
+
+        .archive-body .thead th:nth-child(2),
+        .archive-body .tbody td.column-2 {
+            width: 230px;
+            min-width: 230px;
+        }
+
+        .archive-body .thead th:nth-child(3),
+        .archive-body .tbody td:nth-child(3) {
+            width: 135px;
+            min-width: 135px;
+        }
+
+        .archive-body .thead th:nth-child(4),
+        .archive-body .tbody td:nth-child(4) {
+            width: 135px;
+            min-width: 135px;
+        }
+
+        .archive-body .thead th:nth-child(5),
+        .archive-body .tbody td:nth-child(5) {
+            width: 105px;
+            min-width: 105px;
+        }
+
+        .archive-body .thead th:nth-child(6),
+        .archive-body .tbody td:nth-child(6) {
+            width: 120px;
+            min-width: 120px;
+        }
+
+        .archive-body .thead th:nth-child(7),
+        .archive-body .tbody td:nth-child(7) {
+            width: 125px;
+            min-width: 125px;
+        }
+
+        .archive-body .thead th.aksi,
+        .archive-body .tbody td.aksi {
+            width: 225px;
+            min-width: 225px;
+        }
+
+        .archive-body .tbody td.column-2 > span:first-child {
+            white-space: nowrap;
+        }
+
         .archive-count {
             display: inline-flex;
             align-items: center;
@@ -265,6 +364,19 @@
             padding-bottom: 10px;
         }
 
+        .archive-body .tbody td.column-3 {
+            gap: 6px;
+        }
+
+        .archive-body .tbody td.aksi {
+            gap: 6px;
+        }
+
+        .archive-body .report-group {
+            gap: 5px;
+            padding: 5px 8px;
+        }
+
         @media (max-width: 920px) {
             .archive-toolbar__right {
                 width: 100%;
@@ -378,7 +490,7 @@
                                 type="search"
                                 id="archive-search-input"
                                 name="q"
-                                placeholder="Cari ID, tanggal, shift, regu, kapal, karyawan, atau isi laporan"
+                                placeholder="Cari ID, divisi, tanggal, shift, regu, kapal, karyawan, atau isi laporan"
                                 value="{{ $archiveSearch }}"
                                 data-initial-value="{{ $archiveSearch }}"
                                 data-page-start="{{ $archiveFirstItem ?? 1 }}"
@@ -433,7 +545,7 @@
                                         <option value="all" @selected($selectedDivision === 'all')>Semua Divisi</option>
                                         <option value="operasional" @selected($selectedDivision === 'operasional')>Operasional</option>
                                         <option value="pemeliharaan" @selected($selectedDivision === 'pemeliharaan')>Pemeliharaan</option>
-                                        <option value="safety" @selected($selectedDivision === 'safety')>Safety</option>
+                                        <option value="safety" @selected($selectedDivision === 'safety')>Safety (Coming Soon)</option>
                                     </select>
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>
@@ -484,84 +596,71 @@
                             <th class="nomor">No</th>
                             <th class="column-1">Info Dokumen</th>
                             <th class="column-1">Tanggal Laporan</th>
+                            <th>Divisi</th>
                             <th>Regu</th>
                             <th>Shift</th>
                             <th>Status</th>
                             <th class="aksi">Aksi</th>
                         </tr>
 
-                        @forelse ($reports as $report)
-                            @php($shift = $shiftMeta($report->shift))
-                            @php($status = $statusMeta($report->status))
-                            @php($groupName = strtoupper((string) $report->group_name) ?: '-')
-                            <?php
-                                $archiveSearchParts = array_merge([
-                                    'Laporan Shift Harian',
-                                    $documentId($report),
-                                    optional($report->report_date)->format('Y-m-d'),
-                                    $formatDate($report->report_date),
-                                    $formatDiff($report->approved_at ?? $report->updated_at),
-                                    $shift['label'],
-                                    $status['label'],
-                                    'Group '.$groupName,
-                                    'Regu '.$groupName,
-                                    'Group '.strtoupper((string) $report->received_by_group),
-                                    'Regu '.strtoupper((string) $report->received_by_group),
-                                ], $flattenSearchValues($report));
-
-                                $rowSearch = \Illuminate\Support\Str::lower(
-                                    collect($archiveSearchParts)
-                                        ->filter(fn ($value) => filled($value))
-                                        ->map(fn ($value) => trim(strip_tags((string) $value)))
-                                        ->implode(' ')
-                                );
-                            ?>
+                        @forelse ($reports as $r)
+                            @php
+                                $reguName = trim((string) ($r['regu'] ?? '-'));
+                                $reguCodeSource = trim(preg_replace('/^(regu|group)\s*/i', '', $reguName));
+                                $reguCode = $reguCodeSource !== '' && $reguCodeSource !== '-' ? strtoupper(substr($reguCodeSource, 0, 1)) : '-';
+                            @endphp
                             <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="{{ $rowSearch }}"
+                                data-history-search="{{ $r['search'] ?? '' }}"
                             >
-                                <td class="nomor">{{ $archiveFirstItem ? $archiveFirstItem + $loop->index : $loop->iteration }}</td>
+                                <td class="nomor">{{ $r['no'] }}</td>
                                 <td class="column-2">
-                                    <span>Laporan Shift Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: {{ $documentId($report) }}</span>
+                                    <span>{{ $r['title'] }}</span>
+                                    <span class="fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
                                 </td>
                                 <td class="column-1">
-                                    <span>{{ $formatDate($report->report_date) }}</span>
+                                    <span>{{ $r['date'] }}</span>
+                                </td>
+                                <td>
+                                    <span class="division-badge {{ $r['division_class'] ?? 'operasional' }}">
+                                        <i class="{{ $r['division_icon'] ?? 'fi fi-rr-ship' }}"></i>
+                                        {{ $r['division_label'] ?? 'Operasional' }}
+                                    </span>
                                 </td>
                                 <td>
                                     <div class="report-group d-flex align-items-center gap-6">
-                                        <div class="letter-group out">{{ $groupName }}</div>
-                                        <span class="text fsize-10 fw-600">Regu {{ $groupName }}</span>
+                                        <div class="letter-group out">{{ $reguCode }}</div>
+                                        <span class="text fsize-10 fw-600">{{ $reguName === '-' ? '-' : $reguName }}</span>
                                     </div>
                                 </td>
                                 <td class="column-3">
-                                    <div class="shift {{ $shift['class'] }}">
-                                        <span class="icon-shift"><i class="{{ $shift['icon'] }}"></i></span>
-                                        <span class="text">{{ $shift['label'] }}</span>
+                                    <div class="shift {{ $r['shift'] }}">
+                                        <span class="icon-shift"><i class="{{ $r['shift_icon'] }}"></i></span>
+                                        <span class="text">{{ $r['shift_label'] }}</span>
                                     </div>
                                 </td>
                                 <td class="column-3">
-                                    <div class="status {{ $status['class'] }}">
+                                    <div class="status {{ $r['status'] }}">
                                         <span class="status-dot"></span>
-                                        <span class="text">{{ $status['label'] }}</span>
+                                        <span class="text">{{ $r['status_label'] }}</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="{{ route('manajer.reports.download', $report) }}" class="btn-act download">
+                                    <a href="{{ $r['download_url'] ?? '#' }}" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="{{ route('manajer.reports.show', $report) }}" class="btn-act view" title="Lihat" target="_blank" rel="noopener">
+                                    <a href="{{ $r['view_url'] ?? '#' }}" class="btn-act view" title="Lihat" target="_blank" rel="noopener">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
-                                    <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-{{ $report->id }}" title="Hapus">
+                                    <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-{{ $r['key'] }}" title="Hapus">
                                         <i class="fi fi-rr-trash"></i>
                                     </button>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="border-0 p-0">
+                                <td colspan="8" class="border-0 p-0">
                                     <div class="archive-empty">
                                         <div class="fw-600 mb-1" style="color: var(--black);">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Laporan tidak ditemukan' : 'Arsip masih kosong' }}</div>
                                         <div class="fsize-12">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Coba gunakan ID, tanggal, shift, regu, divisi, status, kapal, karyawan, atau isi laporan lain.' : 'Laporan berstatus diserahkan, ditanda tangani, dan diarsipkan akan tampil di sini.' }}</div>
@@ -572,7 +671,7 @@
 
                         @if ($reports->count() > 0)
                             <tr id="archive-search-empty" class="d-none">
-                                <td colspan="7" class="border-0 p-0">
+                                <td colspan="8" class="border-0 p-0">
                                     <div class="archive-empty">
                                         <div class="fw-600 mb-1" style="color: var(--black);">Laporan tidak ditemukan di halaman ini</div>
                                         <div class="fsize-12">Tekan Enter untuk mencari ke seluruh arsip, atau coba kata kunci lain.</div>
@@ -619,12 +718,12 @@
 @endsection
 
 @push('modals')
-    @foreach ($reports as $report)
-        <div class="modal-overlay" id="delete-report-modal-{{ $report->id }}">
+    @foreach ($reports as $r)
+        <div class="modal-overlay" id="delete-report-modal-{{ $r['key'] }}">
             <div class="modal-box">
                 <div class="modal-box__header">
                     <span class="modal-box__title">Hapus Arsip Laporan</span>
-                    <button type="button" class="btn-modal-close js-close-modal" data-modal="delete-report-modal-{{ $report->id }}">
+                    <button type="button" class="btn-modal-close js-close-modal" data-modal="delete-report-modal-{{ $r['key'] }}">
                         <i class="fi fi-br-cross"></i>
                     </button>
                 </div>
@@ -632,8 +731,8 @@
                 <div class="modal-box__doc-detail">
                     <span class="modal-box__doc-icon"><i class="fi fi-rr-trash"></i></span>
                     <div>
-                        <div class="modal-box__doc-title">Laporan Shift Harian</div>
-                        <div class="modal-box__doc-sub">{{ $documentId($report) }} &bull; {{ $formatDate($report->report_date) }}</div>
+                        <div class="modal-box__doc-title">{{ $r['title'] }}</div>
+                        <div class="modal-box__doc-sub">{{ $r['id'] }} &bull; {{ $r['date'] }}</div>
                     </div>
                 </div>
 
@@ -643,8 +742,8 @@
                 </div>
 
                 <div class="modal-box__footer">
-                    <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-{{ $report->id }}">Batal</button>
-                    <form action="{{ route('manajer.reports.destroy', $report) }}" method="POST">
+                    <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-{{ $r['key'] }}">Batal</button>
+                    <form action="{{ $r['destroy_url'] ?? '#' }}" method="POST">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
@@ -766,8 +865,9 @@
                             <span>${escapeHtml(item.document_id)}</span>
                         </div>
                         <div class="archive-suggest-meta">
+                            <span class="archive-suggest-chip">${escapeHtml(item.division_label || 'Operasional')}</span>
                             <span class="archive-suggest-chip">${escapeHtml(item.shift_label)}</span>
-                            <span class="archive-suggest-chip">Regu ${escapeHtml(item.group_from)}</span>
+                            ${item.group_from && item.group_from !== '-' ? `<span class="archive-suggest-chip">Regu ${escapeHtml(item.group_from)}</span>` : ''}
                             <span>Disetujui ${escapeHtml(item.approver)}</span>
                         </div>
                     </button>

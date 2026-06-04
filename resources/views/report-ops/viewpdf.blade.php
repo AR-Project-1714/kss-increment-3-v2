@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Laporan Harian Shift</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     {{--
         ==================================================================
@@ -14,6 +14,10 @@
     @php
         // Default false jika variabel tidak dikirim dari controller
         $isPdf = $isPdf ?? false;
+        $backUrl = $backUrl ?? route('report-ops.index');
+        $pdfUrl = $pdfUrl ?? route('report-ops.pdf', $report);
+        try { $year = ($report->report_date ?: $report->created_at)?->format('Y') ?? now()->format('Y'); } catch (\Throwable) { $year = now()->format('Y'); }
+        $docId = '#OPS-'.$year.'-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
 
         // Fungsi Helper untuk memilih source gambar
         if (!function_exists('getImgSrc')) {
@@ -23,31 +27,25 @@
             }
         }
     @endphp
+    <title>{{ $docId }} - Laporan Operasi Harian</title>
 
     {{-- Favicon hanya ditampilkan jika mode HTML (Browser) --}}
     @if(!$isPdf)
         <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
-
-        {{-- CSS KHUSUS UNTUK ZOOM TAMPILAN HTML --}}
-        <style>
-            body {
-                /* Untuk Chrome, Edge, Safari */
-                zoom: 160%;
-
-                /* Opsional: Untuk Firefox (karena tidak mendukung properti zoom) */
-                -moz-transform: scale(1.5);
-                -moz-transform-origin: top center;
-            }
-        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
     @endif
 
     <style>
+        * { box-sizing: border-box; }
         @page {
-            /* Legal Size: 21.59cm x 35.56cm */
-            size: 21.59cm 35.56cm;
+            /* F4: 21.59cm x 33.02cm */
+            size: 21.59cm 33.02cm;
             margin: 0.5cm;
         }
         body {
+            margin: 0;
+            background: #e5e7eb;
             font-family: Arial, Helvetica, sans-serif;
             /* UPDATED: Naik 1pt jadi 7pt */
             font-size: 7pt;
@@ -140,9 +138,90 @@
             max-width: 100%;
             object-fit: contain;
         }
+
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 22px;
+            flex-wrap: wrap;
+            background: #fff;
+            border-bottom: 1px solid #d1d5db;
+            box-shadow: 0 1px 6px rgba(0,0,0,.06);
+            font-family: 'Poppins', Arial, sans-serif;
+        }
+        .toolbar__actions { display: flex; gap: 10px; }
+        .toolbar .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.2;
+            cursor: pointer;
+            text-decoration: none;
+            transition: .2s;
+        }
+        .toolbar .btn i { position: relative; top: 1px; }
+        .btn.back { background: #fff; color: #0f172a; border: 1px solid #d1d5db; }
+        .btn.back:hover { background: #f1f5f9; }
+        .btn.pdf { background: #D20000; color: #fff; }
+        .btn.pdf:hover { filter: brightness(.93); }
+        .btn.print { background: #2563EB; color: #fff; }
+        .btn.print:hover { filter: brightness(.95); }
+
+        .sheet {
+            width: 760px;
+            max-width: 100%;
+            margin: 24px auto;
+            padding: 30px 34px;
+            background: #fff;
+            box-shadow: 0 8px 28px rgba(0,0,0,.14);
+        }
+
+        /* Pada layar kecil, dokumen tidak dikecilkan paksa (yang membuat tabel
+           berebut ruang & berantakan). Sheet tetap selebar dokumen aslinya
+           (760px) lalu diperkecil utuh agar pas selebar layar — persis seperti
+           pratinjau halaman PDF. Skala dihitung oleh script di bawah. */
+        .sheet-frame { width: 100%; }
+        @media (max-width: 800px) {
+            .toolbar { padding: 10px 12px; }
+            .toolbar__actions { flex-wrap: wrap; justify-content: flex-end; }
+            .sheet-frame { overflow: hidden; }
+            .sheet {
+                width: 760px;
+                max-width: none;
+                margin: 12px 0 0 0;
+                transform-origin: top left;
+            }
+        }
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none; }
+            .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }
+        }
     </style>
 </head>
 <body>
+    <div class="toolbar">
+        <a href="{{ $backUrl }}" class="btn back"><i class="fi fi-rr-arrow-small-left"></i> Kembali</a>
+        <div class="toolbar__actions">
+            @if ($pdfUrl)
+                <a href="{{ $pdfUrl }}" class="btn pdf" target="_blank" rel="noopener"><i class="fi fi-rr-file-pdf"></i> Unduh PDF</a>
+            @endif
+            <button type="button" class="btn print" onclick="window.print()"><i class="fi fi-rr-print"></i> Cetak</button>
+        </div>
+    </div>
+
+    <div class="sheet-frame">
+    <div class="sheet">
     {{-- HELPER FUNCTION FOR DYNAMIC DECIMAL --}}
     @php
         if (!function_exists('formatQty')) {
@@ -435,7 +514,7 @@
                             @php $containers = $report->containerActivity->items; $cntMin = 3; @endphp
                             @foreach($containers as $cont)
                             <tr>
-                                <td class="text-center">{{ \Carbon\Carbon::parse($cont->time)->format('H:i') }}</td>
+                                <td class="text-center">{{ $cont->time ? \Carbon\Carbon::parse($cont->time)->format('H:i') : '' }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_current) }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_prev) }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_total) }}</td>
@@ -535,7 +614,7 @@
                                     @endphp
                                     <tr>
                                         <td class="text-center">{{ $unit->id }}</td>
-                                        <td>{{ $unit->name }}</td>
+                                        <td>{{ $unit->short_display_name }}</td>
                                         <td class="text-center">{{ $log->fuel_level ?? '' }}</td>
                                         <td class="text-center {{ $rec == 'Baik' ? 'text-green' : ($rec == 'Rusak' ? 'text-red' : '') }}">{{ $rec }}</td>
                                         <td class="text-center {{ $han == 'Baik' ? 'text-green' : ($han == 'Rusak' ? 'text-red' : '') }}">{{ $han }}</td>
@@ -664,15 +743,15 @@
 
         <!-- ADDED: TABEL KARYAWAN OP.7 & PENGGANTI (FULL WIDTH DI BAWAH) -->
         <div class="text-center border-all bg-gray text-bold" style="border-bottom:none; margin-top: 10px; padding: 1px;">KARYAWAN OP.7</div>
-        <table class="table-bordered w-100 mb-2">
+        <table class="table-bordered w-100 mb-2" style="table-layout: fixed;">
             <tr class="bg-gray">
-                <th style="width: 20px;">NO.</th>
-                <th>NAMA</th>
-                <th>NO. FORKLIFT</th>
-                <th>AREA KERJA</th>
-                <th style="width: 40px;">MASUK</th>
-                <th style="width: 40px;">KELUAR</th>
-                <th>KETERANGAN</th>
+                <th style="width: 4%;">NO.</th>
+                <th style="width: 22%;">NAMA</th>
+                <th style="width: 15%;">NO. FORKLIFT</th>
+                <th style="width: 23%;">AREA KERJA</th>
+                <th style="width: 7%;">MASUK</th>
+                <th style="width: 7%;">KELUAR</th>
+                <th style="width: 22%;">KETERANGAN</th>
             </tr>
             @php $op7Emps = $report->employeeLogs->where('category', 'op7')->values(); @endphp
             @foreach($op7Emps as $index => $emp)
@@ -692,15 +771,15 @@
         </table>
 
         <div class="text-center border-all bg-gray text-bold" style="border-bottom:none; margin-top: 10px; padding: 1px;">DAFTAR PENGGANTI OPERATOR YANG TIDAK MASUK</div>
-        <table class="table-bordered w-100">
+        <table class="table-bordered w-100" style="table-layout: fixed;">
             <tr class="bg-gray">
-                <th style="width: 20px;">NO.</th>
-                <th>NAMA PENGGANTI</th>
-                <th>NO. FORKLIFT</th>
-                <th>AREA KERJA</th>
-                <th style="width: 40px;">MASUK</th>
-                <th style="width: 40px;">KELUAR</th>
-                <th>MENGGANTIKAN / KET</th>
+                <th style="width: 4%;">NO.</th>
+                <th style="width: 22%;">NAMA PENGGANTI</th>
+                <th style="width: 15%;">NO. FORKLIFT</th>
+                <th style="width: 23%;">AREA KERJA</th>
+                <th style="width: 7%;">MASUK</th>
+                <th style="width: 7%;">KELUAR</th>
+                <th style="width: 22%;">MENGGANTIKAN / KET</th>
             </tr>
             @php $replacementEmps = $report->employeeLogs->where('category', 'replacement')->values(); @endphp
             @foreach($replacementEmps as $index => $emp)
@@ -800,5 +879,54 @@
         </tr>
     </table>
 
+    </div>
+    </div>
+
+    {{-- Skala dokumen agar pas selebar layar di perangkat mobile (pratinjau PDF). --}}
+    <script>
+        (function () {
+            var frame = document.querySelector('.sheet-frame');
+            var sheet = frame ? frame.querySelector('.sheet') : null;
+            function fitSheet() {
+                if (!frame || !sheet) return;
+                if (!window.matchMedia('(max-width: 800px)').matches) {
+                    sheet.style.transform = '';
+                    sheet.style.marginLeft = '';
+                    frame.style.height = '';
+                    return;
+                }
+                // Reset dulu agar lebar/tinggi asli dokumen terukur tepat.
+                sheet.style.transform = 'none';
+                sheet.style.marginLeft = '0';
+                var docW = sheet.offsetWidth;   // 760
+                var docH = sheet.offsetHeight;  // tinggi penuh sebelum diskalakan
+                var gap = 16;                   // ruang napas kiri-kanan
+                var avail = frame.clientWidth - gap;
+                var scale = Math.min(1, avail / docW);
+                var left = Math.max(0, (frame.clientWidth - docW * scale) / 2);
+                sheet.style.transform = 'scale(' + scale + ')';
+                sheet.style.marginLeft = left + 'px';
+                frame.style.height = (docH * scale + 12) + 'px';   // +12 = margin atas
+            }
+            window.addEventListener('load', fitSheet);
+            window.addEventListener('resize', fitSheet);
+            window.addEventListener('orientationchange', fitSheet);
+            if (document.readyState === 'complete') fitSheet();
+        })();
+    </script>
+
+    {{-- Buka dialog print otomatis bila diakses dengan ?print=1 (tombol Print di riwayat). --}}
+    <script>
+        (function () {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('print') === '1') {
+                    window.addEventListener('load', function () {
+                        window.setTimeout(function () { window.print(); }, 350);
+                    });
+                }
+            } catch (e) {}
+        })();
+    </script>
 </body>
 </html>

@@ -191,9 +191,9 @@
                     </div>
                 </div>
 
-                <div class="exchange d-flex justify-content-center align-items-center align-self-stretch gap-20" style="font-size: 30px;">
-                    <span class="icon" style="color: var(--blue-main);"><i class="fi fi-rr-arrow-down"></i></span>
-                    <span class="icon" style="color: var(--red-main);"><i class="fi fi-rr-arrow-up"></i></span>
+                <div class="exchange d-flex justify-content-center align-items-center align-self-stretch" aria-hidden="true">
+                    <span class="exchange-arrow down"><i class="fi fi-rr-arrow-down"></i></span>
+                    <span class="exchange-arrow up"><i class="fi fi-rr-arrow-up"></i></span>
                 </div>
 
                 <!-- Tabel Pengganti OP.7 -->
