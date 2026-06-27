@@ -6,6 +6,10 @@
             <div class="counter-form">Form 6 dari 7</div>
         </div>
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
+            <div class="step-info-note">
+                <i class="fi fi-rr-info"></i>
+                <span>Periksa kondisi <strong>Unit Kendaraan</strong>, <strong>Inventaris</strong>, dan <strong>Lingkungan Shelter</strong> saat terima dan saat diserahkan. Klik <strong>Set Semua Baik</strong> untuk menandai sekaligus, lalu ubah item yang bermasalah.</span>
+            </div>
 
             <!-- SUB TAB NAVIGATION (Kendaraan, Inventaris, Lingkungan) -->
             <div class="inspection-header d-flex justify-content-between align-items-end align-self-stretch mb-2">

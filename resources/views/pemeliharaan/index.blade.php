@@ -2,34 +2,44 @@
 
 @push('styles')
 <style>
-    #content-riwayat .table-responsive-wrapper { overflow-x: visible; }
+    #content-riwayat .table-responsive-wrapper {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
     #content-riwayat .table-responsive-wrapper table { min-width: 0; width: 100%; }
     #content-riwayat .thead th,
-    #content-riwayat .tbody td { padding-left: 8px; padding-right: 8px; }
+    #content-riwayat .tbody td { padding-left: 6px; padding-right: 6px; }
     #content-riwayat th.nomor,
     #content-riwayat td.nomor { width: 42px; }
     #content-riwayat .thead th.column-1,
     #content-riwayat .tbody td.column-2,
     #content-riwayat .tbody td.column-3 { min-width: 0; }
     /* Kolom Info Dokumen dibuat lebih ringkas agar tabel muat di layar laptop 100% */
-    .thead th.col-doc, .tbody td.col-doc { flex: 1 1 230px !important; min-width: 210px; max-width: 250px; }
-    .tbody td.col-doc .doc-title { white-space: nowrap; }
+    #content-riwayat .thead th.col-doc,
+    #content-riwayat .tbody td.col-doc { flex: 1 1 205px !important; min-width: 180px; max-width: 220px; }
+    #content-riwayat .tbody td.col-doc .doc-title { white-space: nowrap; }
     #content-riwayat .thead th:nth-child(3),
-    #content-riwayat .tbody td:nth-child(3) { flex: 0 1 190px; min-width: 165px; }
+    #content-riwayat .tbody td:nth-child(3) { flex: 0 1 155px; min-width: 135px; }
     #content-riwayat .thead th:nth-child(4),
-    #content-riwayat .tbody td:nth-child(4) { flex: 0 1 120px; min-width: 100px; }
+    #content-riwayat .tbody td:nth-child(4) { flex: 0 1 95px; min-width: 90px; }
+    #content-riwayat .thead th:nth-child(5),
+    #content-riwayat .tbody td:nth-child(5) { flex: 0 0 140px; min-width: 140px; }
     /* Kolom Status diperlebar agar label status tetap satu baris */
-    .thead th.col-status, .tbody td.col-status { flex: 0 0 145px !important; min-width: 145px; }
-    .tbody td.col-status .status { white-space: nowrap; }
+    #content-riwayat .thead th.col-status,
+    #content-riwayat .tbody td.col-status { flex: 0 0 125px !important; min-width: 125px; }
+    #content-riwayat .tbody td.col-status .status { white-space: nowrap; }
     /* Kolom Aksi: ringkas agar tombol tetap terlihat tanpa scroll horizontal */
-    .thead th.col-aksi { flex: 0 0 250px !important; min-width: 250px; justify-content: flex-end; }
-    .tbody td.col-aksi { flex: 0 0 250px !important; min-width: 250px; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
-    .tbody td.col-aksi .btn { white-space: nowrap; }
-    .tbody td.col-aksi .btn.print-report { background-color: var(--cyan-main); color: #fff; justify-content: center; padding: 6px 9px; }
-    .tbody td.col-aksi .btn.print-report:hover { filter: brightness(.93); transform: translateY(-1px); }
+    #content-riwayat .thead th.col-aksi { flex: 0 0 215px !important; min-width: 215px; justify-content: flex-end; }
+    #content-riwayat .tbody td.col-aksi { flex: 0 0 215px !important; min-width: 215px; justify-content: flex-end; flex-wrap: nowrap; gap: 5px; padding-left: 4px; padding-right: 0; }
+    #content-riwayat .tbody td.col-aksi .btn { white-space: nowrap; padding: 6px 7px; gap: 4px; }
+    #content-riwayat .tbody td.col-aksi .btn.print-report { background-color: var(--cyan-main); color: #fff; justify-content: center; padding: 6px 8px; }
+    #content-riwayat .tbody td.col-aksi .btn.print-report:hover { filter: brightness(.93); transform: translateY(-1px); }
+    .time-badge { display:inline-flex; min-height:20px; padding:2px 8px; align-items:center; gap:4px; border-radius:10px; font-size:10px; font-weight:500; line-height:1; background-color:var(--success-10); color:var(--success); white-space:nowrap; }
+    .time-badge i { display:block; font-size:10px; line-height:1; }
     @media (max-width: 1100px) {
         #content-riwayat .table-responsive-wrapper { overflow-x: auto; }
-        #content-riwayat .table-responsive-wrapper table { min-width: 900px; }
+        #content-riwayat .table-responsive-wrapper table { min-width: 1000px; }
     }
 </style>
 @endpush
@@ -46,6 +56,25 @@
         };
         $formatDate = fn ($date) => $date ? $date->locale('id')->translatedFormat('d F Y') : '-';
         $formatDiff = fn ($date) => $date ? $date->locale('id')->diffForHumans() : '-';
+        $formatTime = function ($value): string {
+            $value = trim((string) $value);
+            return $value === '' ? '' : substr($value, 0, 5);
+        };
+        $workTimeRange = function ($report) use ($formatTime): string {
+            $attendance = $report->attendances
+                ->first(fn ($row) => filled($row->time_in) || filled($row->time_out));
+
+            if (! $attendance) {
+                return '-';
+            }
+
+            $start = $formatTime($attendance->time_in);
+            $end = $formatTime($attendance->time_out);
+
+            return $start !== '' && $end !== ''
+                ? $start.' - '.$end
+                : ($start !== '' ? $start : ($end !== '' ? $end : '-'));
+        };
         $statusMeta = function ($status): array {
             $case = $status instanceof MaintenanceStatus ? $status : (MaintenanceStatus::tryFrom((string) $status) ?? MaintenanceStatus::Draft);
             return ['label' => $case->label(), 'class' => $case->badgeClass(), 'icon' => $case->icon()];
@@ -169,6 +198,7 @@
                             <th class="column-1 col-doc">Info Dokumen</th>
                             <th class="column-1">Tanggal Laporan</th>
                             <th class="column-1">Hari</th>
+                            <th class="column-1">Jam Kerja</th>
                             <th class="column-1 col-status">Status</th>
                             <th class="column-1 col-aksi">Aksi</th>
                         </tr>
@@ -186,6 +216,9 @@
                                 </td>
                                 <td class="column-3">
                                     <div class="day-badge"><i class="fi fi-rr-calendar"></i><span>{{ $report->day_name ?: '-' }}</span></div>
+                                </td>
+                                <td class="column-3">
+                                    <div class="time-badge"><i class="fi fi-rr-clock"></i><span>{{ $workTimeRange($report) }}</span></div>
                                 </td>
                                 <td class="column-3 col-status">
                                     <div class="status {{ $status['class'] }}">
@@ -212,7 +245,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="border-0 p-0">
+                                <td colspan="7" class="border-0 p-0">
                                     <div class="empty-state d-flex flex-column align-items-center justify-content-center align-self-stretch gap-10 w-100">
                                         <span class="icon-empty"><i class="fi fi-rr-folder-open"></i></span>
                                         <div class="empty-text d-flex flex-column align-items-center align-self-stretch" style="gap:5px;">

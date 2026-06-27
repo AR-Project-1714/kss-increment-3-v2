@@ -747,7 +747,7 @@
     <div class="content d-flex flex-column align-items-start align-self-stretch gap-30 p-content">
         <div class="content-header d-flex justify-content-between align-items-center align-content-center align-self-stretch flex-wrap p-20" style="row-gap: 10px;border-radius:16px">
             <div class="title-header d-flex flex-column align-items-start gap-2 flexible">
-                <span class="text-header fw-600 fsize-20 align-self-stretch">Dashboard Operasional</span>
+                <span class="text-header fw-600 fsize-20 align-self-stretch">Laporan Operasional</span>
                 <span class="note fw-300 fsize-12 text-secondary align-self-stretch">Lihat laporan masuk, draft, riwayat laporan, dan buat laporan baru dari sini.</span>
             </div>
             <a href="{{ route('report-ops.create') }}" class="btn-new d-flex justify-content-center align-items-center gap-10 br-12 action-link" style="cursor: pointer;">

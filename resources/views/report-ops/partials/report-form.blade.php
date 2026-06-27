@@ -180,7 +180,15 @@
         /* Style saat "Rusak" dipilih (Merah) */
         .radio-custom.rusak input[type="radio"]:checked + label { border-color: var(--red-main, #dc3545); background-color: var(--red-main-10, #f8d7da); color: var(--red-main, #dc3545); }
 
-
+        /* Catatan bantuan tiap langkah form: teks ringkas pembantu petugas
+           (selaras gaya .form-meta-note pada modul Pemeliharaan/Safety). */
+        .step-info-note {
+            display: flex; align-items: flex-start; gap: 6px;
+            width: 100%; align-self: stretch; margin-bottom: 4px;
+            font-size: 11px; color: var(--muted); line-height: 1.5;
+        }
+        .step-info-note i { position: relative; top: 1px; flex-shrink: 0; }
+        .step-info-note strong { font-weight: 600; color: inherit; }
 
         /* =========================================
            RESPONSIVE DESIGN (BREAKPOINTS)
@@ -589,6 +597,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return employeesFromGroups(() => true);
     }
 
+    // Karyawan Relief: hanya personil dari group Relief 1 / Relief 2.
+    function reliefEmployees() {
+        return employeesFromGroups(groupName => normalizeExactGroupName(groupName).startsWith('RELIEF'));
+    }
+
     function employeesByPosition(positionKeys, groupValue) {
         const wanted = positionKeys.map(p => p.toLowerCase());
         const matches = list => list.filter(e => e && e.position && wanted.includes(String(e.position).trim().toLowerCase()));
@@ -945,7 +958,10 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (/driver/i.test(name)) {
                 // Driver: sarankan karyawan berjabatan Operator FL / Operator OP.7.
                 input.setAttribute('list', 'master-driver-list');
-            } else if (/(employee_shift_logs|relief_logs|overtime_logs|op7_logs|replacement_logs|other_activity_logs|operator|foreman|stevedoring|petugas)/i.test(name)) {
+            } else if (/relief_logs/i.test(name)) {
+                // Karyawan Relief: hanya sarankan personil group Relief 1 / Relief 2.
+                input.setAttribute('list', 'master-relief-list');
+            } else if (/(employee_shift_logs|overtime_logs|op7_logs|replacement_logs|other_activity_logs|operator|foreman|stevedoring|petugas)/i.test(name)) {
                 input.setAttribute('list', 'master-employee-list');
             }
 
@@ -988,6 +1004,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    window.__reportSyncPayload = syncPayload; // dipakai autosave draft (partials.report-autosave)
     function syncPayload() {
         if (!form || !payloadInput) return;
 
@@ -1208,6 +1225,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function submitAs(status) {
         if (!form || !statusInput) return;
 
+        window.__reportAutosaveSuppress = true; // pengiriman manual: matikan autosave
         statusInput.value = status;
         validateReportGroupRoute({ enforce: status !== 'draft' });
 
@@ -1461,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="table-input-wrapper">
                             <span class="icon"><i class="fi fi-sr-truck-side"></i></span>
                             <input type="hidden" name="unit_logs[${index}][master_unit_id]" value="${escapeHtml(item.id)}">
-                            <input type="text" name="unit_logs[${index}][item_name]" value="${escapeHtml(item.name)}" readonly>
+                            <input type="text" name="unit_logs[${index}][item_name]" value="${escapeHtml(item.name || (item.unit_number ? `${item.type || ''} ${item.unit_number}`.trim() : (item.type || '')))}" readonly>
                         </div>
                     </div>
                     <div class="table-column amount">
@@ -1802,16 +1820,16 @@ document.addEventListener('DOMContentLoaded', function () {
         reindexTable(repTable);
     }
 
-    function employeeShiftRowHtml(employee, index) {
+    function employeeShiftRowHtml(employee, index, locked = false) {
         const { timeIn, timeOut } = currentWorkTimes();
 
         return `
-            <div class="body">
+            <div class="body"${locked ? ' data-locked-role="true"' : ''}>
                 <div class="table-column no"><span>${index + 1}</span></div>
                 <div class="table-column main">
                     <div class="table-input-wrapper">
                         <span class="icon"><i class="fi fi-sr-user-time"></i></span>
-                        <input type="text" name="employee_shift_logs[${index}][name]" value="${escapeHtml(employee.name)}" placeholder="Nama Karyawan">
+                        <input type="text" name="employee_shift_logs[${index}][name]" value="${escapeHtml(employee.name)}" placeholder="Nama Karyawan"${locked ? ' readonly title="Kepala Regu / Wakil Kepala Regu terkunci"' : ''}>
                     </div>
                 </div>
                 <div class="table-column absent">
@@ -1838,7 +1856,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
                 <div class="table-column delete">
-                    <button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button>
+                    ${locked ? '<span class="icon text-muted" title="Baris terkunci"><i class="fi fi-rr-lock"></i></span>' : '<button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button>'}
                 </div>
             </div>
         `;
@@ -1906,7 +1924,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!employeeTable || employees.length === 0) return;
 
-        insertRows(employeeTable, employees.map((employee, index) => employeeShiftRowHtml(employee, index)));
+        // Baris 1 & 2 dikunci tetap: Kepala Regu (KARU) lalu Wakil Kepala Regu.
+        const isWakaru = employee => /wakil/i.test(employee.position || '');
+        const isKaru = employee => !isWakaru(employee) && /karu|kepala regu/i.test(employee.position || '');
+        const karu = employees.find(isKaru);
+        const wakaru = employees.find(isWakaru);
+        const leaders = [karu, wakaru].filter(Boolean);
+        const rest = employees.filter(employee => !leaders.includes(employee));
+        const ordered = [...leaders, ...rest];
+
+        insertRows(employeeTable, ordered.map((employee, index) =>
+            employeeShiftRowHtml(employee, index, leaders.includes(employee))));
         applyMasterDatalists(employeeTable);
         hydrateTableSelects(employeeTable);
         applyShiftTimesToEmployeeRows();
@@ -2693,6 +2721,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     createDatalist('master-employee-list', flattenEmployeeNames());
+    createDatalist('master-relief-list', reliefEmployees().map(employee => employee.name));
     createDatalist('master-truck-list', (masterTrucks || []).flatMap(truck => [truck.name, truck.plate_number]));
     createDatalist('master-unit-list', (masterVehicles || []).map(vehicle => vehicle.name));
     // Sugesti unit berbasis kode: tampilkan label "kata kode + nomor unit"
@@ -3032,3 +3061,5 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </div>
 @endpush
+
+@include('partials.report-autosave')

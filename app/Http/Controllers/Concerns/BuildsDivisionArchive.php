@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Enums\MaintenanceStatus;
 use App\Enums\ReportStatus;
+use App\Enums\SafetyStatus;
 use App\Models\DailyReport;
 use App\Models\MaintenanceReport;
+use App\Models\SafetyReport;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -78,16 +80,21 @@ trait BuildsDivisionArchive
         $now = Carbon::now();
         $operationStatuses = $this->archiveStatuses();
         $maintenanceStatuses = $this->maintenanceArchiveStatuses();
+        $safetyStatuses = $this->safetyArchiveStatuses();
 
         return [
             'today' => DailyReport::whereIn('status', $operationStatuses)->whereDate('report_date', $today)->count()
-                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->whereDate('report_date', $today)->count(),
+                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->whereDate('report_date', $today)->count()
+                + SafetyReport::whereIn('status', $safetyStatuses)->whereDate('report_date', $today)->count(),
             'pending' => DailyReport::where('status', ReportStatus::Acknowledged)->count()
-                + MaintenanceReport::where('status', MaintenanceStatus::Submitted)->count(),
+                + MaintenanceReport::where('status', MaintenanceStatus::Submitted)->count()
+                + SafetyReport::where('status', SafetyStatus::Submitted)->count(),
             'month' => DailyReport::whereIn('status', $operationStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count()
-                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count(),
+                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count()
+                + SafetyReport::whereIn('status', $safetyStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count(),
             'total' => DailyReport::whereIn('status', $operationStatuses)->count()
-                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->count(),
+                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->count()
+                + SafetyReport::whereIn('status', $safetyStatuses)->count(),
         ];
     }
 
@@ -105,6 +112,11 @@ trait BuildsDivisionArchive
         return [MaintenanceStatus::Submitted, MaintenanceStatus::Approved];
     }
 
+    protected function safetyArchiveStatuses(): array
+    {
+        return [SafetyStatus::Submitted, SafetyStatus::Approved];
+    }
+
     private function buildDivisionArchiveRows(array $filters, string $context): Collection
     {
         $division = strtolower((string) ($filters['selectedDivision'] ?? 'all'));
@@ -116,6 +128,10 @@ trait BuildsDivisionArchive
 
         if (in_array($division, ['', 'all', 'pemeliharaan'], true)) {
             $rows = $rows->merge($this->maintenanceArchiveRows($filters, $context));
+        }
+
+        if (in_array($division, ['', 'all', 'safety'], true)) {
+            $rows = $rows->merge($this->safetyArchiveRows($filters, $context));
         }
 
         $keyword = $this->archiveNormalize((string) ($filters['archiveSearch'] ?? ''));
@@ -202,6 +218,38 @@ trait BuildsDivisionArchive
 
         return $query->get()
             ->map(fn (MaintenanceReport $report): array => $this->maintenanceArchiveRow($report, $context));
+    }
+
+    private function safetyArchiveRows(array $filters, string $context): Collection
+    {
+        $selectedGroup = strtoupper((string) ($filters['selectedGroup'] ?? 'ALL'));
+        $selectedShift = strtolower((string) ($filters['selectedShift'] ?? 'all'));
+
+        if (($selectedGroup !== '' && $selectedGroup !== 'ALL') || ($selectedShift !== '' && $selectedShift !== 'all')) {
+            return collect();
+        }
+
+        $query = SafetyReport::query()
+            ->with($this->safetyReportRelations())
+            ->whereIn('status', $this->safetyArchiveStatuses());
+
+        if ($filters['selectedDate'] ?? null) {
+            $query->whereDate('report_date', $filters['selectedDate']);
+        }
+
+        $selectedStatus = strtolower((string) ($filters['selectedStatus'] ?? 'all'));
+        if ($selectedStatus !== '' && $selectedStatus !== 'all') {
+            $statusFilter = SafetyStatus::tryFrom($selectedStatus);
+
+            if ($statusFilter !== null && in_array($statusFilter, $this->safetyArchiveStatuses(), true)) {
+                $query->where('status', $statusFilter);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        return $query->get()
+            ->map(fn (SafetyReport $report): array => $this->safetyArchiveRow($report, $context));
     }
 
     private function operationalArchiveRow(DailyReport $report, string $context): array
@@ -293,6 +341,56 @@ trait BuildsDivisionArchive
             'search' => $this->archiveSearchBlob([
                 'Pemeliharaan',
                 'Laporan Pemeliharaan Harian',
+                $documentId,
+                $report->report_date?->format('Y-m-d'),
+                $this->archiveDateLabel($date),
+                'Non Shift',
+                $status['label'],
+                $report->creator?->name,
+                $report->approver?->name,
+                ...$this->archiveFlattenSearchable($report),
+            ]),
+        ];
+    }
+
+    private function safetyArchiveRow(SafetyReport $report, string $context): array
+    {
+        $status = $this->safetyStatusMeta($report->status);
+        $date = $report->report_date ?: $report->created_at;
+        $division = $this->divisionMeta('safety');
+        $documentId = $this->safetyDocumentId($report);
+
+        return [
+            'kind' => 'safety',
+            'key' => 'safety-'.$report->id,
+            'raw_id' => $report->id,
+            'title' => 'Laporan K3 / Safety',
+            'id' => $documentId,
+            'date' => $this->archiveDateLabel($date),
+            'sort_date' => $this->archiveTimestamp($date),
+            'sort_updated' => $this->archiveTimestamp($report->updated_at),
+            'regu' => '-',
+            'shift' => 'nonshift',
+            'shift_label' => 'Non Shift',
+            'shift_icon' => 'fi fi-rr-calendar-clock',
+            'status' => $status['class'],
+            'status_label' => $status['label'],
+            'division' => 'safety',
+            'division_label' => $division['label'],
+            'division_class' => $division['class'],
+            'division_icon' => $division['icon'],
+            'summary' => $documentId.' - '.$this->archiveDateLabel($date),
+            'view_url' => route($context === 'admin' ? 'admin.safety-reports.show' : 'manajer.safety.show', $report),
+            'download_url' => route($context === 'admin' ? 'admin.safety-reports.download' : 'manajer.safety.download', $report),
+            'destroy_url' => route($context === 'admin' ? 'admin.safety-reports.destroy' : 'manajer.safety.destroy', $report),
+            'updated_diff' => $report->updated_at ? Carbon::parse($report->updated_at)->locale('id')->diffForHumans() : '-',
+            'group_from' => '-',
+            'group_to' => '-',
+            'approver' => $report->approver?->name ?? '-',
+            'search' => $this->archiveSearchBlob([
+                'Safety',
+                'K3',
+                'Laporan K3 Safety',
                 $documentId,
                 $report->report_date?->format('Y-m-d'),
                 $this->archiveDateLabel($date),

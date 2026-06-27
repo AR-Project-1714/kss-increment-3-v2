@@ -6,7 +6,7 @@
         <div class="divider-vertical"></div>
         <div class="info-officer d-flex flex-column align-items-start flexible">
             <span class="nama align-self-stretch fsize-12 fw-600">Selamat Datang, {{ auth()->user()->name ?? 'Pemeliharaan' }}</span>
-            <span class="role align-self-stretch fsize-9 text-secondary fw-300">Petugas Pemeliharaan</span>
+            <span class="role align-self-stretch fsize-9 text-secondary fw-300">{{ auth()->user()->jobTitle() }}</span>
         </div>
     </div>
     <div class="header-right d-flex justify-content-center align-items-center gap-20">

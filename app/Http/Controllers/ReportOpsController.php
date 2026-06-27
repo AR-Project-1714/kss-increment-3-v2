@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ReportStatus;
+use App\Http\Controllers\Concerns\AutosavesDraftReports;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Http\Controllers\Concerns\SearchesReports;
 use App\Models\DailyReport;
@@ -26,6 +27,7 @@ use Throwable;
 
 class ReportOpsController extends Controller
 {
+    use AutosavesDraftReports;
     use ResolvesReportMeta;
     use SearchesReports;
 
@@ -274,14 +276,19 @@ class ReportOpsController extends Controller
 
     public function store(Request $request)
     {
+        if ($this->isAutosaveRequest($request)) {
+            $request->merge(['status' => ReportStatus::Draft->value]);
+        }
+
         $status = $request->input('status') === ReportStatus::Draft->value ? ReportStatus::Draft->value : ReportStatus::Submitted->value;
         $request->merge(['status' => $status]);
 
         $validated = $request->validate($this->rules($status === ReportStatus::Draft->value, $request), [], $this->attributes());
         $payload = $this->decodePayload($request->input('form_payload'));
+        $report = null;
 
         try {
-            DB::transaction(function () use ($request, $validated, $payload): void {
+            DB::transaction(function () use ($request, $validated, $payload, &$report): void {
                 $userId = $request->user()->id;
 
                 $report = DailyReport::create([
@@ -307,6 +314,10 @@ class ReportOpsController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Laporan belum bisa disimpan. Silakan periksa data lalu coba lagi.');
+        }
+
+        if ($this->isAutosaveRequest($request)) {
+            return $this->autosaveResponse($report, 'report-ops.update');
         }
 
         $message = $status === ReportStatus::Draft->value
@@ -353,6 +364,10 @@ class ReportOpsController extends Controller
                 ->with('error', 'Draft sudah melewati 3 hari tanpa dilanjutkan, sehingga data draft tersebut dihapus otomatis.');
         }
 
+        if ($this->isAutosaveRequest($request)) {
+            $request->merge(['status' => ReportStatus::Draft->value]);
+        }
+
         $status = $report->status === ReportStatus::Draft && $request->input('status') === ReportStatus::Draft->value
             ? ReportStatus::Draft->value
             : ReportStatus::Submitted->value;
@@ -387,6 +402,10 @@ class ReportOpsController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Laporan belum bisa diperbarui. Silakan periksa data lalu coba lagi.');
+        }
+
+        if ($this->isAutosaveRequest($request)) {
+            return $this->autosaveResponse($report, 'report-ops.update');
         }
 
         $message = $status === ReportStatus::Draft->value
@@ -1593,7 +1612,7 @@ class ReportOpsController extends Controller
             'vehicles' => Cache::remember(
                 MasterUnit::MASTER_DATA_CACHE_KEY,
                 self::MASTER_DATA_CACHE_TTL,
-                fn () => MasterUnit::select('id', 'name', 'unit_code', 'unit_number', 'type')->orderBy('id')->get()->toArray()
+                fn () => MasterUnit::select('id', 'name', 'unit_code', 'unit_number', 'type')->orderedForReport()->get()->toArray()
             ),
             'inventories' => Cache::remember(
                 MasterInventoryItem::MASTER_DATA_CACHE_KEY,

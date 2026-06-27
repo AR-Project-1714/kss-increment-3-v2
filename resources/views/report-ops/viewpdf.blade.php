@@ -211,14 +211,58 @@
 </head>
 <body>
     <div class="toolbar">
-        <a href="{{ $backUrl }}" class="btn back"><i class="fi fi-rr-arrow-small-left"></i> Kembali</a>
+        <a href="{{ $backUrl }}" class="btn back" id="btnBack"><i class="fi fi-rr-arrow-small-left"></i> Kembali</a>
         <div class="toolbar__actions">
             @if ($pdfUrl)
-                <a href="{{ $pdfUrl }}" class="btn pdf" target="_blank" rel="noopener"><i class="fi fi-rr-file-pdf"></i> Unduh PDF</a>
+                <a href="{{ $pdfUrl }}" class="btn pdf" id="btnPdf" target="_blank" rel="noopener"><i class="fi fi-rr-file-pdf"></i> Unduh PDF</a>
             @endif
             <button type="button" class="btn print" onclick="window.print()"><i class="fi fi-rr-print"></i> Cetak</button>
         </div>
     </div>
+
+    <script>
+        // Tombol "Kembali" menutup tab ini (halaman dibuka di tab baru) lalu fokus
+        // balik ke website. Jika browser memblokir penutupan (tab tidak dibuka via
+        // skrip), jatuh ke navigasi biasa menuju halaman sebelumnya.
+        (function () {
+            var backBtn = document.getElementById('btnBack');
+            if (!backBtn) return;
+
+            backBtn.addEventListener('click', function (event) {
+                event.preventDefault();
+                var fallbackUrl = backBtn.getAttribute('href');
+
+                window.close();
+
+                window.setTimeout(function () {
+                    if (!window.closed) {
+                        window.location.href = fallbackUrl;
+                    }
+                }, 150);
+            });
+        })();
+
+        // Tombol "Unduh PDF": PDF terbuka di tab baru (target=_blank), lalu tab
+        // pratinjau ini ditutup dan fokus kembali ke website laporan KSS. Jika
+        // browser memblokir penutupan tab, navigasi balik ke daftar laporan.
+        (function () {
+            var pdfBtn = document.getElementById('btnPdf');
+            if (!pdfBtn) return;
+            var backBtn = document.getElementById('btnBack');
+            var fallbackUrl = backBtn ? backBtn.getAttribute('href') : '/';
+
+            pdfBtn.addEventListener('click', function () {
+                window.setTimeout(function () {
+                    window.close();
+                    window.setTimeout(function () {
+                        if (!window.closed) {
+                            window.location.href = fallbackUrl;
+                        }
+                    }, 150);
+                }, 500);
+            });
+        })();
+    </script>
 
     <div class="sheet-frame">
     <div class="sheet">
@@ -595,7 +639,7 @@
                     <table class="w-100">
                         <tr>
                             @php
-                                $masterUnits = \App\Models\MasterUnit::orderBy('id')->get();
+                                $masterUnits = \App\Models\MasterUnit::orderedForReport()->get();
                                 $unitLogs = $report->unitCheckLogs->where('category', 'vehicle')->keyBy('master_id');
                                 $chunks = $masterUnits->chunk(ceil($masterUnits->count() / 2));
                             @endphp
@@ -614,7 +658,7 @@
                                     @endphp
                                     <tr>
                                         <td class="text-center">{{ $unit->id }}</td>
-                                        <td>{{ $unit->short_display_name }}</td>
+                                        <td>{{ $unit->unit_number ?: $unit->short_display_name }}</td>
                                         <td class="text-center">{{ $log->fuel_level ?? '' }}</td>
                                         <td class="text-center {{ $rec == 'Baik' ? 'text-green' : ($rec == 'Rusak' ? 'text-red' : '') }}">{{ $rec }}</td>
                                         <td class="text-center {{ $han == 'Baik' ? 'text-green' : ($han == 'Rusak' ? 'text-red' : '') }}">{{ $han }}</td>

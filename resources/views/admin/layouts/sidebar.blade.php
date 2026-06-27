@@ -6,7 +6,7 @@
 @php
     $active = $active ?? 'dashboard';
     $activeMasterPane = request()->routeIs('admin.datamaster')
-        && in_array(request('pane', 'karyawan'), ['karyawan', 'unit', 'truck', 'inventaris'], true)
+        && in_array(request('pane', 'karyawan'), ['karyawan', 'unit', 'truck', 'inventaris', 'safety_lokasi', 'safety_item'], true)
             ? request('pane', 'karyawan')
             : 'karyawan';
 @endphp
@@ -65,6 +65,8 @@
                             <a href="{{ route('admin.datamaster', ['pane' => 'unit']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'unit' ? 'active' : '' }}" data-pane="unit">Data Unit</a>
                             <a href="{{ route('admin.datamaster', ['pane' => 'truck']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'truck' ? 'active' : '' }}" data-pane="truck">Data Truck</a>
                             <a href="{{ route('admin.datamaster', ['pane' => 'inventaris']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'inventaris' ? 'active' : '' }}" data-pane="inventaris">Data Inventaris</a>
+                            <a href="{{ route('admin.datamaster', ['pane' => 'safety_lokasi']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'safety_lokasi' ? 'active' : '' }}" data-pane="safety_lokasi">Data Lokasi K3</a>
+                            <a href="{{ route('admin.datamaster', ['pane' => 'safety_item']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'safety_item' ? 'active' : '' }}" data-pane="safety_item">Data Item K3</a>
                         </div>
                     </div>
                 </div>

@@ -23,10 +23,6 @@ class DatabaseSeeder extends Seeder
             MasterInventorySeeder::class,
             MasterTruckSeeder::class,
             MasterEmployeeSeeder::class,
-            OP7Seeder::class,
-            MaintenanceUnitSeeder::class,
-            MaintenanceEmployeeSeeder::class,
-            ShiftRegularRosterSeeder::class,
             SafetySeeder::class,
         ]);
 
@@ -51,7 +47,7 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate([
             'username' => 'manajer',
         ], [
-            'name' => 'Mustari',
+            'name' => 'Mustari, ST',
             'email' => 'manager@example.com',
             'password' => Hash::make('password'),
             'role_id' => $managerRole->id,
@@ -61,7 +57,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Nama akun Karu/Wakaru diselaraskan dengan roster Shift Regular
-        // (lihat ShiftRegularRosterSeeder).
+        // (lihat MasterEmployeeSeeder).
         $groupLeaders = [
             'a' => ['karu' => 'Jhon Maradona Mailoor', 'wakaru' => 'Zainuddin'],
             'b' => ['karu' => 'Nurul Huda', 'wakaru' => 'Ryman Oloan Manurung'],
@@ -112,7 +108,7 @@ class DatabaseSeeder extends Seeder
 
         // Satu akun pembuat untuk modul Pemeliharaan: Kasi Pemeliharaan
         // (MD §1.3 poin 6 — tidak diperlukan RBAC bertingkat). Nama selaras
-        // dengan roster di MaintenanceEmployeeSeeder.
+        // dengan roster Bengkel di MasterEmployeeSeeder.
         User::updateOrCreate([
             'username' => 'kasi.pemeliharaan',
         ], [
@@ -142,7 +138,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             DailyReportSeeder::class,
-            HistoryPaginationReportSeeder::class,
         ]);
     }
 }

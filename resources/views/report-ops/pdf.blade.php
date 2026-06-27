@@ -484,7 +484,7 @@
                     <table class="w-100">
                         <tr>
                             @php
-                                $masterUnits = \App\Models\MasterUnit::orderBy('id')->get();
+                                $masterUnits = \App\Models\MasterUnit::orderedForReport()->get();
                                 $unitLogs = $report->unitCheckLogs->where('category', 'vehicle')->keyBy('master_id');
                                 $chunks = $masterUnits->chunk(ceil($masterUnits->count() / 2));
                             @endphp
@@ -503,7 +503,7 @@
                                     @endphp
                                     <tr>
                                         <td class="text-center">{{ $unit->id }}</td>
-                                        <td>{{ $unit->short_display_name }}</td>
+                                        <td>{{ $unit->unit_number ?: $unit->short_display_name }}</td>
                                         <td class="text-center">{{ $log->fuel_level ?? '' }}</td>
                                         <td class="text-center {{ $rec == 'Baik' ? 'text-green' : ($rec == 'Rusak' ? 'text-red' : '') }}">{{ $rec }}</td>
                                         <td class="text-center {{ $han == 'Baik' ? 'text-green' : ($han == 'Rusak' ? 'text-red' : '') }}">{{ $han }}</td>

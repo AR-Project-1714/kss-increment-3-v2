@@ -16,7 +16,11 @@
     #content-riwayat .thead th:nth-child(3),
     #content-riwayat .tbody td:nth-child(3) { flex: 0 1 190px; min-width: 165px; }
     #content-riwayat .thead th:nth-child(4),
-    #content-riwayat .tbody td:nth-child(4) { flex: 0 1 130px; min-width: 110px; }
+    #content-riwayat .tbody td:nth-child(4) { flex: 0 1 120px; min-width: 100px; }
+    #content-riwayat .thead th:nth-child(5),
+    #content-riwayat .tbody td:nth-child(5) { flex: 0 0 155px; min-width: 155px; }
+    .day-badge { display:inline-flex; min-height:20px; padding:2px 8px; align-items:center; gap:4px; border-radius:10px; font-size:10px; font-weight:500; line-height:1; background-color:var(--blue-main-10); color:var(--blue-main); }
+    .day-badge i { display:block; font-size:10px; line-height:1; }
     .thead th.col-status, .tbody td.col-status { flex: 0 0 145px !important; min-width: 145px; }
     .tbody td.col-status .status { white-space: nowrap; }
     .thead th.col-aksi { flex: 0 0 250px !important; min-width: 250px; justify-content: flex-end; }
@@ -24,11 +28,11 @@
     .tbody td.col-aksi .btn { white-space: nowrap; }
     .tbody td.col-aksi .btn.print-report { background-color: var(--cyan-main); color: #fff; justify-content: center; padding: 6px 9px; }
     .tbody td.col-aksi .btn.print-report:hover { filter: brightness(.93); transform: translateY(-1px); }
-    .time-badge { display:inline-flex; min-height:20px; padding:2px 8px; align-items:center; gap:4px; border-radius:10px; font-size:10px; font-weight:500; line-height:1; background-color:var(--success-10); color:var(--success); }
+    .time-badge { display:inline-flex; min-height:20px; padding:2px 8px; align-items:center; gap:4px; border-radius:10px; font-size:10px; font-weight:500; line-height:1; background-color:var(--success-10); color:var(--success); white-space:nowrap; }
     .time-badge i { display:block; font-size:10px; line-height:1; }
     @media (max-width: 1100px) {
         #content-riwayat .table-responsive-wrapper { overflow-x: auto; }
-        #content-riwayat .table-responsive-wrapper table { min-width: 900px; }
+        #content-riwayat .table-responsive-wrapper table { min-width: 1000px; }
     }
 </style>
 @endpush
@@ -44,6 +48,7 @@
             return '#K3-'.$year.'-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
         };
         $formatDate = fn ($date) => $date ? $date->locale('id')->translatedFormat('d F Y') : '-';
+        $formatDay = fn ($date) => $date ? $date->locale('id')->translatedFormat('l') : '-';
         $formatDiff = fn ($date) => $date ? $date->locale('id')->diffForHumans() : '-';
         $statusMeta = function ($status): array {
             $case = $status instanceof SafetyStatus ? $status : (SafetyStatus::tryFrom((string) $status) ?? SafetyStatus::Draft);
@@ -167,6 +172,7 @@
                             <th class="nomor">No</th>
                             <th class="column-1 col-doc">Info Dokumen</th>
                             <th class="column-1">Tanggal Laporan</th>
+                            <th class="column-1">Hari</th>
                             <th class="column-1">Jam Kerja</th>
                             <th class="column-1 col-status">Status</th>
                             <th class="column-1 col-aksi">Aksi</th>
@@ -182,6 +188,9 @@
                                 <td class="column-2">
                                     <span>{{ $formatDate($report->report_date) }}</span>
                                     <span class="fsize-10 fw-400 text-muted">Diperbarui: {{ $formatDiff($report->updated_at) }}</span>
+                                </td>
+                                <td class="column-3">
+                                    <div class="day-badge"><i class="fi fi-rr-calendar"></i><span>{{ $formatDay($report->report_date) }}</span></div>
                                 </td>
                                 <td class="column-3">
                                     <div class="time-badge"><i class="fi fi-rr-clock"></i><span>{{ $report->time_range ?: '-' }}</span></div>
@@ -211,7 +220,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="border-0 p-0">
+                                <td colspan="7" class="border-0 p-0">
                                     <div class="empty-state d-flex flex-column align-items-center justify-content-center align-self-stretch gap-10 w-100">
                                         <span class="icon-empty"><i class="fi fi-rr-folder-open"></i></span>
                                         <div class="empty-text d-flex flex-column align-items-center align-self-stretch" style="gap:5px;">

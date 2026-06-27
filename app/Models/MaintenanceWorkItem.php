@@ -34,6 +34,6 @@ class MaintenanceWorkItem extends Model
      */
     public function getUnitDisplayAttribute(): string
     {
-        return $this->unit?->display_name ?: (string) ($this->unit_label ?? '');
+        return $this->unit?->maintenance_name ?: (string) ($this->unit_label ?? '');
     }
 }

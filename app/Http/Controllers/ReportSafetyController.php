@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SafetyStatus;
+use App\Http\Controllers\Concerns\AutosavesDraftReports;
 use App\Http\Controllers\Concerns\ResolvesSafetyMeta;
 use App\Models\MasterSafetyItem;
 use App\Models\MasterSafetyLocation;
@@ -16,6 +17,7 @@ use Throwable;
 
 class ReportSafetyController extends Controller
 {
+    use AutosavesDraftReports;
     use ResolvesSafetyMeta;
 
     /**
@@ -70,18 +72,23 @@ class ReportSafetyController extends Controller
 
     public function store(Request $request)
     {
+        if ($this->isAutosaveRequest($request)) {
+            $request->merge(['status' => SafetyStatus::Draft->value]);
+        }
+
         $status = $request->input('status') === SafetyStatus::Draft->value
             ? SafetyStatus::Draft->value
             : SafetyStatus::Submitted->value;
         $request->merge(['status' => $status]);
 
         $validated = $request->validate($this->rules($status === SafetyStatus::Draft->value), [], $this->attributes());
+        $report = null;
 
         try {
-            DB::transaction(function () use ($request, $validated, $status): void {
+            DB::transaction(function () use ($request, $validated, $status, &$report): void {
                 $report = SafetyReport::create([
                     'report_date'  => $validated['report_date'] ?? null,
-                    'time_range'   => $this->string($request->input('time_range')),
+                    'time_range'   => $this->workTimeRange($request),
                     'status'       => $status,
                     'created_by'   => $request->user()->id,
                     'submitted_at' => $status === SafetyStatus::Submitted->value ? now() : null,
@@ -96,6 +103,10 @@ class ReportSafetyController extends Controller
             ]);
 
             return back()->withInput()->with('error', 'Laporan belum bisa disimpan. Silakan periksa data lalu coba lagi.');
+        }
+
+        if ($this->isAutosaveRequest($request)) {
+            return $this->autosaveResponse($report, 'safety.update');
         }
 
         return redirect()->route('safety.index')->with(
@@ -131,6 +142,10 @@ class ReportSafetyController extends Controller
     {
         abort_unless($this->canEdit($report, $request->user()), 403);
 
+        if ($this->isAutosaveRequest($request)) {
+            $request->merge(['status' => SafetyStatus::Draft->value]);
+        }
+
         $status = $report->status === SafetyStatus::Draft && $request->input('status') === SafetyStatus::Draft->value
             ? SafetyStatus::Draft->value
             : SafetyStatus::Submitted->value;
@@ -142,7 +157,7 @@ class ReportSafetyController extends Controller
             DB::transaction(function () use ($request, $report, $validated, $status): void {
                 $report->update([
                     'report_date'  => $validated['report_date'] ?? null,
-                    'time_range'   => $this->string($request->input('time_range')),
+                    'time_range'   => $this->workTimeRange($request),
                     'status'       => $status,
                     'submitted_at' => $status === SafetyStatus::Submitted->value ? ($report->submitted_at ?? now()) : null,
                 ]);
@@ -158,6 +173,10 @@ class ReportSafetyController extends Controller
             ]);
 
             return back()->withInput()->with('error', 'Laporan belum bisa diperbarui. Silakan periksa data lalu coba lagi.');
+        }
+
+        if ($this->isAutosaveRequest($request)) {
+            return $this->autosaveResponse($report, 'safety.update');
         }
 
         return redirect()->route('safety.index')->with(
@@ -493,7 +512,8 @@ class ReportSafetyController extends Controller
         return [
             'status'      => ['required', Rule::in([SafetyStatus::Draft->value, SafetyStatus::Submitted->value])],
             'report_date' => [$requiredWhenSubmit, 'date'],
-            'time_range'  => ['nullable', 'string', 'max:255'],
+            'work_time_start' => ['nullable', 'string', 'max:10'],
+            'work_time_end'   => ['nullable', 'string', 'max:10'],
             'locations'   => ['nullable', 'array'],
             'operations'  => ['nullable', 'array'],
             'incidents'   => ['nullable', 'array'],
@@ -525,6 +545,22 @@ class ReportSafetyController extends Controller
         $value = trim((string) $value);
 
         return $value === '' ? null : mb_substr($value, 0, 255);
+    }
+
+    /**
+     * Gabungkan input jam masuk & pulang (manual, tanpa otomatisasi) menjadi
+     * satu kolom "time_range" sesuai format laporan (mis. "07:00 - 16:00").
+     */
+    private function workTimeRange(Request $request): ?string
+    {
+        $start = $this->string($request->input('work_time_start'));
+        $end = $this->string($request->input('work_time_end'));
+
+        if ($start !== null && $end !== null) {
+            return $start.' - '.$end;
+        }
+
+        return $start ?? $end;
     }
 
     private function qty(mixed $value): ?int

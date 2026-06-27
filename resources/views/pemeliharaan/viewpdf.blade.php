@@ -68,11 +68,34 @@
         <a href="{{ $backUrl }}" class="btn back"><i class="fi fi-rr-arrow-small-left"></i> Kembali</a>
         <div class="grp">
             @if ($pdfUrl)
-                <a href="{{ $pdfUrl }}" class="btn pdf" target="_blank" rel="noopener"><i class="fi fi-rr-file-pdf"></i> Unduh PDF</a>
+                <a href="{{ $pdfUrl }}" class="btn pdf" id="btnPdf" target="_blank" rel="noopener"><i class="fi fi-rr-file-pdf"></i> Unduh PDF</a>
             @endif
             <button type="button" class="btn print" onclick="window.print()"><i class="fi fi-rr-print"></i> Cetak</button>
         </div>
     </div>
+
+    {{-- Tombol "Unduh PDF": PDF terbuka di tab baru, lalu tab pratinjau ini
+         ditutup dan fokus kembali ke website laporan KSS. Jika browser memblokir
+         penutupan tab, navigasi balik ke daftar laporan. --}}
+    <script>
+        (function () {
+            var pdfBtn = document.getElementById('btnPdf');
+            if (!pdfBtn) return;
+            var backBtn = document.querySelector('.toolbar .btn.back');
+            var fallbackUrl = backBtn ? backBtn.getAttribute('href') : '/';
+
+            pdfBtn.addEventListener('click', function () {
+                window.setTimeout(function () {
+                    window.close();
+                    window.setTimeout(function () {
+                        if (!window.closed) {
+                            window.location.href = fallbackUrl;
+                        }
+                    }, 150);
+                }, 500);
+            });
+        })();
+    </script>
 
     <div class="sheet-frame">
         <div class="sheet">

@@ -599,153 +599,7 @@
             75% { transform: translateX(-2px); }
         }
 
-        .auth-toast-viewport {
-            position: fixed;
-            top: 18px;
-            left: 50%;
-            width: min(460px, calc(100vw - 32px));
-            z-index: 10020;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 10px;
-            transform: translateX(-50%);
-            pointer-events: none;
-        }
-
-        .auth-toast {
-            position: relative;
-            overflow: hidden;
-            isolation: isolate;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 12px 14px;
-            border-radius: 24px;
-            border-top: 1px solid var(--glass-border-light);
-            border-left: 1px solid var(--glass-border-light);
-            border-right: 1px solid var(--glass-border-dark);
-            border-bottom: 1px solid var(--glass-border-dark);
-            background: var(--glass-bg);
-            box-shadow:
-                var(--glass-shadow),
-                var(--glass-inner-shadow);
-            backdrop-filter: blur(28px) saturate(150%);
-            -webkit-backdrop-filter: blur(28px) saturate(150%);
-            color: var(--dark-main);
-            pointer-events: auto;
-            opacity: 0;
-            animation: authToastEnter 0.32s ease-out forwards, authToastAttention 0.62s ease-in-out 0.45s 1;
-        }
-
-        .auth-toast::before {
-            content: "";
-            position: absolute;
-            inset: 2px;
-            border-radius: 22px;
-            background: transparent;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .auth-toast::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            box-shadow: none;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        body.dark-mode .auth-toast {
-            border-color: rgba(255, 255, 255, 0.1);
-            background: rgba(30, 41, 59, 0.45);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        .auth-toast.error {
-            border-color: var(--red-main-25);
-        }
-
-        .auth-toast.success {
-            border-color: var(--success-25);
-        }
-
-        .auth-toast-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 auto;
-            font-size: 16px;
-            box-shadow:
-                inset 0 1px 0 rgba(255,255,255,0.70),
-                inset 0 -10px 20px rgba(255,255,255,0.10),
-                0 8px 18px rgba(15,23,42,0.08);
-        }
-
-        .auth-toast-icon i {
-            position: relative;
-            top: 2px;
-        }
-
-        .auth-toast.error .auth-toast-icon {
-            color: var(--red-main);
-            background:
-                linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.08)),
-                rgba(239,68,68,0.12);
-            border: 1px solid rgba(239,68,68,0.34);
-        }
-
-        .auth-toast.success .auth-toast-icon {
-            color: var(--success);
-            background:
-                linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.08)),
-                rgba(16,185,129,0.12);
-            border: 1px solid rgba(16,185,129,0.34);
-        }
-
-        .auth-toast-copy {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            flex: 1;
-            min-width: 0;
-        }
-
-        .auth-toast-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--dark-main);
-        }
-
-        .auth-toast-text {
-            font-size: 12px;
-            line-height: 1.45;
-            color: var(--dark-secondary);
-        }
-
-        .auth-toast-close {
-            border: none;
-            background: transparent;
-            color: var(--muted);
-            width: 26px;
-            height: 26px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.22);
-            transition: 0.2s ease;
-        }
-
-        .auth-toast-close:hover {
-            background: var(--red-main-10);
-            color: var(--red-main);
-        }
+        /* Toast notifikasi: lihat partials/toast.blade.php (komponen bersama). */
 
         .login-card.has-auth-error {
             animation: loginCardAttention 0.58s ease-in-out 0.16s 1;
@@ -757,27 +611,41 @@
             box-shadow: 0 0 0 4px var(--red-main-10);
         }
 
-        @media (max-width: 480px) {
-            .auth-toast-viewport {
-                top: 12px;
-                width: calc(100vw - 24px);
-            }
+        /* =========================================
+           CAPS LOCK HINT (chip melayang — tidak menggeser layout)
+           ========================================= */
+        .caps-hint {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 4px;
+            z-index: 6;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 9px;
+            border-radius: 10px;
+            background: var(--orange-bg);
+            border: 1px solid var(--orange-main-25);
+            color: var(--orange-active);
+            font-size: 10.5px;
+            font-weight: 500;
+            line-height: 1;
+            white-space: nowrap;
+            box-shadow: 0 6px 16px rgba(247, 147, 30, 0.18);
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity .2s ease, transform .2s ease;
+        }
+        .caps-hint.is-visible { opacity: 1; transform: translateY(0); }
+        .caps-hint i { position: relative; top: 1px; font-size: 12px; }
+        body.dark-mode .caps-hint { color: var(--orange-hover); }
 
-            .auth-toast {
-                padding: 10px 12px;
-                gap: 9px;
-                border-radius: 22px;
-            }
-
-            .auth-toast-icon {
-                width: 34px;
-                height: 34px;
-                border-radius: 12px;
-            }
+        @media (prefers-reduced-motion: reduce) {
+            .caps-hint { transition: opacity .2s ease; transform: none; }
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .auth-toast,
             .login-card.has-auth-error {
                 animation: none !important;
                 opacity: 1;
@@ -800,53 +668,8 @@
 
     @include('auth.layouts.theme')
 
-    @php
-        $authToastMessages = collect();
-
-        if (session('success')) {
-            $authToastMessages->push([
-                'type' => 'success',
-                'title' => 'Berhasil',
-                'message' => session('success'),
-                'icon' => 'fi fi-rr-check',
-            ]);
-        }
-
-        if (session('error')) {
-            $authToastMessages->push([
-                'type' => 'error',
-                'title' => 'Login belum berhasil',
-                'message' => session('error'),
-                'icon' => 'fi fi-rr-exclamation',
-            ]);
-        }
-
-        if ($errors->any()) {
-            $authToastMessages->push([
-                'type' => 'error',
-                'title' => 'Login belum berhasil',
-                'message' => $errors->first(),
-                'icon' => 'fi fi-rr-exclamation',
-            ]);
-        }
-    @endphp
-
-    @if ($authToastMessages->isNotEmpty())
-        <div class="auth-toast-viewport" aria-live="polite" aria-atomic="true">
-            @foreach ($authToastMessages as $toast)
-                <div class="auth-toast {{ $toast['type'] }}" data-duration="5200" role="status">
-                    <div class="auth-toast-icon"><i class="{{ $toast['icon'] }}"></i></div>
-                    <div class="auth-toast-copy">
-                        <span class="auth-toast-title">{{ $toast['title'] }}</span>
-                        <span class="auth-toast-text">{{ $toast['message'] }}</span>
-                    </div>
-                    <button type="button" class="auth-toast-close" aria-label="Tutup notifikasi">
-                        <i class="fi fi-br-cross-small"></i>
-                    </button>
-                </div>
-            @endforeach
-        </div>
-    @endif
+    {{-- Toast notifikasi (komponen bersama) --}}
+    @include('partials.toast')
 
     <!-- Wrapper Content -->
     <div class="login-wrapper">
@@ -876,6 +699,36 @@
                     icon.classList.add('fi-rr-eye-crossed');
                 }
             });
+
+
+            // ==========================================
+            // 1b. PERINGATAN CAPS LOCK
+            // ==========================================
+            // CapsLock hanya bisa dideteksi lewat event keyboard (getModifierState),
+            // jadi peringatan muncul setelah pengguna menekan tombol di kolom
+            // username/password dan otomatis hilang saat dimatikan atau kolom blur.
+            const capsHint = document.getElementById('capsHint');
+            if (capsHint) {
+                const watched = [
+                    document.getElementById('password'),
+                    document.getElementById('username'),
+                ].filter(Boolean);
+
+                const updateCaps = function (event) {
+                    const on = typeof event.getModifierState === 'function'
+                        && event.getModifierState('CapsLock');
+                    const focused = watched.indexOf(document.activeElement) !== -1;
+                    capsHint.classList.toggle('is-visible', !!on && focused);
+                };
+
+                watched.forEach(function (input) {
+                    input.addEventListener('keydown', updateCaps);
+                    input.addEventListener('keyup', updateCaps);
+                    input.addEventListener('blur', function () {
+                        capsHint.classList.remove('is-visible');
+                    });
+                });
+            }
 
 
             // ==========================================
@@ -947,27 +800,7 @@
 
             firstInvalidInput?.focus({ preventScroll: true });
 
-            document.querySelectorAll('.auth-toast').forEach((toast, index) => {
-                const closeButton = toast.querySelector('.auth-toast-close');
-                const duration = Number(toast.dataset.duration || 5200) + (index * 180);
-                let timer = window.setTimeout(() => hideToast(toast), duration);
-
-                closeButton?.addEventListener('click', () => hideToast(toast));
-                toast.addEventListener('mouseenter', () => window.clearTimeout(timer));
-                toast.addEventListener('mouseleave', () => {
-                    timer = window.setTimeout(() => hideToast(toast), 1800);
-                });
-            });
-
-            function hideToast(toast) {
-                if (!toast || toast.dataset.hiding === 'true') return;
-                toast.dataset.hiding = 'true';
-                toast.style.transition = 'opacity 0.28s ease, transform 0.28s ease';
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-8px)';
-                window.setTimeout(() => toast.remove(), 300);
-            }
-
+            // Toast notifikasi ditangani komponen bersama (partials/toast.blade.php).
         });
 
         window.addEventListener('load', function() {

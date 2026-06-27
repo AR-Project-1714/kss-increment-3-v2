@@ -8,6 +8,10 @@
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
+            <div class="step-info-note">
+                <i class="fi fi-rr-info"></i>
+                <span>Catat pemuatan pupuk kantong untuk tiap kapal. Pilih nama kapal dari saran agar kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya — Anda cukup mengisi jumlah <strong>Sekarang</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal.</span>
+            </div>
             <div class="form-muat-kantong d-flex flex-column align-items-start align-self-stretch">
                 <div class="tab-activity d-flex align-items-center gap-10">
                     <button type="button" class="btn-activity active">Kegiatan 1</button>

@@ -6,6 +6,10 @@
             <div class="counter-form">Form 5 dari 7</div>
         </div>
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
+            <div class="step-info-note">
+                <i class="fi fi-rr-info"></i>
+                <span>Lacak distribusi barang keluar per truck — lengkapi nomor <strong>DO/SO</strong>, marking, dan jumlah terkirim. Kolom <strong>Total</strong> dihitung otomatis (Sekarang + Lalu). Tambah baris untuk tiap truck.</span>
+            </div>
 
             <div class="form-grid">
                 <div class="form-group">

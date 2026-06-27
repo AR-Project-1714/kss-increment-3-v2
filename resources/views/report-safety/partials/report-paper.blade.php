@@ -18,6 +18,8 @@
 
     $check = fn ($cond, $val) => $cond === $val ? '&#10003;' : '';
     $qtyText = fn ($qty) => $qty === null ? '&minus;' : $qty;
+    // Warna latar sel kondisi yang terpilih: bagus=hijau, rusak=merah, normal=biru, tidak_normal=oranye.
+    $condClass = fn ($cond, $val) => $cond === $val ? 'cond-'.str_replace('_', '', $val) : '';
 
     $operations = $report->operationLogs->values();
     $incidents = $report->incidentLogs->values();
@@ -42,6 +44,7 @@
         return null;
     };
     $logo = $imgSrc($isPdf ? 'assets/KSS-pdf.png' : 'assets/KSS-full.png');
+    $k3Logo = $imgSrc('assets/k3-logo.png');
     $isDraft = $report->status === SafetyStatus::Draft;
     $creatorSig = $isDraft ? null : $imgSrc($report->creator?->signature_path);
     $approverSig = $report->approver ? $imgSrc($report->approver?->signature_path) : null;
@@ -53,6 +56,7 @@
     .report-paper .head-wrap { width: 100%; margin-bottom: 6px; border-collapse: collapse; }
     .report-paper .head-wrap td { vertical-align: middle; }
     .report-paper .logo { height: 36px; }
+    .report-paper .logo-k3 { height: 42px; }
     .report-paper .title { text-align: center; }
     .report-paper .title .l1 { font-size: 13px; font-weight: bold; letter-spacing: .5px; }
     .report-paper .title .l2 { font-size: 10px; font-weight: bold; letter-spacing: .3px; }
@@ -64,9 +68,16 @@
     .report-paper .addr .meta .line { border-bottom: 1px solid #000; }
     .report-paper table.grid { width: 100%; border-collapse: collapse; }
     .report-paper table.grid th, .report-paper table.grid td { border: 1px solid #000; padding: 2px 3px; }
-    .report-paper table.grid th { font-weight: bold; text-align: center; font-size: 7px; }
+    .report-paper table.grid th { font-weight: bold; text-align: center; font-size: 7px; background: #ffe600; }
     .report-paper .c { text-align: center; }
-    .report-paper .loc-row td { background: #e8eef9; font-weight: bold; font-size: 8px; }
+    /* Sel lokasi (merge vertikal antar item dalam satu lokasi) */
+    .report-paper td.loc-no { font-weight: bold; vertical-align: middle; font-size: 9px; }
+    .report-paper td.loc-name { font-weight: bold; vertical-align: middle; font-size: 9px; text-align: center; }
+    /* Latar sel kondisi sesuai pilihan */
+    .report-paper td.cond-bagus { background: #a5d6a7; }
+    .report-paper td.cond-rusak { background: #ef9a9a; }
+    .report-paper td.cond-normal { background: #90caf9; }
+    .report-paper td.cond-tidaknormal { background: #ffcc80; }
     .report-paper .sec { background: #f2f2f2; font-weight: bold; text-align: left; font-size: 8.5px; padding: 4px 6px; border: 1px solid #000; border-bottom: none; margin-top: 8px; }
     .report-paper .sign { width: 100%; border-collapse: collapse; margin-top: 6px; }
     .report-paper .sign td { width: 50%; text-align: center; vertical-align: top; font-size: 8.5px; padding: 2px 20px; }
@@ -87,7 +98,7 @@
                 <div class="l1">LAPORAN HARIAN</div>
                 <div class="l2">KESELAMATAN DAN KESEHATAN KERJA (K3)</div>
             </td>
-            <td style="width:120px"></td>
+            <td style="width:120px; text-align:right">@if ($k3Logo)<img class="logo-k3" src="{{ $k3Logo }}" alt="K3">@endif</td>
         </tr>
     </table>
 
@@ -116,36 +127,39 @@
     <table class="grid">
         <thead>
             <tr>
-                <th rowspan="2" style="width:4%">NO</th>
-                <th rowspan="2" style="width:28%">ITEM YANG DILAPORKAN</th>
-                <th rowspan="2" style="width:7%">QTY</th>
+                <th rowspan="2" style="width:4%">NO.</th>
+                <th rowspan="2" style="width:16%">LOKASI<br>TEMPAT KERJA</th>
+                <th rowspan="2" style="width:18%">ITEM<br>YANG DILAPORKAN</th>
+                <th rowspan="2" style="width:6%">QTY</th>
                 <th colspan="4">KONDISI</th>
-                <th rowspan="2" style="width:29%">REKOMENDASI</th>
+                <th rowspan="2" style="width:28%">REKOMENDASI</th>
             </tr>
             <tr>
-                <th style="width:8%">BAGUS</th>
-                <th style="width:8%">RUSAK</th>
-                <th style="width:8%">NORMAL</th>
-                <th style="width:8%">TDK NORMAL</th>
+                <th style="width:7%">BAGUS</th>
+                <th style="width:7%">RUSAK</th>
+                <th style="width:7%">NORMAL</th>
+                <th style="width:7%">TIDAK<br>NORMAL</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($byLocation as $locationName => $rows)
-                <tr class="loc-row"><td colspan="8">{{ $locationName }}</td></tr>
-                @foreach ($rows as $i => $insp)
+                @foreach ($rows as $insp)
                     <tr>
-                        <td class="c">{{ $i + 1 }}</td>
+                        @if ($loop->first)
+                            <td rowspan="{{ $rows->count() }}" class="c loc-no">{{ $loop->parent->iteration }}</td>
+                            <td rowspan="{{ $rows->count() }}" class="loc-name">{{ $locationName }}</td>
+                        @endif
                         <td>{{ $insp->item_name_snapshot }}</td>
                         <td class="c">{!! $qtyText($insp->qty) !!}</td>
-                        <td class="c">{!! $check($insp->condition, 'bagus') !!}</td>
-                        <td class="c">{!! $check($insp->condition, 'rusak') !!}</td>
-                        <td class="c">{!! $check($insp->condition, 'normal') !!}</td>
-                        <td class="c">{!! $check($insp->condition, 'tidak_normal') !!}</td>
+                        <td class="c {{ $condClass($insp->condition, 'bagus') }}">{!! $check($insp->condition, 'bagus') !!}</td>
+                        <td class="c {{ $condClass($insp->condition, 'rusak') }}">{!! $check($insp->condition, 'rusak') !!}</td>
+                        <td class="c {{ $condClass($insp->condition, 'normal') }}">{!! $check($insp->condition, 'normal') !!}</td>
+                        <td class="c {{ $condClass($insp->condition, 'tidak_normal') }}">{!! $check($insp->condition, 'tidak_normal') !!}</td>
                         <td>{{ $insp->recommendation }}</td>
                     </tr>
                 @endforeach
             @empty
-                <tr><td colspan="8" class="empty-note">Tidak ada data inspeksi.</td></tr>
+                <tr><td colspan="9" class="empty-note">Tidak ada data inspeksi.</td></tr>
             @endforelse
         </tbody>
     </table>

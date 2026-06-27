@@ -167,7 +167,7 @@
 
         .archive-body .thead,
         .archive-body .tbody {
-            justify-content: flex-start !important;
+            justify-content: space-between !important;
         }
 
         .archive-body .thead th,
@@ -545,7 +545,7 @@
                                         <option value="all" @selected($selectedDivision === 'all')>Semua Divisi</option>
                                         <option value="operasional" @selected($selectedDivision === 'operasional')>Operasional</option>
                                         <option value="pemeliharaan" @selected($selectedDivision === 'pemeliharaan')>Pemeliharaan</option>
-                                        <option value="safety" @selected($selectedDivision === 'safety')>Safety (Coming Soon)</option>
+                                        <option value="safety" @selected($selectedDivision === 'safety')>Safety</option>
                                     </select>
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>

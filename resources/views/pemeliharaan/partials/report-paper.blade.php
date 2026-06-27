@@ -24,22 +24,24 @@
 
     $unitNama = function ($item) {
         if (! $item) return '';
-        if ($item->unit) return trim($item->unit->unit_code.' '.($item->unit->brand ?? ''));
+        if ($item->unit) return $item->unit->maintenance_name;
         return $item->unit_label ?: '';
     };
-    $unitNomor = fn ($item) => $item && $item->unit ? $item->unit->unit_number : '';
+    $unitNomor = fn ($item) => $item && $item->unit ? $item->unit->maintenance_code : '';
     $check = fn ($cond) => $cond ? '&#10003;' : '';
 
     $byCat = fn ($cat) => $report->unitConditions->filter(fn ($c) => optional($c->unit)->macro_category === $cat);
     $conditionUnitLabel = function ($condition) {
         if ($condition->unit) {
-            return trim(implode(' ', array_filter([
-                $condition->unit->unit_code,
-                $condition->unit->unit_number,
-            ])));
+            return $condition->unit->maintenance_code;
         }
 
-        return trim((string) preg_replace('/\b(?:UD|YALE|HINO|TOYOTA)\b\s*/i', '', (string) $condition->unit_label));
+        $label = trim((string) $condition->unit_label);
+        if (preg_match('/\b[A-Z]{2,5}[-.\s]?\d+\b/i', $label, $matches)) {
+            return strtoupper(str_replace(['.', ' '], '-', $matches[0]));
+        }
+
+        return $label;
     };
     $labels = fn ($coll) => $coll->map($conditionUnitLabel)->filter()->values();
     $truck = $byCat('truck'); $heavy = $byCat('heavy');

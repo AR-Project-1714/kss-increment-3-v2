@@ -22,6 +22,10 @@
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
+            <div class="step-info-note">
+                <i class="fi fi-rr-info"></i>
+                <span>Identitas laporan shift Anda. <strong>Regu Penerima</strong> adalah regu shift berikutnya yang akan menerima dan menandatangani laporan ini — wajib berbeda dari regu pengirim.</span>
+            </div>
             <div class="form-info-umum d-flex align-items-start align-content-center align-self-stretch flex-wrap gap-20">
                 <!-- 1. Hari / Tanggal -->
                 <div class="box-input-1">
@@ -55,7 +59,7 @@
                 <!-- 3. Group / Regu -->
                 <div class="box-input-1">
                     <div class="box-label-1">
-                        <label for="group-regu">Group / Regu</label>
+                        <label for="group-regu">Regu</label>
                         <span class="text-red">*</span>
                     </div>
                     <div class="input-wrapper">
@@ -90,7 +94,7 @@
                 <!-- 5. Group / Regu Penerima -->
                 <div class="box-input-1">
                     <div class="box-label-1">
-                        <label for="group-penerima">Group / Regu Penerima</label>
+                        <label for="group-penerima">Regu Penerima</label>
                         <span class="text-red">*</span>
                     </div>
                     <div class="input-wrapper">

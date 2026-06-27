@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\MaintenanceStatus;
+use App\Http\Controllers\Concerns\AutosavesDraftReports;
 use App\Http\Controllers\Concerns\ResolvesMaintenanceMeta;
 use App\Models\MaintenanceReport;
 use App\Models\MaintenanceUnitCondition;
@@ -20,6 +21,7 @@ use Throwable;
 
 class ReportMaintenanceController extends Controller
 {
+    use AutosavesDraftReports;
     use ResolvesMaintenanceMeta;
 
     private const MASTER_DATA_CACHE_TTL = 60 * 60 * 24;
@@ -41,7 +43,7 @@ class ReportMaintenanceController extends Controller
             ->latest('updated_at')
             ->get();
 
-        $historyReports = MaintenanceReport::with(['creator', 'approver'])
+        $historyReports = MaintenanceReport::with(['creator', 'approver', 'attendances'])
             ->where('created_by', $user->id)
             ->whereIn('status', [MaintenanceStatus::Submitted, MaintenanceStatus::Approved])
             ->latest('report_date')
@@ -63,15 +65,20 @@ class ReportMaintenanceController extends Controller
 
     public function store(Request $request)
     {
+        if ($this->isAutosaveRequest($request)) {
+            $request->merge(['status' => MaintenanceStatus::Draft->value]);
+        }
+
         $status = $request->input('status') === MaintenanceStatus::Draft->value
             ? MaintenanceStatus::Draft->value
             : MaintenanceStatus::Submitted->value;
         $request->merge(['status' => $status]);
 
         $validated = $request->validate($this->rules($status === MaintenanceStatus::Draft->value), [], $this->attributes());
+        $report = null;
 
         try {
-            DB::transaction(function () use ($request, $validated, $status): void {
+            DB::transaction(function () use ($request, $validated, $status, &$report): void {
                 $reportDate = $validated['report_date'] ?? null;
 
                 $report = MaintenanceReport::create([
@@ -93,6 +100,10 @@ class ReportMaintenanceController extends Controller
             ]);
 
             return back()->withInput()->with('error', 'Laporan belum bisa disimpan. Silakan periksa data lalu coba lagi.');
+        }
+
+        if ($this->isAutosaveRequest($request)) {
+            return $this->autosaveResponse($report, 'pemeliharaan.update');
         }
 
         return redirect()->route('pemeliharaan.index')->with(
@@ -128,6 +139,10 @@ class ReportMaintenanceController extends Controller
     {
         abort_unless($this->canEdit($report, $request->user()), 403);
 
+        if ($this->isAutosaveRequest($request)) {
+            $request->merge(['status' => MaintenanceStatus::Draft->value]);
+        }
+
         $status = $report->status === MaintenanceStatus::Draft && $request->input('status') === MaintenanceStatus::Draft->value
             ? MaintenanceStatus::Draft->value
             : MaintenanceStatus::Submitted->value;
@@ -159,6 +174,10 @@ class ReportMaintenanceController extends Controller
             ]);
 
             return back()->withInput()->with('error', 'Laporan belum bisa diperbarui. Silakan periksa data lalu coba lagi.');
+        }
+
+        if ($this->isAutosaveRequest($request)) {
+            return $this->autosaveResponse($report, 'pemeliharaan.update');
         }
 
         return redirect()->route('pemeliharaan.index')->with(
@@ -268,7 +287,8 @@ class ReportMaintenanceController extends Controller
             }
 
             // Pastikan unit ada di master tunggal (preload mengirim seluruh unit pemeliharaan aktif).
-            if (! MasterUnit::whereKey($unitId)->whereNotNull('macro_category')->exists()) {
+            $unit = MasterUnit::whereKey($unitId)->whereNotNull('macro_category')->first();
+            if (! $unit) {
                 continue;
             }
 
@@ -276,7 +296,7 @@ class ReportMaintenanceController extends Controller
 
             $report->unitConditions()->create([
                 'master_unit_id'      => $unitId,
-                'unit_label'          => $this->string($row['unit_label'] ?? null),
+                'unit_label'          => $unit->maintenance_name,
                 'condition'           => $condition,
                 'notes'               => $this->string($row['notes'] ?? null),
             ]);
@@ -337,7 +357,7 @@ class ReportMaintenanceController extends Controller
                 ->first();
 
             if ($unit) {
-                return [$unit->id, $unit->display_name];
+                return [$unit->id, $unit->maintenance_name];
             }
         }
 
@@ -361,7 +381,8 @@ class ReportMaintenanceController extends Controller
                 ->get()
                 ->map(fn (MasterUnit $unit): array => [
                     'id'             => $unit->id,
-                    'label'          => $unit->display_name,
+                    'label'          => $unit->maintenance_name,
+                    'code'           => $unit->maintenance_code,
                     'macro_category' => $unit->macro_category,
                 ])
                 ->toArray()

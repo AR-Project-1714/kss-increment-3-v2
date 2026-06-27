@@ -431,7 +431,7 @@
                                 @php($cnote = $existingCond[$u['id']]->notes ?? '')
                                 <div class="body">
                                     <div class="table-column no"><span>{{ $i + 1 }}</span></div>
-                                    <div class="table-column main"><div class="table-input-wrapper"><i class="fi fi-sr-truck-container"></i><input type="text" name="conditions[{{ $u['id'] }}][unit_label]" value="{{ $existingCond[$u['id']]->unit_label ?? $u['label'] }}"></div></div>
+                                    <div class="table-column main"><div class="table-input-wrapper"><i class="fi fi-sr-truck-container"></i><input type="text" name="conditions[{{ $u['id'] }}][unit_label]" value="{{ $u['label'] }}"></div></div>
                                     <div class="table-column radio-col">
                                         <div class="radio-group-custom">
                                             <div class="radio-custom good">
@@ -468,7 +468,7 @@
                                 @php($cnote = $existingCond[$u['id']]->notes ?? '')
                                 <div class="body">
                                     <div class="table-column no"><span>{{ $i + 1 }}</span></div>
-                                    <div class="table-column main"><div class="table-input-wrapper"><i class="fi fi-sr-forklift"></i><input type="text" name="conditions[{{ $u['id'] }}][unit_label]" value="{{ $existingCond[$u['id']]->unit_label ?? $u['label'] }}"></div></div>
+                                    <div class="table-column main"><div class="table-input-wrapper"><i class="fi fi-sr-forklift"></i><input type="text" name="conditions[{{ $u['id'] }}][unit_label]" value="{{ $u['label'] }}"></div></div>
                                     <div class="table-column radio-col">
                                         <div class="radio-group-custom">
                                             <div class="radio-custom good">
@@ -811,6 +811,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ---- Simpan Draft / Kirim ----
     function submitAs(status) {
         if (!form || !statusInput) return;
+        window.__reportAutosaveSuppress = true; // pengiriman manual: matikan autosave
         statusInput.value = status;
         if (status === 'draft') {
             form.querySelectorAll('[required]').forEach(el => { el.dataset.wasReq = '1'; el.required = false; });
@@ -838,3 +839,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endpush
+
+@include('partials.report-autosave')

@@ -8,6 +8,10 @@
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
+            <div class="step-info-note">
+                <i class="fi fi-rr-info"></i>
+                <span>Catat pemuatan urea curah per kapal. Isi <strong>Laporan Harian</strong> tiap jam beserta <strong>COB</strong> (jumlah muat, dalam ton). Tandai status <strong>Selesai</strong> bila pekerjaan kapal sudah rampung.</span>
+            </div>
             <div class="form-muat-curah d-flex flex-column align-items-start align-self-stretch" style="gap: 25px;">
                 <div class="tab-activity d-flex align-items-center gap-10">
                     <button type="button" class="btn-activity active">Kegiatan 1</button>

@@ -12,7 +12,7 @@ class MasterUnit extends Model
     use InvalidatesMasterDataCache;
 
     public const MASTER_DATA_CACHE_KEY = 'master_data.vehicles';
-    public const MAINTENANCE_DATA_CACHE_KEY = 'maintenance.master.units';
+    public const MAINTENANCE_DATA_CACHE_KEY = 'maintenance.master.units.v2';
     public const MASTER_DATA_CACHE_KEYS = [
         self::MASTER_DATA_CACHE_KEY,
         self::MAINTENANCE_DATA_CACHE_KEY,
@@ -20,6 +20,17 @@ class MasterUnit extends Model
 
     public const MACRO_TRUCK = 'truck';
     public const MACRO_HEAVY = 'heavy';
+    public const MACRO_BUS = 'bus';
+
+    /**
+     * Tipe unit yang masuk seksi "Cek Unit" laporan operasional. Dipakai untuk
+     * menentukan nilai default kolom `in_operational_check`. Minibus (Avanza,
+     * sarana jemputan) sengaja tidak ada di daftar ini.
+     */
+    public const OPERATIONAL_CHECK_TYPES = [
+        'Trailer', 'Tronton', 'Dump Truck', 'Wheel Loader',
+        'Pickup', 'Pick Up', 'Bus', 'Excavator', 'Forklift',
+    ];
 
     protected $table = 'master_units';
 
@@ -29,13 +40,47 @@ class MasterUnit extends Model
         'unit_code',
         'brand',
         'unit_number',
+        'plate_number',
         'macro_category',
+        'year',
         'status',
+        'in_operational_check',
+    ];
+
+    protected $casts = [
+        'in_operational_check' => 'boolean',
     ];
 
     public function checkLogs()
     {
         return $this->hasMany(UnitCheckLog::class, 'master_id', 'id')->where('category', 'vehicle');
+    }
+
+    /**
+     * Unit untuk seksi "Cek Kondisi Unit" pada laporan operasional. Keanggotaan
+     * ditentukan kolom kategori `in_operational_check` (bukan lagi `type`),
+     * sehingga unit seperti Avanza (sarana jemputan) bisa dikecualikan tanpa
+     * mengubah tipenya. Masuk: Trailer, Tronton, Dump Truck, Wheel Loader,
+     * Pickup, Bus, Excavator, Forklift. Di dalam tiap jenis diurutkan
+     * menurut nomor urut (id).
+     */
+    public function scopeOrderedForReport($query)
+    {
+        return $query
+            ->where('in_operational_check', true)
+            ->orderByRaw(
+                "CASE type "
+                ."WHEN 'Trailer' THEN 1 "
+                ."WHEN 'Tronton' THEN 2 "
+                ."WHEN 'Forklift' THEN 3 "
+                ."WHEN 'Wheel Loader' THEN 4 "
+                ."WHEN 'Excavator' THEN 5 "
+                ."WHEN 'Pickup' THEN 6 WHEN 'Pick Up' THEN 6 "
+                ."WHEN 'Minibus' THEN 7 WHEN 'Bus' THEN 7 "
+                ."WHEN 'Dump Truck' THEN 8 "
+                ."ELSE 99 END"
+            )
+            ->orderBy('id');
     }
 
     public function maintenanceConditions()
@@ -75,6 +120,32 @@ class MasterUnit extends Model
         }
 
         return (string) $this->name;
+    }
+
+    public function getMaintenanceNameAttribute(): string
+    {
+        return (string) ($this->name ?: $this->operational_name);
+    }
+
+    public function getMaintenanceCodeAttribute(): string
+    {
+        return (string) ($this->unit_number ?: $this->short_display_name);
+    }
+
+    /**
+     * Label laporan operasional: nama (tipe) + nomor unit, mis. "Trailer TRL-01".
+     * Tampilan PDF cukup memakai kolom unit_number saja.
+     */
+    public function getOperationalNameAttribute(): string
+    {
+        $unitNumber = $this->unit_number ?: $this->unitNumberFromName();
+        $label = $this->type ?: $this->name;
+
+        if (filled($label) && filled($unitNumber)) {
+            return trim($label.' '.$unitNumber);
+        }
+
+        return (string) ($this->name ?: $unitNumber ?: $this->short_display_name);
     }
 
     private function unitCodeFromTypeOrName(): ?string

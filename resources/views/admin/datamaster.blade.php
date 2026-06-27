@@ -306,10 +306,16 @@
     .thead th.col-division, .tbody td.col-division { min-width: 120px; }
     .thead th.col-worktime, .tbody td.col-worktime { min-width: 110px; }
     .thead th.col-type,     .tbody td.col-type     { min-width: 120px; }
+    .thead th.col-year,     .tbody td.col-year     { min-width: 80px; }
     .thead th.col-plate,    .tbody td.col-plate    { min-width: 120px; }
     .thead th.col-desc,     .tbody td.col-desc     { min-width: 200px; flex: 2 0 0; }
     .thead th.col-category, .tbody td.col-category { min-width: 130px; }
+    .thead th.col-opscheck, .tbody td.col-opscheck { min-width: 110px; }
     .thead th.col-stock,    .tbody td.col-stock    { min-width: 90px; }
+    .thead th.col-order,    .tbody td.col-order    { min-width: 90px; }
+    .thead th.col-count,    .tbody td.col-count    { min-width: 110px; }
+    .thead th.col-status,   .tbody td.col-status   { min-width: 110px; }
+    .thead th.col-qtyflag,  .tbody td.col-qtyflag  { min-width: 120px; }
     .thead th.col-aksi,     .tbody td.col-aksi     { min-width: 180px; gap: 8px; flex-wrap: nowrap; }
 
     /* Action buttons */
@@ -364,17 +370,23 @@
         ['no' => 3, 'name' => 'Oli Mesin SAE 40',   'category' => 'Sparepart'],
         ['no' => 4, 'name' => 'Ban Truck 1000-20',  'category' => 'Sparepart'],
     ]);
+    $safetyLocations = $safetyLocations ?? collect([]);
+    $safetyItems = $safetyItems ?? collect([]);
     $masterActions = $masterActions ?? [
         'karyawan' => ['store' => '#'],
         'unit' => ['store' => '#'],
         'truck' => ['store' => '#'],
         'inventaris' => ['store' => '#'],
+        'safety_lokasi' => ['store' => '#'],
+        'safety_item' => ['store' => '#'],
     ];
     $masterUi = [
-        'karyawan'   => ['title' => 'Data Karyawan',   'search' => 'Cari Karyawan',   'add' => 'Tambah Karyawan',   'icon' => 'fi fi-rr-user-add'],
-        'unit'       => ['title' => 'Data Unit',       'search' => 'Cari Unit',       'add' => 'Tambah Unit',       'icon' => 'fi fi-rr-add'],
-        'truck'      => ['title' => 'Data Truck',      'search' => 'Cari Truck',      'add' => 'Tambah Truck',      'icon' => 'fi fi-rr-add'],
-        'inventaris' => ['title' => 'Data Inventaris', 'search' => 'Cari Inventaris', 'add' => 'Tambah Inventaris', 'icon' => 'fi fi-rr-add'],
+        'karyawan'      => ['title' => 'Data Karyawan',   'search' => 'Cari Karyawan',   'add' => 'Tambah Karyawan',   'icon' => 'fi fi-rr-user-add'],
+        'unit'          => ['title' => 'Data Unit',       'search' => 'Cari Unit',       'add' => 'Tambah Unit',       'icon' => 'fi fi-rr-add'],
+        'truck'         => ['title' => 'Data Truck',      'search' => 'Cari Truck',      'add' => 'Tambah Truck',      'icon' => 'fi fi-rr-add'],
+        'inventaris'    => ['title' => 'Data Inventaris', 'search' => 'Cari Inventaris', 'add' => 'Tambah Inventaris', 'icon' => 'fi fi-rr-add'],
+        'safety_lokasi' => ['title' => 'Data Lokasi K3',  'search' => 'Cari Lokasi K3',  'add' => 'Tambah Lokasi',     'icon' => 'fi fi-rr-marker'],
+        'safety_item'   => ['title' => 'Data Item K3',    'search' => 'Cari Item K3',    'add' => 'Tambah Item',       'icon' => 'fi fi-rr-checkbox'],
     ];
 
     $activePane = $activePane ?? 'karyawan';
@@ -385,22 +397,19 @@
     // Opsi filter dropdown (diselaraskan dengan modal tambah/edit).
     $filterGroupOptions = [
         '' => 'Semua Group', 'kantor' => 'Kantor', 'bengkel' => 'Bengkel',
+        'Relief 1' => 'Relief 1', 'Relief 2' => 'Relief 2',
         'A' => 'Regu A', 'B' => 'Regu B', 'C' => 'Regu C', 'D' => 'Regu D',
         'OP7 A' => 'OP7 A', 'OP7 B' => 'OP7 B', 'OP7 C' => 'OP7 C', 'OP7 D' => 'OP7 D',
     ];
     $filterDivisionOptions = [
-        '' => 'Semua Divisi', 'Operasional' => 'Operasional', 'Pemeliharaan' => 'Pemeliharaan', 'Safety (Coming Soon)' => 'Safety',
+        '' => 'Semua Divisi', 'Operasional' => 'Operasional', 'Pemeliharaan' => 'Pemeliharaan', 'Safety (Coming Soon)' => 'Safety', 'Office' => 'Office',
     ];
-    $filterPositionOptions = array_merge(['' => 'Semua Jabatan'], array_combine(
-        ['Kepala Regu ( KARU )', 'Wakil Karu', 'Wakil Kepala Regu', 'Checker', 'Operator FL', 'Driver', 'Operator Exca/ WL', 'Kasi Pemeliharaan & Peralatan', 'Karu Peralatan', 'Karu Pemeliharaan', 'Mekanik', 'Helper', 'Rigger', 'Kepala Seksi', 'Kepala Regu', 'Operator OP.7'],
-        ['Kepala Regu ( KARU )', 'Wakil Karu', 'Wakil Kepala Regu', 'Checker', 'Operator FL', 'Driver', 'Operator Exca/ WL', 'Kasi Pemeliharaan & Peralatan', 'Karu Peralatan', 'Karu Pemeliharaan', 'Mekanik', 'Helper', 'Rigger', 'Kepala Seksi', 'Kepala Regu', 'Operator OP.7']
-    ));
-    $filterTypeOptions = array_merge(['' => 'Semua Tipe'], array_combine(
-        ['Trailer', 'Tronton', 'Dump Truck', 'Pick Up', 'Bus', 'Forklift', 'Wheel Loader', 'Excavator'],
-        ['Trailer', 'Tronton', 'Dump Truck', 'Pick Up', 'Bus', 'Forklift', 'Wheel Loader', 'Excavator']
-    ));
+    $positionOptionList = ['Checker', 'Operator FL', 'Driver', 'Operator Exca/ WL', 'Operator WL/ Exca', 'Kasi Pemeliharaan & Peralatan', 'Karu Peralatan', 'Karu Pemeliharaan', 'Mekanik', 'Helper', 'Rigger', 'Operator OP.7', 'Manager', 'Kabag', 'Kasi', 'Staf Ahli', 'Staf', 'Kepala Seksi'];
+    $filterPositionOptions = array_merge(['' => 'Semua Jabatan'], array_combine($positionOptionList, $positionOptionList));
+    $unitTypeOptionList = ['Trailer', 'Tronton', 'Dump Truck', 'Minibus', 'Bus', 'Pickup', 'Forklift', 'Wheel Loader', 'Excavator'];
+    $filterTypeOptions = array_merge(['' => 'Semua Tipe'], array_combine($unitTypeOptionList, $unitTypeOptionList));
     $filterCategoryOptions = [
-        '' => 'Semua Kategori', 'truck' => 'Truck', 'heavy' => 'Heavy', '-' => 'Tanpa Kategori',
+        '' => 'Semua Kategori', 'truck' => 'Truck', 'bus' => 'Bus', 'heavy' => 'Heavy', '-' => 'Tanpa Kategori',
     ];
 
     $masterFilterActive = [
@@ -515,9 +524,9 @@
                     </div>
                 </div>
                 <div class="filter-field">
-                    <label>Kategori Pemeliharaan</label>
+                    <label>Kategori</label>
                     <div class="filter-select-wrapper">
-                        <select name="f_category" class="native-select js-master-filter" aria-label="Filter Kategori Pemeliharaan">
+                        <select name="f_category" class="native-select js-master-filter" aria-label="Filter Kategori">
                             @foreach ($filterCategoryOptions as $val => $label)
                                 <option value="{{ $val }}" @selected($masterFilters['category'] === $val)>{{ $label }}</option>
                             @endforeach
@@ -577,20 +586,24 @@
                     <th class="col-name">Name</th>
                     <th class="col-code">Kode</th>
                     <th class="col-brand">Merk</th>
-                    <th class="col-number">Nomor</th>
+                    <th class="col-number">Plat</th>
                     <th class="col-type">Type</th>
                     <th class="col-category">Kategori</th>
+                    <th class="col-opscheck">Cek Unit</th>
+                    <th class="col-year">Tahun</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @forelse ($units as $u)
                     <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $u['update_url'] ?? '' }}">
                         <td class="col-no">{{ $u['no'] }}</td>
                         <td class="col-name">{{ $u['name'] }}</td>
-                        <td class="col-code">{{ $u['unit_code'] }}</td>
+                        <td class="col-code">{{ $u['unit_number'] }}</td>
                         <td class="col-brand">{{ $u['brand'] }}</td>
-                        <td class="col-number">{{ $u['unit_number'] }}</td>
+                        <td class="col-number">{{ $u['plate'] }}</td>
                         <td class="col-type">{{ $u['type'] }}</td>
                         <td class="col-category">{{ $u['macro_category'] }}</td>
+                        <td class="col-opscheck">{{ $u['in_operational_check'] }}</td>
+                        <td class="col-year">{{ $u['year'] }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
                             <form method="POST" action="{{ $u['destroy_url'] ?? '#' }}">
@@ -672,6 +685,75 @@
             </table>
         </div>
     </div>
+
+    <!-- PANE: Master Safety Locations -->
+    <div class="master-pane {{ $activePane === 'safety_lokasi' ? 'active' : '' }}" data-pane="safety_lokasi">
+        <div class="table-responsive-wrapper">
+            <table>
+                <tr class="thead d-flex justify-content-between align-items-center">
+                    <th class="col-no">No</th>
+                    <th class="col-name">Nama Lokasi</th>
+                    <th class="col-order">Urutan</th>
+                    <th class="col-count">Jumlah Item</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-aksi">Aksi</th>
+                </tr>
+                @forelse ($safetyLocations as $loc)
+                    <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $loc['update_url'] ?? '' }}">
+                        <td class="col-no">{{ $loc['no'] }}</td>
+                        <td class="col-name">{{ $loc['name'] }}</td>
+                        <td class="col-order">{{ $loc['sort_order'] }}</td>
+                        <td class="col-count">{{ $loc['item_count'] }} item</td>
+                        <td class="col-status">{{ $loc['is_active'] }}</td>
+                        <td class="col-aksi">
+                            <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
+                            <form method="POST" action="{{ $loc['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    @include('admin.layouts.empty-state', $masterEmptyState('safety_lokasi', 'lokasi K3', 'fi fi-rr-marker'))
+                @endforelse
+            </table>
+        </div>
+    </div>
+
+    <!-- PANE: Master Safety Items -->
+    <div class="master-pane {{ $activePane === 'safety_item' ? 'active' : '' }}" data-pane="safety_item">
+        <div class="table-responsive-wrapper">
+            <table>
+                <tr class="thead d-flex justify-content-between align-items-center">
+                    <th class="col-no">No</th>
+                    <th class="col-name">Nama Item</th>
+                    <th class="col-qtyflag">Pakai QTY</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-aksi">Aksi</th>
+                </tr>
+                @forelse ($safetyItems as $it)
+                    <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $it['update_url'] ?? '' }}">
+                        <td class="col-no">{{ $it['no'] }}</td>
+                        <td class="col-name">{{ $it['name'] }}</td>
+                        <td class="col-qtyflag">{{ $it['is_countable'] }}</td>
+                        <td class="col-status">{{ $it['is_active'] }}</td>
+                        <td class="col-aksi">
+                            <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
+                            <form method="POST" action="{{ $it['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    @include('admin.layouts.empty-state', $masterEmptyState('safety_item', 'item K3', 'fi fi-rr-checkbox'))
+                @endforelse
+            </table>
+        </div>
+    </div>
+
     @if (($activePane ?? 'karyawan') === 'karyawan' && method_exists($employees, 'links'))
         @include('admin.layouts.pagination', ['paginator' => $employees, 'label' => 'karyawan'])
     @elseif (($activePane ?? 'karyawan') === 'unit' && method_exists($units, 'links'))
@@ -680,6 +762,10 @@
         @include('admin.layouts.pagination', ['paginator' => $trucks, 'label' => 'truck'])
     @elseif (($activePane ?? 'karyawan') === 'inventaris' && method_exists($inventories, 'links'))
         @include('admin.layouts.pagination', ['paginator' => $inventories, 'label' => 'inventaris'])
+    @elseif (($activePane ?? 'karyawan') === 'safety_lokasi' && method_exists($safetyLocations, 'links'))
+        @include('admin.layouts.pagination', ['paginator' => $safetyLocations, 'label' => 'lokasi K3'])
+    @elseif (($activePane ?? 'karyawan') === 'safety_item' && method_exists($safetyItems, 'links'))
+        @include('admin.layouts.pagination', ['paginator' => $safetyItems, 'label' => 'item K3'])
     @endif
 @endcomponent
 
@@ -719,13 +805,15 @@
     document.addEventListener('DOMContentLoaded', function () {
         // MASTER DATA TAB SWITCHING (via submenu sidebar)
         const masterTabs = {
-            karyawan:   { title: 'Data Karyawan',   search: 'Cari Karyawan',   add: 'Tambah Karyawan',   icon: 'fi fi-rr-user-add' },
-            unit:       { title: 'Data Unit',       search: 'Cari Unit',       add: 'Tambah Unit',       icon: 'fi fi-rr-add' },
-            truck:      { title: 'Data Truck',      search: 'Cari Truck',      add: 'Tambah Truck',      icon: 'fi fi-rr-add' },
-            inventaris: { title: 'Data Inventaris', search: 'Cari Inventaris', add: 'Tambah Inventaris', icon: 'fi fi-rr-add' }
+            karyawan:      { title: 'Data Karyawan',   search: 'Cari Karyawan',   add: 'Tambah Karyawan',   icon: 'fi fi-rr-user-add' },
+            unit:          { title: 'Data Unit',       search: 'Cari Unit',       add: 'Tambah Unit',       icon: 'fi fi-rr-add' },
+            truck:         { title: 'Data Truck',      search: 'Cari Truck',      add: 'Tambah Truck',      icon: 'fi fi-rr-add' },
+            inventaris:    { title: 'Data Inventaris', search: 'Cari Inventaris', add: 'Tambah Inventaris', icon: 'fi fi-rr-add' },
+            safety_lokasi: { title: 'Data Lokasi K3',  search: 'Cari Lokasi K3',  add: 'Tambah Lokasi',     icon: 'fi fi-rr-marker' },
+            safety_item:   { title: 'Data Item K3',    search: 'Cari Item K3',    add: 'Tambah Item',       icon: 'fi fi-rr-checkbox' }
         };
 
-        const employeeGroupOptions = ['-', 'Bengkel', 'A', 'B', 'C', 'D', 'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D'];
+        const employeeGroupOptions = ['-', 'Bengkel', 'Relief 1', 'Relief 2', 'A', 'B', 'C', 'D', 'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D'];
         const employeePositionOptions = [
             '-',
             'Kepala Regu ( KARU )',
@@ -742,11 +830,17 @@
             'Mekanik',
             'Helper',
             'Rigger',
+            'Operator OP.7',
+            'Manager',
+            'Kabag',
+            'Kasi',
+            'Karu',
+            'Staf Ahli',
+            'Staf',
             'Kepala Seksi',
             'Kepala Regu',
-            'Operator OP.7',
         ];
-        const employeeDivisionOptions = ['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)'];
+        const employeeDivisionOptions = ['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Office'];
         const employeeWorkTimeOptions = ['Non Shift', 'Shift', 'Relief'];
 
         const masterSchemas = {
@@ -766,12 +860,14 @@
                 label: 'Unit',
                 icon: 'fi fi-rr-truck-side',
                 fields: [
-                    { key: 'name', label: 'Nama Unit', placeholder: 'cth, Forklift KSS-01' },
-                    { key: 'unit_code', label: 'Kode Unit', placeholder: 'cth, FL / TRL' },
-                    { key: 'brand', label: 'Merk', placeholder: 'cth, YALE' },
-                    { key: 'unit_number', label: 'Nomor Unit', placeholder: 'cth, KSS-01' },
-                    { key: 'type', label: 'Tipe Unit', type: 'select', options: ['Trailer', 'Tronton', 'Dump Truck', 'Pick Up', 'Bus', 'Forklift', 'Wheel Loader', 'Excavator'] },
-                    { key: 'macro_category', label: 'Kategori Pemeliharaan', type: 'select', options: ['-', 'truck', 'heavy'] },
+                    // Nama unit otomatis = Tipe + Kode unit, jadi tidak ada input nama manual.
+                    { key: 'unit_number', label: 'Kode Unit', placeholder: 'cth, TRL-01 / FL-01' },
+                    { key: 'brand', label: 'Merk', placeholder: 'cth, NISSAN CWM 330' },
+                    { key: 'plate_number', label: 'Nomor Plat', placeholder: 'cth, KTDE 8512' },
+                    { key: 'type', label: 'Tipe Unit', type: 'select', options: ['Trailer', 'Tronton', 'Dump Truck', 'Minibus', 'Bus', 'Pickup', 'Forklift', 'Wheel Loader', 'Excavator'] },
+                    { key: 'macro_category', label: 'Kategori', type: 'select', options: ['-', 'truck', 'bus', 'heavy'] },
+                    { key: 'in_operational_check', label: 'Masuk Cek Unit Operasional', type: 'select', options: ['Ya', 'Tidak'] },
+                    { key: 'year', label: 'Tahun Pembuatan', type: 'number', placeholder: 'cth, 2024' },
                 ],
             },
             truck: {
@@ -790,6 +886,24 @@
                     { key: 'name', label: 'Nama Inventaris', placeholder: 'cth, Helm Safety' },
                     { key: 'category', label: 'Kategori', type: 'select', options: ['APD', 'Sparepart', 'Tools', 'Consumable'] },
                     { key: 'stock', label: 'Jumlah', type: 'number', placeholder: 'cth, 50' },
+                ],
+            },
+            safety_lokasi: {
+                label: 'Lokasi K3',
+                icon: 'fi fi-rr-marker',
+                fields: [
+                    { key: 'name', label: 'Nama Lokasi', placeholder: 'cth, Shelter Shift Operasi' },
+                    { key: 'sort_order', label: 'Urutan', type: 'number', placeholder: 'cth, 1' },
+                    { key: 'is_active', label: 'Status', type: 'select', options: ['Aktif', 'Nonaktif'] },
+                ],
+            },
+            safety_item: {
+                label: 'Item K3',
+                icon: 'fi fi-rr-checkbox',
+                fields: [
+                    { key: 'name', label: 'Nama Item', placeholder: 'cth, APAR' },
+                    { key: 'is_countable', label: 'Pakai QTY?', type: 'select', options: ['Tidak', 'Ya'] },
+                    { key: 'is_active', label: 'Status', type: 'select', options: ['Aktif', 'Nonaktif'] },
                 ],
             },
         };
@@ -905,15 +1019,31 @@
                 const category = text('.col-category');
                 return {
                     name: text('.col-name'),
-                    unit_code: text('.col-code') === '-' ? '' : text('.col-code'),
+                    unit_number: text('.col-code') === '-' ? '' : text('.col-code'),
                     brand: text('.col-brand') === '-' ? '' : text('.col-brand'),
-                    unit_number: text('.col-number') === '-' ? '' : text('.col-number'),
+                    plate_number: text('.col-number') === '-' ? '' : text('.col-number'),
                     type: text('.col-type'),
-                    macro_category: category === 'Truck' ? 'truck' : (category === 'Heavy' ? 'heavy' : '-'),
+                    macro_category: category === 'Truck' ? 'truck' : (category === 'Bus' ? 'bus' : (category === 'Heavy' ? 'heavy' : '-')),
+                    in_operational_check: text('.col-opscheck') === 'Ya' ? 'Ya' : 'Tidak',
+                    year: text('.col-year') === '-' ? '' : text('.col-year'),
                 };
             }
             if (pane === 'truck') {
                 return { name: text('.col-name'), plate: text('.col-plate'), desc: text('.col-desc') };
+            }
+            if (pane === 'safety_lokasi') {
+                return {
+                    name: text('.col-name'),
+                    sort_order: text('.col-order'),
+                    is_active: text('.col-status') || 'Aktif',
+                };
+            }
+            if (pane === 'safety_item') {
+                return {
+                    name: text('.col-name'),
+                    is_countable: text('.col-qtyflag') || 'Tidak',
+                    is_active: text('.col-status') || 'Aktif',
+                };
             }
             return { name: text('.col-name'), category: text('.col-category'), stock: text('.col-stock') };
         }

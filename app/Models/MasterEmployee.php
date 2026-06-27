@@ -21,6 +21,7 @@ class MasterEmployee extends Model
     public const DIVISION_OPERATIONAL = 'operasional';
     public const DIVISION_MAINTENANCE = 'pemeliharaan';
     public const DIVISION_SAFETY = 'safety';
+    public const DIVISION_OFFICE = 'office';
     public const DIVISION_BOTH = 'both';
 
     protected $table = 'master_employees';

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ReportStatus;
 use App\Enums\MaintenanceStatus;
+use App\Enums\SafetyStatus;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
@@ -12,6 +13,7 @@ use App\Models\MaintenanceReport;
 use App\Models\MasterEmployee;
 use App\Models\MasterUnit;
 use App\Models\Role;
+use App\Models\SafetyReport;
 use App\Models\ShipOperation;
 use App\Models\UnitCheckLog;
 use App\Models\User;
@@ -161,8 +163,18 @@ class OpsFlowTest extends TestCase
             'status' => 'acknowledged',
         ]);
 
+        $safetyReport = SafetyReport::create([
+            'report_date' => '2026-05-21',
+            'time_range' => '07:00 - 16:00',
+            'status' => SafetyStatus::Approved,
+            'created_by' => $operator->id,
+            'approved_by' => $manager->id,
+            'approved_at' => '2026-05-21 17:00:00',
+        ]);
+
         $archivedDocumentId = '#OPS-2026-'.str_pad((string) $archivedReport->id, 3, '0', STR_PAD_LEFT);
         $pendingDocumentId = '#OPS-2026-'.str_pad((string) $pendingReport->id, 3, '0', STR_PAD_LEFT);
+        $safetyDocumentId = '#K3-2026-'.str_pad((string) $safetyReport->id, 3, '0', STR_PAD_LEFT);
 
         $this->actingAs($admin)
             ->get(route('admin.archive', ['divisi' => 'operasional', 'status' => 'approved']))
@@ -185,6 +197,16 @@ class OpsFlowTest extends TestCase
         $this->actingAs($manager)
             ->get(route('manajer.archive', ['divisi' => 'safety']))
             ->assertOk()
+            ->assertSee('Safety', false)
+            ->assertSee($safetyDocumentId, false)
+            ->assertDontSee($archivedDocumentId, false)
+            ->assertDontSee($pendingDocumentId, false);
+
+        $this->actingAs($admin)
+            ->get(route('admin.archive', ['divisi' => 'safety']))
+            ->assertOk()
+            ->assertSee('Safety', false)
+            ->assertSee($safetyDocumentId, false)
             ->assertDontSee($archivedDocumentId, false)
             ->assertDontSee($pendingDocumentId, false);
     }
@@ -303,7 +325,7 @@ class OpsFlowTest extends TestCase
 
         $this->assertDatabaseHas('maintenance_unit_conditions', [
             'master_unit_id' => $unit->id,
-            'unit_label' => 'FL YALE KSS-01',
+            'unit_label' => 'Forklift KSS-01',
             'condition' => 'ready',
         ]);
     }
@@ -321,11 +343,11 @@ class OpsFlowTest extends TestCase
         ]);
 
         $unit = MasterUnit::create([
-            'name' => 'TRL UD KSS-01',
+            'name' => 'Trailer TRL-01',
             'type' => 'Trailer',
             'unit_code' => 'TRL',
             'brand' => 'UD',
-            'unit_number' => 'KSS-01',
+            'unit_number' => 'TRL-01',
             'macro_category' => MasterUnit::MACRO_TRUCK,
             'status' => 'active',
         ]);
@@ -359,8 +381,51 @@ class OpsFlowTest extends TestCase
         $response = $this->actingAs($user)->get(route('pemeliharaan.create'));
 
         $response->assertOk();
-        $response->assertSee('value="TRL UD KSS-01"', false);
+        $response->assertSee('value="Trailer TRL-01"', false);
         $response->assertSee('id="ct_rusak_'.$unit->id.'" value="rusak" data-cond-group="truck" checked', false);
+    }
+
+    public function test_maintenance_report_condition_pdf_uses_unit_code_only(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::MAINTENANCE]);
+        $user = User::create([
+            'name' => 'Petugas Pemeliharaan PDF',
+            'username' => 'petugas-pml-pdf',
+            'email' => 'petugas-pml-pdf@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+        ]);
+
+        $unit = MasterUnit::create([
+            'name' => 'Trailer TRL-01',
+            'type' => 'Trailer',
+            'unit_code' => 'TRL',
+            'brand' => 'UD',
+            'unit_number' => 'TRL-01',
+            'macro_category' => MasterUnit::MACRO_TRUCK,
+            'status' => 'active',
+        ]);
+
+        $report = MaintenanceReport::create([
+            'report_date' => '2026-06-10',
+            'day_name' => 'Rabu',
+            'status' => MaintenanceStatus::Draft->value,
+            'created_by' => $user->id,
+        ]);
+        $report->unitConditions()->create([
+            'master_unit_id' => $unit->id,
+            'unit_label' => 'Trailer TRL-01',
+            'condition' => 'ready',
+        ]);
+
+        $html = view('pemeliharaan.partials.report-paper', [
+            'report' => $report->load(['creator', 'approver', 'workItems.unit', 'unitConditions.unit', 'attendances']),
+            'isPdf' => true,
+        ])->render();
+
+        $this->assertStringContainsString('>TRL-01<', $html);
+        $this->assertStringNotContainsString('Trailer TRL-01', $html);
     }
 
     public function test_maintenance_report_uses_master_employees_as_single_employee_source(): void
@@ -430,23 +495,43 @@ class OpsFlowTest extends TestCase
         ]);
     }
 
+    public function test_master_unit_bus_and_minibus_active_numbers_follow_latest_list(): void
+    {
+        $this->seed(\Database\Seeders\MasterUnitSeeder::class);
+
+        $activeBusUnits = MasterUnit::where('unit_code', 'BUS')
+            ->where('status', 'active')
+            ->orderBy('unit_number')
+            ->get(['type', 'unit_number'])
+            ->groupBy('type')
+            ->map(fn ($units) => $units->pluck('unit_number')->values()->all());
+
+        $this->assertSame(['KSS-06', 'KSS-07', 'KSS-10'], $activeBusUnits->get('Bus'));
+        $this->assertSame(['KSS-02', 'KSS-04', 'KSS-05', 'KSS-09'], $activeBusUnits->get('Minibus'));
+
+        $this->assertDatabaseMissing('master_units', [
+            'unit_code' => 'BUS',
+            'unit_number' => 'KSS-01',
+            'status' => 'active',
+        ]);
+    }
+
     public function test_maintenance_employee_roster_uses_latest_positions_and_npks(): void
     {
         $this->seed(\Database\Seeders\MasterEmployeeSeeder::class);
-        $this->seed(\Database\Seeders\MaintenanceEmployeeSeeder::class);
 
         $expected = [
-            'Sungkono' => ['2000.1.007', 'Kepala Seksi'],
-            'Achmad Saiful Anwari' => ['2008.1.058', 'Kepala Regu'],
+            'Sungkono' => ['2000.1.007', 'Kasi Pemeliharaan & Peralatan'],
+            'Achmad Saiful Anwari' => ['2008.1.058', 'Karu Pemeliharaan'],
             'Usman' => ['2023.K.017', 'Mekanik'],
             'Arman' => ['2023.K.035', 'Mekanik'],
             'Muhammad Suaiban' => ['2024.K.058', 'Helper'],
             'Rahul' => ['2024.K.059', 'Helper'],
             'Usriadi' => [null, 'Helper'],
             'Fakhruddin' => [null, 'Helper'],
-            'Akhmad Yani Siregar' => ['2003.1.031', 'Kepala Regu'],
-            'Rizal Paselleri' => [null, 'Driver'],
-            'Irfan Teguh Andriyanto' => ['2023.K.019', 'Rigger'],
+            'Akhmad Yani Siregar' => ['2003.1.031', 'Karu Peralatan'],
+            'Rizal Paselleri' => ['2003.1.038', 'Driver'],
+            'Irfan Teguh Andriyanto' => ['2023.K.019', 'Operator Exca/ WL'],
             'Amiruddin' => ['2006.1.049', 'Checker'],
         ];
 
@@ -455,6 +540,7 @@ class OpsFlowTest extends TestCase
                 'name' => $name,
                 'npk' => $npk,
                 'position' => $position,
+                'division' => 'pemeliharaan',
                 'work_time' => 'Non Shift',
             ]);
         }
@@ -486,7 +572,7 @@ class OpsFlowTest extends TestCase
             ->get(route('pemeliharaan.create'))
             ->assertOk()
             ->assertSee('Form Laporan Harian Pemeliharaan')
-            ->assertSee('FL YALE KSS-01');
+            ->assertSee('Forklift KSS-01');
     }
 
     public function test_master_unit_short_display_name_uses_abbreviated_pdf_label(): void
@@ -561,12 +647,17 @@ class OpsFlowTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.master.units.store'), [
-                'name' => 'Unit Admin Test',
-                'type' => 'Support',
+                'type' => 'Minibus',
+                'unit_number' => 'KSS-99',
             ])
             ->assertRedirect(route('admin.datamaster', ['pane' => 'unit']));
 
-        $this->assertDatabaseHas('master_units', ['name' => 'Unit Admin Test']);
+        // Nama unit otomatis = gabungan Tipe + Kode unit.
+        $this->assertDatabaseHas('master_units', [
+            'name' => 'Minibus KSS-99',
+            'type' => 'Minibus',
+            'unit_number' => 'KSS-99',
+        ]);
 
         $this->actingAs($admin)
             ->post(route('admin.backup.generate'))
@@ -784,6 +875,36 @@ class OpsFlowTest extends TestCase
         $this->assertDatabaseMissing('ship_operations', [
             'ship_name' => 'KM Draft',
         ]);
+    }
+
+    public function test_autosave_request_forces_draft_and_returns_update_url(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::OPERATIONAL]);
+        $user = User::create([
+            'name' => 'Petugas Autosave',
+            'username' => 'petugas-autosave',
+            'email' => 'petugas-autosave@example.com',
+            'password' => 'password',
+            'status' => 'aktif',
+            'group' => 'A',
+            'role_id' => $role->id,
+        ]);
+
+        // Autosave mengirim status=submitted, tapi server WAJIB memaksanya jadi draft
+        // dan menjawab JSON berisi update_url (bukan redirect) agar tidak duplikat.
+        $response = $this->actingAs($user)->post(route('report-ops.store'), [
+            'status' => 'submitted',
+            'autosave' => 1,
+            'report_date' => '2026-06-10',
+            'ship_name_1' => 'KM Autosave',
+        ]);
+
+        $response->assertOk();
+        $response->assertJson(['ok' => true]);
+
+        $report = DailyReport::where('created_by', $user->id)->firstOrFail();
+        $this->assertSame(ReportStatus::Draft->value, $report->status->value);
+        $this->assertSame(route('report-ops.update', $report), $response->json('update_url'));
     }
 
     public function test_submitted_report_rejects_same_sender_and_receiver_group(): void

@@ -7,7 +7,7 @@
             <div class="info-officer d-flex flex-column align-items-start flexible">
                 <span class="nama align-self-stretch fsize-12 fw-600">Selamat Datang, {{ auth()->user()->name ?? 'Operasional' }}</span>
                 <span class="role align-self-stretch fsize-9 text-secondary fw-300">
-                    {{ \App\Models\Role::displayName(auth()->user()->role->name ?? null) }}
+                    {{ auth()->user()->jobTitle() }}
                 </span>
             </div>
         </div>

@@ -6,15 +6,19 @@ use App\Enums\ReportStatus;
 use App\Http\Controllers\Concerns\BuildsDivisionArchive;
 use App\Http\Controllers\Concerns\ResolvesMaintenanceMeta;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
+use App\Http\Controllers\Concerns\ResolvesSafetyMeta;
 use App\Http\Controllers\Concerns\SearchesReports;
 use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\MaintenanceReport;
 use App\Models\MasterEmployee;
 use App\Models\MasterInventoryItem;
+use App\Models\MasterSafetyItem;
+use App\Models\MasterSafetyLocation;
 use App\Models\MasterTruck;
 use App\Models\MasterUnit;
 use App\Models\Role;
+use App\Models\SafetyReport;
 use App\Models\User;
 use App\Services\SystemBackupService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -32,6 +36,7 @@ class AdminV2Controller extends Controller
     use BuildsDivisionArchive;
     use ResolvesMaintenanceMeta;
     use ResolvesReportMeta;
+    use ResolvesSafetyMeta;
     use SearchesReports;
 
     public function index(Request $request)
@@ -172,7 +177,7 @@ class AdminV2Controller extends Controller
 
     public function dataMaster(Request $request)
     {
-        $validPanes = ['karyawan', 'unit', 'truck', 'inventaris'];
+        $validPanes = ['karyawan', 'unit', 'truck', 'inventaris', 'safety_lokasi', 'safety_item'];
         $pane = in_array($request->input('pane'), $validPanes, true)
             ? $request->input('pane')
             : 'karyawan';
@@ -222,13 +227,14 @@ class AdminV2Controller extends Controller
                     ->orWhere('unit_code', 'like', $like)
                     ->orWhere('brand', 'like', $like)
                     ->orWhere('unit_number', 'like', $like)
+                    ->orWhere('plate_number', 'like', $like)
                     ->orWhere('macro_category', 'like', $like));
             })
             ->when($pane === 'unit' && $unitType !== '', fn (Builder $query) => $query->where('type', $unitType))
             ->when($pane === 'unit' && $unitCategory !== '', fn (Builder $query) => $unitCategory === '-'
                 ? $query->whereNull('macro_category')
                 : $query->where('macro_category', $unitCategory))
-            ->orderBy('name')
+            ->orderBy('id')
             ->paginate(10, ['*'], 'units_page')
             ->appends($paginationQuery('unit'));
 
@@ -255,6 +261,24 @@ class AdminV2Controller extends Controller
             ->paginate(10, ['*'], 'inventories_page')
             ->appends($paginationQuery('inventaris'));
 
+        $safetyLocations = MasterSafetyLocation::query()
+            ->withCount('items')
+            ->when($pane === 'safety_lokasi' && $search !== '', function (Builder $query) use ($search): void {
+                $query->where('name', 'like', '%'.$search.'%');
+            })
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->paginate(10, ['*'], 'safety_locations_page')
+            ->appends($paginationQuery('safety_lokasi'));
+
+        $safetyItems = MasterSafetyItem::query()
+            ->when($pane === 'safety_item' && $search !== '', function (Builder $query) use ($search): void {
+                $query->where('name', 'like', '%'.$search.'%');
+            })
+            ->orderBy('name')
+            ->paginate(10, ['*'], 'safety_items_page')
+            ->appends($paginationQuery('safety_item'));
+
         $employees->getCollection()->transform(fn (MasterEmployee $employee, int $index): array => [
             'no' => $employees->firstItem() + $index,
             'id' => $employee->id,
@@ -276,11 +300,15 @@ class AdminV2Controller extends Controller
             'unit_code' => $unit->unit_code ?: '-',
             'brand' => $unit->brand ?: '-',
             'unit_number' => $unit->unit_number ?: '-',
+            'plate' => $unit->plate_number ?: '-',
             'macro_category' => match ($unit->macro_category) {
                 MasterUnit::MACRO_TRUCK => 'Truck',
                 MasterUnit::MACRO_HEAVY => 'Heavy',
+                MasterUnit::MACRO_BUS => 'Bus',
                 default => '-',
             },
+            'in_operational_check' => $unit->in_operational_check ? 'Ya' : 'Tidak',
+            'year' => $unit->year ?: '-',
             'update_url' => route('admin.master.units.update', $unit),
             'destroy_url' => route('admin.master.units.destroy', $unit),
         ]);
@@ -305,6 +333,27 @@ class AdminV2Controller extends Controller
             'destroy_url' => route('admin.master.inventories.destroy', $inventory),
         ]);
 
+        $safetyLocations->getCollection()->transform(fn (MasterSafetyLocation $location, int $index): array => [
+            'no' => $safetyLocations->firstItem() + $index,
+            'id' => $location->id,
+            'name' => $location->name,
+            'sort_order' => (int) $location->sort_order,
+            'item_count' => (int) $location->items_count,
+            'is_active' => $location->is_active ? 'Aktif' : 'Nonaktif',
+            'update_url' => route('admin.master.safety-locations.update', $location),
+            'destroy_url' => route('admin.master.safety-locations.destroy', $location),
+        ]);
+
+        $safetyItems->getCollection()->transform(fn (MasterSafetyItem $item, int $index): array => [
+            'no' => $safetyItems->firstItem() + $index,
+            'id' => $item->id,
+            'name' => $item->name,
+            'is_countable' => $item->is_countable ? 'Ya' : 'Tidak',
+            'is_active' => $item->is_active ? 'Aktif' : 'Nonaktif',
+            'update_url' => route('admin.master.safety-items.update', $item),
+            'destroy_url' => route('admin.master.safety-items.destroy', $item),
+        ]);
+
         return view('admin.datamaster', array_merge($this->shellData($request), [
             'activePane' => $pane,
             'masterSearch' => $search,
@@ -319,11 +368,15 @@ class AdminV2Controller extends Controller
             'units' => $units,
             'trucks' => $trucks,
             'inventories' => $inventories,
+            'safetyLocations' => $safetyLocations,
+            'safetyItems' => $safetyItems,
             'masterActions' => [
                 'karyawan' => ['store' => route('admin.master.employees.store')],
                 'unit' => ['store' => route('admin.master.units.store')],
                 'truck' => ['store' => route('admin.master.trucks.store')],
                 'inventaris' => ['store' => route('admin.master.inventories.store')],
+                'safety_lokasi' => ['store' => route('admin.master.safety-locations.store')],
+                'safety_item' => ['store' => route('admin.master.safety-items.store')],
             ],
         ]));
     }
@@ -485,6 +538,64 @@ class AdminV2Controller extends Controller
         return back()->with('success', 'Arsip laporan pemeliharaan berhasil dihapus.');
     }
 
+    public function showSafetyReport(Request $request, SafetyReport $report)
+    {
+        abort_unless(in_array($report->status, $this->safetyArchiveStatuses(), true), 404);
+
+        return view('report-safety.viewpdf', [
+            'report'  => $this->loadSafetyReport($report),
+            'isPdf'   => false,
+            'backUrl' => route('admin.archive'),
+            'pdfUrl'  => route('admin.safety-reports.download', $report),
+        ]);
+    }
+
+    public function downloadSafetyReport(SafetyReport $report)
+    {
+        abort_unless(in_array($report->status, $this->safetyArchiveStatuses(), true), 404);
+
+        $path = storage_path('app/public/safety-reports/safety-report-'.$report->id.'.pdf');
+
+        if (is_file($path)) {
+            return response()->download($path, $this->safetyFileName($report, 'pdf'));
+        }
+
+        if (class_exists(Pdf::class)) {
+            $pdf = Pdf::loadView('report-safety.pdf', [
+                'report' => $this->loadSafetyReport($report),
+                'isPdf'  => true,
+            ]);
+            $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
+            $pdf->setOption('isRemoteEnabled', true);
+
+            return $pdf->download($this->safetyFileName($report, 'pdf'));
+        }
+
+        return view('report-safety.viewpdf', [
+            'report'  => $this->loadSafetyReport($report),
+            'isPdf'   => false,
+            'backUrl' => route('admin.archive'),
+            'pdfUrl'  => null,
+        ]);
+    }
+
+    public function destroySafetyReport(Request $request, SafetyReport $report)
+    {
+        abort_unless(in_array($report->status, $this->safetyArchiveStatuses(), true), 404);
+
+        $documentId = $this->safetyDocumentId($report);
+
+        $path = storage_path('app/public/safety-reports/safety-report-'.$report->id.'.pdf');
+        if (is_file($path)) {
+            @unlink($path);
+        }
+
+        $report->delete();
+        $this->recordActivity($request, 'delete', 'Menghapus arsip laporan K3 '.$documentId);
+
+        return back()->with('success', 'Arsip laporan K3 berhasil dihapus.');
+    }
+
     public function storeUser(Request $request)
     {
         $data = $this->validateUser($request, null, true);
@@ -556,7 +667,7 @@ class AdminV2Controller extends Controller
             'name' => ['required', 'string', 'max:255'],
             'group' => ['nullable', 'string', 'max:20'],
             'position' => ['nullable', 'string', 'max:255'],
-            'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_BOTH])],
+            'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Office', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_OFFICE, MasterEmployee::DIVISION_BOTH])],
             'work_time' => ['nullable', Rule::in(['Non Shift', 'Shift', 'Relief', 'non shift', 'shift', 'relief'])],
         ]);
 
@@ -584,7 +695,7 @@ class AdminV2Controller extends Controller
             'name' => ['required', 'string', 'max:255'],
             'group' => ['nullable', 'string', 'max:20'],
             'position' => ['nullable', 'string', 'max:255'],
-            'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_BOTH])],
+            'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Office', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_OFFICE, MasterEmployee::DIVISION_BOTH])],
             'work_time' => ['nullable', Rule::in(['Non Shift', 'Shift', 'Relief', 'non shift', 'shift', 'relief'])],
         ]);
 
@@ -637,22 +748,60 @@ class AdminV2Controller extends Controller
     private function validateUnit(Request $request): array
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
             'type' => ['nullable', 'string', 'max:255'],
             'unit_code' => ['nullable', 'string', 'max:30'],
             'brand' => ['nullable', 'string', 'max:80'],
             'unit_number' => ['nullable', 'string', 'max:80'],
-            'macro_category' => ['nullable', Rule::in([MasterUnit::MACRO_TRUCK, MasterUnit::MACRO_HEAVY, '-', ''])],
+            'plate_number' => ['nullable', 'string', 'max:80'],
+            'macro_category' => ['nullable', Rule::in([MasterUnit::MACRO_TRUCK, MasterUnit::MACRO_HEAVY, MasterUnit::MACRO_BUS, '-', ''])],
+            'in_operational_check' => ['nullable', 'string'],
+            'year' => ['nullable', 'integer', 'min:1900', 'max:'.((int) date('Y') + 1)],
         ]);
 
-        $data['unit_code'] = $this->nullableUpper($data['unit_code'] ?? null);
+        // "Kode" admin = nomor urut aset (unit_number). Singkatan tipe (unit_code)
+        // diturunkan otomatis dari Tipe agar form operasional tetap konsisten.
+        $data['unit_code'] = $this->nullableUpper($data['unit_code'] ?? null)
+            ?: $this->unitCodeFromType($data['type'] ?? null);
         $data['brand'] = $this->nullableUpper($data['brand'] ?? null);
         $data['unit_number'] = $this->nullableUpper($data['unit_number'] ?? null);
-        $data['macro_category'] = in_array($data['macro_category'] ?? null, [MasterUnit::MACRO_TRUCK, MasterUnit::MACRO_HEAVY], true)
+        $data['plate_number'] = $this->nullableUpper($data['plate_number'] ?? null);
+        $data['macro_category'] = in_array($data['macro_category'] ?? null, [MasterUnit::MACRO_TRUCK, MasterUnit::MACRO_HEAVY, MasterUnit::MACRO_BUS], true)
             ? $data['macro_category']
             : null;
+        $data['year'] = $data['year'] ?? null;
+
+        // Kategori "Masuk Cek Unit Operasional": pakai pilihan form (Ya/Tidak)
+        // kalau dikirim; kalau tidak, turunkan default dari tipe (Avanza/Minibus
+        // dikecualikan). Disimpan sebagai boolean.
+        $opsCheck = $data['in_operational_check'] ?? null;
+        $data['in_operational_check'] = $opsCheck !== null
+            ? in_array(Str::lower(trim((string) $opsCheck)), ['ya', '1', 'true', 'on'], true)
+            : in_array($data['type'] ?? '', MasterUnit::OPERATIONAL_CHECK_TYPES, true);
+
+        // Nama unit = gabungan Tipe + Kode unit (mis. "Minibus KSS-01"); kalau tak
+        // ada keduanya, pakai nama yang dikirim atau fallback aman.
+        $composedName = trim((string) ($data['type'] ?? '').' '.(string) ($data['unit_number'] ?? ''));
+        $data['name'] = $composedName !== ''
+            ? $composedName
+            : (trim((string) ($data['name'] ?? '')) ?: 'Unit');
 
         return $data;
+    }
+
+    private function unitCodeFromType(?string $type): ?string
+    {
+        return match (Str::lower(trim((string) $type))) {
+            'trailer', 'trailler' => 'TRL',
+            'tronton' => 'TRT',
+            'dump truck' => 'DT',
+            'minibus', 'bus' => 'BUS',
+            'pickup', 'pick up' => 'PU',
+            'forklift' => 'FL',
+            'wheel loader' => 'WL',
+            'excavator' => 'EXC',
+            default => null,
+        };
     }
 
     public function destroyUnit(Request $request, MasterUnit $unit)
@@ -737,6 +886,86 @@ class AdminV2Controller extends Controller
         $this->recordActivity($request, 'delete', 'Menghapus master inventaris '.$name);
 
         return redirect()->route('admin.datamaster', ['pane' => 'inventaris'])->with('success', 'Data inventaris berhasil dihapus.');
+    }
+
+    public function storeSafetyLocation(Request $request)
+    {
+        $location = MasterSafetyLocation::create($this->validateSafetyLocation($request));
+        $this->recordActivity($request, 'update', 'Menambahkan master lokasi K3 '.$location->name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'safety_lokasi'])->with('success', 'Data lokasi K3 berhasil ditambahkan.');
+    }
+
+    public function updateSafetyLocation(Request $request, MasterSafetyLocation $location)
+    {
+        $location->update($this->validateSafetyLocation($request));
+        $this->recordActivity($request, 'update', 'Memperbarui master lokasi K3 '.$location->name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'safety_lokasi'])->with('success', 'Data lokasi K3 berhasil diperbarui.');
+    }
+
+    public function destroySafetyLocation(Request $request, MasterSafetyLocation $location)
+    {
+        $name = $location->name;
+        $location->delete();
+        $this->recordActivity($request, 'delete', 'Menghapus master lokasi K3 '.$name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'safety_lokasi'])->with('success', 'Data lokasi K3 berhasil dihapus.');
+    }
+
+    private function validateSafetyLocation(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'is_active' => ['nullable', 'string'],
+        ]);
+
+        return [
+            'name' => $data['name'],
+            'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'is_active' => ($data['is_active'] ?? 'Aktif') !== 'Nonaktif',
+        ];
+    }
+
+    public function storeSafetyItem(Request $request)
+    {
+        $item = MasterSafetyItem::create($this->validateSafetyItem($request));
+        $this->recordActivity($request, 'update', 'Menambahkan master item K3 '.$item->name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'safety_item'])->with('success', 'Data item K3 berhasil ditambahkan.');
+    }
+
+    public function updateSafetyItem(Request $request, MasterSafetyItem $item)
+    {
+        $item->update($this->validateSafetyItem($request));
+        $this->recordActivity($request, 'update', 'Memperbarui master item K3 '.$item->name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'safety_item'])->with('success', 'Data item K3 berhasil diperbarui.');
+    }
+
+    public function destroySafetyItem(Request $request, MasterSafetyItem $item)
+    {
+        $name = $item->name;
+        $item->delete();
+        $this->recordActivity($request, 'delete', 'Menghapus master item K3 '.$name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'safety_item'])->with('success', 'Data item K3 berhasil dihapus.');
+    }
+
+    private function validateSafetyItem(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'is_countable' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'string'],
+        ]);
+
+        return [
+            'name' => $data['name'],
+            'is_countable' => ($data['is_countable'] ?? 'Tidak') === 'Ya',
+            'is_active' => ($data['is_active'] ?? 'Aktif') !== 'Nonaktif',
+        ];
     }
 
     public function generateBackup(Request $request, SystemBackupService $backup)
@@ -1332,6 +1561,7 @@ class AdminV2Controller extends Controller
         return match ($token) {
             'kantor' => $query->whereNull('group_name'),
             'bengkel' => $query->where('group_name', 'Bengkel'),
+            'Relief 1', 'Relief 2' => $query->where('group_name', $token),
             'A', 'B', 'C', 'D' => $query->whereIn('group_name', ['Group '.$token, $token]),
             'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D' => $query->whereIn('group_name', ['OP.7 Group '.substr($token, -1), $token]),
             default => $query,
@@ -1346,6 +1576,7 @@ class AdminV2Controller extends Controller
         return match ($label) {
             'Pemeliharaan' => [MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_BOTH],
             'Safety (Coming Soon)', 'Safety' => [MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_BOTH],
+            'Office' => [MasterEmployee::DIVISION_OFFICE],
             default => [MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_BOTH],
         };
     }
@@ -1360,6 +1591,10 @@ class AdminV2Controller extends Controller
 
         if (Str::lower($value) === 'bengkel') {
             return 'Bengkel';
+        }
+
+        if (preg_match('/^relief\s*([12])$/i', $value, $matches)) {
+            return 'Relief '.$matches[1];
         }
 
         if (preg_match('/^op\.?\s*7\s*(?:group|grup|regu)?\s*([a-d])$/i', $value, $matches)) {
@@ -1399,6 +1634,7 @@ class AdminV2Controller extends Controller
         return match ($value) {
             'pemeliharaan' => MasterEmployee::DIVISION_MAINTENANCE,
             'safety', 'safety (coming soon)' => MasterEmployee::DIVISION_SAFETY,
+            'office', 'kantor' => MasterEmployee::DIVISION_OFFICE,
             'keduanya', 'both' => MasterEmployee::DIVISION_BOTH,
             default => MasterEmployee::DIVISION_OPERATIONAL,
         };
@@ -1421,6 +1657,7 @@ class AdminV2Controller extends Controller
         return match ($division) {
             MasterEmployee::DIVISION_MAINTENANCE => 'Pemeliharaan',
             MasterEmployee::DIVISION_SAFETY => 'Safety (Coming Soon)',
+            MasterEmployee::DIVISION_OFFICE => 'Office',
             MasterEmployee::DIVISION_BOTH => 'Keduanya',
             default => 'Operasional',
         };
@@ -1432,6 +1669,10 @@ class AdminV2Controller extends Controller
 
         if ($value === 'Bengkel') {
             return 'Bengkel';
+        }
+
+        if ($value && preg_match('/^Relief ([12])$/', $value, $matches)) {
+            return 'Relief '.$matches[1];
         }
 
         if ($value && preg_match('/^OP\.7 Group ([A-D])$/', $value, $matches)) {

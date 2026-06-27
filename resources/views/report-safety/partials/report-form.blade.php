@@ -10,7 +10,13 @@
     $statusValue = $reportModel ? $reportModel->status->value : SafetyStatus::Draft->value;
 
     $reportDateValue = old('report_date', $reportModel && $reportModel->report_date ? $reportModel->report_date->format('Y-m-d') : now()->toDateString());
-    $timeRangeValue = old('time_range', $reportModel->time_range ?? '');
+
+    // Jam kerja disimpan sebagai satu kolom "time_range" (mis. "07:00 - 16:00").
+    // Untuk form, pecah kembali jadi dua input manual: masuk & pulang.
+    $savedRange = $reportModel->time_range ?? '';
+    $rangeParts = preg_split('/\s*[-–—]\s*/u', $savedRange, 2);
+    $workStartValue = old('work_time_start', trim($rangeParts[0] ?? ''));
+    $workEndValue   = old('work_time_end', trim($rangeParts[1] ?? ''));
 
     $conditionLabels = [
         'bagus'        => 'Bagus',
@@ -25,9 +31,12 @@
     $incidentRows = $incidentRows ?? [];
     $catalogItems = $catalogItems ?? [];
 
-    // Pastikan minimal satu baris kegiatan & boleh nol baris kejadian.
+    // Pastikan minimal satu baris kegiatan & satu baris kejadian (placeholder kosong).
     if (empty($operationRows)) {
         $operationRows[] = ['activity_name' => '', 'condition' => '', 'action' => '', 'notes' => ''];
+    }
+    if (empty($incidentRows)) {
+        $incidentRows[] = ['description' => '', 'condition' => '', 'action' => '', 'notes' => ''];
     }
 @endphp
 
@@ -63,26 +72,42 @@
     .loc-head:hover { background:var(--blue-main-10); }
     .loc-toggle { width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:var(--blue-main-10); color:var(--blue-main); flex:0 0 auto; transition:transform .25s ease; }
     .loc-accordion.open .loc-toggle { transform:rotate(90deg); }
-    .loc-toggle i { position:relative; top:1px; }
+    .loc-toggle i { position:relative; top:2px; }
+    /* Wrap melebar agar badge tetap di kanan & area kosongnya bisa diklik untuk buka/tutup. */
     .loc-name-wrap { display:flex; align-items:center; gap:8px; flex:1 1 240px; min-width:200px; }
-    .loc-name-input { width:100%; border:1px solid transparent; background:transparent; font-size:13px; font-weight:600; color:var(--dark-main); font-family:'Poppins',sans-serif; padding:6px 10px; border-radius:8px; outline:none; transition:.2s; }
+    /* Input hanya selebar teksnya (pakai atribut size), sisanya jadi area klik buka box. */
+    .loc-name-input { width:auto; max-width:100%; min-width:0; border:1px solid transparent; background:transparent; font-size:13px; font-weight:600; color:var(--dark-main); font-family:'Poppins',sans-serif; padding:6px 10px; border-radius:8px; outline:none; cursor:text; transition:.2s; }
+    .loc-name-input:hover { border-color:var(--blue-main-25); background:var(--white); }
     .loc-name-input:focus { border-color:var(--blue-main); background:var(--white); box-shadow:0 0 0 3px var(--blue-main-10); }
     .loc-count { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; background:var(--white); border:1px solid var(--blue-main-10); font-size:10px; color:var(--muted); flex:0 0 auto; }
     .loc-count i { position:relative; top:1px; }
+    /* Badge status pemeriksaan lokasi (Belum diperiksa / Selesai) */
+    .loc-status { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:600; flex:0 0 auto; border:1px solid transparent; white-space:nowrap; }
+    .loc-status i { position:relative; top:1px; }
+    .loc-status.is-incomplete { background:var(--orange-main-10); color:var(--orange-main); border-color:var(--orange-main-40); }
+    .loc-status.is-complete { background:var(--success-10); color:var(--success); border-color:var(--success); }
+    /* Daftar lokasi belum dinilai di modal peringatan */
+    .incomplete-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto; }
+    .incomplete-list li { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--orange-main-40); background:var(--orange-main-10); border-radius:8px; }
+    .incomplete-list li i { color:var(--orange-main); position:relative; top:1px; }
+    .incomplete-list li .nm { font-weight:600; font-size:12px; color:var(--dark-main); flex:1 1 auto; }
+    .incomplete-list li .ct { font-size:10px; font-weight:600; color:var(--orange-main); white-space:nowrap; }
     .loc-remove { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:8px; background:var(--red-main-10); color:var(--red-main); cursor:pointer; transition:.2s ease-out; flex:0 0 auto; }
     .loc-remove:hover { background:var(--red-main-25); transform:translateY(-1px); }
-    .loc-remove i { position:static; }
+    .loc-remove i { position: relative; top:2px; }
     .loc-body { padding:14px 16px; display:none; }
     .loc-accordion.open .loc-body { display:block; }
 
     /* Kolom tabel inspeksi */
-    .table-column.insp-no { width:46px; justify-content:center; flex-shrink:0; }
+    .table-column.insp-no { width:50px; text-align:center; justify-content:center; font-weight:600; font-size:13px; flex-shrink:0; }
     .table-column.insp-item { flex:1.4; min-width:190px; }
     .table-column.insp-qty { width:96px; flex:0 0 auto; justify-content:center; }
     .table-column.insp-cond { flex:1.8; min-width:340px; }
     .table-column.insp-reco { flex:1.2; min-width:170px; }
     .table-column.insp-del { width:56px; justify-content:center; flex-shrink:0; }
     .insp-table .table-input { min-width:860px; }
+    /* Pembungkus baris harus melebar penuh agar sejajar dengan header (head=align-self:stretch). */
+    .insp-table .insp-rows { align-self:stretch; width:100%; }
     .insp-qty-dash { width:100%; text-align:center; color:var(--muted); font-weight:600; }
 
     /* ===== Segmented control kondisi (4 nilai, pilih satu) ===== */
@@ -101,7 +126,17 @@
     .btn-tambah-card i { font-size:14px; position:relative; top:1px; }
 
     .info-work-time { min-width:200px; }
-    @media (max-width:920px) { .info-work-time { flex-basis:100%; } }
+    .info-work-time__range { flex-wrap:nowrap; }
+    .info-work-time__range .input-wrapper { min-width:0; flex:1 1 0; }
+    .info-work-time__arrow { flex:0 0 auto; }
+    @media (max-width:920px) {
+        .info-work-time { flex-basis:100%; }
+        .info-work-time__range .input-wrapper { min-width:145px; }
+    }
+    @media (max-width:480px) {
+        .info-work-time__range { gap:8px!important; }
+        .info-work-time__range .input-wrapper { min-width:118px; }
+    }
 </style>
 @endpush
 
@@ -159,14 +194,21 @@
                         </div>
                     </div>
                     <div class="box-input-1 info-work-time">
-                        <div class="box-label-1"><label for="time_range">Jam Kerja</label></div>
-                        <div class="input-wrapper">
-                            <input type="text" id="time_range" name="time_range" value="{{ $timeRangeValue }}" class="custom-input" placeholder="mis. 19:00 - 03:00">
-                            <i class="fi fi-rr-clock input-icon"></i>
+                        <div class="box-label-1"><label for="work_time_start">Jam Kerja</label></div>
+                        <div class="info-work-time__range d-flex align-items-center gap-10 w-100">
+                            <div class="input-wrapper">
+                                <i class="fi fi-rr-clock input-icon" style="left:15px;right:auto;color:var(--blue-main)"></i>
+                                <input type="text" id="work_time_start" name="work_time_start" value="{{ $workStartValue }}" class="custom-input time-picker-input" placeholder="00:00" maxlength="5" style="text-align:center;padding-left:38px">
+                            </div>
+                            <span class="info-work-time__arrow text-secondary fw-600 fsize-18" style="line-height:1">&rarr;</span>
+                            <div class="input-wrapper">
+                                <i class="fi fi-rr-clock input-icon" style="left:15px;right:auto;color:var(--red-main)"></i>
+                                <input type="text" id="work_time_end" name="work_time_end" value="{{ $workEndValue }}" class="custom-input time-picker-input" placeholder="00:00" maxlength="5" style="text-align:center;padding-left:38px">
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Jam kerja diisi sebagai teks bebas sesuai form (mis. "19:00 - 03:00"). Tanpa pilihan shift maupun regu.</span></div>
+                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Isi jam masuk dan jam pulang kerja secara manual. Tidak ada pengisian otomatis.</span></div>
             </div>
             <div class="content-form box-button" style="padding-top:0">
                 <a href="{{ route('safety.index') }}" class="btn-form cancel"><span class="icon"><i class="fi fi-br-cross-small"></i></span><span>Batalkan</span></a>
@@ -197,8 +239,9 @@
                                 <input type="hidden" name="locations[{{ $L }}][location_id]" value="{{ $group['location_id'] }}">
                                 <div class="loc-name-wrap">
                                     <i class="fi fi-sr-marker" style="color:var(--blue-main);"></i>
-                                    <input type="text" class="loc-name-input" name="locations[{{ $L }}][location_name]" value="{{ $group['location_name'] }}" placeholder="Nama lokasi" data-noprop>
+                                    <input type="text" class="loc-name-input" name="locations[{{ $L }}][location_name]" value="{{ $group['location_name'] }}" placeholder="Nama lokasi" data-noprop size="{{ min(max(mb_strlen($group['location_name'] ?: 'Nama lokasi') + 1, 8), 60) }}">
                                 </div>
+                                <span class="loc-status is-incomplete" data-noprop><i class="fi fi-rr-exclamation"></i> Belum diperiksa</span>
                                 <span class="loc-count"><i class="fi fi-rr-list-check"></i> <span class="loc-count-num">{{ count($group['items']) }}</span> item</span>
                                 <button type="button" class="loc-remove" data-remove-location data-noprop><i class="fi fi-rr-trash"></i></button>
                             </div>
@@ -342,7 +385,7 @@
             </div>
             <div class="content-form box-button" style="padding-top:0">
                 <button type="button" class="btn-form back btn-back-step"><span class="icon"><i class="fi fi-rr-arrow-small-left"></i></span><span>Kembali</span></button>
-                <button type="button" class="btn-form finish" id="btnOpenConfirm"><span>Kirim</span><span class="icon"><i class="fi fi-rr-paper-plane"></i></span></button>
+                <button type="button" class="btn-form finish" id="btnOpenConfirm"><span>Selesai</span><span class="icon"><i class="fi fi-rr-check"></i></span></button>
             </div>
         </div>
     </div>
@@ -375,6 +418,30 @@
         <div class="pop-up footer d-flex justify-content-end gap-10">
             <button type="button" class="btn cancel" data-close-modal>Periksa Lagi</button>
             <button type="button" class="btn confirm" id="btnFinalSubmit"><i class="fi fi-rr-paper-plane"></i> Ya, Kirim Laporan</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="incompleteModal">
+    <div class="pop-up signed d-flex flex-column gap-20">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-600 fsize-16 text-main">Inspeksi Belum Lengkap</span>
+            <button type="button" class="button-close" data-close-modal><i class="fi fi-br-cross"></i></button>
+        </div>
+        <div class="pop-up-content d-flex flex-column gap-15">
+            <div class="pop-up detail d-flex align-items-center">
+                <span class="icon-document" style="background-color:var(--orange-main-10);color:var(--orange-main)"><i class="fi fi-sr-triangle-warning"></i></span>
+                <div class="d-flex flex-column">
+                    <span class="fw-600 fsize-14 text-main">Masih ada lokasi yang belum dinilai</span>
+                    <span class="fsize-10 text-secondary">Lengkapi kondisi tiap item sebelum menyelesaikan laporan.</span>
+                </div>
+            </div>
+            <ul class="incomplete-list" id="incompleteList"></ul>
+            <p class="fsize-12 text-muted m-0">Anda tetap bisa menekan <span class="fw-600">Simpan Sebagai Draft</span> bila ingin melanjutkannya nanti.</p>
+        </div>
+        <div class="pop-up footer d-flex justify-content-end gap-10">
+            <button type="button" class="btn cancel" id="btnSubmitAnyway"><i class="fi fi-rr-paper-plane"></i> Tetap Kirim</button>
+            <button type="button" class="btn confirm" id="btnGotoInspeksi" style="background-color:var(--orange-main)"><i class="fi fi-rr-shield-check"></i> Periksa Lokasi</button>
         </div>
     </div>
 </div>
@@ -440,6 +507,43 @@ document.addEventListener('DOMContentLoaded', function () {
         rows.forEach((r, i) => { const n = r.querySelector('.row-no'); if (n) n.textContent = i + 1; });
         const counter = accordion.querySelector('.loc-count-num');
         if (counter) counter.textContent = rows.length;
+        updateLocStatus(accordion);
+    }
+
+    // Lebar input nama lokasi mengikuti panjang teksnya, jadi sisa header (area kosong)
+    // tetap bisa diklik untuk membuka/menutup box inspeksi lokasi.
+    function autosizeLocInput(input) {
+        if (!input) return;
+        const text = input.value || input.placeholder || '';
+        input.size = Math.min(Math.max(text.length + 1, 8), 60);
+    }
+
+    // Status pemeriksaan lokasi: lokasi dianggap "Belum diperiksa" selama masih ada
+    // item yang belum dipilih kondisinya. Badge di kepala accordion ikut terlihat
+    // walau accordion ditutup, jadi petugas tahu lokasi mana yang belum lengkap.
+    function updateLocStatus(accordion) {
+        if (!accordion) return;
+        const badge = accordion.querySelector('.loc-status');
+        if (!badge) return;
+        const rows = accordion.querySelectorAll('.insp-rows .insp-row');
+        const total = rows.length;
+        let rated = 0;
+        rows.forEach(r => { if (r.querySelector('.cond-group input[type="radio"]:checked')) rated++; });
+
+        if (total === 0 || rated === 0) {
+            badge.className = 'loc-status is-incomplete';
+            badge.innerHTML = '<i class="fi fi-rr-exclamation"></i> Belum diperiksa';
+        } else if (rated < total) {
+            badge.className = 'loc-status is-incomplete';
+            badge.innerHTML = `<i class="fi fi-rr-exclamation"></i> ${total - rated} item belum dinilai`;
+        } else {
+            badge.className = 'loc-status is-complete';
+            badge.innerHTML = '<i class="fi fi-rr-check"></i> Selesai';
+        }
+    }
+
+    function refreshAllLocStatus() {
+        document.querySelectorAll('#location-list .loc-accordion').forEach(updateLocStatus);
     }
 
     // Tambah item per lokasi
@@ -471,6 +575,18 @@ document.addEventListener('DOMContentLoaded', function () {
         rmLoc.closest('.loc-accordion')?.remove();
     });
 
+    // Pilih kondisi -> perbarui status "Belum diperiksa" lokasi terkait.
+    document.getElementById('location-list')?.addEventListener('change', function (e) {
+        if (e.target.matches('.cond-group input[type="radio"]')) {
+            updateLocStatus(e.target.closest('.loc-accordion'));
+        }
+    });
+
+    // Lebar input nama lokasi menyesuaikan teks saat diketik.
+    document.getElementById('location-list')?.addEventListener('input', function (e) {
+        if (e.target.classList.contains('loc-name-input')) autosizeLocInput(e.target);
+    });
+
     // Tambah lokasi
     let locIndexCounter = {{ count($locationGroups) }};
     document.getElementById('add-location')?.addEventListener('click', function () {
@@ -482,8 +598,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     <input type="hidden" name="locations[${L}][location_id]" value="">
                     <div class="loc-name-wrap">
                         <i class="fi fi-sr-marker" style="color:var(--blue-main);"></i>
-                        <input type="text" class="loc-name-input" name="locations[${L}][location_name]" value="" placeholder="Nama lokasi" data-noprop>
+                        <input type="text" class="loc-name-input" name="locations[${L}][location_name]" value="" placeholder="Nama lokasi" data-noprop size="12">
                     </div>
+                    <span class="loc-status is-incomplete" data-noprop><i class="fi fi-rr-exclamation"></i> Belum diperiksa</span>
                     <span class="loc-count"><i class="fi fi-rr-list-check"></i> <span class="loc-count-num">1</span> item</span>
                     <button type="button" class="loc-remove" data-remove-location data-noprop><i class="fi fi-rr-trash"></i></button>
                 </div>
@@ -504,14 +621,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
             </div>`;
-        this.insertAdjacentHTML('beforebegin', html);
+        // Sisipkan ke dalam #location-list agar tercakup event delegation
+        // (toggle, hapus lokasi, tambah/hapus item). Tombol #add-location berada
+        // di luar list, jadi 'beforebegin' akan menaruh kartu di luar jangkauan.
+        document.getElementById('location-list').insertAdjacentHTML('beforeend', html);
+        const newAcc = document.getElementById('location-list').lastElementChild;
+        updateLocStatus(newAcc);
+        autosizeLocInput(newAcc?.querySelector('.loc-name-input'));
     });
 
     // ---- Set Semua Bagus ----
     document.getElementById('set-all-bagus')?.addEventListener('click', function () {
         document.querySelectorAll('#location-list input[type="radio"][value="bagus"]').forEach(r => { r.checked = true; });
+        refreshAllLocStatus();
         window.showReportToast?.('success', 'Berhasil', 'Semua item disetel ke kondisi Bagus.', 2600);
     });
+
+    // Status awal & lebar input nama tiap lokasi saat halaman dibuka.
+    refreshAllLocStatus();
+    document.querySelectorAll('#location-list .loc-name-input').forEach(autosizeLocInput);
 
     // ---- Tabel dinamis kegiatan & kejadian ----
     function renumber(tableId, rowClass) {
@@ -566,6 +694,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ---- Simpan Draft / Kirim ----
     function submitAs(status) {
         if (!form || !statusInput) return;
+        window.__reportAutosaveSuppress = true; // pengiriman manual: matikan autosave
         statusInput.value = status;
         if (status === 'draft') {
             form.querySelectorAll('[required]').forEach(el => { el.dataset.wasReq = '1'; el.required = false; });
@@ -575,12 +704,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('btnSaveDraft')?.addEventListener('click', () => submitAs('draft'));
 
+    // Daftar lokasi yang masih punya item tanpa kondisi (belum diperiksa).
+    const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function incompleteLocations() {
+        const result = [];
+        document.querySelectorAll('#location-list .loc-accordion').forEach(acc => {
+            const rows = acc.querySelectorAll('.insp-rows .insp-row');
+            const total = rows.length;
+            let rated = 0;
+            rows.forEach(r => { if (r.querySelector('.cond-group input[type="radio"]:checked')) rated++; });
+            if (total === 0 || rated < total) {
+                const name = (acc.querySelector('.loc-name-input')?.value || '').trim() || 'Lokasi tanpa nama';
+                result.push({ name, remaining: total === 0 ? 0 : total - rated, total });
+            }
+        });
+        return result;
+    }
+
     document.getElementById('btnOpenConfirm')?.addEventListener('click', () => {
         if (!form.checkValidity()) {
             window.__pmlShowStep?.(0);
             form.reportValidity();
             return;
         }
+
+        // Cegah penyelesaian bila masih ada lokasi yang belum dinilai.
+        const incomplete = incompleteLocations();
+        if (incomplete.length > 0) {
+            const list = document.getElementById('incompleteList');
+            if (list) {
+                list.innerHTML = incomplete.map(loc => {
+                    const detail = loc.total === 0 ? 'belum ada item' : `${loc.remaining} item belum dinilai`;
+                    return `<li><i class="fi fi-sr-marker"></i><span class="nm">${escapeHtml(loc.name)}</span><span class="ct">${detail}</span></li>`;
+                }).join('');
+            }
+            window.__pmlOpenModal?.('incompleteModal');
+            return;
+        }
+
+        window.__pmlOpenModal?.('finishModal');
+    });
+
+    document.getElementById('btnGotoInspeksi')?.addEventListener('click', () => {
+        window.__pmlCloseModals?.();
+        window.__pmlShowStep?.(1); // tab Inspeksi K3
+    });
+
+    // Tetap kirim walau inspeksi belum lengkap: lanjut ke konfirmasi penyelesaian.
+    document.getElementById('btnSubmitAnyway')?.addEventListener('click', () => {
+        window.__pmlCloseModals?.();
         window.__pmlOpenModal?.('finishModal');
     });
 
@@ -592,3 +764,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endpush
+
+@include('partials.report-autosave')

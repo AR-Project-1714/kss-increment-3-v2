@@ -7,6 +7,10 @@
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
+            <div class="step-info-note">
+                <i class="fi fi-rr-info"></i>
+                <span>Catat kehadiran karyawan per kategori: <strong>Shift</strong>, <strong>Relief &amp; Lembur</strong>, <strong>OP.7 &amp; Pengganti</strong>, dan <strong>Lain-lain</strong>. Isi jam <strong>Masuk</strong>/<strong>Pulang</strong>; tab yang tidak ada personilnya boleh dikosongkan.</span>
+            </div>
 
             <!-- SUB TABS KARYAWAN -->
             <div class="inspection-header d-flex justify-content-between align-items-end align-self-stretch">

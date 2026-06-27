@@ -353,7 +353,7 @@
     .thead {
         background-color: var(--blue-main-5);
         border-radius: 6px;
-        justify-content: flex-start !important;
+        justify-content: space-between !important;
     }
 
     .thead th {
@@ -379,7 +379,7 @@
     .tbody {
         border-bottom: 1px solid var(--smooth-border);
         transition: background-color 0.15s ease-in-out;
-        justify-content: flex-start !important;
+        justify-content: space-between !important;
     }
     .tbody:hover { background-color: var(--blue-main-3); }
 
@@ -742,7 +742,7 @@
                     <option value="all" @selected($selectedDivision === 'all')>Semua Divisi</option>
                     <option value="operasional" @selected($selectedDivision === 'operasional')>Operasional</option>
                     <option value="pemeliharaan" @selected($selectedDivision === 'pemeliharaan')>Pemeliharaan</option>
-                    <option value="safety" @selected($selectedDivision === 'safety')>Safety (Coming Soon)</option>
+                    <option value="safety" @selected($selectedDivision === 'safety')>Safety</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>

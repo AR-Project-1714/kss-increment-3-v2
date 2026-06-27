@@ -21,14 +21,15 @@ Aplikasi ini menggantikan proses pelaporan shift harian yang sebelumnya manual m
 
 ### 1.1 Pendekatan Pengembangan Inkremental
 
-Sistem dibangun dengan model pengembangan **inkremental**: setiap increment menambahkan satu modul fungsional utuh di atas fondasi arsitektur yang sama (Laravel + Blade + Eloquent + design system bersama). Hingga dokumen ini diperbarui, **dua increment telah selesai dibangun**:
+Sistem dibangun dengan model pengembangan **inkremental**: setiap increment menambahkan satu modul fungsional utuh di atas fondasi arsitektur yang sama (Laravel + Blade + Eloquent + design system bersama). Hingga dokumen ini diperbarui, **tiga increment telah selesai dibangun**, sehingga sistem memiliki **3 modul laporan**: Operasional, Pemeliharaan, dan Safety/K3.
 
 | Increment | Lingkup | Komponen yang dibangun | Status |
 |---|---|---|---|
 | **Increment 1** | Fondasi sistem + **Modul Operasional** + area **Manajer** + area **Admin** | Autentikasi berbasis username & 5 role, alur laporan shift harian (multi-step, tanda tangan digital, export PDF/Excel), dashboard & arsip manajer dengan approval final, dashboard admin (kelola user, data master, backup, log aktivitas, pusat bantuan), design system, dan master data | ✅ Selesai |
 | **Increment 2** | **Modul Pemeliharaan** (Unit Kerja Pemeliharaan & Peralatan) | Dashboard petugas pemeliharaan, form laporan harian non-shift (Pekerjaan Utama/Prioritas, Kondisi Unit, Daftar Hadir, Pengesahan), alur 2 pihak `draft → submitted → approved`, approval di sisi manajer, integrasi arsip admin, dan penyatuan master data ke `master_units`/`master_employees` | ✅ Selesai |
+| **Increment 3** | **Modul Safety/K3** (Laporan Harian K3) | Dashboard petugas safety (Karu Safety), form laporan harian (Info Umum, Inspeksi K3 berbasis lokasi + item, Kegiatan Operasi & Pemeliharaan, Laporan Kejadian), alur 2 pihak `draft → submitted → approved`, approval di sisi manajer (tab Safety), integrasi arsip admin, master data Lokasi & Item K3, autosave draft, dan export PDF | ✅ Selesai |
 
-> **Catatan paradigma:** Modul Operasional berbasis **shift** dengan serah-terima antar regu (alur 3 tahap `submitted → acknowledged → approved`), sedangkan Modul Pemeliharaan berbasis **hari (Non Shift)** tanpa serah-terima (alur 2 tahap `submitted → approved`). Increment 2 memakai kembali role, layout, dan design system Increment 1, tetapi sengaja **tidak** memakai field Shift/Group/Jam Kerja/Regu Penerima. Rincian perancangan Increment 2 terdapat di [`PERANCANGAN_MODUL_PEMELIHARAAN.md`](PERANCANGAN_MODUL_PEMELIHARAAN.md).
+> **Catatan paradigma:** Modul Operasional berbasis **shift** dengan serah-terima antar regu (alur 3 tahap `submitted → acknowledged → approved`). Modul Pemeliharaan dan Safety berbasis **hari (Non Shift)** tanpa serah-terima (alur 2 tahap `submitted → approved`, pengesahan dua pihak: petugas pembuat & manajer). Increment 2 dan 3 memakai kembali role, layout, dan design system Increment 1, tetapi sengaja **tidak** memakai field Shift/Group/Jam Kerja/Regu Penerima. Rincian perancangan tiap modul terdapat di [`PERANCANGAN_MODUL_PEMELIHARAAN.md`](PERANCANGAN_MODUL_PEMELIHARAAN.md) dan [`PERANCANGAN_MODUL_SAFETY.md`](PERANCANGAN_MODUL_SAFETY.md).
 
 ---
 
@@ -95,7 +96,13 @@ app/
     ├── MaintenanceReport.php       # [Increment 2] Laporan harian pemeliharaan
     ├── MaintenanceWorkItem.php     # [Increment 2] Pekerjaan Utama & Prioritas
     ├── MaintenanceUnitCondition.php# [Increment 2] Kondisi unit (ready/rusak)
-    └── MaintenanceAttendance.php   # [Increment 2] Daftar hadir karyawan
+    ├── MaintenanceAttendance.php   # [Increment 2] Daftar hadir karyawan
+    ├── SafetyReport.php            # [Increment 3] Laporan harian K3
+    ├── SafetyInspection.php        # [Increment 3] Inspeksi K3 per lokasi+item (snapshot)
+    ├── SafetyOperationLog.php      # [Increment 3] Kegiatan Operasi & Pemeliharaan
+    ├── SafetyIncidentLog.php       # [Increment 3] Laporan Kejadian & lain-lain
+    ├── MasterSafetyLocation.php    # [Increment 3] Master lokasi inspeksi K3
+    └── MasterSafetyItem.php        # [Increment 3] Master item/objek inspeksi K3
 database/migrations/
 ├── 2026_05_18_000001_add_ops_auth_columns_to_users_table.php
 ├── 2026_05_18_000002_create_operational_report_tables.php
@@ -126,6 +133,12 @@ resources/views/manajer/
 resources/views/pemeliharaan/        # [Increment 2] Modul Pemeliharaan
 ├── index.blade.php                  # Dashboard petugas (Draft / Riwayat)
 ├── create.blade.php / edit.blade.php# Form laporan harian (6 seksi)
+├── pdf.blade.php / viewpdf.blade.php
+├── layouts/                         # app + header + footer
+└── partials/                        # report-form, report-paper
+resources/views/report-safety/       # [Increment 3] Modul Safety/K3
+├── index.blade.php                  # Dashboard petugas safety (Draft / Riwayat)
+├── create.blade.php / edit.blade.php# Form laporan harian K3 (4 seksi)
 ├── pdf.blade.php / viewpdf.blade.php
 ├── layouts/                         # app + header + footer
 └── partials/                        # report-form, report-paper
@@ -233,7 +246,7 @@ Role `manajer` memiliki area sendiri untuk proses approval akhir dan arsip lapor
 
 Menu utama:
 
-1. **Dashboard** - menampilkan card statistik dan daftar laporan masuk dari divisi. Saat ini divisi aktif adalah Operasional; Pemeliharaan dan Safety disiapkan sebagai tab pengembangan berikutnya.
+1. **Dashboard** - menampilkan card statistik dan daftar laporan masuk dari divisi. Tab divisi yang aktif: **Operasional**, **Pemeliharaan**, dan **Safety** — masing-masing menampilkan laporan masuk yang menunggu approval manajer.
 2. **Arsip Laporan** - menampilkan laporan berstatus `submitted`, `acknowledged`, dan `approved` dengan label user-facing "Diserahkan" atau "Ditanda Tangani".
 3. **Pusat Bantuan** - berisi penjelasan sistem, alur laporan, status, pencarian/filter, batas akses, dan langkah awal saat ada kendala.
 
@@ -329,6 +342,48 @@ Alur status memakai enum `App\Enums\MaintenanceStatus` (di-cast pada `Maintenanc
 - **Draft kadaluarsa**: `MaintenanceReport::pruneStaleDrafts()` menghapus draft > 3 hari, dijalankan oleh command terjadwal `reports:prune-stale` (harian 01:30) bersama pembersihan draft & saran kapal Operasional.
 - **Views**: `resources/views/pemeliharaan/` (`index`, `create`, `edit`, `pdf`, `viewpdf`, `layouts/`, `partials/`).
 
+### 5.10 Modul Safety/K3 (`/report-safety`) — Increment 3
+
+Modul ini mendigitalkan dokumen fisik **"Laporan Harian K3 (Keselamatan & Kesehatan Kerja)"**. Diakses oleh role `safety` (akun **Karu Safety**) dan dilindungi middleware `role:safety`. Seperti Pemeliharaan, laporan dibuat **per hari (Non Shift)** dan **tidak ada serah-terima antar regu**.
+
+Alur status memakai enum `App\Enums\SafetyStatus` (di-cast pada `SafetyReport`):
+
+| Status | Label UI | Arti |
+|---|---|---|
+| `draft` | Draft | Tersimpan oleh Karu Safety, belum dikirim |
+| `submitted` | Diserahkan | Dikirim, menunggu persetujuan manajer |
+| `approved` | Diarsipkan | Disetujui/ditanda tangani manajer (final) |
+
+> Tidak ada tahap `acknowledged` (tidak ada serah-terima). Enum `SafetyStatus` menyediakan `label()`, `badgeClass()`, `icon()`, dan transisi FSM eksplisit `canTransitionTo()`.
+
+**Dashboard petugas** (`safety.index`) memakai pola dua tab seperti Pemeliharaan:
+
+1. **Draft** — laporan `draft` milik Karu Safety, lengkap dengan tombol Lanjutkan Edit & hapus.
+2. **Riwayat Laporan** — daftar laporan yang sudah dikirim/disetujui (paginasi 10/halaman).
+
+**Form laporan multi-step** (`create`/`edit`) memakai layout & komponen yang sama dengan modul lain, dengan **4 seksi**:
+
+| Seksi | Konten |
+|---|---|
+| Info Umum | Tanggal laporan + jam kerja (jam masuk/pulang manual, digabung jadi `time_range`) |
+| Inspeksi K3 | Accordion **per lokasi** (dari master); tiap lokasi berisi daftar item dengan QTY (hanya untuk item terhitung/`is_countable`), kondisi (`bagus`/`rusak`/`normal`/`tidak_normal`), dan rekomendasi. Badge status "Belum diperiksa / Selesai" per lokasi; lokasi & item dapat ditambah bebas |
+| Kegiatan Operasi & Pemeliharaan | Tabel kegiatan (ter-seed default: Gresik Niaga, Golden Rejeki, Pengiriman ke GD Turba, Rental Unit PP&P, Rental TRL PT.KAD, Rental FL OP6 & OP7) dengan kondisi (mis. "Aman"), tindakan, dan keterangan |
+| Laporan Kejadian & Lain-lain | Tabel kejadian (uraian, kondisi, tindakan, keterangan) — boleh dikosongkan bila tidak ada kejadian |
+
+**Integritas historis**: setiap baris inspeksi menyimpan `location_name_snapshot` dan `item_name_snapshot`, sehingga laporan lama tetap utuh meski master lokasi/item kemudian diubah atau dihapus.
+
+**Autosave draft**: form memakai concern `AutosavesDraftReports` — laporan yang sedang dikerjakan otomatis tersimpan sebagai Draft saat logout/kehilangan sesi (flag `autosave=1`).
+
+**Persetujuan manajer**: laporan `submitted` muncul pada tab **Safety** di dashboard manajer. Manajer membuka detail lewat `manajer.safety.show`, lalu menyetujui (`manajer.safety.approve`) untuk mengubah status menjadi `approved` (mengisi `approved_by`/`approved_at`); PDF arsip dicache ke `storage/app/public/safety-reports`. Tersedia juga download PDF dan hapus arsip.
+
+**Integrasi admin**: laporan safety ikut tampil di arsip admin dengan aksi lihat (`admin.safety-reports.show`), download (`...download`), dan hapus (`...destroy`). Master data dikelola admin lewat pane **Data Lokasi K3** (`safety_lokasi`) dan **Data Item K3** (`safety_item`) di Data Master.
+
+**Lain-lain**:
+- **ID Dokumen**: format `#K3-YYYY-NNN` (lihat trait `ResolvesSafetyMeta`).
+- **Export PDF**: `GET /report-safety/{report}/pdf` (DomPDF, template `report-safety/pdf.blade.php`, paper portrait 612×936).
+- **Draft kadaluarsa**: `SafetyReport::pruneStaleDrafts()` menghapus draft > 3 hari, selaras dengan Operasional & Pemeliharaan.
+- **Master data**: `master_safety_locations`, `master_safety_items`, dan pivot `master_safety_location_items` (dengan `default_qty` per lokasi-item).
+
 ---
 
 ## 6. Skema Data (Ringkas)
@@ -382,6 +437,19 @@ Index: `[status, report_date]`, `[group_name, received_by_group]`.
 - `maintenance_attendances` (1:N, cascade) — Daftar Hadir (`maintenance_employee_id` opsional, snapshot `employee_name`/`position`, `time_in`, `time_out`, `notes`)
 
 > Master armada & roster pemeliharaan **disatukan ke `master_units` dan `master_employees`** (lihat §5.9), sehingga `maintenance_work_items`/`maintenance_unit_conditions` mereferensikan `master_unit_id` dan tabel `maintenance_units`/`maintenance_employees` lama tidak lagi dipakai sebagai master aktif.
+
+### Tabel Modul Safety/K3 (Increment 3)
+
+- `safety_reports` — induk laporan harian K3 (`document_number`, `report_date`, `time_range`, `shift` opsional, `status` enum draft/submitted/approved, `created_by`/`submitted_at`/`reporter_signature_path`, `approved_by`/`approved_at`/`approver_signature_path`; index `[status, report_date]`)
+- `safety_inspections` (1:N, cascade) — baris Inspeksi K3 (`location_id`/`item_id` nullable + `location_name_snapshot`/`item_name_snapshot`, `qty`, `condition` enum bagus/rusak/normal/tidak_normal, `recommendation`, `sort_order`)
+- `safety_operation_logs` (1:N, cascade) — Kegiatan Operasi & Pemeliharaan (`activity_name`, `condition` teks bebas, `action`, `notes`, `sort_order`)
+- `safety_incident_logs` (1:N, cascade) — Laporan Kejadian (`description`, `condition`, `action`, `notes`, `sort_order`)
+
+### Tabel master Safety/K3
+
+- `master_safety_locations` — lokasi inspeksi (`name`, `sort_order`, `is_active`)
+- `master_safety_items` — item/objek inspeksi (`name`, `is_countable` = QTY relevan, `is_active`)
+- `master_safety_location_items` — pivot lokasi ↔ item dengan `default_qty` & `sort_order` (unik per `[location, item]`)
 
 ---
 
@@ -485,6 +553,41 @@ DELETE /manajer/pemeliharaan/{report}          -> hapus arsip
 GET    /admin/maintenance-reports/{report}          -> lihat laporan pemeliharaan
 GET    /admin/maintenance-reports/{report}/download -> download PDF
 DELETE /admin/maintenance-reports/{report}          -> hapus arsip
+```
+
+---
+
+Route modul Safety/K3 (Increment 3):
+
+```
+# Petugas safety (role:safety, prefix /report-safety)
+GET    /report-safety                      -> dashboard petugas (Draft / Riwayat)
+GET    /report-safety/create               -> form buat laporan K3
+POST   /report-safety                       -> simpan laporan (draft / submitted)
+GET    /report-safety/{report}             -> lihat laporan
+GET    /report-safety/{report}/edit        -> form edit
+PUT    /report-safety/{report}             -> update laporan
+DELETE /report-safety/{report}             -> hapus draft
+GET    /report-safety/{report}/pdf         -> export PDF
+
+# Approval manajer (role:manajer)
+GET    /manajer/safety/{report}            -> lihat laporan K3
+POST   /manajer/safety/{report}/approve    -> setujui (submitted -> approved)
+GET    /manajer/safety/{report}/download   -> download PDF
+DELETE /manajer/safety/{report}            -> hapus arsip
+
+# Arsip admin (role:admin)
+GET    /admin/safety-reports/{report}          -> lihat laporan K3
+GET    /admin/safety-reports/{report}/download -> download PDF
+DELETE /admin/safety-reports/{report}          -> hapus arsip
+
+# Master data K3 (role:admin)
+POST   /admin/master/safety-locations             -> tambah lokasi K3
+PUT    /admin/master/safety-locations/{location}  -> update lokasi K3
+DELETE /admin/master/safety-locations/{location}  -> hapus lokasi K3
+POST   /admin/master/safety-items                 -> tambah item K3
+PUT    /admin/master/safety-items/{item}          -> update item K3
+DELETE /admin/master/safety-items/{item}          -> hapus item K3
 ```
 
 ---
@@ -739,4 +842,9 @@ Ringkasan pembaruan:
 - Master armada & roster pemeliharaan disatukan ke `master_units`/`master_employees` sehingga admin mengelola satu set data master untuk kedua modul.
 - Draft pemeliharaan kadaluarsa (> 3 hari) ikut dibersihkan oleh command terjadwal `reports:prune-stale`.
 - Rincian perancangan Increment 2 didokumentasikan di [`PERANCANGAN_MODUL_PEMELIHARAAN.md`](PERANCANGAN_MODUL_PEMELIHARAAN.md).
-- Test fitur terbaru berada di `tests/Feature/OpsFlowTest.php`; hasil terakhir `php artisan test` lulus `23 tests`, `182 assertions`.
+- **Increment 3 — Modul Safety/K3 selesai dibangun**: dashboard petugas safety (2 tab Draft/Riwayat), form laporan harian K3 (Info Umum, Inspeksi K3 berbasis lokasi + item dengan snapshot nama, Kegiatan Operasi & Pemeliharaan, Laporan Kejadian), alur 2 pihak `draft → submitted → approved`, ID dokumen `#K3-YYYY-NNN`, autosave draft, dan export PDF.
+- Approval laporan safety tersedia di dashboard manajer (tab Safety) dan arsipnya ikut tampil di area admin.
+- Master data K3 (Lokasi & Item) dikelola admin lewat pane Data Lokasi K3 dan Data Item K3 di Data Master.
+- Draft safety kadaluarsa (> 3 hari) dibersihkan via `SafetyReport::pruneStaleDrafts()`, selaras Operasional & Pemeliharaan.
+- Rincian perancangan Increment 3 didokumentasikan di [`PERANCANGAN_MODUL_SAFETY.md`](PERANCANGAN_MODUL_SAFETY.md).
+- Test fitur berada di `tests/Feature/OpsFlowTest.php`; hasil terakhir `php artisan test` (2026-06-14): `39 tests`, `315 assertions` — `38` lulus, `1` gagal pada test master-unit operasional karena keterbatasan fungsi `CONCAT` di SQLite in-memory (tidak terkait modul Safety).

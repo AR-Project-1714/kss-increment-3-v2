@@ -33,6 +33,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
     Route::get('/maintenance-reports/{report}', [AdminV2Controller::class, 'showMaintenanceReport'])->name('maintenance-reports.show');
     Route::get('/maintenance-reports/{report}/download', [AdminV2Controller::class, 'downloadMaintenanceReport'])->name('maintenance-reports.download');
     Route::delete('/maintenance-reports/{report}', [AdminV2Controller::class, 'destroyMaintenanceReport'])->name('maintenance-reports.destroy');
+    Route::get('/safety-reports/{report}', [AdminV2Controller::class, 'showSafetyReport'])->name('safety-reports.show');
+    Route::get('/safety-reports/{report}/download', [AdminV2Controller::class, 'downloadSafetyReport'])->name('safety-reports.download');
+    Route::delete('/safety-reports/{report}', [AdminV2Controller::class, 'destroySafetyReport'])->name('safety-reports.destroy');
 
     Route::post('/users', [AdminV2Controller::class, 'storeUser'])->name('users.store');
     Route::put('/users/{user}', [AdminV2Controller::class, 'updateUser'])->name('users.update');
@@ -51,6 +54,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
     Route::post('/master/inventories', [AdminV2Controller::class, 'storeInventory'])->name('master.inventories.store');
     Route::put('/master/inventories/{inventory}', [AdminV2Controller::class, 'updateInventory'])->name('master.inventories.update');
     Route::delete('/master/inventories/{inventory}', [AdminV2Controller::class, 'destroyInventory'])->name('master.inventories.destroy');
+    Route::post('/master/safety-locations', [AdminV2Controller::class, 'storeSafetyLocation'])->name('master.safety-locations.store');
+    Route::put('/master/safety-locations/{location}', [AdminV2Controller::class, 'updateSafetyLocation'])->name('master.safety-locations.update');
+    Route::delete('/master/safety-locations/{location}', [AdminV2Controller::class, 'destroySafetyLocation'])->name('master.safety-locations.destroy');
+    Route::post('/master/safety-items', [AdminV2Controller::class, 'storeSafetyItem'])->name('master.safety-items.store');
+    Route::put('/master/safety-items/{item}', [AdminV2Controller::class, 'updateSafetyItem'])->name('master.safety-items.update');
+    Route::delete('/master/safety-items/{item}', [AdminV2Controller::class, 'destroySafetyItem'])->name('master.safety-items.destroy');
 
     Route::post('/backup/generate', [AdminV2Controller::class, 'generateBackup'])->name('backup.generate');
     Route::post('/backup/annual', [AdminV2Controller::class, 'annualBackup'])->name('backup.annual');

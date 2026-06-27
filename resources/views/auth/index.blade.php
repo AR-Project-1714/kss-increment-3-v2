@@ -28,6 +28,10 @@
                     <div class="input-wrapper">
                         <input type="password" id="password" name="password" class="custom-input @error('password') is-invalid @enderror" placeholder="Masukkan password" required autocomplete="current-password" @error('password') aria-invalid="true" @enderror>
                         <span class="input-icon-right" id="togglePassword" title="Lihat Password"><i class="fi fi-rr-eye-crossed"></i></span>
+                        <div class="caps-hint" id="capsHint" role="alert" aria-live="polite">
+                            <i class="fi fi-rr-shield-exclamation"></i>
+                            <span>Caps Lock aktif</span>
+                        </div>
                     </div>
                 </div>
 
