@@ -138,6 +138,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             DailyReportSeeder::class,
+            ItKssUserSeeder::class,
         ]);
     }
 }
