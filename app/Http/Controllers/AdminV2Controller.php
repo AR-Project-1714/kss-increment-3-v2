@@ -618,6 +618,19 @@ class AdminV2Controller extends Controller
         $data = $this->validateUser($request, $user, false);
 
         $payload = $this->userPayload($data, false);
+
+        $newStatus = $payload['status'] ?? $user->status;
+
+        if ($newStatus === 'nonaktif' && $user->status === 'aktif') {
+            if ($request->user()->is($user)) {
+                return back()->with('error', 'Anda tidak bisa menonaktifkan akun Anda sendiri. Minta admin lain untuk menonaktifkannya.');
+            }
+
+            if ($this->isLastActiveAdmin($user)) {
+                return back()->with('error', 'Tidak bisa menonaktifkan satu-satunya admin yang aktif. Pastikan ada admin lain yang aktif terlebih dahulu.');
+            }
+        }
+
         $signaturePath = $this->storeSignature($request, $data['username']);
 
         if ($signaturePath) {
@@ -634,6 +647,10 @@ class AdminV2Controller extends Controller
     {
         if ($request->user()->is($user)) {
             return back()->with('error', 'Akun admin yang sedang dipakai tidak bisa dinonaktifkan.');
+        }
+
+        if ($user->status === 'aktif' && $this->isLastActiveAdmin($user)) {
+            return back()->with('error', 'Tidak bisa menonaktifkan satu-satunya admin yang aktif. Pastikan ada admin lain yang aktif terlebih dahulu.');
         }
 
         $status = $user->status === 'aktif' ? 'nonaktif' : 'aktif';
@@ -1177,9 +1194,27 @@ class AdminV2Controller extends Controller
             'role_id' => ['required', 'exists:roles,id'],
             'group' => ['nullable', 'string', 'max:20'],
             'status' => ['nullable', 'in:aktif,nonaktif'],
-            'password' => [$isCreate ? 'required' : 'nullable', 'string', 'min:6'],
+            'password' => [$isCreate ? 'required' : 'nullable', 'string', 'min:5'],
             'signature' => ['nullable', 'file', 'mimes:png', 'mimetypes:image/png', 'max:2048'],
         ]);
+    }
+
+    /**
+     * Apakah $user adalah admin aktif terakhir? Dipakai untuk mencegah sistem
+     * kehilangan seluruh admin aktif (mis. admin menonaktifkan dirinya sendiri).
+     */
+    private function isLastActiveAdmin(User $user): bool
+    {
+        if (Role::normalize($user->role->name ?? null) !== Role::ADMIN) {
+            return false;
+        }
+
+        $otherActiveAdmins = User::where('id', '!=', $user->id)
+            ->where('status', 'aktif')
+            ->whereHas('role', fn ($query) => $query->where('name', Role::ADMIN))
+            ->count();
+
+        return $otherActiveAdmins === 0;
     }
 
     private function userPayload(array $data, bool $isCreate): array
@@ -1420,6 +1455,8 @@ class AdminV2Controller extends Controller
         return [
             'no' => $number,
             'id' => $user->id,
+            'is_self' => auth()->id() === $user->id,
+            'is_admin' => Role::normalize($roleName) === Role::ADMIN,
             'name' => $user->name,
             'username' => $user->username,
             'email' => $user->email,

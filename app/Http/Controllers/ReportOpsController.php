@@ -329,13 +329,18 @@ class ReportOpsController extends Controller
 
     public function show(DailyReport $report)
     {
-        abort_unless($this->canAccessReport($report, auth()->user()), 403);
+        $user = auth()->user();
+        abort_unless($this->canAccessReport($report, $user), 403);
+
+        $canSign = $report->status === ReportStatus::Submitted && $this->canReceiveReport($report, $user);
 
         return view('report-ops.viewpdf', [
             'report' => $this->loadReport($report),
             'isPdf' => false,
             'backUrl' => route('report-ops.index'),
             'pdfUrl' => route('report-ops.pdf', $report),
+            'signAction' => $canSign ? route('report-ops.sign', $report) : null,
+            'signMessage' => 'Tanda tangani laporan ini sebagai bukti serah terima ke regu Anda?',
         ]);
     }
 
@@ -1495,16 +1500,31 @@ class ReportOpsController extends Controller
             return [];
         }
 
-        $sum = function (string $column) use ($operation, $excludeReportId): float {
-            return (float) $operation->loadingActivities()
-                ->when($excludeReportId, fn ($query) => $query->where('daily_report_id', '!=', $excludeReportId))
-                ->sum($column);
-        };
+        // "Nilai lalu" untuk laporan berikutnya = akumulasi total laporan
+        // terakhir (Sekarang + Lalu), bukan sekadar penjumlahan seluruh nilai
+        // Sekarang. Dengan begitu nilai Lalu awal yang diisi manual pada
+        // laporan pertama ikut terbawa. Contoh: laporan pertama Sekarang 100 &
+        // Lalu 50 → laporan berikutnya Lalu = 150.
+        $latest = $operation->loadingActivities()
+            ->when($excludeReportId, fn ($query) => $query->where('loading_activities.daily_report_id', '!=', $excludeReportId))
+            ->join('daily_reports', 'daily_reports.id', '=', 'loading_activities.daily_report_id')
+            ->orderByDesc('daily_reports.report_date')
+            ->orderByDesc('loading_activities.id')
+            ->select('loading_activities.*')
+            ->first();
+
+        if (! $latest) {
+            return [
+                'qty_delivery_prev' => 0.0,
+                'qty_loading_prev' => 0.0,
+                'qty_damage_prev' => 0.0,
+            ];
+        }
 
         return [
-            'qty_delivery_prev' => $sum('qty_delivery_current'),
-            'qty_loading_prev' => $sum('qty_loading_current'),
-            'qty_damage_prev' => $sum('qty_damage_current'),
+            'qty_delivery_prev' => (float) $latest->qty_delivery_current + (float) $latest->qty_delivery_prev,
+            'qty_loading_prev' => (float) $latest->qty_loading_current + (float) $latest->qty_loading_prev,
+            'qty_damage_prev' => (float) $latest->qty_damage_current + (float) $latest->qty_damage_prev,
         ];
     }
 

@@ -1844,6 +1844,7 @@
         }
     </style>
     @include('components.kss-datetime-picker')
+    @include('components.kss-mobile-sheet')
     @stack('styles')
 </head>
 

@@ -194,6 +194,8 @@
         @media (max-width: 800px) {
             .toolbar { padding: 10px 12px; }
             .toolbar__actions { flex-wrap: wrap; justify-content: flex-end; }
+            .btn.pdf .btn-text, .btn.print .btn-text { display: none; }
+            .btn.pdf, .btn.print { padding: 9px 11px; }
             .sheet-frame { overflow: hidden; }
             .sheet {
                 width: 760px;
@@ -214,9 +216,9 @@
         <a href="{{ $backUrl }}" class="btn back" id="btnBack"><i class="fi fi-rr-arrow-small-left"></i> Kembali</a>
         <div class="toolbar__actions">
             @if ($pdfUrl)
-                <a href="{{ $pdfUrl }}" class="btn pdf" id="btnPdf" target="_blank" rel="noopener"><i class="fi fi-rr-file-pdf"></i> Unduh PDF</a>
+                <a href="{{ $pdfUrl }}" class="btn pdf" id="btnPdf" target="_blank" rel="noopener" aria-label="Unduh PDF"><i class="fi fi-rr-file-pdf"></i> <span class="btn-text">Unduh PDF</span></a>
             @endif
-            <button type="button" class="btn print" onclick="window.print()"><i class="fi fi-rr-print"></i> Cetak</button>
+            <button type="button" class="btn print" onclick="window.print()" aria-label="Cetak"><i class="fi fi-rr-print"></i> <span class="btn-text">Cetak</span></button>
         </div>
     </div>
 
@@ -972,5 +974,9 @@
             } catch (e) {}
         })();
     </script>
+
+    @if ($signAction ?? null)
+        @include('components.kss-sign-fab', ['signAction' => $signAction, 'signMessage' => $signMessage ?? null])
+    @endif
 </body>
 </html>

@@ -13,16 +13,16 @@
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label for="nama_kapal">Nama Kapal</label>
-                    <input type="text" id="nama_kapal" name="turba_ship_name" value="{{ old('turba_ship_name') }}" placeholder="Masukkan Nama Kapal">
+                    <label for="turba_tally_gudang">Tally Gudang</label>
+                    <input type="text" id="turba_tally_gudang" name="tally_gudang_names" value="{{ old('tally_gudang_names') }}" placeholder="Nama Tally Gudang">
                 </div>
                 <div class="form-group">
-                    <label for="agen">Agen</label>
-                    <input type="text" id="agen" name="turba_agent" value="{{ old('turba_agent') }}" placeholder="Masukkan Nama Agen">
+                    <label for="turba_operator_forklift">Operator Forklift</label>
+                    <input type="text" id="turba_operator_forklift" name="turba_forklift_operator" value="{{ old('turba_forklift_operator') }}" placeholder="Nama Operator Forklift">
                 </div>
                 <div class="form-group">
-                    <label for="dermaga">Dermaga</label>
-                    <input type="text" id="dermaga" name="turba_jetty" value="{{ old('turba_jetty') }}" placeholder="Lokasi Dermaga">
+                    <label for="turba_driver">Driver</label>
+                    <input type="text" id="turba_driver" name="turba_driver_names" value="{{ old('turba_driver_names') }}" placeholder="Nama Driver">
                 </div>
                 <div class="form-group rentang-jam-group">
                     <label>Rentang Jam Kerja</label>
@@ -86,7 +86,7 @@
                         </div>
                         <div class="table-column input-triple">
                             <input type="number" name="turba_deliveries[0][qty_current]" class="form-control-custom" placeholder="0">
-                            <input type="number" name="turba_deliveries[0][qty_prev]" class="form-control-custom" placeholder="0" readonly>
+                            <input type="number" name="turba_deliveries[0][qty_prev]" class="form-control-custom" placeholder="0">
                             <input type="number" name="turba_deliveries[0][qty_accumulated]" class="form-control-custom" placeholder="0" readonly>
                         </div>
                         <div class="table-column delete">

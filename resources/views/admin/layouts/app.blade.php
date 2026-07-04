@@ -393,7 +393,52 @@
             opacity: 1;
         }
 
-        body.sidebar-collapsed .sidebar__submenu-wrapper { display: none; }
+        /* Heading hanya tampil pada flyout saat sidebar collapsed */
+        .sidebar__submenu-heading { display: none; }
+        .sidebar__nav-group { position: relative; }
+
+        /* ---- Collapsed: submenu Data Master jadi flyout melayang ----
+           Pakai position: fixed (diposisikan via JS) agar tidak terpotong
+           oleh overflow:hidden milik .sidebar / .sidebar__main / .sidebar__nav. */
+        body.sidebar-collapsed .sidebar__submenu-wrapper {
+            display: block;
+            position: fixed;
+            width: 188px;
+            max-height: none;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            background-color: var(--white);
+            border: 1px solid var(--smooth-border);
+            border-radius: 10px;
+            padding: 8px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+            z-index: 10000;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+        }
+
+        body.sidebar-collapsed .sidebar__submenu-wrapper.flyout-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        body.sidebar-collapsed .sidebar__submenu-heading {
+            display: block;
+            padding: 2px 8px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+        }
+
+        body.sidebar-collapsed .sidebar__submenu-wrapper .sidebar__submenu { padding: 0; }
+        body.sidebar-collapsed .sidebar__submenu-wrapper .sidebar__submenu-line { display: none; }
+        body.sidebar-collapsed .sidebar__submenu-wrapper .sidebar__submenu-item { padding: 7px 8px; font-size: 12px; }
+
+        /* Tooltip "Data Master" disembunyikan saat collapsed (digantikan flyout) */
+        body.sidebar-collapsed .sidebar__nav-group .sidebar__nav-item[data-tooltip]:hover::after { opacity: 0; }
 
         .sidebar__submenu {
             display: flex;
@@ -1451,6 +1496,7 @@
     </style>
 
     @include('components.kss-datetime-picker')
+    @include('components.kss-mobile-sheet')
 
     {{-- CSS khusus per halaman (di-push dari masing-masing view) --}}
     @stack('styles')
@@ -1627,12 +1673,56 @@
             // 2. SUBMENU TOGGLE (Data Master)
             document.querySelectorAll('.js-submenu-toggle').forEach(function (toggle) {
                 toggle.addEventListener('click', function (e) {
+                    // Saat sidebar collapsed, klik ikon langsung membuka halaman Data Master
+                    // (submenu diakses lewat flyout hover), jadi biarkan navigasi default.
+                    if (body.classList.contains('sidebar-collapsed')) return;
                     e.preventDefault();
                     const wrapper = toggle.nextElementSibling;
                     if (!wrapper || !wrapper.classList.contains('sidebar__submenu-wrapper')) return;
                     const isOpen = wrapper.classList.contains('open');
                     wrapper.classList.toggle('open', !isOpen);
                     toggle.classList.toggle('submenu-open', !isOpen);
+                });
+            });
+
+            // 2b. FLYOUT SUBMENU saat sidebar collapsed.
+            // Submenu dipindah jadi panel melayang (position: fixed) di samping ikon
+            // ketika di-hover, sehingga Data Master tetap bisa diakses dalam kondisi minimize.
+            sidebar?.querySelectorAll('.sidebar__nav-group').forEach(function (group) {
+                const trigger = group.querySelector('.js-submenu-toggle');
+                const flyout = group.querySelector('.sidebar__submenu-wrapper');
+                if (!trigger || !flyout) return;
+
+                let hideTimer = null;
+
+                function positionFlyout() {
+                    const rect = trigger.getBoundingClientRect();
+                    flyout.style.left = (rect.right + 8) + 'px';
+                    let top = rect.top - 6;
+                    const overflow = top + flyout.offsetHeight + 8 - window.innerHeight;
+                    if (overflow > 0) top = Math.max(8, top - overflow);
+                    flyout.style.top = top + 'px';
+                }
+
+                function openFlyout() {
+                    if (!body.classList.contains('sidebar-collapsed')) return;
+                    clearTimeout(hideTimer);
+                    positionFlyout();
+                    flyout.classList.add('flyout-open');
+                }
+
+                function closeFlyout() {
+                    clearTimeout(hideTimer);
+                    hideTimer = setTimeout(function () {
+                        flyout.classList.remove('flyout-open');
+                    }, 160);
+                }
+
+                group.addEventListener('mouseenter', openFlyout);
+                group.addEventListener('mouseleave', closeFlyout);
+
+                window.addEventListener('resize', function () {
+                    if (flyout.classList.contains('flyout-open')) positionFlyout();
                 });
             });
 

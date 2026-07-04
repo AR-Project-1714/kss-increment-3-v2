@@ -10,7 +10,7 @@
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
             <div class="step-info-note">
                 <i class="fi fi-rr-info"></i>
-                <span>Catat pemuatan pupuk kantong untuk tiap kapal. Pilih nama kapal dari saran agar kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya — Anda cukup mengisi jumlah <strong>Sekarang</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal.</span>
+                <span>Catat pemuatan pupuk kantong untuk tiap kapal. Pilih nama kapal dari saran agar kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya — nilai ini masih dapat diubah manual bila perlu. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal.</span>
             </div>
             <div class="form-muat-kantong d-flex flex-column align-items-start align-self-stretch">
                 <div class="tab-activity d-flex align-items-center gap-10">
@@ -121,7 +121,7 @@
                     <div class="form-card-content">
                         <div class="card-form-group"><label>Sekarang</label><input type="number" name="qty_delivery_current_1" value="{{ old('qty_delivery_current_1') }}" placeholder="0"></div>
                         <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small" style="position: relative; top: -2px;"></i></span>
-                        <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_delivery_prev_1" value="{{ old('qty_delivery_prev_1') }}" placeholder="0" readonly></div>
+                        <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_delivery_prev_1" value="{{ old('qty_delivery_prev_1') }}" placeholder="0"></div>
                     </div>
                 </div>
                 <div class="form-card load">
@@ -135,7 +135,7 @@
                     <div class="form-card-content">
                         <div class="card-form-group"><label>Sekarang</label><input type="number" name="qty_loading_current_1" value="{{ old('qty_loading_current_1') }}" placeholder="0"></div>
                         <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small" style="position: relative; top: -2px;"></i></span>
-                        <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_loading_prev_1" value="{{ old('qty_loading_prev_1') }}" placeholder="0" readonly></div>
+                        <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_loading_prev_1" value="{{ old('qty_loading_prev_1') }}" placeholder="0"></div>
                     </div>
                 </div>
                 <div class="form-card damage">
@@ -149,7 +149,7 @@
                     <div class="form-card-content">
                         <div class="card-form-group"><label>Sekarang</label><input type="number" name="qty_damage_current_1" value="{{ old('qty_damage_current_1') }}" placeholder="0"></div>
                         <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small" style="position: relative; top: -2px;"></i></span>
-                        <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_damage_prev_1" value="{{ old('qty_damage_prev_1') }}" placeholder="0" readonly></div>
+                        <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_damage_prev_1" value="{{ old('qty_damage_prev_1') }}" placeholder="0"></div>
                     </div>
                 </div>
             </div>

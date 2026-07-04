@@ -224,11 +224,10 @@
     }
 
     .kss-date-time {
-        width: 70px;
-        height: 238px;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 3px;
+        width: 138px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
         padding-left: 8px;
         border-left: 1px solid var(--smooth-border, #e2e8f0);
         min-height: 0;
@@ -236,50 +235,64 @@
 
     .kss-date-popover--time .kss-date-time {
         width: 100%;
-        height: 184px;
         padding-left: 0;
         border-left: 0;
     }
 
-    .kss-date-time-column {
-        height: 100%;
-        max-height: 100%;
-        min-height: 0;
-        overflow-y: auto;
-        padding-right: 0;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
+    .kss-date-time-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--dark-main, var(--black, #0f172a));
     }
 
-    .kss-date-time-column::-webkit-scrollbar {
-        width: 0;
-        height: 0;
-        display: none;
-    }
-
-    .kss-date-time-option {
-        width: 100%;
-        height: 25px;
-        border: 0;
-        border-radius: 7px;
+    .kss-date-time-field {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border: 1px solid var(--smooth-border, #e2e8f0);
+        border-radius: 8px;
+        background: var(--white, #ffffff);
+        transition: border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .kss-date-time-field:focus-within {
+        border-color: var(--blue-main, #2563eb);
+        box-shadow: 0 0 0 3px var(--blue-main-10, rgba(37, 99, 235, 0.10));
+    }
+
+    .kss-date-time-field i {
+        flex: 0 0 auto;
+        color: var(--blue-main, #2563eb);
+        font-size: 13px;
+        position: relative;
+        top: 1px;
+    }
+
+    .kss-date-time-input {
+        width: 100%;
+        min-width: 0;
+        border: 0;
+        outline: 0;
         background: transparent;
         color: var(--dark-main, var(--black, #0f172a));
         font-family: inherit;
-        font-size: 11px;
-        font-weight: 500;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-align: center;
     }
 
-    .kss-date-time-option:hover {
-        background: var(--blue-main-5, rgba(37, 99, 235, 0.05));
-        color: var(--blue-main, #2563eb);
+    .kss-date-time-input::placeholder {
+        color: var(--muted, #94a3b8);
+        font-weight: 400;
+        letter-spacing: normal;
     }
 
-    .kss-date-time-option.is-selected {
-        background: var(--blue-main, #2563eb);
-        color: #ffffff;
+    .kss-date-time-hint {
+        font-size: 10px;
+        color: var(--muted, #94a3b8);
+        line-height: 1.4;
     }
 
     .kss-date-footer {
@@ -331,16 +344,10 @@
 
         .kss-date-time {
             width: 100%;
-            height: 132px;
-            max-height: 132px;
             padding-left: 0;
             padding-top: 10px;
             border-left: 0;
             border-top: 1px solid var(--smooth-border, #e2e8f0);
-        }
-
-        .kss-date-time-column {
-            height: 120px;
         }
     }
 </style>
@@ -351,7 +358,6 @@
 
         const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         const weekdayNames = ['Sn', 'Sl', 'Rb', 'Km', 'Jm', 'Sb', 'Mg'];
-        const minuteOptions = Array.from({ length: 12 }, (_, index) => index * 5);
         let activePicker = null;
         let activePopover = null;
 
@@ -592,31 +598,55 @@
             `;
         }
 
-        function renderTimeColumn(values, selected, key) {
+        function renderTimePicker(picker) {
+            const timeValue = `${pad(picker.hour)}:${pad(picker.minute)}`;
+
             return `
-                <div class="kss-date-time-column" data-time-column="${key}">
-                    ${values.map(value => `
-                        <button type="button"
-                                class="kss-date-time-option${value === selected ? ' is-selected' : ''}"
-                                data-${key}="${value}">
-                            ${pad(value)}
-                        </button>
-                    `).join('')}
+                <div class="kss-date-time">
+                    <span class="kss-date-time-label">Jam &amp; Menit</span>
+                    <div class="kss-date-time-field">
+                        <i class="fi fi-rr-clock"></i>
+                        <input type="text"
+                               class="kss-date-time-input"
+                               inputmode="numeric"
+                               maxlength="5"
+                               placeholder="00:00"
+                               value="${timeValue}"
+                               aria-label="Ketik jam dan menit dengan format 24 jam (JJ:MM)">
+                    </div>
+                    <span class="kss-date-time-hint">Ketik format 24 jam, mis. 14:30</span>
                 </div>
             `;
         }
 
-        function renderTimePicker(picker) {
-            const minutes = minuteOptions.includes(picker.minute)
-                ? minuteOptions
-                : [...minuteOptions, picker.minute].sort((a, b) => a - b);
+        function applyManualTime(picker, rawValue) {
+            const digits = String(rawValue).replace(/\D/g, '').slice(0, 4);
+            let hour = 0;
+            let minute = 0;
 
-            return `
-                <div class="kss-date-time">
-                    ${renderTimeColumn(Array.from({ length: 24 }, (_, index) => index), picker.hour, 'hour')}
-                    ${renderTimeColumn(minutes, picker.minute, 'minute')}
-                </div>
-            `;
+            if (digits.length > 0 && digits.length <= 2) {
+                hour = Math.min(23, Number(digits));
+            } else if (digits.length > 2) {
+                hour = Math.min(23, Number(digits.slice(0, 2)));
+                minute = Math.min(59, Number(digits.slice(2)));
+            }
+
+            picker.hour = hour;
+            picker.minute = minute;
+
+            let date;
+            if (picker.mode === 'time') {
+                const now = new Date();
+                date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+            } else {
+                date = currentWorkingDate(picker);
+            }
+
+            // Perbarui nilai tanpa me-render ulang popover agar fokus input tetap terjaga.
+            picker.selected = date;
+            picker.input.value = formatValue(date, picker.mode);
+            picker.input.dispatchEvent(new Event('input', { bubbles: true }));
+            picker.input.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         function renderPicker(picker) {
@@ -740,6 +770,18 @@
         }
 
         document.addEventListener('click', handlePopoverClick);
+
+        document.addEventListener('input', event => {
+            if (!activePicker || !activePopover) return;
+
+            const target = event.target;
+            if (!target.classList?.contains('kss-date-time-input')) return;
+
+            const digits = target.value.replace(/\D/g, '').slice(0, 4);
+            target.value = digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+
+            applyManualTime(activePicker, target.value);
+        });
 
         document.addEventListener('mousedown', event => {
             if (!activePicker) return;

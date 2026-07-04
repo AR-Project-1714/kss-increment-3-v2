@@ -10,7 +10,7 @@
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
             <div class="step-info-note">
                 <i class="fi fi-rr-info"></i>
-                <span>Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya — cukup isi jumlah <strong>Sekarang</strong>, dan <strong>Total</strong> akan dihitung sendiri.</span>
+                <span>Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya — nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri.</span>
             </div>
             <div class="form-bongkar d-flex flex-column align-items-start align-self-stretch" style="gap: 25px;">
                 <div class="tab-bongkar">
@@ -45,7 +45,7 @@
                                     <div class="table-input-wrapper"><span class="icon"><i class="fi fi-sr-marker"></i></span><input type="text" name="unloading_materials[0][raw_material_type]" placeholder="Tujuan"></div>
                                 </div>
                                 <div class="table-column small"><input type="number" name="unloading_materials[0][qty_current]" class="form-control-custom" placeholder="0"></div>
-                                <div class="table-column small"><input type="number" name="unloading_materials[0][qty_prev]" class="form-control-custom" placeholder="0" readonly></div>
+                                <div class="table-column small"><input type="number" name="unloading_materials[0][qty_prev]" class="form-control-custom" placeholder="0"></div>
                                 <div class="table-column small"><input type="number" name="unloading_materials[0][qty_total]" class="form-control-custom" placeholder="0" readonly></div>
                                 <div class="table-column delete"><button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button></div>
                             </div>
@@ -119,7 +119,7 @@
                                     <div class="table-input-wrapper"><span class="icon"><i class="fi fi-rr-clock"></i></span><input type="text" name="unloading_containers[0][time]" class="time-picker-input" placeholder="00:00" autocomplete="off" inputmode="numeric" maxlength="5"></div>
                                 </div>
                                 <div class="table-column small"><input type="number" name="unloading_containers[0][qty_current]" class="form-control-custom" placeholder="0"></div>
-                                <div class="table-column small"><input type="number" name="unloading_containers[0][qty_prev]" class="form-control-custom" placeholder="0" readonly></div>
+                                <div class="table-column small"><input type="number" name="unloading_containers[0][qty_prev]" class="form-control-custom" placeholder="0"></div>
                                 <div class="table-column small"><input type="number" name="unloading_containers[0][qty_total]" class="form-control-custom" placeholder="0" readonly></div>
                                 <div class="table-column small">
                                     <div class="input-wrapper">

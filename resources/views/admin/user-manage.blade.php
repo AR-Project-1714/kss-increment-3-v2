@@ -307,6 +307,44 @@
         color: var(--muted);
         font-weight: 400;
     }
+
+    .kss-password-wrap {
+        position: relative;
+        width: 100%;
+    }
+
+    .kss-password-wrap .kss-modal__input {
+        padding-right: 40px;
+    }
+
+    .kss-password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        transition: color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .kss-password-toggle:hover {
+        color: var(--blue-main);
+        background-color: var(--blue-main-10);
+    }
+
+    .kss-password-toggle i {
+        font-size: 15px;
+        line-height: 1;
+    }
 </style>
 @endpush
 
@@ -365,6 +403,8 @@
                     data-user-regu="{{ $u['regu'] }}"
                     data-user-group="{{ $u['group_value'] ?? $u['regu'] }}"
                     data-user-status="{{ $u['status'] }}"
+                    data-user-self="{{ !empty($u['is_self']) ? '1' : '0' }}"
+                    data-user-is-admin="{{ !empty($u['is_admin']) ? '1' : '0' }}"
                     data-user-update-url="{{ $u['update_url'] ?? '' }}"
                     data-user-signature-url="{{ $u['signature_url'] ?? '' }}">
                     <td class="col-no">{{ $u['no'] }}</td>
@@ -497,7 +537,12 @@
                     </div>
                     <div class="kss-modal__field">
                         <label for="userPasswordInput">Password Awal</label>
-                        <input class="kss-modal__input" id="userPasswordInput" name="password" type="password" placeholder="Masukkan password awal">
+                        <div class="kss-password-wrap">
+                            <input class="kss-modal__input" id="userPasswordInput" name="password" type="password" minlength="5" placeholder="Min. 5 karakter">
+                            <button type="button" class="kss-password-toggle" id="userPasswordToggle" aria-label="Tampilkan password" title="Tampilkan password">
+                                <i class="fi fi-rr-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="kss-modal__field kss-modal__field--full">
                         <label for="userSignatureInput">Tanda Tangan PNG</label>
@@ -546,6 +591,24 @@
             signature: document.getElementById('userSignatureInput'),
         };
         const signaturePreview = document.getElementById('userSignaturePreview');
+        const passwordToggle = document.getElementById('userPasswordToggle');
+        let editingIsSelf = false;
+
+        function setPasswordVisible(visible) {
+            if (!passwordToggle) return;
+            fields.password.type = visible ? 'text' : 'password';
+            const icon = passwordToggle.querySelector('i');
+            if (icon) icon.className = visible ? 'fi fi-rr-eye-crossed' : 'fi fi-rr-eye';
+            const label = visible ? 'Sembunyikan password' : 'Tampilkan password';
+            passwordToggle.setAttribute('aria-label', label);
+            passwordToggle.title = label;
+        }
+
+        if (passwordToggle) {
+            passwordToggle.addEventListener('click', function () {
+                setPasswordVisible(fields.password.type === 'password');
+            });
+        }
 
         function setFieldsDisabled(disabled) {
             Object.values(fields).forEach(field => field.disabled = disabled);
@@ -566,7 +629,8 @@
             fields.regu.value = data.group || 'A';
             setUserStatus((data.status || 'aktif').toLowerCase() === 'aktif');
             fields.password.value = '';
-            fields.password.placeholder = data.mode === 'edit' ? 'Kosongkan jika tidak diubah' : 'Masukkan password awal';
+            setPasswordVisible(false);
+            fields.password.placeholder = data.mode === 'edit' ? 'Kosongkan jika tidak diubah' : 'Min. 5 karakter';
             fields.password.required = data.mode !== 'edit' && data.mode !== 'view';
             fields.signature.value = '';
             setSignaturePreview(data.signatureUrl || '');
@@ -584,6 +648,7 @@
         }
 
         function openUserModal(mode, row) {
+            editingIsSelf = row?.dataset.userSelf === '1';
             const data = row ? {
                 name: row.dataset.userName,
                 username: row.dataset.userUsername,
@@ -620,7 +685,14 @@
 
         document.getElementById('btnAddUser')?.addEventListener('click', () => openUserModal('add'));
 
-        fields.status?.addEventListener('change', () => setUserStatus(fields.status.checked));
+        fields.status?.addEventListener('change', () => {
+            if (editingIsSelf && !fields.status.checked) {
+                window.showAdminToast?.('error', 'Tidak diizinkan', 'Anda tidak bisa menonaktifkan akun Anda sendiri. Minta admin lain untuk menonaktifkannya.');
+                setUserStatus(true);
+                return;
+            }
+            setUserStatus(fields.status.checked);
+        });
 
         fields.signature?.addEventListener('change', function () {
             const file = fields.signature.files?.[0];
@@ -641,6 +713,18 @@
         });
 
         document.querySelectorAll('.js-user-status-toggle').forEach(function (toggle) {
+            const ownerRow = toggle.closest('tr');
+
+            // Cegah admin menonaktifkan akunnya sendiri lewat tombol status di tabel.
+            // Capture phase + stopImmediatePropagation agar berjalan sebelum dialog konfirmasi global.
+            if (ownerRow?.dataset.userSelf === '1') {
+                toggle.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    window.showAdminToast?.('error', 'Tidak diizinkan', 'Anda tidak bisa menonaktifkan akun Anda sendiri. Minta admin lain untuk menonaktifkannya.');
+                }, true);
+            }
+
             toggle.addEventListener('change', function () {
                 const row = toggle.closest('tr');
                 const switchWrap = toggle.closest('.user-status-switch');

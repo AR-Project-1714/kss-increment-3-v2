@@ -157,11 +157,15 @@ class ManajerController extends Controller
         $this->authorizeManagementAccess($request);
         abort_unless(in_array($report->status, $this->archiveStatuses(), true), 404);
 
+        $canSign = $report->status === ReportStatus::Acknowledged;
+
         return view('report-ops.viewpdf', [
             'report' => $this->loadReport($report),
             'isPdf' => false,
             'backUrl' => route('manajer.index'),
             'pdfUrl' => route('manajer.reports.download', $report),
+            'signAction' => $canSign ? route('manajer.reports.approve', $report) : null,
+            'signMessage' => 'Setujui & tanda tangani laporan ini? Laporan akan masuk ke arsip setelah ditandatangani.',
         ]);
     }
 
@@ -232,11 +236,15 @@ class ManajerController extends Controller
         $this->authorizeManagementAccess($request);
         abort_unless(in_array($report->status, [MaintenanceStatus::Submitted, MaintenanceStatus::Approved], true), 404);
 
+        $canSign = $report->status === MaintenanceStatus::Submitted;
+
         return view('pemeliharaan.viewpdf', [
             'report'  => $this->loadMaintenanceReport($report),
             'isPdf'   => false,
             'backUrl' => route('manajer.index'),
             'pdfUrl'  => route('manajer.pemeliharaan.download', $report),
+            'signAction' => $canSign ? route('manajer.pemeliharaan.approve', $report) : null,
+            'signMessage' => 'Setujui & tanda tangani laporan pemeliharaan ini? Laporan akan masuk ke arsip setelah ditandatangani.',
         ]);
     }
 
@@ -329,11 +337,15 @@ class ManajerController extends Controller
         $this->authorizeManagementAccess($request);
         abort_unless(in_array($report->status, [SafetyStatus::Submitted, SafetyStatus::Approved], true), 404);
 
+        $canSign = $report->status === SafetyStatus::Submitted;
+
         return view('report-safety.viewpdf', [
             'report'  => $this->loadSafetyReport($report),
             'isPdf'   => false,
             'backUrl' => route('manajer.index'),
             'pdfUrl'  => route('manajer.safety.download', $report),
+            'signAction' => $canSign ? route('manajer.safety.approve', $report) : null,
+            'signMessage' => 'Setujui & tanda tangani laporan K3 ini? Laporan akan masuk ke arsip setelah ditandatangani.',
         ]);
     }
 

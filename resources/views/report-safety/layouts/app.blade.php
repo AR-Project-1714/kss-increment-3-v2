@@ -398,6 +398,7 @@
             .counter-form{display:none!important}
         }
     </style>
+    @include('components.kss-mobile-sheet')
     @stack('styles')
 </head>
 <body>

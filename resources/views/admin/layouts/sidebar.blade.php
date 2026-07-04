@@ -52,21 +52,24 @@
                     <span class="nav-label">Kelola Pengguna</span>
                 </a>
 
-                <a href="{{ route('admin.datamaster') }}" class="sidebar__nav-item js-submenu-toggle {{ $active === 'master' ? 'submenu-open' : '' }}" data-tooltip="Data Master">
-                    <span class="nav-icon"><i class="fi fi-sr-database"></i></span>
-                    <span class="nav-label">Data Master</span>
-                    <span class="nav-chevron"><i class="fi fi-rr-angle-small-down"></i></span>
-                </a>
-                <div class="sidebar__submenu-wrapper {{ $active === 'master' ? 'open' : '' }}">
-                    <div class="sidebar__submenu">
-                        <div class="sidebar__submenu-line"></div>
-                        <div class="sidebar__submenu-items">
-                            <a href="{{ route('admin.datamaster', ['pane' => 'karyawan']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'karyawan' ? 'active' : '' }}" data-pane="karyawan">Data Karyawan</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'unit']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'unit' ? 'active' : '' }}" data-pane="unit">Data Unit</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'truck']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'truck' ? 'active' : '' }}" data-pane="truck">Data Truck</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'inventaris']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'inventaris' ? 'active' : '' }}" data-pane="inventaris">Data Inventaris</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'safety_lokasi']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'safety_lokasi' ? 'active' : '' }}" data-pane="safety_lokasi">Data Lokasi K3</a>
-                            <a href="{{ route('admin.datamaster', ['pane' => 'safety_item']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'safety_item' ? 'active' : '' }}" data-pane="safety_item">Data Item K3</a>
+                <div class="sidebar__nav-group">
+                    <a href="{{ route('admin.datamaster') }}" class="sidebar__nav-item js-submenu-toggle {{ $active === 'master' ? 'submenu-open' : '' }}" data-tooltip="Data Master">
+                        <span class="nav-icon"><i class="fi fi-sr-database"></i></span>
+                        <span class="nav-label">Data Master</span>
+                        <span class="nav-chevron"><i class="fi fi-rr-angle-small-down"></i></span>
+                    </a>
+                    <div class="sidebar__submenu-wrapper {{ $active === 'master' ? 'open' : '' }}">
+                        <span class="sidebar__submenu-heading">Data Master</span>
+                        <div class="sidebar__submenu">
+                            <div class="sidebar__submenu-line"></div>
+                            <div class="sidebar__submenu-items">
+                                <a href="{{ route('admin.datamaster', ['pane' => 'karyawan']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'karyawan' ? 'active' : '' }}" data-pane="karyawan">Data Karyawan</a>
+                                <a href="{{ route('admin.datamaster', ['pane' => 'unit']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'unit' ? 'active' : '' }}" data-pane="unit">Data Unit</a>
+                                <a href="{{ route('admin.datamaster', ['pane' => 'truck']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'truck' ? 'active' : '' }}" data-pane="truck">Data Truck</a>
+                                <a href="{{ route('admin.datamaster', ['pane' => 'inventaris']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'inventaris' ? 'active' : '' }}" data-pane="inventaris">Data Inventaris</a>
+                                <a href="{{ route('admin.datamaster', ['pane' => 'safety_lokasi']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'safety_lokasi' ? 'active' : '' }}" data-pane="safety_lokasi">Data Lokasi K3</a>
+                                <a href="{{ route('admin.datamaster', ['pane' => 'safety_item']) }}" class="sidebar__submenu-item {{ $active === 'master' && $activeMasterPane === 'safety_item' ? 'active' : '' }}" data-pane="safety_item">Data Item K3</a>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -587,10 +587,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ----- Sugesti berbasis jabatan (Checker untuk tally, Operator FL/OP.7
-    // untuk driver), opsional difilter berdasarkan group yang dipilih. -----
+    // untuk operator forklift, Driver untuk field driver), opsional difilter
+    // berdasarkan group yang dipilih. -----
     const ROLE_POSITIONS = {
         checker: ['checker'],
-        driver: ['operator fl', 'operator op.7'],
+        forkliftOperator: ['operator fl', 'operator op.7'],
+        driver: ['driver'],
     };
 
     function allOperationalEmployees() {
@@ -620,6 +622,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function rebuildRoleDatalists(groupValue = null) {
         const group = groupValue || document.querySelector('[name="group_name"]')?.value || '';
         createDatalist('master-checker-list', employeesByPosition(ROLE_POSITIONS.checker, group).map(e => e.name));
+        createDatalist('master-forklift-operator-list', employeesByPosition(ROLE_POSITIONS.forkliftOperator, group).map(e => e.name));
         createDatalist('master-driver-list', employeesByPosition(ROLE_POSITIONS.driver, group).map(e => e.name));
     }
 
@@ -948,6 +951,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Field nama operator forklift (kapal & gudang) - sarankan karyawan
+    // berjabatan Operator FL / Operator OP.7 sesuai group, BUKAN nomor unit forklift.
+    const FORKLIFT_OPERATOR_FIELDS = /^(operator_ship_\d+|operator_warehouse_\d+|opr_forklift|turba_forklift_operator)$/i;
+
     function applyMasterDatalists(root = document) {
         root.querySelectorAll('input[type="text"], input:not([type])').forEach(input => {
             const name = input.getAttribute('name') || '';
@@ -955,8 +962,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (/tally/i.test(name)) {
                 // Tally = Checker: hanya sarankan karyawan berjabatan Checker.
                 input.setAttribute('list', 'master-checker-list');
+            } else if (FORKLIFT_OPERATOR_FIELDS.test(name)) {
+                // Operator Forklift: sarankan karyawan berjabatan Operator FL / Operator OP.7.
+                input.setAttribute('list', 'master-forklift-operator-list');
             } else if (/driver/i.test(name)) {
-                // Driver: sarankan karyawan berjabatan Operator FL / Operator OP.7.
+                // Driver: hanya sarankan karyawan berjabatan Driver.
                 input.setAttribute('list', 'master-driver-list');
             } else if (/relief_logs/i.test(name)) {
                 // Karyawan Relief: hanya sarankan personil group Relief 1 / Relief 2.
@@ -972,8 +982,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.setAttribute('list', 'master-truck-list');
             }
 
-            if (/forklift/i.test(name)) {
+            if (FORKLIFT_OPERATOR_FIELDS.test(name)) {
+                // Sudah ditangani di atas (daftar nama operator) - jangan ditimpa jadi daftar nomor unit.
+            } else if (/forklift/i.test(name) && !/operator/i.test(name)) {
                 // Nomor forklift: hanya sarankan unit berkode FL (Forklift).
+                // Field "operator forklift" dikecualikan karena berisi nama orang.
                 input.setAttribute('list', 'master-forklift-list');
             } else if (/unit_logs\[[^\]]+\]\[item_name\]/i.test(name)) {
                 // Cek unit umum: tetap tampilkan seluruh unit.
@@ -1541,7 +1554,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 <div class="table-column input-triple">
                     <input type="number" name="turba_deliveries[${index}][qty_current]" class="form-control-custom" placeholder="0">
-                    <input type="number" name="turba_deliveries[${index}][qty_prev]" class="form-control-custom" placeholder="0" readonly>
+                    <input type="number" name="turba_deliveries[${index}][qty_prev]" class="form-control-custom" placeholder="0">
                     <input type="number" name="turba_deliveries[${index}][qty_accumulated]" class="form-control-custom" placeholder="0" readonly>
                 </div>
                 <div class="table-column delete">
