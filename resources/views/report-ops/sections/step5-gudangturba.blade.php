@@ -11,30 +11,48 @@
                 <span>Lacak distribusi barang keluar per truck — lengkapi nomor <strong>DO/SO</strong>, marking, dan jumlah terkirim. Kolom <strong>Total</strong> dihitung otomatis (Sekarang + Lalu). Tambah baris untuk tiap truck.</span>
             </div>
 
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="turba_tally_gudang">Tally Gudang</label>
-                    <input type="text" id="turba_tally_gudang" name="tally_gudang_names" value="{{ old('tally_gudang_names') }}" placeholder="Nama Tally Gudang">
+            <div class="d-flex flex-column align-items-start align-self-stretch w-100" style="gap: 12px;">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="turba_tally_gudang">Tally Gudang Kirim</label>
+                        <input type="text" id="turba_tally_gudang" name="tally_gudang_names" value="{{ old('tally_gudang_names') }}" placeholder="Nama Tally Gudang Kirim">
+                    </div>
+                    <div class="form-group">
+                        <label for="turba_tally_gudang_terima">Tally Gudang Terima</label>
+                        <input type="text" id="turba_tally_gudang_terima" name="turba_tally_gudang_terima" value="{{ old('turba_tally_gudang_terima') }}" placeholder="Nama Tally Gudang Terima">
+                    </div>
+                    <div class="form-group">
+                        <label for="turba_operator_forklift">Operator Forklift</label>
+                        <input type="text" id="turba_operator_forklift" name="turba_forklift_operator" value="{{ old('turba_forklift_operator') }}" placeholder="Nama Operator Forklift">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="turba_operator_forklift">Operator Forklift</label>
-                    <input type="text" id="turba_operator_forklift" name="turba_forklift_operator" value="{{ old('turba_forklift_operator') }}" placeholder="Nama Operator Forklift">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="turba_fl_no">Nomor Forklift</label>
+                        <input type="text" id="turba_fl_no" name="turba_fl_no" value="{{ old('turba_fl_no') }}" placeholder="Nomor Forklift" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="turba_driver">Driver</label>
+                        <input type="text" id="turba_driver" name="turba_driver_names" value="{{ old('turba_driver_names') }}" placeholder="Nama Driver">
+                    </div>
+                    <div class="form-group">
+                        <label for="turba_trl_no">Nomor Trailer</label>
+                        <input type="text" id="turba_trl_no" name="turba_trl_no" value="{{ old('turba_trl_no') }}" placeholder="Nomor Trailer" autocomplete="off">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="turba_driver">Driver</label>
-                    <input type="text" id="turba_driver" name="turba_driver_names" value="{{ old('turba_driver_names') }}" placeholder="Nama Driver">
-                </div>
-                <div class="form-group rentang-jam-group">
-                    <label>Rentang Jam Kerja</label>
-                    <div class="rentang-jam-wrapper">
-                        <div class="input-wrapper">
-                            <span class="input-icon" style="top: 8px;left: 15px; right: auto; color: var(--blue-main);"><i class="fi fi-br-clock"></i></span>
-                            <input type="text" name="turba_work_start" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
-                        </div>
-                        <i class="fi fi-rr-arrow-right" style="font-size: 12px; color: var(--dark-main);"></i>
-                        <div class="input-wrapper">
-                            <span class="input-icon" style="top:8px;left: 15px; right: auto; color: var(--red-main);"><i class="fi fi-br-clock"></i></span>
-                            <input type="text" name="turba_work_end" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
+                <div class="form-grid">
+                    <div class="form-group rentang-jam-group">
+                        <label>Rentang Jam Kerja</label>
+                        <div class="rentang-jam-wrapper">
+                            <div class="input-wrapper">
+                                <span class="input-icon" style="top: 8px;left: 15px; right: auto; color: var(--blue-main);"><i class="fi fi-br-clock"></i></span>
+                                <input type="text" name="turba_work_start" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
+                            </div>
+                            <i class="fi fi-rr-arrow-right" style="font-size: 12px; color: var(--dark-main);"></i>
+                            <div class="input-wrapper">
+                                <span class="input-icon" style="top:8px;left: 15px; right: auto; color: var(--red-main);"><i class="fi fi-br-clock"></i></span>
+                                <input type="text" name="turba_work_end" class="time-picker-input" placeholder="00:00" style="padding: 8px 15px 8px 40px; border: none; width: 100%; outline: none; font-size: 12px; font-weight: 500; text-align: center;">
+                            </div>
                         </div>
                     </div>
                 </div>

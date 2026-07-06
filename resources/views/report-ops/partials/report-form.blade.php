@@ -955,9 +955,21 @@ document.addEventListener('DOMContentLoaded', function () {
     // berjabatan Operator FL / Operator OP.7 sesuai group, BUKAN nomor unit forklift.
     const FORKLIFT_OPERATOR_FIELDS = /^(operator_ship_\d+|operator_warehouse_\d+|opr_forklift|turba_forklift_operator)$/i;
 
+    // Hanya kolom "nama karyawan" (subfield [name]) yang perlu disarankan dari daftar
+    // karyawan. Kolom lain seperti [description]/[work_area]/[time_in] pada log yang
+    // sama TIDAK boleh ikut ketiban list ini (mis. keterangan OP.7 punya datalist sendiri).
+    const EMPLOYEE_NAME_ARRAY_FIELDS = /(employee_shift_logs|overtime_logs|op7_logs|replacement_logs|other_activity_logs)\[[^\]]+\]\[name\]$/i;
+
     function applyMasterDatalists(root = document) {
         root.querySelectorAll('input[type="text"], input:not([type])').forEach(input => {
             const name = input.getAttribute('name') || '';
+
+            // Jam Kerja (rentang waktu bebas) & Kegiatan Lain: input manual murni,
+            // tidak perlu (dan tidak boleh) mendapat saran datalist apa pun.
+            if (/_work_(start|end)$/i.test(name) || /\[work_time\]$/i.test(name) || /other_activity_logs\[[^\]]+\]\[description\]$/i.test(name)) {
+                input.removeAttribute('list');
+                return;
+            }
 
             if (/tally/i.test(name)) {
                 // Tally = Checker: hanya sarankan karyawan berjabatan Checker.
@@ -971,12 +983,12 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (/relief_logs/i.test(name)) {
                 // Karyawan Relief: hanya sarankan personil group Relief 1 / Relief 2.
                 input.setAttribute('list', 'master-relief-list');
-            } else if (/(employee_shift_logs|overtime_logs|op7_logs|replacement_logs|other_activity_logs|operator|foreman|stevedoring|petugas)/i.test(name)) {
+            } else if (EMPLOYEE_NAME_ARRAY_FIELDS.test(name) || /(operator|foreman|stevedoring|petugas)/i.test(name)) {
                 input.setAttribute('list', 'master-employee-list');
             }
 
-            if (/truck_number/i.test(name)) {
-                // Nomor truck: hanya sarankan unit berkode TRL (Trailer) / TRT (Tronton).
+            if (/truck_number/i.test(name) || /^turba_trl_no$/i.test(name)) {
+                // Nomor truck / Nomor Trailer (tracking): hanya sarankan unit berkode TRL (Trailer) / TRT (Tronton).
                 input.setAttribute('list', 'master-trucknum-list');
             } else if (/truck_name/i.test(name)) {
                 input.setAttribute('list', 'master-truck-list');
@@ -984,8 +996,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (FORKLIFT_OPERATOR_FIELDS.test(name)) {
                 // Sudah ditangani di atas (daftar nama operator) - jangan ditimpa jadi daftar nomor unit.
-            } else if (/forklift/i.test(name) && !/operator/i.test(name)) {
-                // Nomor forklift: hanya sarankan unit berkode FL (Forklift).
+            } else if ((/forklift/i.test(name) && !/operator/i.test(name)) || /^turba_fl_no$/i.test(name)) {
+                // Nomor forklift (termasuk Nomor Forklift tracking pupuk kantong): hanya sarankan unit berkode FL.
                 // Field "operator forklift" dikecualikan karena berisi nama orang.
                 input.setAttribute('list', 'master-forklift-list');
             } else if (/unit_logs\[[^\]]+\]\[item_name\]/i.test(name)) {
@@ -1492,7 +1504,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="table-input-wrapper">
                             <span class="icon"><i class="fi fi-sr-truck-side"></i></span>
                             <input type="hidden" name="unit_logs[${index}][master_unit_id]" value="${escapeHtml(item.id)}">
-                            <input type="text" name="unit_logs[${index}][item_name]" value="${escapeHtml(item.name || (item.unit_number ? `${item.type || ''} ${item.unit_number}`.trim() : (item.type || '')))}" readonly>
+                            <input type="text" name="unit_logs[${index}][item_name]" value="${escapeHtml(item.name || (item.unit_number ? `${item.type || ''} ${item.unit_number}`.trim() : (item.type || '')))}">
                         </div>
                     </div>
                     <div class="table-column amount">
@@ -1515,7 +1527,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="table-input-wrapper">
                             <span class="icon"><i class="fi fi-sr-box-open"></i></span>
                             <input type="hidden" name="inventory_logs[${index}][master_inventory_item_id]" value="${escapeHtml(item.id)}">
-                            <input type="text" name="inventory_logs[${index}][item_name]" value="${escapeHtml(item.name)}" readonly>
+                            <input type="text" name="inventory_logs[${index}][item_name]" value="${escapeHtml(item.name)}">
                         </div>
                     </div>
                     <div class="table-column amount">
@@ -1681,7 +1693,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyAbsenceStateToRow(row) {
         if (!row) return false;
 
-        const description = row.querySelector('select[name$="[description]"]')?.value;
+        const description = row.querySelector('[name$="[description]"]')?.value;
         const isAbsent = isAbsentDescription(description);
         const timeInInput = row.querySelector('input[name$="[time_in]"]');
         const timeOutInput = row.querySelector('input[name$="[time_out]"]');
@@ -1726,7 +1738,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let op7ReplacementUid = 0;
 
     function op7RowIsAbsent(row) {
-        return row ? isAbsentDescription(row.querySelector('select[name$="[description]"]')?.value) : false;
+        return row ? isAbsentDescription(row.querySelector('[name$="[description]"]')?.value) : false;
     }
 
     function setReplacementAutoField(row, selector, value) {
@@ -1858,14 +1870,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
                 <div class="table-column absent" style="overflow: visible;">
-                    <div class="tbl-select-wrapper w-100">
-                        <select name="employee_shift_logs[${index}][description]" class="tbl-native-select">
-                            <option value="" disabled selected hidden>Pilih...</option>
-                            <option value="Sakit">Sakit</option>
-                            <option value="Cuti">Cuti</option>
-                            <option value="Tidak Masuk">Tidak Masuk</option>
-                        </select>
-                        <span class="icon tbl-icon-dropdown"><i class="fi fi-rr-angle-small-down"></i></span>
+                    <div class="table-input-wrapper">
+                        <input type="text" name="employee_shift_logs[${index}][description]" list="keterangan_absen_options" placeholder="Keterangan" autocomplete="off">
                     </div>
                 </div>
                 <div class="table-column delete">
@@ -1913,14 +1919,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
                 <div class="table-column absent" style="overflow: visible;">
-                    <div class="tbl-select-wrapper w-100">
-                        <select name="op7_logs[${index}][description]" class="tbl-native-select">
-                            <option value="" disabled selected hidden>Pilih...</option>
-                            <option value="Sakit">Sakit</option>
-                            <option value="Cuti">Cuti</option>
-                            <option value="Tidak Masuk">Tidak Masuk</option>
-                        </select>
-                        <span class="icon tbl-icon-dropdown"><i class="fi fi-rr-angle-small-down"></i></span>
+                    <div class="table-input-wrapper">
+                        <input type="text" name="op7_logs[${index}][description]" list="keterangan_absen_options" placeholder="Keterangan" autocomplete="off">
                     </div>
                 </div>
                 <div class="table-column delete">
@@ -2907,11 +2907,11 @@ document.addEventListener('DOMContentLoaded', function () {
             syncOp7Replacements();
         }
 
-        if (event.target.matches('select[name^="employee_shift_logs"][name$="[description]"], select[name^="op7_logs"][name$="[description]"]')) {
+        if (event.target.matches('[name^="employee_shift_logs"][name$="[description]"], [name^="op7_logs"][name$="[description]"]')) {
             applyShiftTimesToRow(event.target.closest('.body'));
         }
 
-        if (event.target.matches('select[name^="op7_logs"][name$="[description]"]')) {
+        if (event.target.matches('[name^="op7_logs"][name$="[description]"]')) {
             syncOp7Replacements();
         }
     });
@@ -2938,12 +2938,36 @@ document.addEventListener('DOMContentLoaded', function () {
             event.target.value = numbers.length > 2 ? `${numbers.slice(0, 2)}:${numbers.slice(2)}` : numbers;
         }
 
+        // Jam Kerja rentang (satu input, mis. "23:00 - 04:00"): pengguna cukup
+        // ketik angkanya saja, simbol ":" dan " - " otomatis disisipkan.
+        if (event.target.matches('.time-range-input')) {
+            const digits = event.target.value.replace(/\D/g, '').slice(0, 8);
+            let formatted = digits.slice(0, 2);
+            if (digits.length > 2) formatted += ':' + digits.slice(2, 4);
+            if (digits.length > 4) formatted += ' - ' + digits.slice(4, 6);
+            if (digits.length > 6) formatted += ':' + digits.slice(6, 8);
+            event.target.value = formatted;
+        }
+
         if (event.target.matches('[name*="qty_current"], [name*="qty_prev"], [name*="_current_"], [name*="_prev_"]')) {
             updateAccumulation(event.target);
         }
 
         if (event.target.matches('input[name^="op7_logs"][name$="[no_forklift_]"], input[name^="op7_logs"][name$="[work_area]"]')) {
             syncOp7Replacements();
+        }
+
+        // Keterangan OP.7 kini berupa input teks (bisa diketik manual / pilih dari datalist).
+        // Perbarui status absensi & sinkronisasi baris pengganti saat diketik.
+        if (event.target.matches('input[name^="op7_logs"][name$="[description]"]')) {
+            applyShiftTimesToRow(event.target.closest('.body'));
+            syncOp7Replacements();
+        }
+
+        // Keterangan Karyawan Shift juga input teks bebas: perbarui status absensi
+        // (mengosongkan Masuk/Pulang) saat diketik, sama seperti OP.7.
+        if (event.target.matches('input[name^="employee_shift_logs"][name$="[description]"]')) {
+            applyShiftTimesToRow(event.target.closest('.body'));
         }
     });
 });

@@ -23,6 +23,7 @@
                     <div class="form-grid w-100">
                         <div class="form-group"><label>Nama Kapal</label><input type="text" name="ship_name_material" value="{{ old('ship_name_material') }}" placeholder="Masukkan Nama Kapal"></div>
                         <div class="form-group"><label>Agen</label><input type="text" name="agent_material" value="{{ old('agent_material') }}" placeholder="Masukkan Nama Agen"></div>
+                        <div class="form-group"><label>Dermaga</label><input type="text" name="jetty_material" value="{{ old('jetty_material') }}" placeholder="Masukkan Dermaga"></div>
                         <div class="form-group">
                             <label>Kapasitas</label>
                             <div class="input-wrapper"><input type="number" name="capacity_material" value="{{ old('capacity_material') }}" placeholder="Kapasitas" style="padding-right: 40px;"><span class="input-icon" style="font-size:11px;">Ton</span></div>
@@ -96,6 +97,7 @@
                     <div class="form-grid w-100">
                         <div class="form-group"><label>Nama Kapal</label><input type="text" name="ship_name_container" value="{{ old('ship_name_container') }}" placeholder="Masukkan Nama Kapal"></div>
                         <div class="form-group"><label>Agen</label><input type="text" name="agent_container" value="{{ old('agent_container') }}" placeholder="Masukkan Nama Agen"></div>
+                        <div class="form-group"><label>Dermaga</label><input type="text" name="jetty_container" value="{{ old('jetty_container') }}" placeholder="Masukkan Dermaga"></div>
                         <div class="form-group">
                             <label>Kapasitas</label>
                             <div class="input-wrapper"><input type="number" name="capacity_container" value="{{ old('capacity_container') }}" placeholder="Kapasitas" style="padding-right: 40px;"><span class="input-icon" style="font-size:11px;">Ton</span></div>
@@ -116,16 +118,13 @@
                             <div class="body">
                                 <div class="table-column no"><span>1</span></div>
                                 <div class="table-column main">
-                                    <div class="table-input-wrapper"><span class="icon"><i class="fi fi-rr-clock"></i></span><input type="text" name="unloading_containers[0][time]" class="time-picker-input" placeholder="00:00" autocomplete="off" inputmode="numeric" maxlength="5"></div>
+                                    <div class="table-input-wrapper"><span class="icon"><i class="fi fi-rr-clock"></i></span><input type="text" name="unloading_containers[0][time_text]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13"></div>
                                 </div>
                                 <div class="table-column small"><input type="number" name="unloading_containers[0][qty_current]" class="form-control-custom" placeholder="0"></div>
                                 <div class="table-column small"><input type="number" name="unloading_containers[0][qty_prev]" class="form-control-custom" placeholder="0"></div>
                                 <div class="table-column small"><input type="number" name="unloading_containers[0][qty_total]" class="form-control-custom" placeholder="0" readonly></div>
                                 <div class="table-column small">
-                                    <div class="input-wrapper">
-                                        <select name="unloading_containers[0][status]" class="native-select"><option value="Full">Full</option><option value="Empty">Empty</option></select>
-                                        <span class="input-icon"><i class="fi fi-rr-angle-small-down"></i></span>
-                                    </div>
+                                    <input type="text" name="unloading_containers[0][status]" class="form-control-custom" placeholder="Ket" autocomplete="off" value="{{ old('unloading_containers.0.status') }}">
                                 </div>
                                 <div class="table-column delete"><button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button></div>
                             </div>

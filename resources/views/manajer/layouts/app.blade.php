@@ -78,6 +78,28 @@
             --sidebar-transition: 0.32s cubic-bezier(0.4,0,0.2,1);
         }
 
+        /* Global scrollbar: berlaku untuk seluruh elemen yang bisa di-scroll
+           (termasuk scroll halaman utama), kecuali ada override khusus per komponen. */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--blue-main-25) transparent;
+        }
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 10px;
+        }
+        *::-webkit-scrollbar-thumb {
+            background-color: var(--blue-main-25);
+            border-radius: 10px;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background-color: var(--blue-hover);
+        }
+
         /* =============================================
            CSS VARIABLES — Dark Mode
            ============================================= */

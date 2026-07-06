@@ -69,10 +69,20 @@ Sistem dibangun dengan model pengembangan **inkremental**: setiap increment mena
 ```
 app/
 ├── Http/Controllers/
-│   ├── LoginV2Controller.php       # Auth (login/logout)
-│   ├── ReportOpsController.php     # Inti: CRUD laporan, sign, export, search
-│   ├── ManajerController.php       # Dashboard manajer, approval, arsip, search arsip
-│   └── ReportController.php        # (legacy/aux)
+│   ├── Controller.php               # Base controller abstrak
+│   ├── LoginV2Controller.php        # Auth (login/logout)
+│   ├── ReportOpsController.php      # Inti: CRUD laporan operasional, sign, export, search
+│   ├── ReportMaintenanceController.php # [Increment 2] CRUD laporan pemeliharaan, sign, export
+│   ├── ReportSafetyController.php   # [Increment 3] CRUD laporan safety/K3, sign, export
+│   ├── ManajerController.php        # Dashboard manajer, approval, arsip, search arsip
+│   ├── AdminV2Controller.php        # Panel admin: kelola user, master data, activity log
+│   └── Concerns/
+│       ├── AutosavesDraftReports.php    # Trait autosave draft laporan (semua modul)
+│       ├── BuildsDivisionArchive.php    # Trait pembangun query arsip per-divisi
+│       ├── ResolvesReportMeta.php       # Trait metadata laporan operasional
+│       ├── ResolvesMaintenanceMeta.php  # Trait metadata laporan pemeliharaan
+│       ├── ResolvesSafetyMeta.php       # Trait metadata laporan safety/K3
+│       └── SearchesReports.php          # Trait pencarian/filter laporan lintas modul
 └── Models/
     ├── DailyReport.php             # Laporan utama
     ├── LoadingActivity.php         # Muat Kantong (per-kapal)
@@ -85,6 +95,7 @@ app/
     ├── ContainerItem.php           # Detail kontainer
     ├── TurbaActivity.php           # Tracking (nama model legacy Turba)
     ├── TurbaDelivery.php           # Detail pengiriman truk
+    ├── ShipOperation.php           # Sesi operasi kapal (muat kantong/curah, saran otomatis)
     ├── UnitCheckLog.php            # Cek unit kendaraan/forklift
     ├── EmployeeLog.php             # Karyawan shift / OP.7 / pengganti / lembur / lain
     ├── MasterEmployee.php          # Master data karyawan
@@ -93,6 +104,7 @@ app/
     ├── MasterInventoryItem.php     # Master inventaris
     ├── Role.php                    # Role (admin/manajer/operasional/pemeliharaan/safety)
     ├── User.php                    # User + relasi role
+    ├── AdminActivityLog.php        # Log aktivitas admin (audit trail)
     ├── MaintenanceReport.php       # [Increment 2] Laporan harian pemeliharaan
     ├── MaintenanceWorkItem.php     # [Increment 2] Pekerjaan Utama & Prioritas
     ├── MaintenanceUnitCondition.php# [Increment 2] Kondisi unit (ready/rusak)
@@ -102,7 +114,9 @@ app/
     ├── SafetyOperationLog.php      # [Increment 3] Kegiatan Operasi & Pemeliharaan
     ├── SafetyIncidentLog.php       # [Increment 3] Laporan Kejadian & lain-lain
     ├── MasterSafetyLocation.php    # [Increment 3] Master lokasi inspeksi K3
-    └── MasterSafetyItem.php        # [Increment 3] Master item/objek inspeksi K3
+    ├── MasterSafetyItem.php        # [Increment 3] Master item/objek inspeksi K3
+    └── Concerns/
+        └── InvalidatesMasterDataCache.php # Trait invalidasi cache saat master data berubah
 database/migrations/
 ├── 2026_05_18_000001_add_ops_auth_columns_to_users_table.php
 ├── 2026_05_18_000002_create_operational_report_tables.php

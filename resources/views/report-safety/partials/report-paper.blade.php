@@ -51,8 +51,8 @@
 @endphp
 
 <style>
-    .report-paper { color: #000; font-size: 8px; font-family: Arial, Helvetica, sans-serif; }
-    .report-paper * { font-family: Arial, Helvetica, sans-serif; }
+    .report-paper { color: #000; font-size: 8px; font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif; }
+    .report-paper * { font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif; }
     .report-paper .head-wrap { width: 100%; margin-bottom: 6px; border-collapse: collapse; }
     .report-paper .head-wrap td { vertical-align: middle; }
     .report-paper .logo { height: 36px; }

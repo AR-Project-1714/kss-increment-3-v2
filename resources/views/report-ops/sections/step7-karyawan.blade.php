@@ -65,14 +65,8 @@
                             </div>
 
                             <div class="table-column absent" style="overflow: visible;">
-                                <div class="tbl-select-wrapper w-100">
-                                    <select name="employee_shift_logs[0][description]" class="tbl-native-select">
-                                        <option value="" disabled selected hidden>Pilih...</option>
-                                        <option value="Sakit">Sakit</option>
-                                        <option value="Cuti">Cuti</option>
-                                        <option value="Tidak Masuk">Tidak Masuk</option>
-                                    </select>
-                                    <span class="icon tbl-icon-dropdown"><i class="fi fi-rr-angle-small-down"></i></span>
+                                <div class="table-input-wrapper">
+                                    <input type="text" name="employee_shift_logs[0][description]" list="keterangan_absen_options" placeholder="Keterangan" autocomplete="off">
                                 </div>
                             </div>
 
@@ -87,6 +81,13 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Saran cepat keterangan absensi (Karyawan Shift & OP.7); tetap bisa diketik manual apa saja. --}}
+            <datalist id="keterangan_absen_options">
+                <option value="Sakit"></option>
+                <option value="Cuti"></option>
+                <option value="Tidak Masuk"></option>
+            </datalist>
 
             <!-- 2. SECTION RELIEF & LEMBUR -->
             <div id="section-lembur" class="tab-content-karyawan d-none flex-column align-items-center align-self-stretch w-100 gap-10">
@@ -134,7 +135,7 @@
                             <div class="table-column medium"><span>No.Forklift</span></div>
                             <div class="table-column medium"><span>Area Kerja</span></div>
                             <div class="table-column absent"><span>Masuk</span></div>
-                            <div class="table-column absent"><span>Keluar</span></div>
+                            <div class="table-column absent"><span>Pulang</span></div>
                             <div class="table-column absent"><span>Keterangan</span></div>
                             <div class="table-column delete"><span>Hapus</span></div>
                         </div>
@@ -173,14 +174,8 @@
                             </div>
 
                             <div class="table-column absent" style="overflow: visible;">
-                                <div class="tbl-select-wrapper w-100">
-                                    <select name="op7_logs[0][description]" class="tbl-native-select">
-                                        <option value="" disabled selected hidden>Pilih...</option>
-                                        <option value="Sakit">Sakit</option>
-                                        <option value="Cuti">Cuti</option>
-                                        <option value="Tidak Masuk">Tidak Masuk</option>
-                                    </select>
-                                    <span class="icon tbl-icon-dropdown"><i class="fi fi-rr-angle-small-down"></i></span>
+                                <div class="table-input-wrapper">
+                                    <input type="text" name="op7_logs[0][description]" list="keterangan_absen_options" placeholder="Keterangan" autocomplete="off">
                                 </div>
                             </div>
 
@@ -212,7 +207,7 @@
                             <div class="table-column medium"><span>No.Forklift</span></div>
                             <div class="table-column medium"><span>Area Kerja</span></div>
                             <div class="table-column absent"><span>Masuk</span></div>
-                            <div class="table-column absent"><span>Keluar</span></div>
+                            <div class="table-column absent"><span>Pulang</span></div>
                             <div class="table-column absent"><span>Keterangan</span></div>
                             <div class="table-column delete"><span>Hapus</span></div>
                         </div>
@@ -251,14 +246,8 @@
                             </div>
 
                             <div class="table-column absent" style="overflow: visible;">
-                                <div class="tbl-select-wrapper w-100">
-                                    <select name="replacement_logs[0][description]" class="tbl-native-select">
-                                        <option value="" disabled selected hidden>Pilih...</option>
-                                        <option value="Sakit">Sakit</option>
-                                        <option value="Cuti">Cuti</option>
-                                        <option value="Tidak Masuk">Tidak Masuk</option>
-                                    </select>
-                                    <span class="icon tbl-icon-dropdown"><i class="fi fi-rr-angle-small-down"></i></span>
+                                <div class="table-input-wrapper">
+                                    <input type="text" name="replacement_logs[0][description]" placeholder="Menggantikan / Ket" autocomplete="off">
                                 </div>
                             </div>
 
@@ -282,8 +271,7 @@
                             <div class="table-column no"><span>No</span></div>
                             <div class="table-column main"><span>Personil</span></div>
                             <div class="table-column main"><span>Kegiatan Lain</span></div>
-                            <div class="table-column absent"><span>Masuk</span></div>
-                            <div class="table-column absent"><span>Pulang</span></div>
+                            <div class="table-column medium"><span>Jam Kerja</span></div>
                             <div class="table-column delete"><span>Hapus</span></div>
                         </div>
 
@@ -301,16 +289,10 @@
                                     <input type="text" name="other_activity_logs[0][description]" placeholder="Kegiatan Lain......">
                                 </div>
                             </div>
-                            <div class="table-column absent">
+                            <div class="table-column medium">
                                 <div class="table-input-wrapper">
-                                    <span class="icon"><i class="fi fi-rr-time-quarter-past blue"></i></span>
-                                    <input type="text" name="other_activity_logs[0][time_in]" class="time-picker-input" placeholder="00:00" >
-                                </div>
-                            </div>
-                            <div class="table-column absent">
-                                <div class="table-input-wrapper">
-                                    <span class="icon"><i class="fi fi-rr-time-check red"></i></span>
-                                    <input type="text" name="other_activity_logs[0][time_out]" class="time-picker-input" placeholder="00:00" >
+                                    <span class="icon"><i class="fi fi-rr-clock"></i></span>
+                                    <input type="text" name="other_activity_logs[0][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
                                 </div>
                             </div>
                             <div class="table-column delete">

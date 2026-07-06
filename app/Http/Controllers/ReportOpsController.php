@@ -1177,10 +1177,11 @@ class ReportOpsController extends Controller
             }
         }
 
-        if ($this->hasAny($request, ['ship_name_material', 'agent_material', 'capacity_material', 'unloading_materials', 'tally_kapal', 'opr_forklift', 'tally_pengiriman', 'driver_petugas_bb', 'material_work_start', 'material_work_end'])) {
+        if ($this->hasAny($request, ['ship_name_material', 'agent_material', 'jetty_material', 'capacity_material', 'unloading_materials', 'tally_kapal', 'opr_forklift', 'tally_pengiriman', 'driver_petugas_bb', 'material_work_start', 'material_work_end'])) {
             $materialActivity = $report->materialActivity()->create([
                 'ship_name' => $this->string($request->input('ship_name_material')),
                 'agent' => $this->string($request->input('agent_material')),
+                'jetty' => $this->string($request->input('jetty_material')),
                 'capacity' => $this->decimal($request->input('capacity_material')),
                 'ship_tally_names' => $this->string($request->input('material_ship_tally_names', $request->input('tally_kapal'))),
                 'forklift_operator_names' => $this->string($request->input('material_forklift_operator_names', $request->input('opr_forklift'))),
@@ -1204,13 +1205,14 @@ class ReportOpsController extends Controller
         $containerRows = $this->rows($request->input('unloading_containers', []));
         $hasContainerRows = array_filter(
             $containerRows,
-            fn (array $container): bool => $this->rowHasAny($container, ['time', 'status', 'qty_current', 'qty_prev', 'qty_total'])
+            fn (array $container): bool => $this->rowHasAny($container, ['time', 'time_text', 'status', 'qty_current', 'qty_prev', 'qty_total'])
         ) !== [];
 
-        if ($this->hasAny($request, ['ship_name_container', 'agent_container', 'capacity_container', 'tally_muat', 'tally_gudang', 'driver_petugas_cont']) || $hasContainerRows) {
+        if ($this->hasAny($request, ['ship_name_container', 'agent_container', 'jetty_container', 'capacity_container', 'tally_muat', 'tally_gudang', 'driver_petugas_cont']) || $hasContainerRows) {
             $containerActivity = $report->containerActivity()->create([
                 'ship_name' => $this->string($request->input('ship_name_container')),
                 'agent' => $this->string($request->input('agent_container')),
+                'jetty' => $this->string($request->input('jetty_container')),
                 'capacity' => $this->decimal($request->input('capacity_container')),
                 'ship_tally_names' => $this->string($request->input('container_ship_tally_names', $request->input('tally_muat'))),
                 'gudang_tally_names' => $this->string($request->input('container_gudang_tally_names', $request->input('tally_gudang'))),
@@ -1218,9 +1220,10 @@ class ReportOpsController extends Controller
             ]);
 
             foreach ($containerRows as $container) {
-                if ($this->rowHasAny($container, ['time', 'status', 'qty_current', 'qty_prev', 'qty_total'])) {
+                if ($this->rowHasAny($container, ['time', 'time_text', 'status', 'qty_current', 'qty_prev', 'qty_total'])) {
                     $containerActivity->items()->create([
                         'time' => $this->time($container['time'] ?? null),
+                        'time_text' => $this->string($container['time_text'] ?? null),
                         'status' => $this->string($container['status'] ?? null),
                         'qty_current' => $this->decimal($container['qty_current'] ?? null),
                         'qty_prev' => $this->decimal($container['qty_prev'] ?? null),
@@ -1230,11 +1233,14 @@ class ReportOpsController extends Controller
             }
         }
 
-        if ($this->hasAny($request, ['tally_gudang_names', 'turba_forklift_operator', 'turba_driver_names', 'turba_working_hours', 'turba_work_start', 'turba_work_end', 'turba_ship_name', 'turba_agent', 'turba_jetty', 'turba_deliveries'])) {
+        if ($this->hasAny($request, ['tally_gudang_names', 'turba_tally_gudang_terima', 'turba_fl_no', 'turba_trl_no', 'turba_forklift_operator', 'turba_driver_names', 'turba_working_hours', 'turba_work_start', 'turba_work_end', 'turba_ship_name', 'turba_agent', 'turba_jetty', 'turba_deliveries'])) {
             $turba = $report->turbaActivity()->create([
                 'tally_gudang_names' => $this->string($request->input('tally_gudang_names')),
+                'tally_gudang_terima' => $this->string($request->input('turba_tally_gudang_terima')),
                 'forklift_operator_names' => $this->string($request->input('turba_forklift_operator')),
+                'fl_no' => $this->string($request->input('turba_fl_no')),
                 'driver_names' => $this->string($request->input('turba_driver_names')),
+                'trl_no' => $this->string($request->input('turba_trl_no')),
                 'working_hours' => $this->timeRange($request, 'turba_work_start', 'turba_work_end', 'turba_working_hours'),
             ]);
 
@@ -1414,13 +1420,16 @@ class ReportOpsController extends Controller
         }
 
         foreach ($this->rows($request->input('other_activity_logs', [])) as $log) {
-            if ($this->rowHasAny($log, ['name', 'description', 'time_in', 'time_out'])) {
+            if ($this->rowHasAny($log, ['name', 'description', 'time_in', 'time_out', 'work_time'])) {
+                [$timeIn, $timeOut] = $this->splitTimeRange($log['work_time'] ?? null);
+
                 $report->employeeLogs()->create([
                     'category' => 'lain',
                     'name' => $this->string($log['name'] ?? null),
                     'personil_count' => $this->string($log['personil_count'] ?? $log['name'] ?? null),
-                    'time_in' => $this->time($log['time_in'] ?? null),
-                    'time_out' => $this->time($log['time_out'] ?? null),
+                    'time_in' => $this->time($log['time_in'] ?? null) ?: $timeIn,
+                    'time_out' => $this->time($log['time_out'] ?? null) ?: $timeOut,
+                    'work_time' => $this->string($log['work_time'] ?? null),
                     'description' => $this->string($log['description'] ?? null),
                 ]);
             }

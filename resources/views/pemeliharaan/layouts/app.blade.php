@@ -37,6 +37,29 @@
             --divider: #CBD5E1; --button-color: #FFFFFF;
             --btn-theme-bg: var(--white); --btn-theme-border: rgba(0,0,0,0.1); --btn-theme-icon: var(--dark-main);
         }
+
+        /* Global scrollbar: berlaku untuk seluruh elemen yang bisa di-scroll
+           (termasuk scroll halaman utama), kecuali ada override khusus per komponen. */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--blue-main-25) transparent;
+        }
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 10px;
+        }
+        *::-webkit-scrollbar-thumb {
+            background-color: var(--blue-main-25);
+            border-radius: 10px;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background-color: var(--blue-hover);
+        }
+
         body.dark-mode {
             --main-bg: #0F172A; --white: #1E293B;
             --dark-main: #F8FAFC; --dark-secondary: #CBD5E1; --dark-secondary-10: rgba(203,213,225,0.1);

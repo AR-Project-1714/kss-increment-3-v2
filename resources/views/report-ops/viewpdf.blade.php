@@ -509,6 +509,7 @@
                         <table class="w-100 no-border" style="padding: 2px;">
                             <tr><td style="width: 15px;"><b>1.</b></td><td style="width: 50px;">Nama Kapal</td><td class="sep-col">:</td><td class="border-bottom">{{ $report->materialActivity->ship_name }}</td></tr>
                             <tr><td></td><td>Agent</td><td class="sep-col">:</td><td class="border-bottom">{{ $report->materialActivity->agent }}</td></tr>
+                            <tr><td></td><td>Dermaga</td><td class="sep-col">:</td><td class="border-bottom">{{ $report->materialActivity->jetty }}</td></tr>
                             <tr><td></td><td>Kapasitas</td><td class="sep-col">:</td><td class="border-bottom">{{ formatQty($report->materialActivity->capacity) }} MT</td></tr>
                         </table>
                         <table class="table-bordered w-100 no-border-left no-border-right" style="margin-top: 1px;">
@@ -553,6 +554,7 @@
                         <table class="w-100 no-border" style="padding: 2px;">
                             <tr><td style="width: 15px;"><b>2.</b></td><td style="width: 50px;">Nama Kapal</td><td class="sep-col">:</td><td class="border-bottom">{{ $report->containerActivity->ship_name }}</td></tr>
                             <tr><td></td><td>Agent</td><td class="sep-col">:</td><td class="border-bottom">{{ $report->containerActivity->agent }}</td></tr>
+                            <tr><td></td><td>Dermaga</td><td class="sep-col">:</td><td class="border-bottom">{{ $report->containerActivity->jetty }}</td></tr>
                             <tr><td></td><td>Kapasitas</td><td class="sep-col">:</td><td class="border-bottom">{{ $report->containerActivity->capacity }}</td></tr>
                         </table>
                         <table class="table-bordered w-100 no-border-left no-border-right" style="margin-top: 1px;">
@@ -560,7 +562,7 @@
                             @php $containers = $report->containerActivity->items; $cntMin = 3; @endphp
                             @foreach($containers as $cont)
                             <tr>
-                                <td class="text-center">{{ $cont->time ? \Carbon\Carbon::parse($cont->time)->format('H:i') : '' }}</td>
+                                <td class="text-center">{{ $cont->time_text ?: ($cont->time ? \Carbon\Carbon::parse($cont->time)->format('H:i') : '') }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_current) }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_prev) }}</td>
                                 <td class="text-center">{{ formatQty($cont->qty_total) }}</td>
@@ -616,18 +618,22 @@
                 <tr><td class="text-center">{{ $j }}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
             @endfor
         </table>
-        @if($report->turbaActivity)
+        @php $turba = $report->turbaActivity; @endphp
         <table class="w-100 border-left border-right border-bottom" style="margin-bottom: 2px;">
             <tr>
-                <td class="w-33" style="padding: 1px;">> Tally Gudang : {{ $report->turbaActivity->tally_gudang_names }}</td>
-                <td class="w-33" style="padding: 1px;">> Operator Forklift : {{ $report->turbaActivity->forklift_operator_names }}</td>
-                <td class="w-33" style="padding: 1px;">> Jam Kerja : {{ $report->turbaActivity->working_hours }}</td>
+                <td class="w-33" style="padding: 1px;">> Tally Gudang Kirim : {{ optional($turba)->tally_gudang_names }}</td>
+                <td class="w-33" style="padding: 1px;">> Operator Forklift : {{ optional($turba)->forklift_operator_names }}</td>
+                <td class="w-33" style="padding: 1px;">> FL No : {{ optional($turba)->fl_no }}</td>
             </tr>
             <tr>
-                <td colspan="2" style="padding: 1px;">> Driver : {{ $report->turbaActivity->driver_names }}</td>
+                <td class="w-33" style="padding: 1px;">> Tally Gudang Terima : {{ optional($turba)->tally_gudang_terima }}</td>
+                <td class="w-33" style="padding: 1px;">> Driver : {{ optional($turba)->driver_names }}</td>
+                <td class="w-33" style="padding: 1px;">> TRL No : {{ optional($turba)->trl_no }}</td>
+            </tr>
+            <tr>
+                <td class="w-33" style="padding: 1px;">> Jam Kerja : {{ optional($turba)->working_hours }}</td>
             </tr>
         </table>
-        @endif
     </div>
 
     <!-- V. KEADAAN PERALATAN -->
@@ -659,7 +665,7 @@
                                         $rec = $log->condition_received ?? ''; $han = $log->condition_handed_over ?? '';
                                     @endphp
                                     <tr>
-                                        <td class="text-center">{{ $unit->id }}</td>
+                                        <td class="text-center">{{ $index + 1 }}</td>
                                         <td>{{ $unit->unit_number ?: $unit->short_display_name }}</td>
                                         <td class="text-center">{{ $log->fuel_level ?? '' }}</td>
                                         <td class="text-center {{ $rec == 'Baik' ? 'text-green' : ($rec == 'Rusak' ? 'text-red' : '') }}">{{ $rec }}</td>
