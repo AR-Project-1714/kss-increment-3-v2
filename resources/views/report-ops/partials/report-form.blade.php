@@ -1164,6 +1164,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const options = suggestOptionsFrom(listId);
         const token = suggestCurrentToken(input);
         const query = token.toLowerCase();
+        const tokenIsExactOption = isMulti
+            && query !== ''
+            && options.some(option => option.toLowerCase() === query);
+
+        if (tokenIsExactOption) {
+            closeSuggestDropdown();
+            return;
+        }
+
         const chosen = isMulti
             ? input.value.split(',').map(part => part.trim().toLowerCase()).filter(Boolean)
             : [];
@@ -1199,11 +1208,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const before = input.value.slice(0, start).replace(/\s*$/, '');
             const after = input.value.slice(end);
             const connector = before === '' ? '' : (before.endsWith(',') ? ' ' : ', ');
-            input.value = `${before}${connector}${value}${after}`;
+            input.value = `${before}${connector}${value}${after}`.replace(/,\s*$/, '');
             const caret = `${before}${connector}${value}`.length;
             try { input.setSelectionRange(caret, caret); } catch (e) {}
         }
+        input.dataset.suggestApplying = 'true';
         input.dispatchEvent(new Event('input', { bubbles: true }));
+        delete input.dataset.suggestApplying;
         input.focus();
         closeSuggestDropdown();
     }
@@ -1288,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
         const materialPrefixes = [
             'ship_name_material', 'agent_material', 'jetty_material', 'capacity_material',
-            'tally_kapal', 'opr_forklift', 'tally_pengiriman', 'driver_petugas_bb', 'truck_petugas_bb',
+            'tally_kapal', 'opr_forklift', 'no_forklift_bb', 'tally_pengiriman', 'driver_petugas_bb', 'truck_petugas_bb',
             'material_work_start', 'material_work_end',
         ];
         const containerPrefixes = [
@@ -2017,9 +2028,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function setReplacementAutoField(row, selector, value) {
         const input = row.querySelector(selector);
         if (!input) return;
-        input.value = value;
-        input.readOnly = true;
-        input.classList.add('is-auto-filled');
+        if (!input.value) input.value = value;
     }
 
     function buildReplacementRow(repTable, uid) {
@@ -3149,6 +3158,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (event.target.matches('input[data-suggest]')) {
+            if (event.target.dataset.suggestApplying === 'true') return;
             openSuggestFor(event.target);
         }
     });

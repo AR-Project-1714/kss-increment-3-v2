@@ -512,7 +512,16 @@ class ReportOpsController extends Controller
             return $generate();
         }
 
-        return Cache::remember($this->pendingPdfCacheKey($report), self::PENDING_PDF_CACHE_TTL, $generate);
+        // Output PDF berupa byte biner. Cache driver "database" menyimpan value pada
+        // kolom teks (utf8) sehingga byte biner memicu error "Incorrect string value".
+        // Simpan sebagai base64 (aman untuk semua driver cache) lalu decode saat dibaca.
+        $encoded = Cache::remember(
+            $this->pendingPdfCacheKey($report),
+            self::PENDING_PDF_CACHE_TTL,
+            fn (): string => base64_encode($generate())
+        );
+
+        return base64_decode($encoded);
     }
 
     private function pendingPdfCacheKey(DailyReport $report): string
@@ -1185,7 +1194,7 @@ class ReportOpsController extends Controller
         for ($i = 1; $i <= 20; $i++) {
             if (! $this->hasAny($request, [
                 "ship_name_material_{$i}", "agent_material_{$i}", "jetty_material_{$i}", "capacity_material_{$i}",
-                "unloading_materials_{$i}", "tally_kapal_{$i}", "opr_forklift_{$i}", "tally_pengiriman_{$i}",
+                "unloading_materials_{$i}", "tally_kapal_{$i}", "opr_forklift_{$i}", "no_forklift_bb_{$i}", "tally_pengiriman_{$i}",
                 "driver_petugas_bb_{$i}", "truck_petugas_bb_{$i}", "material_work_start_{$i}", "material_work_end_{$i}",
             ])) {
                 continue;
@@ -1199,6 +1208,7 @@ class ReportOpsController extends Controller
                 'capacity' => $this->decimal($request->input("capacity_material_{$i}")),
                 'ship_tally_names' => $this->string($request->input("material_ship_tally_names_{$i}", $request->input("tally_kapal_{$i}"))),
                 'forklift_operator_names' => $this->string($request->input("material_forklift_operator_names_{$i}", $request->input("opr_forklift_{$i}"))),
+                'forklift_number' => $this->string($request->input("no_forklift_bb_{$i}")),
                 'delivery_tally_names' => $this->string($request->input("material_delivery_tally_names_{$i}", $request->input("tally_pengiriman_{$i}"))),
                 'driver_names' => $this->string($request->input("material_driver_names_{$i}", $request->input("driver_petugas_bb_{$i}"))),
                 'truck_number' => $this->string($request->input("truck_petugas_bb_{$i}")),

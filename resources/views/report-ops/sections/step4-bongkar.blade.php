@@ -37,6 +37,8 @@
                     <div class="form-grid w-100">
                         <div class="form-group"><label>Nama Kapal</label><input type="text" name="ship_name_material_1" value="{{ old('ship_name_material_1') }}" placeholder="Masukkan Nama Kapal"></div>
                         <div class="form-group"><label>Agen</label><input type="text" name="agent_material_1" value="{{ old('agent_material_1') }}" placeholder="Masukkan Nama Agen"></div>
+                    </div>
+                    <div class="form-grid w-100">
                         <div class="form-group"><label>Dermaga</label><input type="text" name="jetty_material_1" value="{{ old('jetty_material_1') }}" placeholder="Masukkan Dermaga"></div>
                         <div class="form-group">
                             <label>Kapasitas</label>
@@ -75,12 +77,18 @@
                                 <input type="text" id="tally_kapal_1" name="tally_kapal_1" value="{{ old('tally_kapal_1') }}" placeholder="Masukkan Nama Tally Kapal">
                             </div>
                             <div class="form-group">
+                                <label for="tally_pengiriman_1">Tally Pengiriman</label>
+                                <input type="text" id="tally_pengiriman_1" name="tally_pengiriman_1" value="{{ old('tally_pengiriman_1') }}" placeholder="Masukkan Nama Tally Pengiriman">
+                            </div>
+                        </div>
+                        <div class="form-grid w-100">
+                            <div class="form-group">
                                 <label for="opr_forklift_1">Operator Forklift</label>
                                 <input type="text" id="opr_forklift_1" name="opr_forklift_1" value="{{ old('opr_forklift_1') }}" placeholder="Nama Operator">
                             </div>
                             <div class="form-group">
-                                <label for="tally_pengiriman_1">Tally Pengiriman</label>
-                                <input type="text" id="tally_pengiriman_1" name="tally_pengiriman_1" value="{{ old('tally_pengiriman_1') }}" placeholder="Masukkan Nama Tally Pengiriman">
+                                <label for="no_forklift_bb_1">Nomor Forklift</label>
+                                <input type="text" id="no_forklift_bb_1" name="no_forklift_bb_1" value="{{ old('no_forklift_bb_1') }}" placeholder="Nomor Forklift">
                             </div>
                         </div>
                         <div class="form-grid w-100">
@@ -92,6 +100,8 @@
                                 <label for="truck_petugas_bb_1">No Truck</label>
                                 <input type="text" id="truck_petugas_bb_1" name="truck_petugas_bb_1" value="{{ old('truck_petugas_bb_1') }}" placeholder="Nomor Truck">
                             </div>
+                        </div>
+                        <div class="form-grid w-100">
                             <div class="form-group rentang-jam-group">
                                 <label>Rentang Jam Kerja</label>
                                 <div class="rentang-jam-wrapper">
@@ -131,6 +141,8 @@
                     <div class="form-grid w-100">
                         <div class="form-group"><label>Nama Kapal</label><input type="text" name="ship_name_container_1" value="{{ old('ship_name_container_1') }}" placeholder="Masukkan Nama Kapal"></div>
                         <div class="form-group"><label>Agen</label><input type="text" name="agent_container_1" value="{{ old('agent_container_1') }}" placeholder="Masukkan Nama Agen"></div>
+                    </div>
+                    <div class="form-grid w-100">
                         <div class="form-group"><label>Dermaga</label><input type="text" name="jetty_container_1" value="{{ old('jetty_container_1') }}" placeholder="Masukkan Dermaga"></div>
                         <div class="form-group container-capacity-group">
                             <label>Kapasitas</label>

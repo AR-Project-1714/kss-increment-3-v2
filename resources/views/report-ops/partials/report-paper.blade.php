@@ -143,9 +143,10 @@
 
     $conditionClass = function ($value) {
         $value = strtolower(trim((string) $value));
-        return match ($value) {
-            'baik', 'ready', 'normal' => 'good',
-            'rusak', 'tidak normal', 'tdk normal' => 'bad',
+        if ($value === '') return '';
+        return match (true) {
+            in_array($value, ['baik', 'ready', 'normal', 'bersih', 'rapi', 'ok', 'aman'], true) => 'good',
+            in_array($value, ['rusak', 'tidak normal', 'tdk normal', 'kotor', 'berantakan', 'tidak baik', 'tdk baik', 'rusak berat', 'rusak ringan', 'bermasalah'], true) => 'bad',
             default => '',
         };
     };
@@ -169,12 +170,12 @@
     .report-paper .meta td { padding: 1px 0; }
     .report-paper .meta .ml { width: 62px; font-weight: bold; }
     .report-paper .meta .line { border-bottom: 1px solid #000; display: inline-block; min-width: 112px; padding-left: 4px; }
-    .report-paper .sec { margin-top: 8px; padding: 4px 6px; border: 1px solid #000; background: #f2f2f2; font-size: 8.5px; font-weight: bold; text-transform: uppercase; page-break-after: avoid; }
-    .report-paper .subsec { padding: 3px 5px; border: 1px solid #000; border-bottom: none; background: #f7f7f7; font-size: 8px; font-weight: bold; text-transform: uppercase; }
-    .report-paper .panel { border: 1px solid #000; margin-bottom: 6px; page-break-inside: avoid; }
-    .report-paper .panel-title { padding: 4px 6px; border-bottom: 1px solid #000; background: #fafafa; font-weight: bold; }
+    .report-paper .sec { margin-top: 8px; padding: 4px 6px; border: 1px solid #000; border-bottom: none; background: #e5e7eb; font-size: 8.5px; font-weight: bold; text-transform: uppercase; letter-spacing: .2px; page-break-after: avoid; }
+    .report-paper .subsec { padding: 3px 5px; border: 1px solid #000; border-bottom: none; background: #eef0f2; font-size: 8px; font-weight: bold; text-transform: uppercase; }
+    .report-paper .panel { border: none; margin-bottom: 6px; page-break-inside: avoid; }
+    .report-paper .panel-title { padding: 4px 6px; border: 1px solid #000; border-bottom: none; background: #eef0f2; font-weight: bold; }
     .report-paper .grid th, .report-paper .grid td { border: 1px solid #000; }
-    .report-paper .grid th { background: #f2f2f2; text-align: center; font-size: 7.4px; font-weight: bold; vertical-align: middle; }
+    .report-paper .grid th { background: #eceff1; text-align: center; font-size: 7.4px; font-weight: bold; vertical-align: middle; }
     .report-paper .info td { padding: 1px 3px; }
     .report-paper .label { width: 62px; font-weight: bold; white-space: nowrap; }
     .report-paper .colon { width: 5px; text-align: center; }
@@ -187,8 +188,8 @@
     .report-paper .muted { color: #444; }
     .report-paper .empty-note { text-align: center; font-style: italic; color: #555; padding: 6px; }
     .report-paper .small { font-size: 7px; }
-    .report-paper .good { color: #14532d; font-weight: bold; }
-    .report-paper .bad { color: #7f1d1d; font-weight: bold; }
+    .report-paper .good { background: #bbf7d0; color: #166534; font-weight: bold; }
+    .report-paper .bad { background: #fecaca; color: #991b1b; font-weight: bold; }
     .report-paper .avoid-break { page-break-inside: avoid; }
     .report-paper .capacity-line { padding: 2px 3px; }
     .report-paper .capacity-line .cap-value { border-bottom: 1px dotted #000; display: inline-block; min-width: 72px; text-align: center; }
@@ -200,8 +201,8 @@
     .report-paper .pair .panel { margin-bottom: 5px; }
     .report-paper .compact th, .report-paper .compact td { padding: 1px 2px; }
     .report-paper .compact th { font-size: 6.8px; }
-    .report-paper .mini-title { text-align: center; font-weight: bold; background: #f2f2f2; text-transform: uppercase; }
-    .report-paper .category-row td { text-align: center; font-weight: bold; background: #fafafa; }
+    .report-paper .mini-title { text-align: center; font-weight: bold; background: #eceff1; text-transform: uppercase; }
+    .report-paper .category-row td { text-align: center; font-weight: bold; background: #eef0f2; }
     .report-paper .sign { margin-top: 8px; page-break-inside: avoid; }
     .report-paper .company { text-align: center; font-weight: bold; font-size: 9px; padding: 8px 0 2px; }
     .report-paper .sign td { width: 33.33%; text-align: center; vertical-align: top; font-size: 8.5px; padding: 2px 12px; }
@@ -209,6 +210,13 @@
     .report-paper .sigwrap img { max-height: 52px; max-width: 145px; }
     .report-paper .nm { font-weight: bold; text-decoration: underline; }
     .report-paper .ttl { font-style: italic; font-size: 8px; }
+    /* Gabungkan garis 1px pada pertemuan dua tabel/panel bersebelahan agar tidak dobel. */
+    .report-paper .grid + .grid,
+    .report-paper .panel table + table { margin-top: -1px; }
+    /* Bingkai blok info (Pemuatan Pupuk Kantong) tanpa mengandalkan border panel. */
+    .report-paper .licol { border-top: 1px solid #000; }
+    .report-paper .licol-first { border-left: 1px solid #000; }
+    .report-paper .licol-last { border-right: 1px solid #000; }
 </style>
 
 <div class="report-paper">
@@ -253,9 +261,9 @@
         @endphp
         <div class="panel">
             <div class="panel-title">{{ $activity->sequence ?? $loop->iteration }}. {{ $activity->ship_name ?: 'Nama kapal belum diisi' }}</div>
-            <table>
+            <table class="loading-info">
                 <tr>
-                    <td style="width:33.34%; border-right:1px solid #000;">
+                    <td class="licol licol-first" style="width:33.34%; border-right:1px solid #000;">
                         <table class="info">
                             <tr><td class="label">Nama Kapal</td><td class="colon">:</td><td class="line-cell">{{ $activity->ship_name }}</td></tr>
                             <tr><td class="label">Agent</td><td class="colon">:</td><td class="line-cell">{{ $activity->agent }}</td></tr>
@@ -269,7 +277,7 @@
                             <tr><td>Akumulasi</td><td class="colon">:</td><td class="line-cell r">{{ $fmtQty($sumQty($activity->qty_delivery_current, $activity->qty_delivery_prev)) }}</td><td>Ton</td></tr>
                         </table>
                     </td>
-                    <td style="width:33.33%; border-right:1px solid #000;">
+                    <td class="licol" style="width:33.33%; border-right:1px solid #000;">
                         <table class="info">
                             <tr><td class="label">Kapasitas</td><td class="colon">:</td><td class="line-cell r">{{ $fmtQty($activity->capacity) }}</td><td style="width:18px">Ton</td></tr>
                             <tr><td class="label">No. WO/SO</td><td class="colon">:</td><td class="line-cell" colspan="2">{{ $activity->wo_number }}</td></tr>
@@ -283,7 +291,7 @@
                             <tr><td>Akumulasi</td><td class="colon">:</td><td class="line-cell r">{{ $fmtQty($sumQty($activity->qty_loading_current, $activity->qty_loading_prev)) }}</td><td>Ton</td></tr>
                         </table>
                     </td>
-                    <td style="width:33.33%;">
+                    <td class="licol licol-last" style="width:33.33%;">
                         <table class="info">
                             <tr><td class="label">Tiba/Sandar</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($activity->arrival_time) }}</td></tr>
                             <tr><td class="label">Gang Ops</td><td class="colon">:</td><td class="line-cell">{{ $activity->operating_gang }}</td></tr>
@@ -424,15 +432,15 @@
                         <table class="grid compact small">
                             <tr>
                                 <td class="b" style="width:20%">Tally Kapal</td><td>{{ $material->ship_tally_names }}</td>
-                                <td class="b" style="width:20%">Operator FL</td><td>{{ $material->forklift_operator_names }}</td>
+                                <td class="b" style="width:20%">Tally Kirim</td><td>{{ $material->delivery_tally_names }}</td>
                             </tr>
                             <tr>
-                                <td class="b">Tally Kirim</td><td>{{ $material->delivery_tally_names }}</td>
+                                <td class="b">Operator FL</td><td>{{ $material->forklift_operator_names }}</td>
+                                <td class="b">No Forklift</td><td>{{ $material->forklift_number }}</td>
+                            </tr>
+                            <tr>
                                 <td class="b">Driver</td><td>{{ $material->driver_names }}</td>
-                            </tr>
-                            <tr>
                                 <td class="b">No Truck</td><td>{{ $material->truck_number }}</td>
-                                <td class="b">Keterangan</td><td></td>
                             </tr>
                         </table>
                     </div>
@@ -461,9 +469,6 @@
                                     / Full = <span class="cap-value">{{ $fmtQty($containerCapacityFull) }}</span> Teus
                                 </td>
                             </tr>
-                            <tr>
-                                <td colspan="2"><span class="b">No Truck:</span> {{ $container->truck_number }}</td>
-                            </tr>
                         </table>
                         <table class="grid compact">
                             <thead><tr><th style="width:18%">JAM</th><th style="width:16%">SEKARANG</th><th style="width:16%">LALU</th><th style="width:16%">TOTAL</th><th>KET</th></tr></thead>
@@ -487,7 +492,8 @@
                                 <td class="b" style="width:20%">Tally Gudang</td><td>{{ $container->gudang_tally_names }}</td>
                             </tr>
                             <tr>
-                                <td class="b">Driver</td><td colspan="3">{{ $container->driver_names }}</td>
+                                <td class="b">Driver</td><td>{{ $container->driver_names }}</td>
+                                <td class="b">No Truck</td><td>{{ $container->truck_number }}</td>
                             </tr>
                         </table>
                     </div>
@@ -692,7 +698,7 @@
                                 <td>{{ $employee->name }}</td>
                                 <td class="c">{{ $fmtTime($employee->time_in) }}</td>
                                 <td class="c">{{ $fmtTime($employee->time_out) }}</td>
-                                <td>{{ $employee->description }}</td>
+                                <td class="c">{{ $employee->description }}</td>
                             </tr>
                         @empty
                             <tr><td colspan="5" class="empty-note">Tidak ada data karyawan shift.</td></tr>
@@ -736,7 +742,7 @@
                     <td>{{ $employee->work_area }}</td>
                     <td class="c">{{ $fmtTime($employee->time_in) }}</td>
                     <td class="c">{{ $fmtTime($employee->time_out) }}</td>
-                    <td>{{ $employee->description }}</td>
+                    <td class="c">{{ $employee->description }}</td>
                 </tr>
             @empty
                 <tr><td colspan="7" class="empty-note">Tidak ada data karyawan OP.7.</td></tr>
@@ -755,7 +761,7 @@
                     <td>{{ $employee->work_area }}</td>
                     <td class="c">{{ $fmtTime($employee->time_in) }}</td>
                     <td class="c">{{ $fmtTime($employee->time_out) }}</td>
-                    <td>{{ $employee->description }}</td>
+                    <td class="c">{{ $employee->description }}</td>
                 </tr>
             @empty
                 <tr><td colspan="7" class="empty-note">Tidak ada data pengganti operator.</td></tr>
