@@ -363,6 +363,7 @@
                         <table class="info">
                             <tr><td class="label">Nama Kapal</td><td class="colon">:</td><td class="line-cell">{{ $bulk->ship_name }}</td></tr>
                             <tr><td class="label">Agent</td><td class="colon">:</td><td class="line-cell">{{ $bulk->agent }}</td></tr>
+                            <tr><td class="label">Dermaga</td><td class="colon">:</td><td class="line-cell">{{ $bulk->jetty }}</td></tr>
                             <tr><td class="label">Jenis Urea</td><td class="colon">:</td><td class="line-cell">{{ $bulk->commodity }}</td></tr>
                             <tr><td class="label">Kapasitas</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->capacity, 'MT') }}</td></tr>
                         </table>
@@ -537,17 +538,19 @@
     </table>
     <table class="grid small">
         <tr>
-            <td class="b">Tally Gudang Kirim</td><td>{{ optional($turba)->tally_gudang_names }}</td>
-            <td class="b">Tally Gudang Terima</td><td>{{ optional($turba)->tally_gudang_terima }}</td>
+            <td class="b" style="width:18%">Tally Gudang Kirim</td><td>{{ optional($turba)->tally_gudang_names }}</td>
+            <td class="b" style="width:18%">Tally Gudang Terima</td><td>{{ optional($turba)->tally_gudang_terima }}</td>
+        </tr>
+        <tr>
             <td class="b">Operator Forklift</td><td>{{ optional($turba)->forklift_operator_names }}</td>
+            <td class="b">No Forklift</td><td>{{ optional($turba)->fl_no }}</td>
         </tr>
         <tr>
-            <td class="b">FL No</td><td>{{ optional($turba)->fl_no }}</td>
             <td class="b">Driver</td><td>{{ optional($turba)->driver_names }}</td>
-            <td class="b">TRL No</td><td>{{ optional($turba)->trl_no }}</td>
+            <td class="b">No Truck</td><td>{{ optional($turba)->trl_no }}</td>
         </tr>
         <tr>
-            <td class="b">Jam Kerja</td><td colspan="5">{{ optional($turba)->working_hours }}</td>
+            <td class="b">Jam Kerja</td><td colspan="3">{{ optional($turba)->working_hours }}</td>
         </tr>
     </table>
 
