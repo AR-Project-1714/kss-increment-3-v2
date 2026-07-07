@@ -8,8 +8,6 @@
 
     $isPdf = $isPdf ?? false;
 
-    try { $year = ($report->report_date ?: $report->created_at)?->format('Y') ?? now()->format('Y'); } catch (\Throwable) { $year = now()->format('Y'); }
-    $docId = '#OPS-'.$year.'-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
     $fmtDate = fn ($d) => $d ? \Carbon\Carbon::parse($d)->locale('id')->translatedFormat('d F Y') : '';
     $fmtShortDate = fn ($d) => $d ? \Carbon\Carbon::parse($d)->locale('id')->translatedFormat('d M Y') : '';
     $fmtDay = fn ($d) => $d ? \Carbon\Carbon::parse($d)->locale('id')->translatedFormat('l') : '';
@@ -227,7 +225,7 @@
                 <div class="l1">LAPORAN SHIFT HARIAN</div>
                 <div class="l2">OPERASIONAL PELABUHAN DAN BONGKAR MUAT</div>
             </td>
-            <td class="doc-id" style="width:120px">{{ $docId }}</td>
+            <td class="doc-id" style="width:120px"></td>
         </tr>
     </table>
 
@@ -805,8 +803,8 @@
                 <div class="ttl">Foreman Group {{ $report->received_by_group ?: '-' }}</div>
             </td>
             <td>
-                Dilaksanakan / Menyerahkan,<br>
-                <span class="small">Bontang, {{ $fmtDate($report->report_date) }}</span>
+                <span class="small">Bontang, {{ $fmtDate($report->report_date) }}</span><br>
+                Dilaksanakan / Menyerahkan,
                 <div class="sigwrap">@if ($creatorSig)<img src="{{ $creatorSig }}" alt="TTD">@endif</div>
                 <div class="nm">{{ $report->creator?->name ?: '(.....................)' }}</div>
                 <div class="ttl">Foreman Group {{ $report->group_name ?: '-' }}</div>
