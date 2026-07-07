@@ -188,8 +188,8 @@
     .report-paper .muted { color: #444; }
     .report-paper .empty-note { text-align: center; font-style: italic; color: #555; padding: 6px; }
     .report-paper .small { font-size: 7px; }
-    .report-paper .good { background: #bbf7d0; color: #166534; font-weight: bold; }
-    .report-paper .bad { background: #fecaca; color: #991b1b; font-weight: bold; }
+    .report-paper .good { background: #fff; color: #166534; font-weight: bold; }
+    .report-paper .bad { background: #fff; color: #991b1b; font-weight: bold; }
     .report-paper .avoid-break { page-break-inside: avoid; }
     .report-paper .capacity-line { padding: 2px 3px; }
     .report-paper .capacity-line .cap-value { border-bottom: 1px dotted #000; display: inline-block; min-width: 72px; text-align: center; }
