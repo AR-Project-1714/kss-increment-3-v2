@@ -54,6 +54,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
     Route::post('/master/inventories', [AdminV2Controller::class, 'storeInventory'])->name('master.inventories.store');
     Route::put('/master/inventories/{inventory}', [AdminV2Controller::class, 'updateInventory'])->name('master.inventories.update');
     Route::delete('/master/inventories/{inventory}', [AdminV2Controller::class, 'destroyInventory'])->name('master.inventories.destroy');
+    Route::post('/master/environment-items', [AdminV2Controller::class, 'storeEnvironment'])->name('master.environment-items.store');
+    Route::put('/master/environment-items/{environment}', [AdminV2Controller::class, 'updateEnvironment'])->name('master.environment-items.update');
+    Route::delete('/master/environment-items/{environment}', [AdminV2Controller::class, 'destroyEnvironment'])->name('master.environment-items.destroy');
     Route::post('/master/safety-locations', [AdminV2Controller::class, 'storeSafetyLocation'])->name('master.safety-locations.store');
     Route::put('/master/safety-locations/{location}', [AdminV2Controller::class, 'updateSafetyLocation'])->name('master.safety-locations.update');
     Route::delete('/master/safety-locations/{location}', [AdminV2Controller::class, 'destroySafetyLocation'])->name('master.safety-locations.destroy');

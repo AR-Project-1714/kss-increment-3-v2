@@ -1136,6 +1136,69 @@ class OpsFlowTest extends TestCase
             ->assertJsonCount(0, 'items');
     }
 
+    public function test_container_capacity_empty_and_full_are_persisted_and_rendered(): void
+    {
+        $user = User::create([
+            'name' => 'Operasional Container',
+            'username' => 'operasional-container',
+            'email' => 'operasional-container@example.com',
+            'password' => 'password',
+            'status' => 'aktif',
+            'group' => 'A',
+        ]);
+
+        $this->actingAs($user)->post(route('report-ops.store'), [
+            'status' => 'submitted',
+            'report_date' => '2026-05-21',
+            'shift' => 'Malam',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '23.00 - 07.00',
+            'ship_name_container_1' => 'KM Container Jaya',
+            'agent_container_1' => 'Agen Container',
+            'jetty_container_1' => 'Tursina',
+            'capacity_container_1' => '12',
+            'capacity_full_container_1' => '24',
+            'tally_muat_1' => 'Tally Muat A',
+            'tally_gudang_1' => 'Tally Gudang A',
+            'driver_petugas_cont_1' => 'Driver A',
+            'truck_petugas_cont_1' => 'TRL-01',
+            'unloading_containers_1' => [
+                ['time_text' => '23:00 - 04:00', 'status' => 'Empty', 'qty_current' => '1', 'qty_prev' => '2', 'qty_total' => '3'],
+            ],
+        ])->assertRedirect(route('report-ops.index'));
+
+        $report = DailyReport::where('created_by', $user->id)->latest('id')->firstOrFail();
+        $container = $report->containerActivity()->firstOrFail();
+
+        $this->assertEquals(12.0, (float) $container->capacity_empty);
+        $this->assertEquals(24.0, (float) $container->capacity_full);
+
+        $loadedReport = $report->fresh()->load([
+            'creator',
+            'receiver',
+            'approver',
+            'loadingActivities.timesheets',
+            'bulkLoadingActivities.logs',
+            'materialActivity.items',
+            'containerActivity.items',
+            'turbaActivity.deliveries',
+            'unitCheckLogs',
+            'employeeLogs',
+        ]);
+
+        $this->assertCount(1, $loadedReport->containerActivity);
+
+        $html = view('report-ops.partials.report-paper', [
+            'report' => $loadedReport,
+            'isPdf' => false,
+        ])->render();
+
+        $this->assertStringContainsString('Empty =', $html);
+        $this->assertStringContainsString('Full =', $html);
+        $this->assertStringContainsString('Teus', $html);
+    }
+
     public function test_stale_ship_operation_suggestions_are_pruned_after_three_days_for_bag_and_bulk_loading(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-05-19 08:00:00'));

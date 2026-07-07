@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Http\Controllers\Concerns\SearchesReports;
 use App\Models\DailyReport;
 use App\Models\MasterEmployee;
+use App\Models\MasterEnvironmentItem;
 use App\Models\MasterInventoryItem;
 use App\Models\MasterTruck;
 use App\Models\MasterUnit;
@@ -704,11 +705,13 @@ class ReportOpsController extends Controller
 
     private function fillExcelMaterialAndContainer(Worksheet $sheet, DailyReport $report): void
     {
-        $material = $report->materialActivity;
-        $container = $report->containerActivity;
+        // Template Excel hanya punya sel tetap untuk satu kegiatan; kalau ada
+        // beberapa kegiatan bongkar, yang diekspor ke Excel adalah yang pertama.
+        $material = $report->materialActivity->sortBy('sequence')->first();
+        $container = $report->containerActivity->sortBy('sequence')->first();
 
         $this->clearExcelCells($sheet, ['H81', 'H82', 'H83', 'G89', 'O89', 'G90', 'O90', 'G91']);
-        $this->clearExcelCells($sheet, ['Y81', 'Y82', 'S85', 'W85', 'Z85', 'S86', 'W86', 'Z86', 'S87', 'W87', 'Z87', 'AC87', 'W89', 'W90', 'W91']);
+        $this->clearExcelCells($sheet, ['Y81', 'Y82', 'Z83', 'AF83', 'S85', 'W85', 'Z85', 'S86', 'W86', 'Z86', 'S87', 'W87', 'Z87', 'AC87', 'W89', 'W90', 'W91']);
 
         foreach ([85, 86, 87] as $row) {
             $this->clearExcelCells($sheet, ['B'.$row, 'F'.$row, 'J'.$row, 'N'.$row]);
@@ -737,6 +740,8 @@ class ReportOpsController extends Controller
         if ($container) {
             $this->setExcelText($sheet, 'Y81', $container->ship_name);
             $this->setExcelText($sheet, 'Y82', $container->agent);
+            $this->setExcelNumber($sheet, 'Z83', $container->capacity_empty ?? $container->capacity);
+            $this->setExcelNumber($sheet, 'AF83', $container->capacity_full);
             $this->setExcelText($sheet, 'W89', $container->ship_tally_names);
             $this->setExcelText($sheet, 'W90', $container->gudang_tally_names);
             $this->setExcelText($sheet, 'W91', $container->driver_names);
@@ -1177,20 +1182,30 @@ class ReportOpsController extends Controller
             }
         }
 
-        if ($this->hasAny($request, ['ship_name_material', 'agent_material', 'jetty_material', 'capacity_material', 'unloading_materials', 'tally_kapal', 'opr_forklift', 'tally_pengiriman', 'driver_petugas_bb', 'material_work_start', 'material_work_end'])) {
+        for ($i = 1; $i <= 20; $i++) {
+            if (! $this->hasAny($request, [
+                "ship_name_material_{$i}", "agent_material_{$i}", "jetty_material_{$i}", "capacity_material_{$i}",
+                "unloading_materials_{$i}", "tally_kapal_{$i}", "opr_forklift_{$i}", "tally_pengiriman_{$i}",
+                "driver_petugas_bb_{$i}", "truck_petugas_bb_{$i}", "material_work_start_{$i}", "material_work_end_{$i}",
+            ])) {
+                continue;
+            }
+
             $materialActivity = $report->materialActivity()->create([
-                'ship_name' => $this->string($request->input('ship_name_material')),
-                'agent' => $this->string($request->input('agent_material')),
-                'jetty' => $this->string($request->input('jetty_material')),
-                'capacity' => $this->decimal($request->input('capacity_material')),
-                'ship_tally_names' => $this->string($request->input('material_ship_tally_names', $request->input('tally_kapal'))),
-                'forklift_operator_names' => $this->string($request->input('material_forklift_operator_names', $request->input('opr_forklift'))),
-                'delivery_tally_names' => $this->string($request->input('material_delivery_tally_names', $request->input('tally_pengiriman'))),
-                'driver_names' => $this->string($request->input('material_driver_names', $request->input('driver_petugas_bb'))),
-                'working_hours' => $this->timeRange($request, 'material_work_start', 'material_work_end', 'material_working_hours'),
+                'sequence' => $i,
+                'ship_name' => $this->string($request->input("ship_name_material_{$i}")),
+                'agent' => $this->string($request->input("agent_material_{$i}")),
+                'jetty' => $this->string($request->input("jetty_material_{$i}")),
+                'capacity' => $this->decimal($request->input("capacity_material_{$i}")),
+                'ship_tally_names' => $this->string($request->input("material_ship_tally_names_{$i}", $request->input("tally_kapal_{$i}"))),
+                'forklift_operator_names' => $this->string($request->input("material_forklift_operator_names_{$i}", $request->input("opr_forklift_{$i}"))),
+                'delivery_tally_names' => $this->string($request->input("material_delivery_tally_names_{$i}", $request->input("tally_pengiriman_{$i}"))),
+                'driver_names' => $this->string($request->input("material_driver_names_{$i}", $request->input("driver_petugas_bb_{$i}"))),
+                'truck_number' => $this->string($request->input("truck_petugas_bb_{$i}")),
+                'working_hours' => $this->timeRange($request, "material_work_start_{$i}", "material_work_end_{$i}", "material_working_hours_{$i}"),
             ]);
 
-            foreach ($this->rows($request->input('unloading_materials', [])) as $material) {
+            foreach ($this->rows($request->input("unloading_materials_{$i}", [])) as $material) {
                 if ($this->rowHasAny($material, ['raw_material_type', 'qty_current', 'qty_prev', 'qty_total'])) {
                     $materialActivity->items()->create([
                         'raw_material_type' => $this->string($material['raw_material_type'] ?? null),
@@ -1202,21 +1217,35 @@ class ReportOpsController extends Controller
             }
         }
 
-        $containerRows = $this->rows($request->input('unloading_containers', []));
-        $hasContainerRows = array_filter(
-            $containerRows,
-            fn (array $container): bool => $this->rowHasAny($container, ['time', 'time_text', 'status', 'qty_current', 'qty_prev', 'qty_total'])
-        ) !== [];
+        for ($i = 1; $i <= 20; $i++) {
+            $containerRows = $this->rows($request->input("unloading_containers_{$i}", []));
+            $hasContainerRows = array_filter(
+                $containerRows,
+                fn (array $container): bool => $this->rowHasAny($container, ['time', 'time_text', 'status', 'qty_current', 'qty_prev', 'qty_total'])
+            ) !== [];
 
-        if ($this->hasAny($request, ['ship_name_container', 'agent_container', 'jetty_container', 'capacity_container', 'tally_muat', 'tally_gudang', 'driver_petugas_cont']) || $hasContainerRows) {
+            if (! $this->hasAny($request, [
+                "ship_name_container_{$i}", "agent_container_{$i}", "jetty_container_{$i}", "capacity_container_{$i}", "capacity_full_container_{$i}",
+                "tally_muat_{$i}", "tally_gudang_{$i}", "driver_petugas_cont_{$i}", "truck_petugas_cont_{$i}",
+            ]) && ! $hasContainerRows) {
+                continue;
+            }
+
+            $containerCapacityEmpty = $this->decimal($request->input("capacity_container_{$i}"));
+            $containerCapacityFull = $this->decimal($request->input("capacity_full_container_{$i}"));
+
             $containerActivity = $report->containerActivity()->create([
-                'ship_name' => $this->string($request->input('ship_name_container')),
-                'agent' => $this->string($request->input('agent_container')),
-                'jetty' => $this->string($request->input('jetty_container')),
-                'capacity' => $this->decimal($request->input('capacity_container')),
-                'ship_tally_names' => $this->string($request->input('container_ship_tally_names', $request->input('tally_muat'))),
-                'gudang_tally_names' => $this->string($request->input('container_gudang_tally_names', $request->input('tally_gudang'))),
-                'driver_names' => $this->string($request->input('container_driver_names', $request->input('driver_petugas_cont'))),
+                'sequence' => $i,
+                'ship_name' => $this->string($request->input("ship_name_container_{$i}")),
+                'agent' => $this->string($request->input("agent_container_{$i}")),
+                'jetty' => $this->string($request->input("jetty_container_{$i}")),
+                'capacity' => $containerCapacityEmpty,
+                'capacity_empty' => $containerCapacityEmpty,
+                'capacity_full' => $containerCapacityFull,
+                'ship_tally_names' => $this->string($request->input("container_ship_tally_names_{$i}", $request->input("tally_muat_{$i}"))),
+                'gudang_tally_names' => $this->string($request->input("container_gudang_tally_names_{$i}", $request->input("tally_gudang_{$i}"))),
+                'driver_names' => $this->string($request->input("container_driver_names_{$i}", $request->input("driver_petugas_cont_{$i}"))),
+                'truck_number' => $this->string($request->input("truck_petugas_cont_{$i}")),
             ]);
 
             foreach ($containerRows as $container) {
@@ -1648,6 +1677,16 @@ class ReportOpsController extends Controller
                 self::MASTER_DATA_CACHE_TTL,
                 fn () => MasterInventoryItem::select('id', 'name', 'stock as qty')->orderBy('id')->get()->toArray()
             ),
+            'environments' => Cache::remember(
+                MasterEnvironmentItem::MASTER_DATA_CACHE_KEY,
+                self::MASTER_DATA_CACHE_TTL,
+                fn () => MasterEnvironmentItem::select('id', 'name', 'category')
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->get()
+                    ->toArray()
+            ),
             'trucks' => Cache::remember(
                 MasterTruck::MASTER_DATA_CACHE_KEY,
                 self::MASTER_DATA_CACHE_TTL,
@@ -1723,17 +1762,15 @@ class ReportOpsController extends Controller
             $activity->delete();
         });
 
-        $materialActivity = $report->materialActivity()->with('items')->first();
-        if ($materialActivity) {
-            $materialActivity->items()->delete();
-            $materialActivity->delete();
-        }
+        $report->materialActivity()->with('items')->get()->each(function ($activity): void {
+            $activity->items()->delete();
+            $activity->delete();
+        });
 
-        $containerActivity = $report->containerActivity()->with('items')->first();
-        if ($containerActivity) {
-            $containerActivity->items()->delete();
-            $containerActivity->delete();
-        }
+        $report->containerActivity()->with('items')->get()->each(function ($activity): void {
+            $activity->items()->delete();
+            $activity->delete();
+        });
 
         $turbaActivity = $report->turbaActivity()->with('deliveries')->first();
         if ($turbaActivity) {

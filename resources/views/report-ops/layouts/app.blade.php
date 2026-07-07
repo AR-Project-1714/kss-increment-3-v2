@@ -1564,6 +1564,11 @@
         .btn-activity:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
         .btn-activity.active { background-color: var(--blue-main); box-shadow: 0 0 4px 0 var(--blue-main-40); color: var(--button-color); }
 
+        /* Sub-tab Bongkar/Muat Container pakai tema oranye, jadi tab Kegiatan di
+           dalamnya ikut oranye agar konsisten dgn tabel/kartu petugas di sub-tab ini. */
+        #section-container .btn-activity:hover { background-color: var(--orange-main-10); color: var(--orange-main); }
+        #section-container .btn-activity.active { background-color: var(--orange-main); box-shadow: 0 0 4px 0 var(--orange-main-40); color: var(--button-color); }
+
         .plus-minus-tab .btn {
             display: flex; width: 30px; height: 30px; justify-content: center; align-items: center;
             border-radius: 8px; color: var(--dark-secondary); transition: .1s ease-out; font-size: 18px; cursor: pointer;

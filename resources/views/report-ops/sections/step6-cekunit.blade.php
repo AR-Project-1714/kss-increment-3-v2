@@ -158,98 +158,23 @@
             </div>
 
             <!-- 3. BAGIAN LINGKUNGAN SHELTER (Disembunyikan secara default) -->
+            {{--
+                Baris diisi otomatis oleh JS dari master "Data Lingkungan Operasi"
+                (dikelola admin), dikelompokkan per kategori. Nama item bisa diedit,
+                baris bisa ditambah/dihapus per laporan. Lihat renderShelterRows()
+                di partials/report-form.blade.php.
+            --}}
             <div class="table-wrapper w-100 material d-none" id="section-lingkungan">
                 <div class="table-input material w-100">
                     <div class="head">
                         <div class="table-column no"><span>No</span></div>
-                        <div class="table-column main"><span>Nama Area</span></div>
+                        <div class="table-column main"><span>Item</span></div>
                         <div class="table-column radio"><span>Kondisi Terima</span></div>
                         <div class="table-column radio"><span>Kondisi Diserahkan</span></div>
+                        <div class="table-column delete"><span>Hapus</span></div>
                     </div>
 
-                    <div class="table-divide">
-                        <span>Kebersihan</span>
-                    </div>
-
-                    <div class="body">
-                        <div class="table-column no"><span>1</span></div>
-                        <div class="table-column main">
-                            <div class="table-input-wrapper">
-                                <span class="icon"><i class="fi fi-sr-broom"></i></span>
-                                <input type="text" name="shelter_logs[0][item_name]" placeholder="Area Parkir Utama" value="Area Parkir Utama">
-                            </div>
-                        </div>
-
-                        <div class="table-column radio">
-                            <div class="radio-group-custom">
-                                <div class="radio-custom baik">
-                                    <input type="radio" name="shelter_logs[0][condition_received]" id="ling_terima_baik_1" value="Baik" checked>
-                                    <label for="ling_terima_baik_1"><i class="fi fi-rr-check"></i> Baik</label>
-                                </div>
-                                <div class="radio-custom rusak">
-                                    <input type="radio" name="shelter_logs[0][condition_received]" id="ling_terima_rusak_1" value="Kotor">
-                                    <label for="ling_terima_rusak_1"><i class="fi fi-rr-cross-small"></i> Kotor</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-column radio">
-                            <div class="radio-group-custom">
-                                <div class="radio-custom baik">
-                                    <input type="radio" name="shelter_logs[0][condition_handed_over]" id="ling_serah_baik_1" value="Baik" checked>
-                                    <label for="ling_serah_baik_1"><i class="fi fi-rr-check"></i> Baik</label>
-                                </div>
-                                <div class="radio-custom rusak">
-                                    <input type="radio" name="shelter_logs[0][condition_handed_over]" id="ling_serah_rusak_1" value="Kotor">
-                                    <label for="ling_serah_rusak_1"><i class="fi fi-rr-cross-small"></i> Kotor</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="table-divide">
-                        <span>Kerapian</span>
-                    </div>
-
-                    <div class="body">
-                        <div class="table-column no"><span>2</span></div>
-                        <div class="table-column main">
-                            <div class="table-input-wrapper">
-                                <span class="icon"><i class="fi fi-sr-home"></i></span>
-                                <input type="text" name="shelter_logs[1][item_name]" placeholder="Ruang Istirahat" value="Ruang Istirahat">
-                            </div>
-                        </div>
-
-                        <div class="table-column radio">
-                            <div class="radio-group-custom">
-                                <div class="radio-custom baik">
-                                    <input type="radio" name="shelter_logs[1][condition_received]" id="ling_terima_baik_2" value="Baik" checked>
-                                    <label for="ling_terima_baik_2"><i class="fi fi-rr-check"></i> Baik</label>
-                                </div>
-                                <div class="radio-custom rusak">
-                                    <input type="radio" name="shelter_logs[1][condition_received]" id="ling_terima_rusak_2" value="Berantakan">
-                                    <label for="ling_terima_rusak_2"><i class="fi fi-rr-cross-small"></i> Berantakan</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-column radio">
-                            <div class="radio-group-custom">
-                                <div class="radio-custom baik">
-                                    <input type="radio" name="shelter_logs[1][condition_handed_over]" id="ling_serah_baik_2" value="Baik" checked>
-                                    <label for="ling_serah_baik_2"><i class="fi fi-rr-check"></i> Baik</label>
-                                </div>
-                                <div class="radio-custom rusak">
-                                    <input type="radio" name="shelter_logs[1][condition_handed_over]" id="ling_serah_rusak_2" value="Berantakan">
-                                    <label for="ling_serah_rusak_2"><i class="fi fi-rr-cross-small"></i> Berantakan</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="button" class="btn-tambah-baris">
-                        <i class="fi fi-rr-plus-small"></i> Tambah Baris
-                    </button>
+                    <button type="button" class="btn-tambah-baris"><i class="fi fi-rr-plus-small"></i> Tambah Baris</button>
                 </div>
             </div>
 

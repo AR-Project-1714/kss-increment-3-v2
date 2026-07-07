@@ -12,6 +12,7 @@ use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\MaintenanceReport;
 use App\Models\MasterEmployee;
+use App\Models\MasterEnvironmentItem;
 use App\Models\MasterInventoryItem;
 use App\Models\MasterSafetyItem;
 use App\Models\MasterSafetyLocation;
@@ -177,7 +178,7 @@ class AdminV2Controller extends Controller
 
     public function dataMaster(Request $request)
     {
-        $validPanes = ['karyawan', 'unit', 'truck', 'inventaris', 'safety_lokasi', 'safety_item'];
+        $validPanes = ['karyawan', 'unit', 'truck', 'inventaris', 'lingkungan', 'safety_lokasi', 'safety_item'];
         $pane = in_array($request->input('pane'), $validPanes, true)
             ? $request->input('pane')
             : 'karyawan';
@@ -261,6 +262,18 @@ class AdminV2Controller extends Controller
             ->paginate(10, ['*'], 'inventories_page')
             ->appends($paginationQuery('inventaris'));
 
+        $environments = MasterEnvironmentItem::query()
+            ->when($pane === 'lingkungan' && $search !== '', function (Builder $query) use ($search): void {
+                $like = '%'.$search.'%';
+                $query->where(fn (Builder $builder) => $builder
+                    ->where('name', 'like', $like)
+                    ->orWhere('category', 'like', $like));
+            })
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->paginate(10, ['*'], 'environments_page')
+            ->appends($paginationQuery('lingkungan'));
+
         $safetyLocations = MasterSafetyLocation::query()
             ->withCount('items')
             ->when($pane === 'safety_lokasi' && $search !== '', function (Builder $query) use ($search): void {
@@ -333,6 +346,17 @@ class AdminV2Controller extends Controller
             'destroy_url' => route('admin.master.inventories.destroy', $inventory),
         ]);
 
+        $environments->getCollection()->transform(fn (MasterEnvironmentItem $environment, int $index): array => [
+            'no' => $environments->firstItem() + $index,
+            'id' => $environment->id,
+            'name' => $environment->name,
+            'category' => $environment->category ?: 'Umum',
+            'sort_order' => (int) $environment->sort_order,
+            'is_active' => $environment->is_active ? 'Aktif' : 'Nonaktif',
+            'update_url' => route('admin.master.environment-items.update', $environment),
+            'destroy_url' => route('admin.master.environment-items.destroy', $environment),
+        ]);
+
         $safetyLocations->getCollection()->transform(fn (MasterSafetyLocation $location, int $index): array => [
             'no' => $safetyLocations->firstItem() + $index,
             'id' => $location->id,
@@ -368,6 +392,7 @@ class AdminV2Controller extends Controller
             'units' => $units,
             'trucks' => $trucks,
             'inventories' => $inventories,
+            'environments' => $environments,
             'safetyLocations' => $safetyLocations,
             'safetyItems' => $safetyItems,
             'masterActions' => [
@@ -375,6 +400,7 @@ class AdminV2Controller extends Controller
                 'unit' => ['store' => route('admin.master.units.store')],
                 'truck' => ['store' => route('admin.master.trucks.store')],
                 'inventaris' => ['store' => route('admin.master.inventories.store')],
+                'lingkungan' => ['store' => route('admin.master.environment-items.store')],
                 'safety_lokasi' => ['store' => route('admin.master.safety-locations.store')],
                 'safety_item' => ['store' => route('admin.master.safety-items.store')],
             ],
@@ -903,6 +929,48 @@ class AdminV2Controller extends Controller
         $this->recordActivity($request, 'delete', 'Menghapus master inventaris '.$name);
 
         return redirect()->route('admin.datamaster', ['pane' => 'inventaris'])->with('success', 'Data inventaris berhasil dihapus.');
+    }
+
+    public function storeEnvironment(Request $request)
+    {
+        $environment = MasterEnvironmentItem::create($this->validateEnvironment($request));
+        $this->recordActivity($request, 'update', 'Menambahkan master lingkungan operasi '.$environment->name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'lingkungan'])->with('success', 'Data lingkungan operasi berhasil ditambahkan.');
+    }
+
+    public function updateEnvironment(Request $request, MasterEnvironmentItem $environment)
+    {
+        $environment->update($this->validateEnvironment($request));
+        $this->recordActivity($request, 'update', 'Memperbarui master lingkungan operasi '.$environment->name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'lingkungan'])->with('success', 'Data lingkungan operasi berhasil diperbarui.');
+    }
+
+    public function destroyEnvironment(Request $request, MasterEnvironmentItem $environment)
+    {
+        $name = $environment->name;
+        $environment->delete();
+        $this->recordActivity($request, 'delete', 'Menghapus master lingkungan operasi '.$name);
+
+        return redirect()->route('admin.datamaster', ['pane' => 'lingkungan'])->with('success', 'Data lingkungan operasi berhasil dihapus.');
+    }
+
+    private function validateEnvironment(Request $request): array
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'is_active' => ['nullable', 'string'],
+        ]);
+
+        return [
+            'name' => $data['name'],
+            'category' => $data['category'] ?? 'Umum',
+            'sort_order' => $data['sort_order'] ?? 0,
+            'is_active' => ($data['is_active'] ?? 'Aktif') !== 'Nonaktif',
+        ];
     }
 
     public function storeSafetyLocation(Request $request)

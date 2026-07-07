@@ -377,14 +377,17 @@
         'unit' => ['store' => '#'],
         'truck' => ['store' => '#'],
         'inventaris' => ['store' => '#'],
+        'lingkungan' => ['store' => '#'],
         'safety_lokasi' => ['store' => '#'],
         'safety_item' => ['store' => '#'],
     ];
+    $environments = $environments ?? collect([]);
     $masterUi = [
         'karyawan'      => ['title' => 'Data Karyawan',   'search' => 'Cari Karyawan',   'add' => 'Tambah Karyawan',   'icon' => 'fi fi-rr-user-add'],
         'unit'          => ['title' => 'Data Unit',       'search' => 'Cari Unit',       'add' => 'Tambah Unit',       'icon' => 'fi fi-rr-add'],
         'truck'         => ['title' => 'Data Truck',      'search' => 'Cari Truck',      'add' => 'Tambah Truck',      'icon' => 'fi fi-rr-add'],
         'inventaris'    => ['title' => 'Data Inventaris', 'search' => 'Cari Inventaris', 'add' => 'Tambah Inventaris', 'icon' => 'fi fi-rr-add'],
+        'lingkungan'    => ['title' => 'Data Lingkungan Operasi', 'search' => 'Cari Item Lingkungan', 'add' => 'Tambah Item', 'icon' => 'fi fi-rr-house-chimney'],
         'safety_lokasi' => ['title' => 'Data Lokasi K3',  'search' => 'Cari Lokasi K3',  'add' => 'Tambah Lokasi',     'icon' => 'fi fi-rr-marker'],
         'safety_item'   => ['title' => 'Data Item K3',    'search' => 'Cari Item K3',    'add' => 'Tambah Item',       'icon' => 'fi fi-rr-checkbox'],
     ];
@@ -686,6 +689,41 @@
         </div>
     </div>
 
+    <!-- PANE: Master Lingkungan Operasi (Shelter) -->
+    <div class="master-pane {{ $activePane === 'lingkungan' ? 'active' : '' }}" data-pane="lingkungan">
+        <div class="table-responsive-wrapper">
+            <table>
+                <tr class="thead d-flex justify-content-between align-items-center">
+                    <th class="col-no">No</th>
+                    <th class="col-name">Nama Item</th>
+                    <th class="col-category">Kategori</th>
+                    <th class="col-order">Urutan</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-aksi">Aksi</th>
+                </tr>
+                @forelse ($environments as $env)
+                    <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $env['update_url'] ?? '' }}">
+                        <td class="col-no">{{ $env['no'] }}</td>
+                        <td class="col-name">{{ $env['name'] }}</td>
+                        <td class="col-category">{{ $env['category'] }}</td>
+                        <td class="col-order">{{ $env['sort_order'] }}</td>
+                        <td class="col-status">{{ $env['is_active'] }}</td>
+                        <td class="col-aksi">
+                            <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
+                            <form method="POST" action="{{ $env['destroy_url'] ?? '#' }}">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    @include('admin.layouts.empty-state', $masterEmptyState('lingkungan', 'item lingkungan', 'fi fi-rr-house-chimney'))
+                @endforelse
+            </table>
+        </div>
+    </div>
+
     <!-- PANE: Master Safety Locations -->
     <div class="master-pane {{ $activePane === 'safety_lokasi' ? 'active' : '' }}" data-pane="safety_lokasi">
         <div class="table-responsive-wrapper">
@@ -762,6 +800,8 @@
         @include('admin.layouts.pagination', ['paginator' => $trucks, 'label' => 'truck'])
     @elseif (($activePane ?? 'karyawan') === 'inventaris' && method_exists($inventories, 'links'))
         @include('admin.layouts.pagination', ['paginator' => $inventories, 'label' => 'inventaris'])
+    @elseif (($activePane ?? 'karyawan') === 'lingkungan' && method_exists($environments, 'links'))
+        @include('admin.layouts.pagination', ['paginator' => $environments, 'label' => 'item lingkungan'])
     @elseif (($activePane ?? 'karyawan') === 'safety_lokasi' && method_exists($safetyLocations, 'links'))
         @include('admin.layouts.pagination', ['paginator' => $safetyLocations, 'label' => 'lokasi K3'])
     @elseif (($activePane ?? 'karyawan') === 'safety_item' && method_exists($safetyItems, 'links'))
@@ -809,6 +849,7 @@
             unit:          { title: 'Data Unit',       search: 'Cari Unit',       add: 'Tambah Unit',       icon: 'fi fi-rr-add' },
             truck:         { title: 'Data Truck',      search: 'Cari Truck',      add: 'Tambah Truck',      icon: 'fi fi-rr-add' },
             inventaris:    { title: 'Data Inventaris', search: 'Cari Inventaris', add: 'Tambah Inventaris', icon: 'fi fi-rr-add' },
+            lingkungan:    { title: 'Data Lingkungan Operasi', search: 'Cari Item Lingkungan', add: 'Tambah Item', icon: 'fi fi-rr-house-chimney' },
             safety_lokasi: { title: 'Data Lokasi K3',  search: 'Cari Lokasi K3',  add: 'Tambah Lokasi',     icon: 'fi fi-rr-marker' },
             safety_item:   { title: 'Data Item K3',    search: 'Cari Item K3',    add: 'Tambah Item',       icon: 'fi fi-rr-checkbox' }
         };
@@ -886,6 +927,16 @@
                     { key: 'name', label: 'Nama Inventaris', placeholder: 'cth, Helm Safety' },
                     { key: 'category', label: 'Kategori', type: 'select', options: ['APD', 'Sparepart', 'Tools', 'Consumable'] },
                     { key: 'stock', label: 'Jumlah', type: 'number', placeholder: 'cth, 50' },
+                ],
+            },
+            lingkungan: {
+                label: 'Item Lingkungan Operasi',
+                icon: 'fi fi-rr-house-chimney',
+                fields: [
+                    { key: 'name', label: 'Nama Item', placeholder: 'cth, Ruangan Shelter' },
+                    { key: 'category', label: 'Kategori', type: 'select', options: ['Kebersihan', 'Kerapian'] },
+                    { key: 'sort_order', label: 'Urutan', type: 'number', placeholder: 'cth, 1' },
+                    { key: 'is_active', label: 'Status', type: 'select', options: ['Aktif', 'Nonaktif'] },
                 ],
             },
             safety_lokasi: {
@@ -1042,6 +1093,14 @@
                 return {
                     name: text('.col-name'),
                     is_countable: text('.col-qtyflag') || 'Tidak',
+                    is_active: text('.col-status') || 'Aktif',
+                };
+            }
+            if (pane === 'lingkungan') {
+                return {
+                    name: text('.col-name'),
+                    category: text('.col-category') || 'Kebersihan',
+                    sort_order: text('.col-order'),
                     is_active: text('.col-status') || 'Aktif',
                 };
             }

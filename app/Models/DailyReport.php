@@ -77,12 +77,12 @@ class DailyReport extends Model
 
     public function materialActivity()
     {
-        return $this->hasOne(MaterialActivity::class);
+        return $this->hasMany(MaterialActivity::class);
     }
 
     public function containerActivity()
     {
-        return $this->hasOne(ContainerActivity::class);
+        return $this->hasMany(ContainerActivity::class);
     }
 
     public function turbaActivity()

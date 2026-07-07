@@ -403,6 +403,71 @@
             text-align: center;
         }
 
+        /* Autocomplete kustom multi-nilai (nama petugas / nomor unit). */
+        .kss-suggest-dropdown {
+            position: fixed;
+            z-index: 9999;
+            display: none;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid var(--blue-main-25);
+            border-radius: 10px;
+            background-color: var(--white);
+            box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
+        }
+        .kss-suggest-dropdown.show { display: block; }
+        .kss-suggest-option {
+            display: block;
+            width: 100%;
+            border: none;
+            border-radius: 7px;
+            background: transparent;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--dark-main);
+            cursor: pointer;
+            transition: .12s ease-out;
+        }
+        .kss-suggest-option:hover,
+        .kss-suggest-option.active { background-color: var(--blue-main-10); color: var(--blue-main); }
+
+        .container-capacity-group {
+            grid-column: span 2;
+        }
+        .container-capacity-fields {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            align-items: center;
+            gap: 10px;
+        }
+        .container-capacity-field {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            gap: 8px;
+        }
+        .container-capacity-field .capacity-label,
+        .container-capacity-fields .capacity-separator {
+            color: var(--dark-main);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        @media (max-width: 768px) {
+            .container-capacity-group {
+                grid-column: span 1;
+            }
+            .container-capacity-fields {
+                grid-template-columns: 1fr;
+            }
+            .container-capacity-fields .capacity-separator {
+                display: none;
+            }
+        }
+
         .ship-operation-status {
             display: flex;
             align-items: center;
@@ -501,6 +566,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const masterEmployeesGrouped = @json($employeesGrouped ?? []);
     const masterVehicles = @json($vehicles ?? []);
     const masterInventories = @json($inventories ?? []);
+    const masterShelters = @json($environments ?? []);
     const masterTrucks = @json($trucks ?? []);
     const lastUnitHandoverConditions = @json($lastUnitHandoverConditions ?? []);
     const savedFormPayload = @json(old('form_payload') ? json_decode(old('form_payload'), true) : (isset($report) ? $report->payload : null));
@@ -953,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Field nama operator forklift (kapal & gudang) - sarankan karyawan
     // berjabatan Operator FL / Operator OP.7 sesuai group, BUKAN nomor unit forklift.
-    const FORKLIFT_OPERATOR_FIELDS = /^(operator_ship_\d+|operator_warehouse_\d+|opr_forklift|turba_forklift_operator)$/i;
+    const FORKLIFT_OPERATOR_FIELDS = /^(operator_ship_\d+|operator_warehouse_\d+|opr_forklift(_\d+)?|turba_forklift_operator)$/i;
 
     // Hanya kolom "nama karyawan" (subfield [name]) yang perlu disarankan dari daftar
     // karyawan. Kolom lain seperti [description]/[work_area]/[time_in] pada log yang
@@ -987,8 +1053,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.setAttribute('list', 'master-employee-list');
             }
 
-            if (/truck_number/i.test(name) || /^turba_trl_no$/i.test(name)) {
-                // Nomor truck / Nomor Trailer (tracking): hanya sarankan unit berkode TRL (Trailer) / TRT (Tronton).
+            if (/truck_number/i.test(name) || /^turba_trl_no$/i.test(name) || /^truck_petugas_(bb|cont)_\d+$/i.test(name)) {
+                // Nomor truck / Nomor Trailer (No Truck Bongkar & tracking): sarankan
+                // unit berkode TRL (Trailer) / TRT (Tronton). Override daftar karyawan
+                // yang mungkin terpasang karena nama field mengandung "petugas".
                 input.setAttribute('list', 'master-trucknum-list');
             } else if (/truck_name/i.test(name)) {
                 input.setAttribute('list', 'master-truck-list');
@@ -1008,7 +1076,146 @@ document.addEventListener('DOMContentLoaded', function () {
             if (/inventory_logs\[[^\]]+\]\[item_name\]/i.test(name)) {
                 input.setAttribute('list', 'master-inventory-list');
             }
+
+            // Field petugas (nama tally/operator/driver) & nomor unit (FL/TRL) pada
+            // Bongkar/Turba/Muat boleh diisi lebih dari satu (dipisah koma) dgn saran
+            // autocomplete per-nama. Kecuali baris log Karyawan (OP.7/pengganti/shift/
+            // relief/lembur/kegiatan lain) yang tetap satu nilai + datalist bawaan.
+            const assignedList = input.getAttribute('list');
+            const isLogArrayField = /(op7_logs|replacement_logs|employee_shift_logs|other_activity_logs|relief_logs|overtime_logs)\[/i.test(name);
+            if (MULTI_SUGGEST_LISTS.includes(assignedList) && ! isLogArrayField) {
+                input.setAttribute('data-suggest', assignedList);
+                input.setAttribute('data-multi', 'true');
+                input.setAttribute('autocomplete', 'off');
+                input.removeAttribute('list');
+            }
         });
+    }
+
+    // Datalist yang boleh dipakai sebagai autocomplete multi-nilai (koma).
+    const MULTI_SUGGEST_LISTS = [
+        'master-checker-list',
+        'master-forklift-operator-list',
+        'master-driver-list',
+        'master-forklift-list',
+        'master-trucknum-list',
+    ];
+
+    // ===== Autocomplete kustom multi-nilai (dipisah koma) =====
+    // Field ditandai data-suggest="<id datalist master>" & data-multi="true".
+    // Saran difilter berdasarkan potongan teks setelah koma terakhir, sehingga
+    // tetap muncul untuk nama ke-2, ke-3, dst. Sumber opsi dibaca live dari
+    // elemen <datalist> master (ikut ter-update saat group berubah).
+    const SUGGEST_DROPDOWN_ID = 'kss-suggest-dropdown';
+    let suggestActiveInput = null;
+    let suggestActiveIndex = -1;
+
+    function suggestOptionsFrom(listId) {
+        const datalist = document.getElementById(listId);
+        if (!datalist) return [];
+        return Array.from(datalist.querySelectorAll('option')).map(option => option.value).filter(Boolean);
+    }
+
+    function suggestTokenBounds(input) {
+        const value = input.value;
+        const caret = input.selectionStart ?? value.length;
+        const start = value.lastIndexOf(',', caret - 1) + 1;
+        let end = value.indexOf(',', caret);
+        if (end === -1) end = value.length;
+        return { start, end };
+    }
+
+    function suggestCurrentToken(input) {
+        if (input.dataset.multi !== 'true') return input.value.trim();
+        const { start, end } = suggestTokenBounds(input);
+        return input.value.slice(start, end).trim();
+    }
+
+    function ensureSuggestDropdown() {
+        let dropdown = document.getElementById(SUGGEST_DROPDOWN_ID);
+        if (!dropdown) {
+            dropdown = document.createElement('div');
+            dropdown.id = SUGGEST_DROPDOWN_ID;
+            dropdown.className = 'kss-suggest-dropdown';
+            document.body.appendChild(dropdown);
+        }
+        return dropdown;
+    }
+
+    function positionSuggestDropdown(input, dropdown) {
+        const rect = input.getBoundingClientRect();
+        dropdown.style.left = `${rect.left}px`;
+        dropdown.style.top = `${rect.bottom + 4}px`;
+        dropdown.style.width = `${Math.max(rect.width, 140)}px`;
+    }
+
+    function closeSuggestDropdown() {
+        const dropdown = document.getElementById(SUGGEST_DROPDOWN_ID);
+        if (dropdown) dropdown.classList.remove('show');
+        suggestActiveInput = null;
+        suggestActiveIndex = -1;
+    }
+
+    function openSuggestFor(input) {
+        const listId = input.dataset.suggest;
+        if (!listId) return;
+
+        const isMulti = input.dataset.multi === 'true';
+        const options = suggestOptionsFrom(listId);
+        const token = suggestCurrentToken(input);
+        const query = token.toLowerCase();
+        const chosen = isMulti
+            ? input.value.split(',').map(part => part.trim().toLowerCase()).filter(Boolean)
+            : [];
+
+        let matches = options.filter(option => {
+            const low = option.toLowerCase();
+            if (isMulti && low !== query && chosen.includes(low)) return false;
+            return query === '' ? true : low.includes(query);
+        }).slice(0, 12);
+
+        const dropdown = ensureSuggestDropdown();
+        if (matches.length === 0) {
+            dropdown.classList.remove('show');
+            suggestActiveInput = null;
+            suggestActiveIndex = -1;
+            return;
+        }
+
+        dropdown.innerHTML = matches
+            .map((match, index) => `<button type="button" class="kss-suggest-option${index === 0 ? ' active' : ''}" data-value="${escapeHtml(match)}">${escapeHtml(match)}</button>`)
+            .join('');
+        suggestActiveInput = input;
+        suggestActiveIndex = 0;
+        positionSuggestDropdown(input, dropdown);
+        dropdown.classList.add('show');
+    }
+
+    function applySuggestValue(input, value) {
+        if (input.dataset.multi !== 'true') {
+            input.value = value;
+        } else {
+            const { start, end } = suggestTokenBounds(input);
+            const before = input.value.slice(0, start).replace(/\s*$/, '');
+            const after = input.value.slice(end);
+            const connector = before === '' ? '' : (before.endsWith(',') ? ' ' : ', ');
+            input.value = `${before}${connector}${value}${after}`;
+            const caret = `${before}${connector}${value}`.length;
+            try { input.setSelectionRange(caret, caret); } catch (e) {}
+        }
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+        closeSuggestDropdown();
+    }
+
+    function highlightSuggest(delta) {
+        const dropdown = document.getElementById(SUGGEST_DROPDOWN_ID);
+        if (!dropdown || !dropdown.classList.contains('show')) return;
+        const options = Array.from(dropdown.querySelectorAll('.kss-suggest-option'));
+        if (options.length === 0) return;
+        suggestActiveIndex = (suggestActiveIndex + delta + options.length) % options.length;
+        options.forEach((option, index) => option.classList.toggle('active', index === suggestActiveIndex));
+        options[suggestActiveIndex].scrollIntoView({ block: 'nearest' });
     }
 
     function clearTemplateValues() {
@@ -1079,6 +1286,15 @@ document.addEventListener('DOMContentLoaded', function () {
             'commodity_urea', 'capacity_urea', 'berthing_time_urea', 'start_loading_time_urea',
             'ship_operation_urea_id', 'ship_operation_urea_status',
         ];
+        const materialPrefixes = [
+            'ship_name_material', 'agent_material', 'jetty_material', 'capacity_material',
+            'tally_kapal', 'opr_forklift', 'tally_pengiriman', 'driver_petugas_bb', 'truck_petugas_bb',
+            'material_work_start', 'material_work_end',
+        ];
+        const containerPrefixes = [
+            'ship_name_container', 'agent_container', 'jetty_container', 'capacity_container', 'capacity_full_container',
+            'tally_muat', 'tally_gudang', 'driver_petugas_cont', 'truck_petugas_cont',
+        ];
 
         return fields.reduce((max, field) => {
             const name = fieldName(field);
@@ -1092,12 +1308,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 match = name.match(new RegExp(`^(${curahPrefixes.join('|')})_(\\d+)$`)) || name.match(/^bulk_logs\[(\d+)]/);
             }
 
+            if (sectionId === 'section-bahan-baku') {
+                match = name.match(new RegExp(`^(${materialPrefixes.join('|')})_(\\d+)$`)) || name.match(/^unloading_materials_(\d+)\[/);
+            }
+
+            if (sectionId === 'section-container') {
+                match = name.match(new RegExp(`^(${containerPrefixes.join('|')})_(\\d+)$`)) || name.match(/^unloading_containers_(\d+)\[/);
+            }
+
             return match ? Math.max(max, Number(match[2] || match[1] || 1)) : max;
         }, 1);
     }
 
     function ensureActivityPanes(fields) {
-        ['step-muat-kantong', 'step-muat-curah'].forEach(sectionId => {
+        ['step-muat-kantong', 'step-muat-curah', 'section-bahan-baku', 'section-container'].forEach(sectionId => {
             const section = document.getElementById(sectionId);
             const targetCount = maxSequenceForSection(fields, sectionId);
             const addButton = section?.querySelector('.plus-minus-tab .btn.add');
@@ -1492,6 +1716,54 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Baris Lingkungan Shelter di-seed dari master "Data Lingkungan Operasi",
+    // dikelompokkan per kategori (divider). Nama item editable, baris bisa
+    // ditambah/dihapus (pakai mekanisme generik addTableRow/removeTableRow).
+    function shelterRowHtml(item, index) {
+        return `
+            <div class="body">
+                <div class="table-column no"><span>${index + 1}</span></div>
+                <div class="table-column main">
+                    <div class="table-input-wrapper">
+                        <span class="icon"><i class="fi fi-sr-house-chimney"></i></span>
+                        <input type="text" name="shelter_logs[${index}][item_name]" value="${escapeHtml(item?.name || '')}" placeholder="Nama Item">
+                    </div>
+                </div>
+                <div class="table-column radio">${makeRadioCell(`shelter_logs[${index}][condition_received]`, `ling_terima_${index}`, previousHandoverCondition('shelter', item))}</div>
+                <div class="table-column radio">${makeRadioCell(`shelter_logs[${index}][condition_handed_over]`, `ling_serah_${index}`, previousHandoverCondition('shelter', item))}</div>
+                <div class="table-column delete"><button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button></div>
+            </div>
+        `;
+    }
+
+    function renderShelterRows() {
+        const shelterTable = document.querySelector('#section-lingkungan .table-input');
+        if (!shelterTable || !Array.isArray(masterShelters) || masterShelters.length === 0) return;
+
+        const addButton = shelterTable.querySelector('.btn-tambah-baris');
+
+        // Bersihkan baris & divider lama (sisakan head + tombol tambah).
+        shelterTable.querySelectorAll('.body, .table-divide').forEach(el => el.remove());
+
+        let index = 0;
+        let lastCategory = null;
+        masterShelters.forEach(item => {
+            const category = (item.category || 'Umum').trim();
+            if (category !== lastCategory) {
+                const divider = document.createElement('div');
+                divider.className = 'table-divide';
+                divider.innerHTML = `<span>${escapeHtml(category)}</span>`;
+                shelterTable.insertBefore(divider, addButton);
+                lastCategory = category;
+            }
+
+            const template = document.createElement('template');
+            template.innerHTML = shelterRowHtml(item, index).trim();
+            shelterTable.insertBefore(template.content.firstElementChild, addButton);
+            index++;
+        });
+    }
+
     function renderMasterCheckRows() {
         const vehicleTable = document.querySelector('#section-unit .table-input');
         const inventoryTable = document.querySelector('#section-inventaris .table-input');
@@ -1542,6 +1814,7 @@ document.addEventListener('DOMContentLoaded', function () {
             `));
         }
 
+        renderShelterRows();
         applyPreviousShelterConditions();
     }
 
@@ -2608,6 +2881,8 @@ document.addEventListener('DOMContentLoaded', function () {
             input.name = input.name
                 .replace(/timesheets\[\d+\]/g, `timesheets[${sequence}]`)
                 .replace(/bulk_logs\[\d+\]/g, `bulk_logs[${sequence}]`)
+                .replace(/unloading_materials_\d+(?=\[)/g, `unloading_materials_${sequence}`)
+                .replace(/unloading_containers_\d+(?=\[)/g, `unloading_containers_${sequence}`)
                 .replace(/_urea_\d+$/g, `_urea_${sequence}`)
                 .replace(/_\d+$/g, `_${sequence}`);
         });
@@ -2647,16 +2922,20 @@ document.addEventListener('DOMContentLoaded', function () {
         return button;
     }
 
-    function initActivitySection(sectionId) {
-        const section = document.getElementById(sectionId);
+    function initActivitySection(target) {
+        // `target` boleh berupa id string (dipakai section dengan .content-form
+        // & .box-button sendiri, mis. Muat Kantong/Curah) atau elemen langsung
+        // (dipakai sub-tab yang berbagi .box-button dgn sub-tab lain, mis. Bongkar
+        // Bahan Baku/Container — batasnya ditandai elemen `.activity-pane-end`).
+        const section = typeof target === 'string' ? document.getElementById(target) : target;
         if (!section) return;
 
-        const content = section.querySelector('.content-form');
+        const content = section.querySelector(':scope > .content-form') || section;
         const tabBar = section.querySelector('.tab-activity');
         const plusMinus = tabBar?.querySelector('.plus-minus-tab');
         const addButton = plusMinus?.querySelector('.btn.add');
         const removeButton = plusMinus?.querySelector('.btn.remove');
-        const buttonRow = content?.querySelector('.box-button');
+        const buttonRow = content.querySelector('.box-button') || content.querySelector('.activity-pane-end');
 
         if (!content || !tabBar || !plusMinus || !buttonRow) return;
 
@@ -2737,22 +3016,17 @@ document.addEventListener('DOMContentLoaded', function () {
     createDatalist('master-relief-list', reliefEmployees().map(employee => employee.name));
     createDatalist('master-truck-list', (masterTrucks || []).flatMap(truck => [truck.name, truck.plate_number]));
     createDatalist('master-unit-list', (masterVehicles || []).map(vehicle => vehicle.name));
-    // Sugesti unit berbasis kode: tampilkan label "kata kode + nomor unit"
-    // (mis. TRL -> "Trailer KSS-01", TRT -> "Tronton KSS-01", FL -> "Forklift KSS-01").
-    const unitCodeLabel = { TRL: 'Trailer', TRT: 'Tronton', FL: 'Forklift' };
-    const labeledUnitNames = (codes) => {
+    // Sugesti nomor unit: cukup nomor kodenya saja (mis. "FL-15", "TRL-15"),
+    // tanpa awalan jenis ("Forklift ..."/"Trailer ...").
+    const unitNumbersByCode = (codes) => {
         const wanted = codes.map(code => code.toUpperCase());
         return (masterVehicles || [])
             .filter(vehicle => wanted.includes(String(vehicle.unit_code || '').toUpperCase()))
-            .map(vehicle => {
-                const code = String(vehicle.unit_code || '').toUpperCase();
-                const number = String(vehicle.unit_number || '').trim();
-                const label = unitCodeLabel[code] || code;
-                return number ? `${label} ${number}` : (vehicle.name || label);
-            });
+            .map(vehicle => String(vehicle.unit_number || '').trim() || String(vehicle.name || '').trim())
+            .filter(Boolean);
     };
-    createDatalist('master-trucknum-list', labeledUnitNames(['TRL', 'TRT']));
-    createDatalist('master-forklift-list', labeledUnitNames(['FL']));
+    createDatalist('master-trucknum-list', unitNumbersByCode(['TRL', 'TRT']));
+    createDatalist('master-forklift-list', unitNumbersByCode(['FL']));
     createDatalist('master-inventory-list', (masterInventories || []).map(item => item.name));
 
     setTodayDate();
@@ -2774,6 +3048,8 @@ document.addEventListener('DOMContentLoaded', function () {
     initPickers();
     initActivitySection('step-muat-kantong');
     initActivitySection('step-muat-curah');
+    initActivitySection(document.getElementById('section-bahan-baku'));
+    initActivitySection(document.getElementById('section-container'));
     restoreSavedPayload();
     applyAbsenceStateToEmployeeRows();
     syncOp7Replacements();
@@ -2871,7 +3147,50 @@ document.addEventListener('DOMContentLoaded', function () {
             operationDropdownFor(event.target);
             fetchShipOperationSuggestions(event.target);
         }
+
+        if (event.target.matches('input[data-suggest]')) {
+            openSuggestFor(event.target);
+        }
     });
+
+    // ===== Event wiring autocomplete kustom multi-nilai =====
+    document.addEventListener('mousedown', function (event) {
+        const option = event.target.closest('.kss-suggest-option');
+        if (option && suggestActiveInput) {
+            event.preventDefault(); // pertahankan fokus input
+            applySuggestValue(suggestActiveInput, option.dataset.value || option.textContent.trim());
+            return;
+        }
+        if (!event.target.closest('input[data-suggest]') && !event.target.closest('#' + SUGGEST_DROPDOWN_ID)) {
+            closeSuggestDropdown();
+        }
+    });
+
+    // Navigasi keyboard (capture agar mendahului navigasi Enter antar-field).
+    document.addEventListener('keydown', function (event) {
+        const dropdown = document.getElementById(SUGGEST_DROPDOWN_ID);
+        if (!suggestActiveInput || !dropdown || !dropdown.classList.contains('show')) return;
+        if (event.target !== suggestActiveInput) return;
+
+        if (event.key === 'ArrowDown') { event.preventDefault(); highlightSuggest(1); }
+        else if (event.key === 'ArrowUp') { event.preventDefault(); highlightSuggest(-1); }
+        else if (event.key === 'Enter') {
+            const active = dropdown.querySelector('.kss-suggest-option.active') || dropdown.querySelector('.kss-suggest-option');
+            if (active) { event.preventDefault(); event.stopPropagation(); applySuggestValue(suggestActiveInput, active.dataset.value); }
+        } else if (event.key === 'Escape') {
+            closeSuggestDropdown();
+        }
+    }, true);
+
+    document.addEventListener('focusout', function (event) {
+        if (!event.target.matches('input[data-suggest]')) return;
+        setTimeout(() => {
+            if (suggestActiveInput === event.target) closeSuggestDropdown();
+        }, 120);
+    });
+
+    window.addEventListener('scroll', () => { if (suggestActiveInput) closeSuggestDropdown(); }, true);
+    window.addEventListener('resize', () => { if (suggestActiveInput) closeSuggestDropdown(); });
 
     document.addEventListener('change', function (event) {
         if (event.target.matches('input[type="radio"][name*="[condition_handed_over]"]') && event.isTrusted) {
@@ -2936,6 +3255,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const original = event.target.value;
             const numbers = original.replace(/\D/g, '').slice(0, 4);
             event.target.value = numbers.length > 2 ? `${numbers.slice(0, 2)}:${numbers.slice(2)}` : numbers;
+        }
+
+        if (event.target.matches('input[data-suggest]')) {
+            openSuggestFor(event.target);
         }
 
         // Jam Kerja rentang (satu input, mis. "23:00 - 04:00"): pengguna cukup
@@ -3068,7 +3391,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 @push('modals')
     <!-- MODAL KONFIRMASI (REFERENSI GAYA DASHBOARD) -->
-    @php($finishReceiverGroup = strtoupper((string) old('received_by_group', isset($report) ? $report->received_by_group : '')))
+    @php
+        $finishReceiverGroup = strtoupper((string) old('received_by_group', isset($report) ? $report->received_by_group : ''));
+    @endphp
     <div class="modal-overlay" id="finishModal">
         <div class="pop-up signed d-flex flex-column gap-20">
             <div class="pop-up-header d-flex justify-content-between align-items-center">

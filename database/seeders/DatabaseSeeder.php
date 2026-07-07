@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             MasterInventorySeeder::class,
             MasterTruckSeeder::class,
             MasterEmployeeSeeder::class,
+            MasterEnvironmentSeeder::class,
             SafetySeeder::class,
         ]);
 
