@@ -95,41 +95,43 @@
                     <div class="table-input material w-100">
                         <div class="head">
                             <div class="table-column no"><span>No</span></div>
-                            <div class="table-column main"><span>Nama Karyawan Relief</span></div>
+                            <div class="table-column main"><span>Nama Karyawan Lembur</span></div>
                             <div class="table-column medium"><span>Jam Kerja</span></div>
                             <div class="table-column no"><span>No</span></div>
-                            <div class="table-column main"><span>Nama Karyawan Lembur</span></div>
+                            <div class="table-column main"><span>Nama Karyawan Relief</span></div>
                             <div class="table-column medium"><span>Jam Kerja</span></div>
                         </div>
 
-                        <div class="body">
-                            <div class="table-column no"><span>1</span></div>
-                            <div class="table-column main">
-                                <div class="table-input-wrapper">
-                                    <span class="icon"><i class="fi fi-sr-user-helmet-safety"></i></span>
-                                    <input type="text" name="relief_logs[0][name]" placeholder="Nama Karyawan Relief" value="Sabarudin">
+                        @for ($i = 0; $i < 5; $i++)
+                            <div class="body">
+                                <div class="table-column no"><span>{{ $i + 1 }}</span></div>
+                                <div class="table-column main">
+                                    <div class="table-input-wrapper">
+                                        <span class="icon"><i class="fi fi-sr-user-hard-work"></i></span>
+                                        <input type="text" name="overtime_logs[{{ $i }}][name]" placeholder="Nama Karyawan Lembur"@if($i === 0) value="Nurul Huda"@endif>
+                                    </div>
+                                </div>
+                                <div class="table-column medium">
+                                    <div class="table-input-wrapper">
+                                        <span class="icon"><i class="fi fi-rr-clock"></i></span>
+                                        <input type="text" name="overtime_logs[{{ $i }}][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
+                                    </div>
+                                </div>
+                                <div class="table-column no"><span>{{ $i + 1 }}</span></div>
+                                <div class="table-column main">
+                                    <div class="table-input-wrapper">
+                                        <span class="icon"><i class="fi fi-sr-user-helmet-safety"></i></span>
+                                        <input type="text" name="relief_logs[{{ $i }}][name]" placeholder="Nama Karyawan Relief"@if($i === 0) value="Sabarudin"@endif>
+                                    </div>
+                                </div>
+                                <div class="table-column medium">
+                                    <div class="table-input-wrapper">
+                                        <span class="icon"><i class="fi fi-rr-clock"></i></span>
+                                        <input type="text" name="relief_logs[{{ $i }}][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
+                                    </div>
                                 </div>
                             </div>
-                            <div class="table-column medium">
-                                <div class="table-input-wrapper">
-                                    <span class="icon"><i class="fi fi-rr-clock"></i></span>
-                                    <input type="text" name="relief_logs[0][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
-                                </div>
-                            </div>
-                            <div class="table-column no"><span>1</span></div>
-                            <div class="table-column main">
-                                <div class="table-input-wrapper">
-                                    <span class="icon"><i class="fi fi-sr-user-hard-work"></i></span>
-                                    <input type="text" name="overtime_logs[0][name]" placeholder="Nama Karyawan Lembur" value="Nurul Huda">
-                                </div>
-                            </div>
-                            <div class="table-column medium">
-                                <div class="table-input-wrapper">
-                                    <span class="icon"><i class="fi fi-rr-clock"></i></span>
-                                    <input type="text" name="overtime_logs[0][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
-                                </div>
-                            </div>
-                        </div>
+                        @endfor
 
                         <button type="button" class="btn-tambah-baris">
                             <i class="fi fi-rr-plus-small"></i> Tambah Baris

@@ -682,7 +682,9 @@
 
     <div class="sec">VI. Karyawan</div>
     @php
-        $operationLineRows = max(15, $overtimeEmps->count(), $reliefEmps->count());
+        $overtimeLineRows = max(5, $overtimeEmps->count());
+        $reliefLineRows = max(5, $reliefEmps->count());
+        $operationLineRows = max($overtimeLineRows, $reliefLineRows);
     @endphp
     <table class="pair">
         <tr>
@@ -720,10 +722,10 @@
                                 $reliefEmployee = $reliefEmps->get($i);
                             @endphp
                             <tr>
-                                <td class="c">{{ $i + 1 }}</td>
+                                <td class="c">{{ $i < $overtimeLineRows ? $i + 1 : '' }}</td>
                                 <td>{{ $overtimeEmployee?->name }}</td>
                                 <td class="c">{{ $overtimeEmployee?->work_time }}</td>
-                                <td class="c">{{ $i + 16 }}</td>
+                                <td class="c">{{ $i < $reliefLineRows ? $i + 1 : '' }}</td>
                                 <td>{{ $reliefEmployee?->name }}</td>
                                 <td class="c">{{ $reliefEmployee?->work_time }}</td>
                             </tr>
