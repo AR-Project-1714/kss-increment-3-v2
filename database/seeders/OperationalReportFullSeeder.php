@@ -468,13 +468,13 @@ class OperationalReportFullSeeder extends Seeder
         }
 
         $report->employeeLogs()->createMany([
-            ['category' => 'operasi', 'name' => 'Syamsuddin', 'description' => 'Lembur'],
-            ['category' => 'operasi', 'name' => 'Zein', 'description' => 'Lembur'],
-            ['category' => 'operasi', 'name' => 'Rifky', 'description' => 'Lembur'],
-            ['category' => 'operasi', 'name' => 'Asmuni', 'description' => 'Lembur'],
-            ['category' => 'operasi', 'name' => 'Ronal', 'description' => 'Relief Malam'],
-            ['category' => 'operasi', 'name' => 'Ardy', 'description' => 'Relief Malam'],
-            ['category' => 'operasi', 'name' => 'Ardian', 'description' => 'Relief Malam'],
+            ['category' => 'operasi', 'name' => 'Syamsuddin', 'work_time' => '07:00 - 15:00', 'description' => 'Lembur'],
+            ['category' => 'operasi', 'name' => 'Zein', 'work_time' => '07:00 - 15:00', 'description' => 'Lembur'],
+            ['category' => 'operasi', 'name' => 'Rifky', 'work_time' => '15:00 - 23:00', 'description' => 'Lembur'],
+            ['category' => 'operasi', 'name' => 'Asmuni', 'work_time' => '15:00 - 23:00', 'description' => 'Lembur'],
+            ['category' => 'operasi', 'name' => 'Ronal', 'work_time' => '23:00 - 07:00', 'description' => 'Relief Malam'],
+            ['category' => 'operasi', 'name' => 'Ardy', 'work_time' => '23:00 - 07:00', 'description' => 'Relief Malam'],
+            ['category' => 'operasi', 'name' => 'Ardian', 'work_time' => '07:00 - 15:00', 'description' => 'Relief Malam'],
         ]);
 
         $op7 = [

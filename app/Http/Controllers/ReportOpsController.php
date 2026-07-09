@@ -1411,20 +1411,30 @@ class ReportOpsController extends Controller
         }
 
         foreach ($this->rows($request->input('relief_logs', [])) as $log) {
-            if ($this->rowHasAny($log, ['name'])) {
+            if ($this->rowHasAny($log, ['name', 'work_time'])) {
+                [$timeIn, $timeOut] = $this->splitTimeRange($log['work_time'] ?? null);
+
                 $report->employeeLogs()->create([
                     'category' => 'operasi',
                     'name' => $this->string($log['name'] ?? null),
+                    'time_in' => $timeIn,
+                    'time_out' => $timeOut,
+                    'work_time' => $this->string($log['work_time'] ?? null),
                     'description' => 'Relief',
                 ]);
             }
         }
 
         foreach ($this->rows($request->input('overtime_logs', [])) as $log) {
-            if ($this->rowHasAny($log, ['name'])) {
+            if ($this->rowHasAny($log, ['name', 'work_time'])) {
+                [$timeIn, $timeOut] = $this->splitTimeRange($log['work_time'] ?? null);
+
                 $report->employeeLogs()->create([
                     'category' => 'operasi',
                     'name' => $this->string($log['name'] ?? null),
+                    'time_in' => $timeIn,
+                    'time_out' => $timeOut,
+                    'work_time' => $this->string($log['work_time'] ?? null),
                     'description' => 'Lembur',
                 ]);
             }

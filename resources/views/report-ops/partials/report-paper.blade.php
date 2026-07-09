@@ -710,8 +710,8 @@
             <td class="pair-right">
                 <table class="grid compact">
                     <thead>
-                        <tr><th colspan="4">KARYAWAN OPERASI</th></tr>
-                        <tr><th style="width:7%">NO</th><th>LEMBUR</th><th style="width:7%">NO</th><th>RELIEF SIANG/MALAM</th></tr>
+                        <tr><th colspan="6">KARYAWAN OPERASI</th></tr>
+                        <tr><th style="width:7%">NO</th><th>LEMBUR</th><th style="width:16%">JAM KERJA</th><th style="width:7%">NO</th><th>RELIEF SIANG/MALAM</th><th style="width:16%">JAM KERJA</th></tr>
                     </thead>
                     <tbody>
                         @for ($i = 0; $i < $operationLineRows; $i++)
@@ -722,8 +722,10 @@
                             <tr>
                                 <td class="c">{{ $i + 1 }}</td>
                                 <td>{{ $overtimeEmployee?->name }}</td>
+                                <td class="c">{{ $overtimeEmployee?->work_time }}</td>
                                 <td class="c">{{ $i + 16 }}</td>
                                 <td>{{ $reliefEmployee?->name }}</td>
+                                <td class="c">{{ $reliefEmployee?->work_time }}</td>
                             </tr>
                         @endfor
                     </tbody>

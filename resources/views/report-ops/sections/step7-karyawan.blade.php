@@ -96,8 +96,10 @@
                         <div class="head">
                             <div class="table-column no"><span>No</span></div>
                             <div class="table-column main"><span>Nama Karyawan Relief</span></div>
+                            <div class="table-column medium"><span>Jam Kerja</span></div>
                             <div class="table-column no"><span>No</span></div>
                             <div class="table-column main"><span>Nama Karyawan Lembur</span></div>
+                            <div class="table-column medium"><span>Jam Kerja</span></div>
                         </div>
 
                         <div class="body">
@@ -108,11 +110,23 @@
                                     <input type="text" name="relief_logs[0][name]" placeholder="Nama Karyawan Relief" value="Sabarudin">
                                 </div>
                             </div>
+                            <div class="table-column medium">
+                                <div class="table-input-wrapper">
+                                    <span class="icon"><i class="fi fi-rr-clock"></i></span>
+                                    <input type="text" name="relief_logs[0][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
+                                </div>
+                            </div>
                             <div class="table-column no"><span>1</span></div>
                             <div class="table-column main">
                                 <div class="table-input-wrapper">
                                     <span class="icon"><i class="fi fi-sr-user-hard-work"></i></span>
                                     <input type="text" name="overtime_logs[0][name]" placeholder="Nama Karyawan Lembur" value="Nurul Huda">
+                                </div>
+                            </div>
+                            <div class="table-column medium">
+                                <div class="table-input-wrapper">
+                                    <span class="icon"><i class="fi fi-rr-clock"></i></span>
+                                    <input type="text" name="overtime_logs[0][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
                                 </div>
                             </div>
                         </div>
