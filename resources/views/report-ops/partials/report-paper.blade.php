@@ -139,6 +139,9 @@
         ]);
     }
 
+    // Sel kosong pada Bagian V ditandai "-" agar terbaca sebagai "belum diisi", bukan salah cetak.
+    $cell = fn ($value) => trim((string) $value) !== '' ? e($value) : '<span class="dash">-</span>';
+
     $conditionClass = function ($value) {
         $value = strtolower(trim((string) $value));
         if ($value === '') return '';
@@ -193,12 +196,29 @@
     .report-paper .capacity-line .cap-value { border-bottom: 1px dotted #000; display: inline-block; min-width: 72px; text-align: center; }
     .report-paper .pair { table-layout: fixed; }
     .report-paper .pair td { vertical-align: top; }
-    .report-paper .pair .pair-left { width: 50%; padding-right: 3px; }
-    .report-paper .pair .pair-right { width: 50%; padding-left: 3px; }
+    /* Padding hanya di sisi selokan (gutter) — sisanya nol agar tabel rata tepi dengan bagian lain. */
+    .report-paper .pair .pair-left { width: 50%; padding: 0 3px 0 0; }
+    .report-paper .pair .pair-right { width: 50%; padding: 0 0 0 3px; }
     .report-paper .pair .sec { margin-top: 8px; }
     .report-paper .pair .panel { margin-bottom: 5px; }
     .report-paper .compact th, .report-paper .compact td { padding: 1px 2px; }
     .report-paper .compact th { font-size: 6.8px; }
+    /* Bagian V & VI: baris sedikit lebih lega. Tidak memakai .compact agar bagian I-IV tak ikut berubah. */
+    .report-paper .roomy th, .report-paper .roomy td { padding: 1.5px 3px; }
+    .report-paper .roomy td.empty-note { padding: 6px 3px; }
+    .report-paper .dash { color: #9ca3af; }
+    /* Item shelter menjorok agar terbaca sebagai anak dari baris kategori. */
+    .report-paper .roomy td.sub-item { padding-left: 10px; }
+    /* Header "KARYAWAN OPERASI" menyatu dengan dua tabel di bawahnya. */
+    .report-paper .ops-split { margin-top: -1px; }
+    /* Judul kolom dijaga satu baris agar tinggi header Lembur dan Relief sama. */
+    .report-paper .ops-split thead th { white-space: nowrap; }
+    /* Relief butuh porsi lebih lebar: judulnya lebih panjang dari "LEMBUR". */
+    .report-paper .ops-split .pair-left { width: 45%; padding: 0; }
+    .report-paper .ops-split .pair-right { width: 55%; padding: 0; }
+    /* Tabel Lembur dan Relief menempel jadi satu garis, tidak dobel. */
+    .report-paper .ops-split table.grid { margin-left: -1px; }
+    .report-paper .ops-split .pair-left table.grid { margin-left: 0; }
     .report-paper .mini-title { text-align: center; font-weight: bold; background: #eceff1; text-transform: uppercase; }
     .report-paper .category-row td { text-align: center; font-weight: bold; background: #eef0f2; }
     .report-paper .sign { margin-top: 8px; page-break-inside: avoid; }
@@ -553,7 +573,7 @@
     </table>
 
     <div class="sec">V. Keadaan Peralatan dan Kendaraan Operasional</div>
-    <table class="grid compact">
+    <table class="grid compact roomy">
         <thead>
             <tr><th colspan="10">TRAILLER / FORKLIFT DAN SARANA JEMPUTAN</th></tr>
             <tr>
@@ -584,9 +604,9 @@
                         @if ($leftVehicle)
                             <td class="c">{{ $leftVehicle['no'] }}</td>
                             <td>{{ $leftVehicle['name'] }}</td>
-                            <td class="c">{{ $leftVehicle['fuel'] }}</td>
-                            <td class="c {{ $conditionClass($leftVehicle['received']) }}">{{ $leftVehicle['received'] }}</td>
-                            <td class="c {{ $conditionClass($leftVehicle['handed']) }}">{{ $leftVehicle['handed'] }}</td>
+                            <td class="c">{!! $cell($leftVehicle['fuel']) !!}</td>
+                            <td class="c {{ $conditionClass($leftVehicle['received']) }}">{!! $cell($leftVehicle['received']) !!}</td>
+                            <td class="c {{ $conditionClass($leftVehicle['handed']) }}">{!! $cell($leftVehicle['handed']) !!}</td>
                         @else
                             <td>&nbsp;</td><td></td><td></td><td></td><td></td>
                         @endif
@@ -594,9 +614,9 @@
                         @if ($rightVehicle)
                             <td class="c">{{ $rightVehicle['no'] }}</td>
                             <td>{{ $rightVehicle['name'] }}</td>
-                            <td class="c">{{ $rightVehicle['fuel'] }}</td>
-                            <td class="c {{ $conditionClass($rightVehicle['received']) }}">{{ $rightVehicle['received'] }}</td>
-                            <td class="c {{ $conditionClass($rightVehicle['handed']) }}">{{ $rightVehicle['handed'] }}</td>
+                            <td class="c">{!! $cell($rightVehicle['fuel']) !!}</td>
+                            <td class="c {{ $conditionClass($rightVehicle['received']) }}">{!! $cell($rightVehicle['received']) !!}</td>
+                            <td class="c {{ $conditionClass($rightVehicle['handed']) }}">{!! $cell($rightVehicle['handed']) !!}</td>
                         @else
                             <td>&nbsp;</td><td></td><td></td><td></td><td></td>
                         @endif
@@ -610,18 +630,18 @@
         <tr>
             <td class="pair-left">
                 <div class="subsec" style="margin-top:6px">Daftar Inventaris</div>
-                <table class="grid compact">
+                <table class="grid compact roomy">
                     <thead>
-                        <tr><th style="width:5%">NO</th><th>NAMA BARANG</th><th style="width:10%">JML</th><th style="width:15%">TERIMA</th><th style="width:15%">SERAHKAN</th></tr>
+                        <tr><th style="width:7%">NO</th><th>NAMA BARANG</th><th style="width:10%">JML</th><th style="width:17%">TERIMA</th><th style="width:17%">SERAHKAN</th></tr>
                     </thead>
                     <tbody>
                         @forelse ($inventoryRows as $row)
                             <tr>
                                 <td class="c">{{ $row['no'] }}</td>
                                 <td>{{ $row['name'] }}</td>
-                                <td class="c">{{ $row['qty'] }}</td>
-                                <td class="c {{ $conditionClass($row['received']) }}">{{ $row['received'] }}</td>
-                                <td class="c {{ $conditionClass($row['handed']) }}">{{ $row['handed'] }}</td>
+                                <td class="c">{!! $cell($row['qty']) !!}</td>
+                                <td class="c {{ $conditionClass($row['received']) }}">{!! $cell($row['received']) !!}</td>
+                                <td class="c {{ $conditionClass($row['handed']) }}">{!! $cell($row['handed']) !!}</td>
                             </tr>
                         @empty
                             <tr><td colspan="5" class="empty-note">Tidak ada data inventaris.</td></tr>
@@ -631,9 +651,9 @@
             </td>
             <td class="pair-right">
                 <div class="subsec" style="margin-top:6px">Lingkungan Shelter</div>
-                <table class="grid compact">
+                <table class="grid compact roomy">
                     <thead>
-                        <tr><th rowspan="2" style="width:6%">NO</th><th rowspan="2">ITEM</th><th colspan="2" style="width:34%">KONDISI</th></tr>
+                        <tr><th rowspan="2" style="width:7%">NO</th><th rowspan="2">ITEM</th><th colspan="2" style="width:36%">KONDISI</th></tr>
                         <tr><th>TERIMA</th><th>SERAHKAN</th></tr>
                     </thead>
                     <tbody>
@@ -651,9 +671,9 @@
                                 @endphp
                                 <tr>
                                     <td></td>
-                                    <td>{{ $item->name }}</td>
-                                    <td class="c {{ $conditionClass($log->condition_received ?? '') }}">{{ $log->condition_received ?? '' }}</td>
-                                    <td class="c {{ $conditionClass($log->condition_handed_over ?? '') }}">{{ $log->condition_handed_over ?? '' }}</td>
+                                    <td class="sub-item">{{ $item->name }}</td>
+                                    <td class="c {{ $conditionClass($log->condition_received ?? '') }}">{!! $cell($log->condition_received ?? '') !!}</td>
+                                    <td class="c {{ $conditionClass($log->condition_handed_over ?? '') }}">{!! $cell($log->condition_handed_over ?? '') !!}</td>
                                 </tr>
                             @endforeach
                         @endforeach
@@ -665,9 +685,9 @@
                             @foreach ($extraShelterLogs as $log)
                                 <tr>
                                     <td></td>
-                                    <td>{{ $log->item_name }}</td>
-                                    <td class="c {{ $conditionClass($log->condition_received) }}">{{ $log->condition_received }}</td>
-                                    <td class="c {{ $conditionClass($log->condition_handed_over) }}">{{ $log->condition_handed_over }}</td>
+                                    <td class="sub-item">{{ $log->item_name }}</td>
+                                    <td class="c {{ $conditionClass($log->condition_received) }}">{!! $cell($log->condition_received) !!}</td>
+                                    <td class="c {{ $conditionClass($log->condition_handed_over) }}">{!! $cell($log->condition_handed_over) !!}</td>
                                 </tr>
                             @endforeach
                         @endif
@@ -681,18 +701,13 @@
     </table>
 
     <div class="sec">VI. Karyawan</div>
-    @php
-        $overtimeLineRows = max(5, $overtimeEmps->count());
-        $reliefLineRows = max(5, $reliefEmps->count());
-        $operationLineRows = max($overtimeLineRows, $reliefLineRows);
-    @endphp
     <table class="pair">
         <tr>
             <td class="pair-left">
-                <table class="grid compact">
+                <table class="grid compact roomy">
                     <thead>
                         <tr><th colspan="5">KARYAWAN SHIFT YANG BERTUGAS</th></tr>
-                        <tr><th style="width:5%">NO</th><th>NAMA</th><th style="width:14%">MASUK</th><th style="width:14%">PULANG</th><th style="width:20%">KET</th></tr>
+                        <tr><th style="width:7%">NO</th><th>NAMA</th><th style="width:14%">MASUK</th><th style="width:14%">PULANG</th><th style="width:20%">KET</th></tr>
                     </thead>
                     <tbody>
                         @forelse ($shiftEmps as $employee)
@@ -704,33 +719,54 @@
                                 <td class="c">{{ $employee->description }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="empty-note">Tidak ada data karyawan shift.</td></tr>
+                            <tr><td colspan="5" class="empty-note">Tidak ada karyawan shift yang bertugas.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </td>
             <td class="pair-right">
-                <table class="grid compact">
-                    <thead>
-                        <tr><th colspan="6">KARYAWAN OPERASI</th></tr>
-                        <tr><th style="width:7%">NO</th><th>LEMBUR</th><th style="width:16%">JAM KERJA</th><th style="width:7%">NO</th><th>RELIEF SIANG/MALAM</th><th style="width:16%">JAM KERJA</th></tr>
-                    </thead>
-                    <tbody>
-                        @for ($i = 0; $i < $operationLineRows; $i++)
-                            @php
-                                $overtimeEmployee = $overtimeEmps->get($i);
-                                $reliefEmployee = $reliefEmps->get($i);
-                            @endphp
-                            <tr>
-                                <td class="c">{{ $i < $overtimeLineRows ? $i + 1 : '' }}</td>
-                                <td>{{ $overtimeEmployee?->name }}</td>
-                                <td class="c">{{ $overtimeEmployee?->work_time }}</td>
-                                <td class="c">{{ $i < $reliefLineRows ? $i + 1 : '' }}</td>
-                                <td>{{ $reliefEmployee?->name }}</td>
-                                <td class="c">{{ $reliefEmployee?->work_time }}</td>
-                            </tr>
-                        @endfor
-                    </tbody>
+                <table class="grid compact roomy">
+                    <thead><tr><th>KARYAWAN OPERASI</th></tr></thead>
+                </table>
+                <table class="pair ops-split">
+                    <tr>
+                        <td class="pair-left">
+                            <table class="grid compact roomy">
+                                <thead>
+                                    <tr><th style="width:10%">NO</th><th>LEMBUR</th><th style="width:28%">JAM KERJA</th></tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($overtimeEmps as $employee)
+                                        <tr>
+                                            <td class="c">{{ $loop->iteration }}</td>
+                                            <td>{{ $employee->name }}</td>
+                                            <td class="c">{!! $cell($employee->work_time) !!}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="3" class="empty-note">Tidak ada karyawan lembur.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </td>
+                        <td class="pair-right">
+                            <table class="grid compact roomy">
+                                <thead>
+                                    <tr><th style="width:10%">NO</th><th>RELIEF SIANG/MALAM</th><th style="width:28%">JAM KERJA</th></tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($reliefEmps as $employee)
+                                        <tr>
+                                            <td class="c">{{ $loop->iteration }}</td>
+                                            <td>{{ $employee->name }}</td>
+                                            <td class="c">{!! $cell($employee->work_time) !!}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="3" class="empty-note">Tidak ada karyawan relief.</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
                 </table>
             </td>
         </tr>
