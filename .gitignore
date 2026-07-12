@@ -14,7 +14,9 @@
 /.zed
 /auth.json
 /node_modules
-/public/build
+# Hasil build Vite sengaja di-commit: VPS produksi tidak punya Node/npm,
+# jadi aset di-build lokal lalu ikut ter-push (deploy cukup `git pull`).
+# /public/build
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
