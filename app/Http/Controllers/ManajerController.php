@@ -432,21 +432,18 @@ class ManajerController extends Controller
 
     private function dashboardStats(): array
     {
-        $activeStatuses = [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved];
-        $today = Carbon::today();
-        $now = Carbon::now();
+        return Cache::remember($this->managerStatsCacheKey('dashboard'), now()->addSeconds(60), function (): array {
+            $counts = $this->archiveStatusDateCounts(
+                DailyReport::query(),
+                [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved],
+                [ReportStatus::Acknowledged]
+            );
 
-        return Cache::remember($this->managerStatsCacheKey('dashboard'), now()->addSeconds(60), function () use ($activeStatuses, $today, $now): array {
             return [
-                'todayReports' => DailyReport::whereIn('status', $activeStatuses)
-                    ->whereDate('report_date', $today)
-                    ->count(),
-                'pendingReports' => DailyReport::where('status', ReportStatus::Acknowledged)->count(),
-                'monthlyReports' => DailyReport::whereIn('status', $activeStatuses)
-                    ->whereMonth('report_date', $now->month)
-                    ->whereYear('report_date', $now->year)
-                    ->count(),
-                'totalReports' => DailyReport::whereIn('status', $activeStatuses)->count(),
+                'todayReports' => $counts['today'],
+                'pendingReports' => $counts['pending'],
+                'monthlyReports' => $counts['month'],
+                'totalReports' => $counts['total'],
             ];
         });
     }

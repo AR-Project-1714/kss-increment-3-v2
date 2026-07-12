@@ -12,8 +12,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $docId }} — Laporan K3</title>
     <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/css/uicons-regular-rounded.css'>
+    <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
+    <link rel='stylesheet' href='{{ asset('vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css') }}'>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #e5e7eb; font-family: 'Poppins', Arial, sans-serif; }

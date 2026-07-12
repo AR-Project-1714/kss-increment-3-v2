@@ -2607,6 +2607,17 @@ document.addEventListener('DOMContentLoaded', function () {
         (wrapper || input).classList.toggle('is-invalid', isInvalid);
     }
 
+    // Jam tidak boleh melebihi 24:00; kelebihannya dibungkus ke jam nyata
+    // (mis. digit "40" -> "16", 40 - 24 = 16). Dipakai oleh input .time-picker-input
+    // dan .time-range-input di bawah.
+    function wrapTimeHourDigits(digits) {
+        if (digits.length < 2) return digits;
+
+        const wrappedHour = String(Number(digits.substring(0, 2)) % 24).padStart(2, '0');
+
+        return wrappedHour + digits.substring(2);
+    }
+
     function clearTimesheetValidation(row) {
         if (!row) return;
 
@@ -3264,7 +3275,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (event.target.matches('.time-picker-input')) {
             const original = event.target.value;
             const numbers = original.replace(/\D/g, '').slice(0, 4);
-            event.target.value = numbers.length > 2 ? `${numbers.slice(0, 2)}:${numbers.slice(2)}` : numbers;
+            // Jam tidak boleh melebihi 24:00; kelebihannya dibungkus ke jam nyata
+            // (mis. ketik "40:00" -> otomatis jadi "16:00", 40 - 24 = 16).
+            const wrapped = numbers.length >= 2 ? wrapTimeHourDigits(numbers) : numbers;
+            event.target.value = wrapped.length > 2 ? `${wrapped.slice(0, 2)}:${wrapped.slice(2)}` : wrapped;
         }
 
         if (event.target.matches('input[data-suggest]')) {
@@ -3272,12 +3286,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Jam Kerja rentang (satu input, mis. "23:00 - 04:00"): pengguna cukup
-        // ketik angkanya saja, simbol ":" dan " - " otomatis disisipkan.
+        // ketik angkanya saja, simbol ":" dan " - " otomatis disisipkan. Tiap
+        // segmen jam dibungkus ke jam nyata bila lebih dari 24:00.
         if (event.target.matches('.time-range-input')) {
             const digits = event.target.value.replace(/\D/g, '').slice(0, 8);
-            let formatted = digits.slice(0, 2);
+            const startHour = digits.length >= 2 ? wrapTimeHourDigits(digits.slice(0, 2)) : digits.slice(0, 2);
+            const endHour = digits.length >= 6 ? wrapTimeHourDigits(digits.slice(4, 6)) : digits.slice(4, 6);
+            let formatted = startHour;
             if (digits.length > 2) formatted += ':' + digits.slice(2, 4);
-            if (digits.length > 4) formatted += ' - ' + digits.slice(4, 6);
+            if (digits.length > 4) formatted += ' - ' + endHour;
             if (digits.length > 6) formatted += ':' + digits.slice(6, 8);
             event.target.value = formatted;
         }

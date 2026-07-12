@@ -68,17 +68,12 @@ class ReportOpsController extends Controller
             default => 'laporan',
         };
 
+        // Relasi anak (aktivitas, log, dsb.) tidak dirender di daftar; teks filter
+        // client-side dibangun dari kolom payload yang sudah ada di tabel laporan.
         $reportRelations = [
             'creator',
             'receiver',
             'approver',
-            'loadingActivities.timesheets',
-            'bulkLoadingActivities.logs',
-            'materialActivity.items',
-            'containerActivity.items',
-            'turbaActivity.deliveries',
-            'unitCheckLogs',
-            'employeeLogs',
         ];
 
         // Riwayat = laporan yang DIBUAT oleh regu pengguna sendiri (group pengirim).
@@ -509,6 +504,12 @@ class ReportOpsController extends Controller
         // Laporan approved sudah punya PDF arsip permanen di storage; hanya laporan
         // yang belum di-approve yang di-cache sementara agar tidak digenerate ulang.
         if ($report->status === ReportStatus::Approved) {
+            $archivedPath = storage_path('app/public/reports/report-'.$report->id.'.pdf');
+
+            if (is_file($archivedPath)) {
+                return (string) file_get_contents($archivedPath);
+            }
+
             return $generate();
         }
 

@@ -21,12 +21,15 @@ trait BuildsDivisionArchive
     {
         $perPage = 10;
         $page = LengthAwarePaginator::resolveCurrentPage();
-        $rows = $this->buildDivisionArchiveRows($filters, $context);
 
-        $rows = $this->sortArchiveRows($rows, $filters['sort'] ?? 'newest')->values();
-        $total = $rows->count();
-        $items = $rows->slice(($page - 1) * $perPage, $perPage)
-            ->values()
+        // Ambil hanya tuple ringan (kind, id, kunci sort) dari database — filter,
+        // pencarian, dan urutan dikerjakan di SQL. Model lengkap hanya dimuat
+        // untuk 10 baris halaman aktif.
+        $refs = $this->archiveRowRefs($filters);
+        $total = $refs->count();
+        $pageRefs = $refs->slice(($page - 1) * $perPage, $perPage)->values();
+
+        $items = $this->hydrateArchiveRows($pageRefs, $context)
             ->map(function (array $row, int $index) use ($page, $perPage): array {
                 $row['no'] = (($page - 1) * $perPage) + $index + 1;
 
@@ -51,8 +54,9 @@ trait BuildsDivisionArchive
             'selectedStatus' => 'all',
         ];
 
-        return $this->sortArchiveRows($this->buildDivisionArchiveRows($filters, $context), 'newest')
-            ->take(8)
+        $refs = $this->archiveRowRefs($filters)->take(8)->values();
+
+        return $this->hydrateArchiveRows($refs, $context)
             ->map(fn (array $row): array => [
                 'id' => $row['raw_id'],
                 'document_id' => $row['id'],
@@ -76,25 +80,66 @@ trait BuildsDivisionArchive
 
     protected function archiveTotalCounts(): array
     {
-        $today = Carbon::today();
-        $now = Carbon::now();
-        $operationStatuses = $this->archiveStatuses();
-        $maintenanceStatuses = $this->maintenanceArchiveStatuses();
-        $safetyStatuses = $this->safetyArchiveStatuses();
+        // Satu query agregat per tabel (bukan 4 COUNT terpisah per tabel).
+        $operational = $this->archiveStatusDateCounts(
+            DailyReport::query(),
+            $this->archiveStatuses(),
+            [ReportStatus::Acknowledged]
+        );
+        $maintenance = $this->archiveStatusDateCounts(
+            MaintenanceReport::query(),
+            $this->maintenanceArchiveStatuses(),
+            [MaintenanceStatus::Submitted]
+        );
+        $safety = $this->archiveStatusDateCounts(
+            SafetyReport::query(),
+            $this->safetyArchiveStatuses(),
+            [SafetyStatus::Submitted]
+        );
 
         return [
-            'today' => DailyReport::whereIn('status', $operationStatuses)->whereDate('report_date', $today)->count()
-                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->whereDate('report_date', $today)->count()
-                + SafetyReport::whereIn('status', $safetyStatuses)->whereDate('report_date', $today)->count(),
-            'pending' => DailyReport::where('status', ReportStatus::Acknowledged)->count()
-                + MaintenanceReport::where('status', MaintenanceStatus::Submitted)->count()
-                + SafetyReport::where('status', SafetyStatus::Submitted)->count(),
-            'month' => DailyReport::whereIn('status', $operationStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count()
-                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count()
-                + SafetyReport::whereIn('status', $safetyStatuses)->whereMonth('report_date', $now->month)->whereYear('report_date', $now->year)->count(),
-            'total' => DailyReport::whereIn('status', $operationStatuses)->count()
-                + MaintenanceReport::whereIn('status', $maintenanceStatuses)->count()
-                + SafetyReport::whereIn('status', $safetyStatuses)->count(),
+            'today' => $operational['today'] + $maintenance['today'] + $safety['today'],
+            'pending' => $operational['pending'] + $maintenance['pending'] + $safety['pending'],
+            'month' => $operational['month'] + $maintenance['month'] + $safety['month'],
+            'total' => $operational['total'] + $maintenance['total'] + $safety['total'],
+        ];
+    }
+
+    /**
+     * Hitung today/pending/month/total dalam satu query agregat kondisional.
+     * Memakai perbandingan rentang tanggal (portabel MySQL & SQLite).
+     */
+    private function archiveStatusDateCounts(Builder $query, array $statuses, array $pendingStatuses): array
+    {
+        $statusValues = array_map(fn ($status) => $status->value, $statuses);
+        $pendingValues = array_map(fn ($status) => $status->value, $pendingStatuses);
+
+        $statusIn = implode(',', array_fill(0, count($statusValues), '?'));
+        $pendingIn = implode(',', array_fill(0, count($pendingValues), '?'));
+
+        $todayStart = Carbon::today()->toDateString();
+        $todayEnd = Carbon::today()->addDay()->toDateString();
+        $monthStart = Carbon::now()->startOfMonth()->toDateString();
+        $monthEnd = Carbon::now()->startOfMonth()->addMonth()->toDateString();
+
+        $row = $query->selectRaw(
+            "SUM(CASE WHEN status IN ({$statusIn}) AND report_date >= ? AND report_date < ? THEN 1 ELSE 0 END) AS today_count,"
+            ."SUM(CASE WHEN status IN ({$pendingIn}) THEN 1 ELSE 0 END) AS pending_count,"
+            ."SUM(CASE WHEN status IN ({$statusIn}) AND report_date >= ? AND report_date < ? THEN 1 ELSE 0 END) AS month_count,"
+            ."SUM(CASE WHEN status IN ({$statusIn}) THEN 1 ELSE 0 END) AS total_count",
+            [
+                ...$statusValues, $todayStart, $todayEnd,
+                ...$pendingValues,
+                ...$statusValues, $monthStart, $monthEnd,
+                ...$statusValues,
+            ]
+        )->first();
+
+        return [
+            'today' => (int) ($row->today_count ?? 0),
+            'pending' => (int) ($row->pending_count ?? 0),
+            'month' => (int) ($row->month_count ?? 0),
+            'total' => (int) ($row->total_count ?? 0),
         ];
     }
 
@@ -117,40 +162,86 @@ trait BuildsDivisionArchive
         return [SafetyStatus::Submitted, SafetyStatus::Approved];
     }
 
-    private function buildDivisionArchiveRows(array $filters, string $context): Collection
+    /**
+     * Kumpulan tuple ringan (kind, id, kunci sort) untuk seluruh baris arsip yang
+     * lolos filter — sudah terurut. Pengganti pemuatan semua model ke memori.
+     */
+    private function archiveRowRefs(array $filters): Collection
     {
         $division = strtolower((string) ($filters['selectedDivision'] ?? 'all'));
-        $rows = collect();
+        $keyword = trim((string) ($filters['archiveSearch'] ?? ''));
 
-        if (in_array($division, ['', 'all', 'operasional'], true)) {
-            $rows = $rows->merge($this->operationalArchiveRows($filters, $context));
+        // Kata kunci berupa nama divisi/judul laporan ("pemeliharaan", "operasi",
+        // "k3", dst.) dulunya cocok lewat blob teks. Perlakukan sebagai filter
+        // divisi agar perilakunya tetap sama.
+        $keywordDivisions = $this->archiveKeywordDivisions($keyword);
+        if ($keywordDivisions !== []) {
+            $keyword = '';
         }
 
-        if (in_array($division, ['', 'all', 'pemeliharaan'], true)) {
-            $rows = $rows->merge($this->maintenanceArchiveRows($filters, $context));
+        $includes = fn (string $kind): bool => in_array($division, ['', 'all', $kind], true)
+            && ($keywordDivisions === [] || in_array($kind, $keywordDivisions, true));
+
+        $refs = collect();
+
+        if ($includes('operasional')) {
+            $refs = $refs->merge($this->operationalArchiveRefs($filters, $keyword));
         }
 
-        if (in_array($division, ['', 'all', 'safety'], true)) {
-            $rows = $rows->merge($this->safetyArchiveRows($filters, $context));
+        if ($includes('pemeliharaan')) {
+            $refs = $refs->merge($this->maintenanceArchiveRefs($filters, $keyword));
         }
 
-        $keyword = $this->archiveNormalize((string) ($filters['archiveSearch'] ?? ''));
-        if ($keyword !== '') {
-            $rows = $rows->filter(fn (array $row): bool => str_contains($this->archiveNormalize($row['search'] ?? ''), $keyword));
+        if ($includes('safety')) {
+            $refs = $refs->merge($this->safetyArchiveRefs($filters, $keyword));
         }
 
-        return $rows->values();
+        return $this->sortArchiveRefs($refs, ($filters['sort'] ?? 'newest') === 'oldest' ? 'oldest' : 'newest')->values();
     }
 
-    private function operationalArchiveRows(array $filters, string $context): Collection
+    /**
+     * Muat model lengkap hanya untuk baris pada halaman aktif, urut sesuai refs.
+     */
+    private function hydrateArchiveRows(Collection $refs, string $context): Collection
     {
-        $query = DailyReport::query()
-            ->with(['creator:id,name,username,group', 'approver:id,name'])
-            ->whereIn('status', $this->archiveStatuses());
+        $idsByKind = $refs->groupBy('kind')->map(fn (Collection $group) => $group->pluck('id')->all());
 
-        if (filled($filters['archiveSearch'] ?? '')) {
-            $query->with($this->reportRelations());
-        }
+        $models = [
+            'operasional' => filled($idsByKind['operasional'] ?? null)
+                ? DailyReport::with(['creator:id,name,username,group', 'approver:id,name'])
+                    ->whereIn('id', $idsByKind['operasional'])->get()->keyBy('id')
+                : collect(),
+            'pemeliharaan' => filled($idsByKind['pemeliharaan'] ?? null)
+                ? MaintenanceReport::with(['creator:id,name', 'approver:id,name', 'workItems.unit', 'unitConditions.unit', 'attendances'])
+                    ->whereIn('id', $idsByKind['pemeliharaan'])->get()->keyBy('id')
+                : collect(),
+            'safety' => filled($idsByKind['safety'] ?? null)
+                ? SafetyReport::with($this->safetyReportRelations())
+                    ->whereIn('id', $idsByKind['safety'])->get()->keyBy('id')
+                : collect(),
+        ];
+
+        return $refs
+            ->map(function (array $ref) use ($models, $context): ?array {
+                $report = $models[$ref['kind']][$ref['id']] ?? null;
+
+                if ($report === null) {
+                    return null;
+                }
+
+                return match ($ref['kind']) {
+                    'pemeliharaan' => $this->maintenanceArchiveRow($report, $context),
+                    'safety' => $this->safetyArchiveRow($report, $context),
+                    default => $this->operationalArchiveRow($report, $context),
+                };
+            })
+            ->filter()
+            ->values();
+    }
+
+    private function operationalArchiveRefs(array $filters, string $keyword): Collection
+    {
+        $query = DailyReport::query()->whereIn('status', $this->archiveStatuses());
 
         if ($filters['selectedDate'] ?? null) {
             $query->whereDate('report_date', $filters['selectedDate']);
@@ -184,11 +275,13 @@ trait BuildsDivisionArchive
             }
         }
 
-        return $query->get()
-            ->map(fn (DailyReport $report): array => $this->operationalArchiveRow($report, $context));
+        $this->applyOperationalArchiveSearch($query, $keyword);
+
+        return $query->get(['id', 'report_date', 'created_at', 'updated_at'])
+            ->map(fn (DailyReport $report): array => $this->archiveRef('operasional', $report));
     }
 
-    private function maintenanceArchiveRows(array $filters, string $context): Collection
+    private function maintenanceArchiveRefs(array $filters, string $keyword): Collection
     {
         $selectedGroup = strtoupper((string) ($filters['selectedGroup'] ?? 'ALL'));
         $selectedShift = strtolower((string) ($filters['selectedShift'] ?? 'all'));
@@ -197,9 +290,7 @@ trait BuildsDivisionArchive
             return collect();
         }
 
-        $query = MaintenanceReport::query()
-            ->with(['creator:id,name', 'approver:id,name', 'workItems.unit', 'unitConditions.unit', 'attendances'])
-            ->whereIn('status', $this->maintenanceArchiveStatuses());
+        $query = MaintenanceReport::query()->whereIn('status', $this->maintenanceArchiveStatuses());
 
         if ($filters['selectedDate'] ?? null) {
             $query->whereDate('report_date', $filters['selectedDate']);
@@ -216,11 +307,13 @@ trait BuildsDivisionArchive
             }
         }
 
-        return $query->get()
-            ->map(fn (MaintenanceReport $report): array => $this->maintenanceArchiveRow($report, $context));
+        $this->applyMaintenanceArchiveSearch($query, $keyword);
+
+        return $query->get(['id', 'report_date', 'created_at', 'updated_at'])
+            ->map(fn (MaintenanceReport $report): array => $this->archiveRef('pemeliharaan', $report));
     }
 
-    private function safetyArchiveRows(array $filters, string $context): Collection
+    private function safetyArchiveRefs(array $filters, string $keyword): Collection
     {
         $selectedGroup = strtoupper((string) ($filters['selectedGroup'] ?? 'ALL'));
         $selectedShift = strtolower((string) ($filters['selectedShift'] ?? 'all'));
@@ -229,9 +322,7 @@ trait BuildsDivisionArchive
             return collect();
         }
 
-        $query = SafetyReport::query()
-            ->with($this->safetyReportRelations())
-            ->whereIn('status', $this->safetyArchiveStatuses());
+        $query = SafetyReport::query()->whereIn('status', $this->safetyArchiveStatuses());
 
         if ($filters['selectedDate'] ?? null) {
             $query->whereDate('report_date', $filters['selectedDate']);
@@ -248,8 +339,215 @@ trait BuildsDivisionArchive
             }
         }
 
-        return $query->get()
-            ->map(fn (SafetyReport $report): array => $this->safetyArchiveRow($report, $context));
+        $this->applySafetyArchiveSearch($query, $keyword);
+
+        return $query->get(['id', 'report_date', 'created_at', 'updated_at'])
+            ->map(fn (SafetyReport $report): array => $this->archiveRef('safety', $report));
+    }
+
+    private function archiveRef(string $kind, $report): array
+    {
+        return [
+            'kind' => $kind,
+            'id' => $report->id,
+            'sort_date' => $this->archiveTimestamp($report->report_date ?: $report->created_at),
+            'sort_updated' => $this->archiveTimestamp($report->updated_at),
+        ];
+    }
+
+    /**
+     * Pencarian arsip operasional di SQL: memakai pencarian laporan standar plus
+     * pencocokan label status Indonesia ("diterima", "diarsipkan", dst.).
+     */
+    private function applyOperationalArchiveSearch(Builder $query, string $keyword): void
+    {
+        if ($keyword === '') {
+            return;
+        }
+
+        $statusValues = $this->archiveStatusValuesForKeyword($keyword, [
+            ReportStatus::Submitted->value => 'diserahkan',
+            ReportStatus::Acknowledged->value => 'diterima',
+            ReportStatus::Approved->value => 'diarsipkan',
+        ]);
+
+        $query->where(function (Builder $outer) use ($keyword, $statusValues): void {
+            $outer->where(function (Builder $inner) use ($keyword): void {
+                $this->applyReportSearch($inner, $keyword, true);
+            });
+
+            if ($statusValues !== []) {
+                $outer->orWhereIn('status', $statusValues);
+            }
+        });
+    }
+
+    private function applyMaintenanceArchiveSearch(Builder $query, string $keyword): void
+    {
+        if ($keyword === '') {
+            return;
+        }
+
+        $like = '%'.$keyword.'%';
+        $datePatterns = $this->buildDateSearchPatterns($keyword);
+
+        if (! empty($datePatterns)) {
+            $query->where(function (Builder $dateQuery) use ($datePatterns): void {
+                foreach ($datePatterns as $pattern) {
+                    $dateQuery->orWhere('report_date', 'like', $pattern);
+                }
+            });
+
+            return;
+        }
+
+        $statusValues = $this->archiveStatusValuesForKeyword($keyword, [
+            MaintenanceStatus::Submitted->value => 'diserahkan',
+            MaintenanceStatus::Approved->value => 'diarsipkan',
+        ]);
+
+        $query->where(function (Builder $searchQuery) use ($keyword, $like, $statusValues): void {
+            $this->whereColumnsLike($searchQuery, ['day_name', 'karu_pemeliharaan_name', 'karu_peralatan_name'], $like);
+
+            if (preg_match('/mnt[-\s]?\d{4}[-\s]?(\d+)/i', $keyword, $match)) {
+                $searchQuery->orWhere('id', (int) $match[1]);
+            } elseif (ctype_digit($keyword)) {
+                $searchQuery->orWhere('id', (int) $keyword);
+            }
+
+            if ($statusValues !== []) {
+                $searchQuery->orWhereIn('status', $statusValues);
+            }
+
+            $searchQuery
+                ->orWhere('report_date', 'like', $like)
+                ->orWhereHas('creator', fn ($relation) => $this->whereColumnsLike($relation, ['name', 'username'], $like))
+                ->orWhereHas('approver', fn ($relation) => $this->whereColumnsLike($relation, ['name', 'username'], $like))
+                ->orWhereHas('workItems', function ($relation) use ($like): void {
+                    $relation->where(function ($workItem) use ($like): void {
+                        $this->whereColumnsLike($workItem, ['work_type', 'work_group', 'unit_label', 'description', 'assignee', 'notes'], $like);
+                        $workItem->orWhereHas('unit', fn ($unit) => $this->whereColumnsLike($unit, ['name', 'unit_code', 'unit_number'], $like));
+                    });
+                })
+                ->orWhereHas('unitConditions', function ($relation) use ($like): void {
+                    $relation->where(function ($condition) use ($like): void {
+                        $this->whereColumnsLike($condition, ['condition', 'notes'], $like);
+                        $condition->orWhereHas('unit', fn ($unit) => $this->whereColumnsLike($unit, ['name', 'unit_code', 'unit_number'], $like));
+                    });
+                })
+                ->orWhereHas('attendances', fn ($relation) => $this->whereColumnsLike($relation, ['employee_name', 'position', 'notes'], $like));
+        });
+    }
+
+    private function applySafetyArchiveSearch(Builder $query, string $keyword): void
+    {
+        if ($keyword === '') {
+            return;
+        }
+
+        $like = '%'.$keyword.'%';
+        $datePatterns = $this->buildDateSearchPatterns($keyword);
+
+        if (! empty($datePatterns)) {
+            $query->where(function (Builder $dateQuery) use ($datePatterns): void {
+                foreach ($datePatterns as $pattern) {
+                    $dateQuery->orWhere('report_date', 'like', $pattern);
+                }
+            });
+
+            return;
+        }
+
+        $statusValues = $this->archiveStatusValuesForKeyword($keyword, [
+            SafetyStatus::Submitted->value => 'diserahkan',
+            SafetyStatus::Approved->value => 'diarsipkan',
+        ]);
+
+        $query->where(function (Builder $searchQuery) use ($keyword, $like, $statusValues): void {
+            $this->whereColumnsLike($searchQuery, ['document_number', 'time_range', 'shift'], $like);
+
+            if (preg_match('/k3[-\s]?\d{4}[-\s]?(\d+)/i', $keyword, $match)) {
+                $searchQuery->orWhere('id', (int) $match[1]);
+            } elseif (ctype_digit($keyword)) {
+                $searchQuery->orWhere('id', (int) $keyword);
+            }
+
+            if ($statusValues !== []) {
+                $searchQuery->orWhereIn('status', $statusValues);
+            }
+
+            $searchQuery
+                ->orWhere('report_date', 'like', $like)
+                ->orWhereHas('creator', fn ($relation) => $this->whereColumnsLike($relation, ['name', 'username'], $like))
+                ->orWhereHas('approver', fn ($relation) => $this->whereColumnsLike($relation, ['name', 'username'], $like))
+                ->orWhereHas('inspections', fn ($relation) => $this->whereColumnsLike($relation, ['location_name_snapshot', 'item_name_snapshot', 'condition', 'recommendation'], $like))
+                ->orWhereHas('operationLogs', fn ($relation) => $this->whereColumnsLike($relation, ['activity_name', 'condition', 'action', 'notes'], $like))
+                ->orWhereHas('incidentLogs', fn ($relation) => $this->whereColumnsLike($relation, ['description', 'condition', 'action', 'notes'], $like));
+        });
+    }
+
+    /**
+     * Divisi yang judul/nama-nya memuat kata kunci — meniru perilaku blob lama
+     * saat pengguna mengetik "pemeliharaan", "operasi", "k3", "laporan", dsb.
+     */
+    private function archiveKeywordDivisions(string $keyword): array
+    {
+        $normalized = ltrim($this->archiveNormalize($keyword), '#');
+
+        if ($normalized === '' || strlen($normalized) < 2) {
+            return [];
+        }
+
+        // Prefiks nomor dokumen ("ops", "mnt", "k3", boleh diikuti sebagian tahun,
+        // mis. "ops-2026") berarti pengguna mencari laporan divisi tersebut. ID
+        // lengkap ("ops-2026-12") tidak lewat sini — ditangani pencarian SQL.
+        if (preg_match('/^(ops|mnt|k3)(?:[-\s]?\d{1,4})?$/', $normalized, $match)) {
+            return [match ($match[1]) {
+                'ops' => 'operasional',
+                'mnt' => 'pemeliharaan',
+                default => 'safety',
+            }];
+        }
+
+        $terms = [
+            'operasional' => ['operasional', 'laporan operasi harian'],
+            'pemeliharaan' => ['pemeliharaan', 'laporan pemeliharaan harian'],
+            'safety' => ['safety', 'k3', 'laporan k3 safety'],
+        ];
+
+        $matches = [];
+
+        foreach ($terms as $division => $phrases) {
+            foreach ($phrases as $phrase) {
+                // Cocok bila kata kunci merupakan awal frasa ("laporan opera...")
+                // atau awal salah satu katanya ("pemel", "opera", "k3"). Prefiks
+                // saja — substring bebas membuat kata pendek seperti "me" (bulan
+                // Mei) salah tangkap sebagai "pe-ME-liharaan".
+                $words = explode(' ', $phrase);
+
+                if (str_starts_with($phrase, $normalized)
+                    || array_filter($words, fn (string $word): bool => str_starts_with($word, $normalized)) !== []) {
+                    $matches[] = $division;
+                    break;
+                }
+            }
+        }
+
+        return $matches;
+    }
+
+    private function archiveStatusValuesForKeyword(string $keyword, array $labelsByStatus): array
+    {
+        $normalized = $this->archiveNormalize($keyword);
+
+        if (strlen($normalized) < 4) {
+            return [];
+        }
+
+        return array_keys(array_filter(
+            $labelsByStatus,
+            fn (string $label): bool => str_contains($label, $normalized)
+        ));
     }
 
     private function operationalArchiveRow(DailyReport $report, string $context): array
@@ -403,11 +701,11 @@ trait BuildsDivisionArchive
         ];
     }
 
-    private function sortArchiveRows(Collection $rows, string $sort): Collection
+    private function sortArchiveRefs(Collection $refs, string $sort): Collection
     {
-        return $rows->sort(function (array $a, array $b) use ($sort): int {
-            $left = [$a['sort_date'] ?? 0, $a['sort_updated'] ?? 0, $a['raw_id'] ?? 0];
-            $right = [$b['sort_date'] ?? 0, $b['sort_updated'] ?? 0, $b['raw_id'] ?? 0];
+        return $refs->sort(function (array $a, array $b) use ($sort): int {
+            $left = [$a['sort_date'] ?? 0, $a['sort_updated'] ?? 0, $a['id'] ?? 0];
+            $right = [$b['sort_date'] ?? 0, $b['sort_updated'] ?? 0, $b['id'] ?? 0];
             $compare = $left <=> $right;
 
             return $sort === 'oldest' ? $compare : -$compare;

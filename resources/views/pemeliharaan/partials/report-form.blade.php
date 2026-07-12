@@ -531,16 +531,8 @@
                                 <div class="table-column absent">
                                     <div class="table-input-wrapper"><i class="fi fi-rr-time-check text-red"></i><input type="text" name="attendances[{{ $i }}][time_out]" value="{{ $row['time_out'] }}" class="time-picker-input" placeholder="00:00" style="text-align:center"></div>
                                 </div>
-                                <div class="table-column medium" style="overflow:visible">
-                                    <div class="tbl-select-wrapper">
-                                        <select name="attendances[{{ $i }}][notes]" class="tbl-native-select att-notes">
-                                            <option value="" @selected(! in_array($row['notes'], ['Sakit','Cuti','Tidak Masuk'], true))>Pilih...</option>
-                                            <option value="Sakit" @selected($row['notes'] === 'Sakit')>Sakit</option>
-                                            <option value="Cuti" @selected($row['notes'] === 'Cuti')>Cuti</option>
-                                            <option value="Tidak Masuk" @selected($row['notes'] === 'Tidak Masuk')>Tidak Masuk</option>
-                                        </select>
-                                        <span class="sel-caret"><i class="fi fi-rr-angle-small-down"></i></span>
-                                    </div>
+                                <div class="table-column medium">
+                                    <div class="table-input-wrapper"><input type="text" name="attendances[{{ $i }}][notes]" value="{{ $row['notes'] }}" list="pemeliharaan-keterangan-options" class="att-notes" placeholder="Keterangan" autocomplete="off"></div>
                                 </div>
                                 <div class="table-column delete"><button type="button" class="btn-trash-row" data-remove-row><i class="fi fi-rr-trash"></i></button></div>
                             </div>
@@ -559,6 +551,13 @@
 
 <datalist id="maintenance-employee-datalist">
     @foreach ($employees as $e)<option value="{{ $e['name'] }}"></option>@endforeach
+</datalist>
+
+{{-- Saran cepat keterangan absensi; tetap bisa diketik manual apa saja. --}}
+<datalist id="pemeliharaan-keterangan-options">
+    <option value="Sakit"></option>
+    <option value="Cuti"></option>
+    <option value="Tidak Masuk"></option>
 </datalist>
 @endsection
 
@@ -699,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="table-column medium"><div class="table-input-wrapper"><i class="fi fi-sr-id-badge"></i><input type="text" name="attendances[${i}][position]" placeholder="Jabatan"></div></div>
                 <div class="table-column absent"><div class="table-input-wrapper"><i class="fi fi-rr-time-quarter-past"></i><input type="text" name="attendances[${i}][time_in]" class="time-picker-input" placeholder="00:00" style="text-align:center"></div></div>
                 <div class="table-column absent"><div class="table-input-wrapper"><i class="fi fi-rr-time-check text-red"></i><input type="text" name="attendances[${i}][time_out]" class="time-picker-input" placeholder="00:00" style="text-align:center"></div></div>
-                <div class="table-column medium" style="overflow:visible"><div class="tbl-select-wrapper"><select name="attendances[${i}][notes]" class="tbl-native-select att-notes"><option value="">Pilih...</option><option value="Sakit">Sakit</option><option value="Cuti">Cuti</option><option value="Tidak Masuk">Tidak Masuk</option></select><span class="sel-caret"><i class="fi fi-rr-angle-small-down"></i></span></div></div>
+                <div class="table-column medium"><div class="table-input-wrapper"><input type="text" name="attendances[${i}][notes]" list="pemeliharaan-keterangan-options" class="att-notes" placeholder="Keterangan" autocomplete="off"></div></div>
                 <div class="table-column delete"><button type="button" class="btn-trash-row" data-remove-row><i class="fi fi-rr-trash"></i></button></div>
             </div>`;
         this.insertAdjacentHTML('beforebegin', html);
@@ -710,11 +709,17 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ---- Jam Kerja (range) -> auto-isi Masuk/Pulang di Daftar Hadir ----
-    const ABSEN = ['Sakit', 'Cuti', 'Tidak Masuk'];
+    // Keterangan diketik bebas (bukan dropdown terkunci); Sakit/Cuti/Tidak Masuk
+    // hanya saran cepat lewat datalist, dicocokkan tanpa peduli huruf besar/kecil.
+    const ABSEN = ['sakit', 'cuti', 'tidak masuk'];
+
+    function isAbsentNote(value) {
+        return ABSEN.includes(String(value || '').trim().toLowerCase());
+    }
 
     function rowIsAbsen(row) {
-        const sel = row.querySelector('select[name$="[notes]"]');
-        return sel ? ABSEN.includes(sel.value) : false;
+        const input = row.querySelector('input[name$="[notes]"]');
+        return input ? isAbsentNote(input.value) : false;
     }
     function applyWorkHoursToRow(row) {
         if (!row) return;
@@ -776,13 +781,18 @@ document.addEventListener('DOMContentLoaded', function () {
     updateMaintenanceSchedule({ preserveExisting: true });
 
     // Keterangan absen -> kosongkan Masuk/Pulang; kembali Hadir -> isi ulang jam kerja.
-    document.addEventListener('change', function (e) {
-        const sel = e.target;
-        if (!sel.matches?.('#attendance-table select[name$="[notes]"]')) return;
-        const row = sel.closest('.attendance-row');
+    // Bereaksi langsung saat mengetik ('input') maupun saat memilih dari datalist
+    // atau keluar dari field ('change'), agar konsisten dengan pola Karyawan Shift/OP.7.
+    document.addEventListener('input', handleAttendanceNoteChange);
+    document.addEventListener('change', handleAttendanceNoteChange);
+
+    function handleAttendanceNoteChange(e) {
+        const field = e.target;
+        if (!field.matches?.('#attendance-table input[name$="[notes]"]')) return;
+        const row = field.closest('.attendance-row');
         const ti = row.querySelector('input[name$="[time_in]"]');
         const to = row.querySelector('input[name$="[time_out]"]');
-        if (ABSEN.includes(sel.value)) {
+        if (isAbsentNote(field.value)) {
             if (ti) ti.value = '';
             if (to) to.value = '';
         } else {
@@ -791,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (ti && ms) ti.value = ms;
             if (to && pl) to.value = pl;
         }
-    });
+    }
 
     document.addEventListener('click', function (e) {
         const cardBtn = e.target.closest('[data-remove-card]');
