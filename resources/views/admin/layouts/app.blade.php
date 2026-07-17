@@ -11,7 +11,7 @@
     <!-- Bootstrap 5 CSS -->
     <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet" crossorigin="anonymous">
 
-    <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
+    <link rel="icon" href="{{ asset('favicon.ico') }}">
     @include('partials.offline-support')
 
     <!-- Flaticon UICONS -->

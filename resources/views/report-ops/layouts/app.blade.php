@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan KSS - Dashboard</title>
 
-    <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
+    <link rel="icon" href="{{ asset('favicon.ico') }}">
     @include('partials.offline-support')
 
     <!-- Google Font -->

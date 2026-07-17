@@ -8,7 +8,7 @@
     <!-- Google Font -->
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
 
-    <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
+    <link rel="icon" href="{{ asset('favicon.ico') }}">
     @include('partials.offline-support')
 
     <!-- LINK BOOTSTRAP 5 CSS -->
