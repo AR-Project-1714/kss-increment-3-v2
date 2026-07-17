@@ -6,7 +6,7 @@
     <title>Laporan KSS - Dashboard</title>
 
     <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
-    @include('partials.pwa')
+    @include('partials.offline-support')
 
     <!-- Google Font -->
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">

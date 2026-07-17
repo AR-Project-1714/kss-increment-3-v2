@@ -17,7 +17,7 @@ teknis**, dan **lokasi di kode** agar mudah ditelusuri.
 > | Badge sisa umur draft + Perpanjang | ✅ | ✅ | ✅ |
 > | Guard laporan ganda | ✅ | ✅ | ✅ |
 > | Panel "Intip Laporan Sebelumnya" | ✅ | ✅ | ✅ |
-> | PWA / mode lapangan | ✅ | ✅ | ✅ |
+> | Cache aset + fallback offline | ✅ | ✅ | ✅ |
 > | Form bertahap (wizard tab) | ✅ | ✅ | ✅ |
 > | Integrasi Data Master + cache | ✅ | ✅ | ✅ |
 > | Export PDF / Excel | ✅ | ✅ (PDF) | ✅ (PDF) |
@@ -359,15 +359,21 @@ hilang antar hari kerja.
 **Lokasi kode.** `ReportMaintenanceController::unfinishedPriorityItems()`;
 blok carry-over di `resources/views/pemeliharaan/partials/report-form.blade.php`.
 
-## 18. PWA / Mode Lapangan (seluruh aplikasi)
+## 18. Cache Aset & Fallback Offline (seluruh aplikasi)
 
-**Fungsi.** Aplikasi bisa di-install ke home screen (manifest + ikon), aset
-statis di-cache service worker, dan saat benar-benar offline tampil halaman
-fallback yang menjelaskan bahwa isian tersimpan di perangkat.
+**Fungsi.** Aset statis di-cache service worker sehingga kunjungan berikutnya
+jauh lebih ringan, dan saat benar-benar offline tampil halaman fallback yang
+menjelaskan bahwa isian tersimpan di perangkat (lihat [12] Autosave Offline).
 
-**Lokasi kode.** `public/manifest.webmanifest`, `public/sw.js`,
-`public/offline.html`, `resources/views/partials/pwa.blade.php` (di-include di
-semua layout).
+**Catatan.** Aplikasi sengaja **tidak** dibuat installable sebagai PWA
+standalone. Alur tinjau/cetak/unduh PDF memakai `target="_blank"` di banyak
+tempat; pada mode standalone tab baru terpaksa dibuka sebagai window terpisah,
+yang justru mengganggu petugas. Service worker tidak memerlukan mode standalone,
+jadi cache dan fallback offline tetap didapat penuh lewat tab browser biasa.
+
+**Lokasi kode.** `public/sw.js`, `public/offline.html`,
+`resources/views/partials/offline-support.blade.php` (di-include di semua
+layout).
 
 ## Catatan untuk Tim
 

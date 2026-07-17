@@ -1,8 +1,14 @@
 /*
  * Service worker Sistem Laporan KSS — mode lapangan.
  *
+ * Aplikasi sengaja TIDAK installable sebagai PWA standalone (tidak ada
+ * manifest): alur tinjau/cetak/unduh PDF memakai target="_blank" di banyak
+ * tempat, dan di mode standalone tab baru terpaksa jadi window terpisah.
+ * Service worker tidak memerlukan mode standalone, jadi cache aset dan
+ * fallback offline tetap berjalan penuh lewat tab browser biasa.
+ *
  * Strategi:
- *  - Precache halaman fallback offline + ikon aplikasi.
+ *  - Precache halaman fallback offline.
  *  - Navigasi halaman: network-first; saat jaringan putus tampilkan offline.html
  *    (halaman laporan berisi data dinamis milik user, tidak di-cache).
  *  - Aset statis same-origin (build Vite, gambar assets, favicon): cache-first —
@@ -13,19 +19,17 @@
  *    membuat versi lama nyangkut selamanya saat file vendor di-update.
  */
 
-const CACHE_VERSION = 'kss-pwa-v2';
+const CACHE_VERSION = 'kss-offline-v3';
 const STATIC_CACHE = CACHE_VERSION + '-static';
 const RUNTIME_CACHE = CACHE_VERSION + '-runtime';
 
 const OFFLINE_URL = new URL('offline.html', self.registration.scope).href;
 
+// Hanya offline.html — halaman itu sudah self-contained (CSS inline, tanpa
+// gambar). Satu URL 404 di sini membuat cache.addAll menolak dan install
+// service worker gagal total, jadi daftar ini sengaja dijaga seminimal mungkin.
 const PRECACHE_URLS = [
     OFFLINE_URL,
-    new URL('manifest.webmanifest', self.registration.scope).href,
-    new URL('assets/pwa-icon-192.png', self.registration.scope).href,
-    new URL('assets/pwa-icon-512.png', self.registration.scope).href,
-    new URL('assets/pwa-icon-512-maskable.png', self.registration.scope).href,
-    new URL('assets/apple-touch-icon.png', self.registration.scope).href,
 ];
 
 self.addEventListener('install', (event) => {
