@@ -6,6 +6,7 @@
     <title>Laporan KSS - Dashboard</title>
 
     <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
+    @include('partials.pwa')
 
     <!-- Google Font -->
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
@@ -29,9 +30,10 @@
 
     @include('components.kss-datetime-picker')
     @include('components.kss-mobile-sheet')
+    @include('partials.officer-icon-alignment')
 
 </head>
-<body>
+<body class="officer-report-shell">
     <!-- Dark mode init lebih awal agar overlay langsung pakai warna yang benar -->
     <script>if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');</script>
 

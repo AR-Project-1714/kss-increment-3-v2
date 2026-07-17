@@ -90,6 +90,16 @@
     }
 @endphp
 
+<script>
+    (function () {
+        try {
+            document.documentElement.classList.toggle('kss-dark-theme', localStorage.getItem('theme') === 'dark');
+        } catch (error) {
+            // localStorage dapat diblokir pada mode privasi; gunakan tema terang.
+        }
+    })();
+</script>
+
 <style>
     .sign-fab {
         position: fixed;
@@ -101,19 +111,26 @@
         height: 46px;
         max-width: 46px;
         padding: 0 13px;
-        border: none;
+        border: 1px solid rgba(5, 150, 105, .55);
         border-radius: 999px;
-        background: #10B981;
-        color: #fff;
-        box-shadow: 0 7px 18px rgba(16, 185, 129, .32);
+        background: rgba(255, 255, 255, .88);
+        color: #047857;
+        box-shadow: 0 7px 18px rgba(16, 185, 129, .14);
         cursor: pointer;
         overflow: hidden;
         white-space: nowrap;
         font-family: 'Poppins', Arial, sans-serif;
-        transition: max-width .42s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .25s ease, transform .18s ease;
+        transition: max-width .42s cubic-bezier(0.4, 0, 0.2, 1), color .2s ease, border-color .2s ease, box-shadow .25s ease, transform .18s ease;
     }
 
     .sign-fab:active { transform: scale(.96); }
+
+    html.kss-dark-theme .sign-fab {
+        border-color: rgba(110, 231, 183, .62);
+        background: rgba(30, 41, 59, .88);
+        color: #6EE7B7;
+        box-shadow: 0 7px 20px rgba(2, 6, 23, .32);
+    }
 
     .sign-fab .sign-fab__icon {
         display: inline-flex;
@@ -127,8 +144,12 @@
 
     .sign-fab .sign-fab__icon i {
         position: relative;
-        top: 3px;
+        top: 0;
+        display: inline-flex;
+        line-height: 1;
     }
+
+    .sign-fab .sign-fab__icon i::before { display: block; line-height: 1; transform: translateY(-.08em); }
 
     .sign-fab .sign-fab__text {
         max-width: 0;
@@ -144,7 +165,18 @@
         .sign-fab:hover,
         .sign-fab:focus-visible {
             max-width: 190px;
-            box-shadow: 0 9px 24px rgba(16, 185, 129, .42);
+            border-color: #059669;
+            background: rgba(255, 255, 255, .96);
+            color: #065F46;
+            box-shadow: 0 9px 24px rgba(16, 185, 129, .22);
+        }
+
+        html.kss-dark-theme .sign-fab:hover,
+        html.kss-dark-theme .sign-fab:focus-visible {
+            border-color: #6EE7B7;
+            background: rgba(30, 41, 59, .96);
+            color: #D1FAE5;
+            box-shadow: 0 9px 26px rgba(2, 6, 23, .4), 0 0 18px rgba(52, 211, 153, .12);
         }
 
         .sign-fab:hover .sign-fab__text,

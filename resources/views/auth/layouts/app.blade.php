@@ -9,6 +9,7 @@
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
 
     <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
+    @include('partials.pwa')
 
     <!-- LINK BOOTSTRAP 5 CSS -->
     <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet" crossorigin="anonymous">

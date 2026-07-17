@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline — Sistem Laporan KSS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif;
+            background: #F1F5F9;
+            color: #0F172A;
+        }
+        .card {
+            max-width: 420px;
+            width: 100%;
+            padding: 32px 28px;
+            border-radius: 16px;
+            background: #fff;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+            text-align: center;
+        }
+        .icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            background: rgba(37, 99, 235, 0.10);
+        }
+        h1 { font-size: 18px; margin-bottom: 8px; }
+        p { font-size: 13px; color: #475569; line-height: 1.6; }
+        .hint {
+            margin-top: 16px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(245, 158, 11, 0.10);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            color: #92400E;
+            font-size: 12px;
+        }
+        button {
+            margin-top: 18px;
+            padding: 10px 22px;
+            border: none;
+            border-radius: 22px;
+            background: #2563EB;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        button:hover { background: #1D4ED8; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">&#128268;</div>
+        <h1>Anda Sedang Offline</h1>
+        <p>Halaman ini tidak bisa dimuat karena tidak ada koneksi jaringan. Periksa sinyal atau Wi-Fi Anda, lalu coba lagi.</p>
+        <div class="hint">Isian laporan yang sempat diketik saat offline tersimpan otomatis di perangkat dan akan dikirim ulang begitu koneksi kembali.</div>
+        <button onclick="window.location.reload()">Coba Lagi</button>
+    </div>
+</body>
+</html>

@@ -6,6 +6,7 @@
     <title>Laporan KSS - Safety / K3</title>
 
     <link rel="icon" href="{{ asset('assets/Logo-compressed 1.png') }}">
+    @include('partials.pwa')
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
 
     <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet" crossorigin="anonymous">
@@ -16,8 +17,9 @@
     @vite('resources/css/layouts/report-safety.css')
     @include('components.kss-mobile-sheet')
     @stack('styles')
+    @include('partials.officer-icon-alignment')
 </head>
-<body>
+<body class="officer-report-shell">
     <script>if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');</script>
 
     <div class="sk-overlay" id="sk-overlay"><div class="sk-spinner"></div></div>
