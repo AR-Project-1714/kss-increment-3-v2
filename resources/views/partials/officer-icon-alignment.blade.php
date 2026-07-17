@@ -44,13 +44,6 @@
         top: -2px !important;
     }
 
-    /* Pada island sticky, tinggi tombol lebih ringkas sehingga glyph disket
-       membutuhkan koreksi tersendiri agar pusat visualnya sejajar dengan teks. */
-    body.officer-report-shell .content-header.is-sticky .btn-new i.fi,
-    body.officer-report-shell .content-header.is-sticky .btn-draft-save i.fi {
-        top: -2px !important;
-    }
-
     /* Pusat geometris glyph UIcons sedikit lebih rendah dari pusat tombol.
        -2px terlihat terlalu tinggi dan 0px terlalu rendah, sehingga koreksi
        optik -1px dipakai konsisten pada dashboard dan form. */
