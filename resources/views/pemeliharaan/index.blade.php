@@ -166,6 +166,11 @@
                                     <span class="icon-edit"><i class="fi fi-rr-time-forward"></i></span>
                                     <span class="text fsize-10 text-muted">Terakhir diedit {{ $formatDiff($report->updated_at) }}</span>
                                 </div>
+                                @include('partials.draft-expiry', [
+                                    'report' => $report,
+                                    'ttlDays' => \App\Models\MaintenanceReport::DRAFT_TTL_DAYS,
+                                    'extendUrl' => route('pemeliharaan.extend-draft', $report),
+                                ])
                             </div>
                             <div class="draft-button d-flex justify-content-end align-items-center gap-10 flexible" style="min-width:220px;">
                                 <button type="button" class="btn-draft-edit" data-open-modal="continue-draft-modal-{{ $report->id }}">

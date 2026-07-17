@@ -286,4 +286,60 @@ class OperationalReportTest extends BlackBoxTestCase
         $report = DailyReport::where('created_by', $operator->id)->firstOrFail();
         $this->assertSame(ReportStatus::Draft, $report->status);
     }
+
+    public function test_tc_ops_15_laporan_ganda_tanggal_shift_regu_ditolak(): void
+    {
+        $operator = $this->operator('A');
+
+        $this->actingAs($operator)
+            ->post(route('report-ops.store'), $this->validSubmitPayload())
+            ->assertRedirect(route('report-ops.index'));
+
+        // Submit kedua dengan tanggal + shift + regu sama ditolak (guard laporan ganda).
+        $this->actingAs($operator)
+            ->from(route('report-ops.create'))
+            ->post(route('report-ops.store'), $this->validSubmitPayload())
+            ->assertRedirect(route('report-ops.create'))
+            ->assertSessionHasErrors('report_date');
+
+        // Kombinasi berbeda (shift lain) tetap diterima.
+        $this->actingAs($operator)
+            ->post(route('report-ops.store'), $this->validSubmitPayload([
+                'shift' => 'Siang',
+                'time_range' => '15.00 - 23.00',
+            ]))
+            ->assertRedirect(route('report-ops.index'));
+
+        // Draft dengan kombinasi sama juga tetap boleh disimpan.
+        $this->actingAs($operator)
+            ->post(route('report-ops.store'), $this->validSubmitPayload(['status' => 'draft']))
+            ->assertRedirect(route('report-ops.index'));
+
+        $this->assertSame(2, DailyReport::where('status', ReportStatus::Submitted->value)->count());
+    }
+
+    public function test_tc_ops_16_masa_simpan_draft_dapat_diperpanjang(): void
+    {
+        $operator = $this->operator('A');
+
+        $draft = DailyReport::create([
+            'user_id' => $operator->id,
+            'created_by' => $operator->id,
+            'report_date' => '2026-05-19',
+            'status' => ReportStatus::Draft,
+        ]);
+        DailyReport::whereKey($draft->id)->update(['updated_at' => now()->subDays(2)]);
+
+        $this->actingAs($operator)
+            ->post(route('report-ops.extend-draft', $draft))
+            ->assertRedirect(route('report-ops.index', ['tab' => 'draft']));
+
+        // updated_at tersegarkan sehingga hitungan masa simpan (3 hari) dimulai ulang.
+        $this->assertTrue($draft->fresh()->updated_at->gt(now()->subMinute()));
+
+        // Bukan pembuat draft: ditolak.
+        $this->actingAs($this->operator('B'))
+            ->post(route('report-ops.extend-draft', $draft))
+            ->assertForbidden();
+    }
 }

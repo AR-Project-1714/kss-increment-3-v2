@@ -12,16 +12,22 @@ teknis**, dan **lokasi di kode** agar mudah ditelusuri.
 > | Fitur | Operasional | Pemeliharaan | Safety |
 > |---|:---:|:---:|:---:|
 > | Autosave draft | ✅ | ✅ | ✅ |
+> | Autosave offline (localStorage) | ✅ | ✅ | ✅ |
 > | Draft manual + auto-hapus 3 hari | ✅ | ✅ | ✅ |
+> | Badge sisa umur draft + Perpanjang | ✅ | ✅ | ✅ |
+> | Guard laporan ganda | ✅ | ✅ | ✅ |
+> | Panel "Intip Laporan Sebelumnya" | ✅ | ✅ | ✅ |
+> | PWA / mode lapangan | ✅ | ✅ | ✅ |
 > | Form bertahap (wizard tab) | ✅ | ✅ | ✅ |
 > | Integrasi Data Master + cache | ✅ | ✅ | ✅ |
 > | Export PDF / Excel | ✅ | ✅ (PDF) | ✅ (PDF) |
 > | Serah terima antar regu + tanda tangan | ✅ | — | — |
 > | Sinkronisasi Cek Unit antar shift | ✅ | — | — |
 > | "Set Semua Baik" | ✅ | — | — |
-> | Ship Operation (registri kapal pintar) | ✅ | — | — |
+> | Ship Operation (registri kapal pintar + arsip) | ✅ | — | — |
 > | Akumulasi muat kantong otomatis | ✅ | — | — |
 > | Saran/autocomplete pencarian | ✅ | — | — |
+> | Carry-over pekerjaan belum selesai | — | ✅ | — |
 
 ---
 
@@ -293,6 +299,75 @@ berikutnya lebih cepat karena PDF yang sudah dibuat di-cache.
   `pendingPdfCacheKey()`, `exportExcel()` dan fungsi `fillExcel*`.
 
 ---
+
+## 12. Autosave Offline — localStorage fallback (semua modul)
+
+**Fungsi.** Bila jaringan putus saat autosave, seluruh isian form disimpan ke
+`localStorage` browser (pil menampilkan **"Tersimpan offline — sinkron saat
+online"**), lalu otomatis dikirim ulang ke server begitu koneksi kembali atau
+saat halaman form berikutnya dibuka.
+
+**Lokasi kode.** `resources/views/partials/report-autosave.blade.php`
+(`storeOfflineDraft`, `syncOfflineDrafts`, `OFFLINE_KEY_PREFIX`).
+
+## 13. Badge Sisa Umur Draft + Tombol Perpanjang (semua modul)
+
+**Fungsi.** Tab Draft menampilkan chip **"Terhapus otomatis dalam X hari/jam"**
+(merah bila < 24 jam) beserta tombol **Perpanjang** yang me-reset hitungan masa
+simpan 3 hari — draft tidak lagi terhapus diam-diam.
+
+**Lokasi kode.** `resources/views/partials/draft-expiry.blade.php`; endpoint
+`extendDraft()` di ketiga controller laporan (route `*.extend-draft`).
+
+## 14. Guard Laporan Ganda (semua modul)
+
+**Fungsi.** Submit final ditolak bila sudah ada laporan terkirim untuk
+**tanggal + shift + regu** yang sama (Operasional) atau **tanggal** yang sama
+(Pemeliharaan/Safety), sehingga data satu periode tidak terpecah dua. Draft
+tidak dibatasi.
+
+**Lokasi kode.** Closure rule pada `report_date` di `rules()` masing-masing
+controller laporan.
+
+## 15. Panel "Intip Laporan Sebelumnya" (semua modul)
+
+**Fungsi.** Tombol melayang di form laporan membuka drawer berisi laporan
+periode sebelumnya (untuk Operasional: laporan non-draft terakhir yang dibuat/
+diserahkan ke regu user) tanpa keluar dari form — memudahkan mencocokkan data
+lanjutan.
+
+**Lokasi kode.** `resources/views/partials/report-peek.blade.php`; metode
+`previousReportPeek()` di ketiga controller laporan.
+
+## 16. Ship Operation Diarsipkan, Bukan Dihapus (Operasional)
+
+**Fungsi.** Kapal aktif yang tidak diperbarui > 3 hari kini **diarsipkan**
+(status `inactive`), bukan dihapus. Kapal terarsip tetap muncul di pencarian
+saran (chip **"Diarsipkan"**) dan otomatis aktif kembali saat dipakai — akumulasi
+muat tidak putus walau operasi jeda (cuaca/antrean jetty).
+
+**Lokasi kode.** `ShipOperation::pruneStaleActiveSuggestions()`,
+`ReportOpsController::shipOperationSuggestions()`, `resolveShipOperation()`.
+
+## 17. Carry-over Pekerjaan Belum Selesai (Pemeliharaan)
+
+**Fungsi.** Pekerjaan Prioritas berstatus "Belum" dari laporan terkirim terakhir
+otomatis dimuat sebagai baris awal laporan baru, dengan keterangan
+**"Lanjutan dari [tanggal]"** dan banner informasi — pekerjaan lanjutan tidak
+hilang antar hari kerja.
+
+**Lokasi kode.** `ReportMaintenanceController::unfinishedPriorityItems()`;
+blok carry-over di `resources/views/pemeliharaan/partials/report-form.blade.php`.
+
+## 18. PWA / Mode Lapangan (seluruh aplikasi)
+
+**Fungsi.** Aplikasi bisa di-install ke home screen (manifest + ikon), aset
+statis di-cache service worker, dan saat benar-benar offline tampil halaman
+fallback yang menjelaskan bahwa isian tersimpan di perangkat.
+
+**Lokasi kode.** `public/manifest.webmanifest`, `public/sw.js`,
+`public/offline.html`, `resources/views/partials/pwa.blade.php` (di-include di
+semua layout).
 
 ## Catatan untuk Tim
 

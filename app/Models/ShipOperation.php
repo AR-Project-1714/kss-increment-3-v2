@@ -12,6 +12,8 @@ class ShipOperation extends Model
 
     public const STATUS_ACTIVE = 'active';
 
+    public const STATUS_INACTIVE = 'inactive';
+
     public const STATUS_COMPLETED = 'completed';
 
     public const ACTIVE_SUGGESTION_TTL_DAYS = 3;
@@ -19,8 +21,11 @@ class ShipOperation extends Model
     protected $guarded = ['id'];
 
     /**
-     * Hapus saran operasi kapal (muat kantong/curah) yang sudah tidak aktif
-     * melewati masa simpan. Dipakai on-request maupun lewat penjadwal.
+     * Arsipkan (bukan hapus) saran operasi kapal yang tidak diperbarui melewati
+     * masa simpan. Operasi kapal bisa jeda beberapa hari (cuaca, antrean jetty),
+     * jadi datanya dipertahankan agar akumulasi muat tidak putus — kapal terarsip
+     * tetap bisa ditemukan lewat pencarian saran dan aktif kembali saat dipakai.
+     * Dipakai on-request maupun lewat penjadwal.
      */
     public static function pruneStaleActiveSuggestions(): int
     {
@@ -36,7 +41,7 @@ class ShipOperation extends Model
                             ->where('created_at', '<', $cutoff);
                     });
             })
-            ->delete();
+            ->update(['status' => self::STATUS_INACTIVE]);
     }
 
     protected function casts(): array

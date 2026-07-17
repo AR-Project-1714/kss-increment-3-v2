@@ -206,6 +206,18 @@ class ReportMaintenanceController extends Controller
         return redirect()->route('pemeliharaan.index')->with('success', 'Draft laporan pemeliharaan berhasil dihapus.');
     }
 
+    public function extendDraft(MaintenanceReport $report)
+    {
+        abort_unless($this->canDelete($report, auth()->user()), 403);
+
+        // Menyentuh updated_at me-reset hitungan masa simpan draft (DRAFT_TTL_DAYS).
+        $report->touch();
+
+        return redirect()
+            ->route('pemeliharaan.index', ['tab' => 'draft'])
+            ->with('success', 'Masa simpan draft diperpanjang '.MaintenanceReport::DRAFT_TTL_DAYS.' hari sejak sekarang.');
+    }
+
     public function exportPdf(MaintenanceReport $report)
     {
         abort_unless($this->canAccess($report, auth()->user()), 403);
@@ -405,7 +417,90 @@ class ReportMaintenanceController extends Controller
             'employees'  => $employees,
             'workGroups' => self::WORK_GROUPS,
             'latestUnitConditions' => $this->latestUnitConditions($report),
+            // Carry-over hanya untuk laporan baru; saat edit, baris prioritas
+            // memakai data laporan itu sendiri.
+            'carryOverPriority' => $report ? collect() : $this->unfinishedPriorityItems(),
+            'previousReportPeek' => $this->previousReportPeek($report),
         ];
+    }
+
+    /**
+     * Laporan pemeliharaan non-draft terakhir milik user — untuk panel
+     * "Intip Laporan Sebelumnya" di form tanpa harus keluar dari halaman.
+     */
+    private function previousReportPeek(?MaintenanceReport $current = null): ?array
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $previous = MaintenanceReport::query()
+            ->select(['id', 'report_date', 'day_name'])
+            ->where('created_by', $user->id)
+            ->whereIn('status', [MaintenanceStatus::Submitted->value, MaintenanceStatus::Approved->value])
+            ->when($current, fn ($query) => $query->whereKeyNot($current->getKey()))
+            ->orderByDesc('report_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $previous) {
+            return null;
+        }
+
+        $meta = collect([
+            $previous->day_name,
+            $previous->report_date
+                ? $previous->report_date->locale('id')->translatedFormat('d F Y')
+                : null,
+        ])->filter()->implode(', ');
+
+        return [
+            'url' => route('pemeliharaan.show', $previous),
+            'title' => 'Laporan Harian Pemeliharaan Sebelumnya',
+            'meta' => $meta,
+        ];
+    }
+
+    /**
+     * Pekerjaan prioritas yang belum selesai dari laporan terkirim/disetujui
+     * terakhir — dimuat otomatis sebagai baris awal laporan baru supaya
+     * pekerjaan lanjutan tidak hilang antar periode kerja.
+     */
+    private function unfinishedPriorityItems()
+    {
+        $latest = MaintenanceReport::query()
+            ->whereIn('status', [
+                MaintenanceStatus::Submitted->value,
+                MaintenanceStatus::Approved->value,
+            ])
+            ->orderByDesc('report_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $latest) {
+            return collect();
+        }
+
+        $sourceDate = $latest->report_date
+            ? $latest->report_date->locale('id')->translatedFormat('d F Y')
+            : null;
+
+        return $latest->priorityWorkItems()
+            ->where('is_completed', false)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (MaintenanceWorkItem $item): array => [
+                'unit_id'     => $item->master_unit_id,
+                'unit_label'  => $item->unit_label,
+                'description' => $item->description,
+                'assignee'    => $item->assignee,
+                'notes'       => $item->notes,
+                'source_date' => $sourceDate,
+            ])
+            ->values();
     }
 
     private function latestUnitConditions(?MaintenanceReport $report = null)
@@ -461,7 +556,27 @@ class ReportMaintenanceController extends Controller
 
         return [
             'status'                 => ['required', Rule::in([MaintenanceStatus::Draft->value, MaintenanceStatus::Submitted->value])],
-            'report_date'            => [$requiredWhenSubmit, 'date'],
+            'report_date'            => [
+                $requiredWhenSubmit,
+                'date',
+                function (string $attribute, mixed $value, callable $fail) use ($isDraft): void {
+                    if ($isDraft || blank($value)) {
+                        return;
+                    }
+
+                    $current = request()->route('report');
+
+                    $duplicate = MaintenanceReport::query()
+                        ->whereDate('report_date', $value)
+                        ->where('status', '!=', MaintenanceStatus::Draft->value)
+                        ->when($current instanceof MaintenanceReport, fn ($query) => $query->whereKeyNot($current->getKey()))
+                        ->exists();
+
+                    if ($duplicate) {
+                        $fail('Sudah ada laporan pemeliharaan terkirim untuk tanggal tersebut. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
+                    }
+                },
+            ],
             'karu_pemeliharaan_name' => ['nullable', 'string', 'max:255'],
             'karu_peralatan_name'    => ['nullable', 'string', 'max:255'],
             'main_items'             => ['nullable', 'array'],

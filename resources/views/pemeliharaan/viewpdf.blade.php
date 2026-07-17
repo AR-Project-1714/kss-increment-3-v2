@@ -64,10 +64,13 @@
             .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }
         }
     </style>
+    @include('partials.pdf-preview-floating-toolbar')
 </head>
 <body>
-    <div class="toolbar">
-        <a href="{{ $backUrl }}" class="btn back"><i class="fi fi-rr-arrow-small-left"></i> Kembali</a>
+    <div class="toolbar pdf-preview-toolbar{{ request()->boolean('peek') ? ' is-peek' : '' }}">
+        @unless (request()->boolean('peek'))
+            <a href="{{ $backUrl }}" class="btn back"><i class="fi fi-rr-arrow-small-left"></i> Kembali</a>
+        @endunless
         <div class="grp">
             @if ($pdfUrl)
                 <a href="{{ $pdfUrl }}" class="btn pdf" id="btnPdf" target="_blank" rel="noopener" aria-label="Unduh PDF"><i class="fi fi-rr-file-pdf"></i> <span class="btn-text">Unduh PDF</span></a>
@@ -79,6 +82,7 @@
     {{-- Tombol "Unduh PDF": PDF terbuka di tab baru, lalu tab pratinjau ini
          ditutup dan fokus kembali ke website laporan KSS. Jika browser memblokir
          penutupan tab, navigasi balik ke daftar laporan. --}}
+    @unless (request()->boolean('peek'))
     <script>
         (function () {
             var pdfBtn = document.getElementById('btnPdf');
@@ -98,6 +102,7 @@
             });
         })();
     </script>
+    @endunless
 
     <div class="sheet-frame">
         <div class="sheet">

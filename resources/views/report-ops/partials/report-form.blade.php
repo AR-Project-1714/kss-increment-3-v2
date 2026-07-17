@@ -3452,3 +3452,4 @@ document.addEventListener('DOMContentLoaded', function () {
 @endpush
 
 @include('partials.report-autosave')
+@include('partials.report-peek')

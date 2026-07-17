@@ -4,6 +4,10 @@
     dan saat menutup/meninggalkan tab. Tujuannya agar pekerjaan tidak hilang ketika
     session login habis atau tombol logout tak sengaja tertekan.
 
+    Fallback offline: bila jaringan putus saat autosave, isian form disimpan ke
+    localStorage ("Tersimpan offline") dan otomatis disinkronkan ke server ketika
+    koneksi kembali atau saat halaman form berikutnya dibuka.
+
     Notifikasi: pil mungil di atas-tengah layar. Saat menyimpan tampil spinner,
     lalu berubah jadi centang + "Laporan tersimpan". Bila tombol "Simpan Sebagai
     Draft" sedang melayang (header sticky), pil muncul tepat di bawah tombol itu.
@@ -97,10 +101,13 @@
     const AUTOSAVE_INTERVAL_MS = 30000;
     const SPINNER_MS = 1500;      // spinner berputar tetap ~1,5 dtk (target 1-2 dtk)
     const DONE_VISIBLE_MS = 2500; // teks "Laporan tersimpan" tampil ~2,5 dtk (target 2-3 dtk)
+    const OFFLINE_KEY_PREFIX = 'kssOfflineDraft:';
+    const OFFLINE_TTL_MS = 3 * 24 * 60 * 60 * 1000; // selaras masa simpan draft (3 hari)
     let dirty = false;
     let saving = false;
     let trackingReady = false;
     let saveError = false;
+    let savedOffline = false;
 
     const toast = document.createElement('div');
     toast.id = 'reportAutosaveToast';
@@ -144,12 +151,14 @@
         void toast.offsetWidth; // reset agar animasi centang bisa terputar ulang
         toast.classList.add('show');
         saveError = false;
+        savedOffline = false;
         spinnerTimer = window.setTimeout(finishSpinner, SPINNER_MS);
     }
 
     function finishSpinner() {
         if (!toast.classList.contains('show')) return;
         if (saveError) { hideToast(); return; } // simpan gagal: tutup tanpa "tersimpan"
+        if (label) label.textContent = savedOffline ? 'Tersimpan offline — sinkron saat online' : 'Laporan tersimpan';
         toast.classList.add('is-done');
         window.clearTimeout(hideTimer);
         hideTimer = window.setTimeout(hideToast, DONE_VISIBLE_MS);
@@ -181,10 +190,90 @@
     // tidak ada balapan request yang menurunkan status laporan.
     function suppressed() { return window.__reportAutosaveSuppress === true; }
 
+    // ===== Fallback offline (localStorage) =====
+
+    function offlineEntries(data) {
+        const entries = [];
+        data.forEach((value, name) => {
+            if (typeof value === 'string') entries.push([name, value]);
+        });
+        return entries;
+    }
+
+    function storeOfflineDraft() {
+        try {
+            window.localStorage.setItem(OFFLINE_KEY_PREFIX + form.action, JSON.stringify({
+                action: form.action,
+                savedAt: Date.now(),
+                entries: offlineEntries(buildDraftFormData()),
+            }));
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    // Kirim ulang seluruh draft offline yang tertunda. Record dihapus bila server
+    // sudah menjawab (sukses atau ditolak permanen); dipertahankan hanya saat
+    // jaringan masih gagal, token kedaluwarsa (419), atau server error (5xx).
+    async function syncOfflineDrafts() {
+        if (!navigator.onLine) return;
+
+        let keys = [];
+        try {
+            keys = Object.keys(window.localStorage).filter((key) => key.indexOf(OFFLINE_KEY_PREFIX) === 0);
+        } catch (_) { return; }
+
+        let synced = 0;
+
+        for (const key of keys) {
+            let record = null;
+            try { record = JSON.parse(window.localStorage.getItem(key)); } catch (_) {}
+
+            const expired = !record || !record.action || !Array.isArray(record.entries)
+                || (Date.now() - (record.savedAt || 0)) > OFFLINE_TTL_MS;
+
+            if (expired) {
+                try { window.localStorage.removeItem(key); } catch (_) {}
+                continue;
+            }
+
+            const data = new FormData();
+            record.entries.forEach(([name, value]) => data.append(name, value));
+            data.set('status', 'draft');
+            data.set('autosave', '1');
+
+            // Token CSRF di record bisa kedaluwarsa; pakai token halaman ini.
+            const tokenInput = form.querySelector('input[name="_token"]');
+            if (tokenInput) data.set('_token', tokenInput.value);
+
+            try {
+                const response = await fetch(record.action, {
+                    method: 'POST',
+                    body: data,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                });
+
+                if (response.status !== 419 && response.status < 500) {
+                    try { window.localStorage.removeItem(key); } catch (_) {}
+                    if (response.ok) synced++;
+                }
+            } catch (_) {
+                // Masih offline / server tak terjangkau — coba lagi nanti.
+            }
+        }
+
+        if (synced > 0 && typeof window.kssToast === 'function') {
+            window.kssToast('success', 'Draft offline tersinkron', 'Isian yang tersimpan offline sudah dikirim ke server. Periksa tab Draft.');
+        }
+    }
+
     async function saveDraft() {
         if (saving || suppressed() || !dirty) return;
         saving = true;
         showSaving(); // spinner tampil ~SPINNER_MS, lalu finishSpinner() menampilkan hasil
+        const actionUsed = form.action;
         try {
             const response = await fetch(form.action, {
                 method: 'POST',
@@ -201,16 +290,28 @@
                 ensurePutMethod();
             }
             dirty = false;
+            // Server sudah menerima data terbaru — draft offline lama tak diperlukan.
+            try {
+                window.localStorage.removeItem(OFFLINE_KEY_PREFIX + actionUsed);
+                window.localStorage.removeItem(OFFLINE_KEY_PREFIX + form.action);
+            } catch (_) {}
         } catch (_) {
-            // Best-effort. Tandai gagal agar "Laporan tersimpan" tidak ditampilkan.
-            saveError = true;
+            // Jaringan gagal: amankan isian ke localStorage agar tidak hilang.
+            if (storeOfflineDraft()) {
+                savedOffline = true;
+                dirty = false;
+            } else {
+                saveError = true;
+            }
         } finally {
             saving = false;
         }
     }
 
     function saveDraftBeacon() {
-        if (suppressed() || !dirty || !navigator.sendBeacon) return;
+        if (suppressed() || !dirty) return;
+        if (!navigator.onLine) { storeOfflineDraft(); return; }
+        if (!navigator.sendBeacon) return;
         try { navigator.sendBeacon(form.action, buildDraftFormData()); } catch (_) {}
     }
 
@@ -222,6 +323,10 @@
     window.addEventListener('load', () => window.setTimeout(() => { trackingReady = true; }, 1200));
 
     window.setInterval(saveDraft, AUTOSAVE_INTERVAL_MS);
+
+    // Sinkronkan draft offline yang tertunda: saat halaman dibuka & saat online kembali.
+    window.addEventListener('load', () => window.setTimeout(syncOfflineDrafts, 2500));
+    window.addEventListener('online', () => window.setTimeout(syncOfflineDrafts, 1500));
 
     window.addEventListener('pagehide', saveDraftBeacon);
     document.addEventListener('visibilitychange', () => {

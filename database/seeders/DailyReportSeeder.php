@@ -312,15 +312,16 @@ class DailyReportSeeder extends Seeder
             $activity->delete();
         });
 
-        if ($report->materialActivity) {
-            $report->materialActivity->items()->delete();
-            $report->materialActivity->delete();
-        }
+        // materialActivity & containerActivity adalah relasi hasMany (Collection).
+        $report->materialActivity->each(function ($activity): void {
+            $activity->items()->delete();
+            $activity->delete();
+        });
 
-        if ($report->containerActivity) {
-            $report->containerActivity->items()->delete();
-            $report->containerActivity->delete();
-        }
+        $report->containerActivity->each(function ($activity): void {
+            $activity->items()->delete();
+            $activity->delete();
+        });
 
         if ($report->turbaActivity) {
             $report->turbaActivity->deliveries()->delete();

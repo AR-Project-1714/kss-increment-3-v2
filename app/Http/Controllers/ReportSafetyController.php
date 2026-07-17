@@ -205,6 +205,18 @@ class ReportSafetyController extends Controller
         return redirect()->route('safety.index')->with('success', 'Draft laporan K3 berhasil dihapus.');
     }
 
+    public function extendDraft(SafetyReport $report)
+    {
+        abort_unless($this->canDelete($report, auth()->user()), 403);
+
+        // Menyentuh updated_at me-reset hitungan masa simpan draft (DRAFT_TTL_DAYS).
+        $report->touch();
+
+        return redirect()
+            ->route('safety.index', ['tab' => 'draft'])
+            ->with('success', 'Masa simpan draft diperpanjang '.SafetyReport::DRAFT_TTL_DAYS.' hari sejak sekarang.');
+    }
+
     public function exportPdf(SafetyReport $report)
     {
         abort_unless($this->canAccess($report, auth()->user()), 403);
@@ -393,6 +405,41 @@ class ReportSafetyController extends Controller
             'incidentRows'   => $report ? $this->incidentRowsFromReport($report) : [],
             'catalogItems'   => $catalogItems,
             'conditions'     => self::CONDITIONS,
+            'previousReportPeek' => $this->previousReportPeek($report),
+        ];
+    }
+
+    /**
+     * Laporan K3 non-draft terakhir milik user — untuk panel "Intip Laporan
+     * Sebelumnya" di form tanpa harus keluar dari halaman.
+     */
+    private function previousReportPeek(?SafetyReport $current = null): ?array
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $previous = SafetyReport::query()
+            ->select(['id', 'report_date'])
+            ->where('created_by', $user->id)
+            ->whereIn('status', [SafetyStatus::Submitted->value, SafetyStatus::Approved->value])
+            ->when($current, fn ($query) => $query->whereKeyNot($current->getKey()))
+            ->orderByDesc('report_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $previous) {
+            return null;
+        }
+
+        return [
+            'url' => route('safety.show', $previous),
+            'title' => 'Laporan Harian K3 Sebelumnya',
+            'meta' => $previous->report_date
+                ? $previous->report_date->locale('id')->translatedFormat('d F Y')
+                : null,
         ];
     }
 
@@ -511,7 +558,27 @@ class ReportSafetyController extends Controller
 
         return [
             'status'      => ['required', Rule::in([SafetyStatus::Draft->value, SafetyStatus::Submitted->value])],
-            'report_date' => [$requiredWhenSubmit, 'date'],
+            'report_date' => [
+                $requiredWhenSubmit,
+                'date',
+                function (string $attribute, mixed $value, callable $fail) use ($isDraft): void {
+                    if ($isDraft || blank($value)) {
+                        return;
+                    }
+
+                    $current = request()->route('report');
+
+                    $duplicate = SafetyReport::query()
+                        ->whereDate('report_date', $value)
+                        ->where('status', '!=', SafetyStatus::Draft->value)
+                        ->when($current instanceof SafetyReport, fn ($query) => $query->whereKeyNot($current->getKey()))
+                        ->exists();
+
+                    if ($duplicate) {
+                        $fail('Sudah ada laporan K3 terkirim untuk tanggal tersebut. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
+                    }
+                },
+            ],
             'work_time_start' => ['nullable', 'string', 'max:10'],
             'work_time_end'   => ['nullable', 'string', 'max:10'],
             'locations'   => ['nullable', 'array'],

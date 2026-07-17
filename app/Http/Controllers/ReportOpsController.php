@@ -232,9 +232,16 @@ class ReportOpsController extends Controller
 
         $this->pruneStaleShipOperations();
 
+        // Tanpa kata kunci hanya kapal aktif yang disarankan; saat petugas
+        // mengetik, kapal terarsip (jeda >TTL hari) ikut dicari supaya operasi
+        // yang tertunda bisa dilanjutkan tanpa kehilangan akumulasi.
         $operations = ShipOperation::query()
             ->where('type', $validated['type'])
-            ->where('status', ShipOperation::STATUS_ACTIVE)
+            ->when(
+                $keyword === '',
+                fn ($query) => $query->where('status', ShipOperation::STATUS_ACTIVE),
+                fn ($query) => $query->whereIn('status', [ShipOperation::STATUS_ACTIVE, ShipOperation::STATUS_INACTIVE])
+            )
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $like = '%'.$keyword.'%';
 
@@ -251,6 +258,7 @@ class ReportOpsController extends Controller
                     ], $like);
                 });
             })
+            ->orderByRaw("CASE WHEN status = '".ShipOperation::STATUS_ACTIVE."' THEN 0 ELSE 1 END")
             ->latest('updated_at')
             ->limit(8)
             ->get();
@@ -433,6 +441,18 @@ class ReportOpsController extends Controller
         }
 
         return redirect()->route('report-ops.index')->with('success', 'Draft laporan berhasil dihapus.');
+    }
+
+    public function extendDraft(DailyReport $report)
+    {
+        abort_unless($this->canDeleteReport($report, auth()->user()), 403);
+
+        // Menyentuh updated_at me-reset hitungan masa simpan draft (DRAFT_TTL_DAYS).
+        $report->touch();
+
+        return redirect()
+            ->route('report-ops.index', ['tab' => 'draft'])
+            ->with('success', 'Masa simpan draft diperpanjang '.DailyReport::DRAFT_TTL_DAYS.' hari sejak sekarang.');
     }
 
     public function sign(DailyReport $report)
@@ -1026,7 +1046,36 @@ class ReportOpsController extends Controller
         return [
             'status' => ['required', Rule::in([ReportStatus::Draft->value, ReportStatus::Submitted->value])],
             'form_payload' => ['nullable', 'json'],
-            'report_date' => [$requiredWhenSubmit, 'date'],
+            'report_date' => [
+                $requiredWhenSubmit,
+                'date',
+                function (string $attribute, mixed $value, callable $fail) use ($isDraft, $request): void {
+                    if ($isDraft || ! $request || blank($value)) {
+                        return;
+                    }
+
+                    $shift = trim((string) $request->input('shift'));
+                    $group = strtoupper(trim((string) $request->input('group_name')));
+
+                    if ($shift === '' || $group === '') {
+                        return;
+                    }
+
+                    $current = $request->route('report');
+
+                    $duplicate = DailyReport::query()
+                        ->whereDate('report_date', $value)
+                        ->where('shift', $shift)
+                        ->where('group_name', $group)
+                        ->where('status', '!=', ReportStatus::Draft->value)
+                        ->when($current instanceof DailyReport, fn ($query) => $query->whereKeyNot($current->getKey()))
+                        ->exists();
+
+                    if ($duplicate) {
+                        $fail('Sudah ada laporan terkirim untuk tanggal, shift, dan regu yang sama. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
+                    }
+                },
+            ],
             'shift' => [$requiredWhenSubmit, 'string', 'max:20'],
             'group_name' => [$requiredWhenSubmit, 'string', 'max:10'],
             'received_by_group' => [
@@ -1494,7 +1543,11 @@ class ReportOpsController extends Controller
             'id' => $operation->id,
             'type' => $operation->type,
             'status' => $operation->status,
-            'status_label' => $operation->status === ShipOperation::STATUS_COMPLETED ? 'Selesai' : 'Aktif',
+            'status_label' => match ($operation->status) {
+                ShipOperation::STATUS_COMPLETED => 'Selesai',
+                ShipOperation::STATUS_INACTIVE => 'Diarsipkan',
+                default => 'Aktif',
+            },
             'ship_name' => $operation->ship_name,
             'agent' => $operation->agent,
             'jetty' => $operation->jetty,
@@ -1611,9 +1664,12 @@ class ReportOpsController extends Controller
             : null;
 
         if (! $operation) {
+            // Kapal terarsip ikut dicocokkan agar operasi yang jeda lama otomatis
+            // tersambung kembali (status aktif di-set ulang saat disimpan).
             $query = ShipOperation::query()
                 ->where('type', $type)
-                ->where('status', ShipOperation::STATUS_ACTIVE)
+                ->whereIn('status', [ShipOperation::STATUS_ACTIVE, ShipOperation::STATUS_INACTIVE])
+                ->orderByRaw("CASE WHEN status = '".ShipOperation::STATUS_ACTIVE."' THEN 0 ELSE 1 END")
                 ->where('ship_name', $shipName);
 
             if ($type === ShipOperation::TYPE_BAG_LOADING && $this->string($data['wo_number'] ?? null) !== null) {
@@ -1724,6 +1780,57 @@ class ReportOpsController extends Controller
                     ->toArray()
             ),
             'lastUnitHandoverConditions' => $this->lastUnitHandoverConditions($report),
+            'previousReportPeek' => $this->previousReportPeek($report),
+        ];
+    }
+
+    /**
+     * Laporan non-draft terakhir yang bisa diakses user (dibuat sendiri, atau
+     * regu user sebagai pengirim/penerima) — untuk panel "Intip Laporan
+     * Sebelumnya" di form tanpa harus keluar dari halaman.
+     */
+    private function previousReportPeek(?DailyReport $current = null): ?array
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $userGroup = strtoupper((string) ($user->group ?? ''));
+
+        $previous = DailyReport::query()
+            ->select(['id', 'report_date', 'shift', 'group_name', 'received_by_group', 'created_at'])
+            ->where('status', '!=', ReportStatus::Draft->value)
+            ->when($current, fn ($query) => $query->whereKeyNot($current->getKey()))
+            ->where(function ($query) use ($user, $userGroup): void {
+                $query->where('created_by', $user->id);
+
+                if ($userGroup !== '') {
+                    $query->orWhere('group_name', $userGroup)
+                        ->orWhere('received_by_group', $userGroup);
+                }
+            })
+            ->orderByDesc('report_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $previous) {
+            return null;
+        }
+
+        $meta = collect([
+            $previous->report_date
+                ? Carbon::parse($previous->report_date)->locale('id')->translatedFormat('d F Y')
+                : null,
+            $previous->shift ? 'Shift '.ucfirst((string) $previous->shift) : null,
+            $previous->group_name ? 'Regu '.strtoupper((string) $previous->group_name) : null,
+        ])->filter()->implode(' — ');
+
+        return [
+            'url' => route('report-ops.show', $previous),
+            'title' => 'Laporan Operasi Harian Sebelumnya',
+            'meta' => $meta,
         ];
     }
 

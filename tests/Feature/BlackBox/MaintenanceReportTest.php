@@ -156,4 +156,52 @@ class MaintenanceReportTest extends BlackBoxTestCase
         $report = MaintenanceReport::where('created_by', $user->id)->firstOrFail();
         $this->assertSame(MaintenanceStatus::Draft, $report->status);
     }
+
+    public function test_tc_pml_08_pekerjaan_belum_selesai_dimuat_di_laporan_baru(): void
+    {
+        $user = $this->maintenance();
+
+        // Laporan kemarin: satu pekerjaan prioritas selesai, satu belum.
+        $this->actingAs($user)
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'priority_items' => [
+                    ['description' => 'Ganti oli sudah beres', 'assignee' => 'Mekanik A', 'is_completed' => 1],
+                    ['description' => 'Perbaikan rem belum tuntas', 'assignee' => 'Mekanik B', 'is_completed' => 0],
+                ],
+            ])
+            ->assertRedirect(route('pemeliharaan.index'));
+
+        // Form laporan baru memuat pekerjaan yang belum selesai sebagai lanjutan.
+        $this->actingAs($user)
+            ->get(route('pemeliharaan.create'))
+            ->assertOk()
+            ->assertSee('Perbaikan rem belum tuntas', false)
+            ->assertSee('Lanjutan dari', false)
+            ->assertDontSee('Ganti oli sudah beres', false);
+    }
+
+    public function test_tc_pml_09_laporan_ganda_tanggal_sama_ditolak(): void
+    {
+        $user = $this->maintenance();
+
+        $this->actingAs($user)
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+            ])
+            ->assertRedirect(route('pemeliharaan.index'));
+
+        $this->actingAs($user)
+            ->from(route('pemeliharaan.create'))
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+            ])
+            ->assertRedirect(route('pemeliharaan.create'))
+            ->assertSessionHasErrors('report_date');
+
+        $this->assertSame(1, MaintenanceReport::where('status', MaintenanceStatus::Submitted->value)->count());
+    }
 }

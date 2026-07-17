@@ -47,8 +47,13 @@ class MasterUnitSeeder extends Seeder
         // index (unit_code, unit_number), bebaskan dulu SEMUA lambung ke nilai
         // sementara unik per id agar upsert tidak bentrok — termasuk dengan baris
         // lama (mis. KSS-03 lama) yang kini lambungnya dipakai unit aktif lain.
+        // CONCAT() hanya ada di MySQL/MariaDB; SQLite (dipakai test) & Postgres memakai '||'.
+        $tempNumberExpr = in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)
+            ? DB::raw("CONCAT('TMP-', id)")
+            : DB::raw("'TMP-' || id");
+
         DB::table('master_units')
-            ->update(['unit_number' => DB::raw("CONCAT('TMP-', id)"), 'updated_at' => $now]);
+            ->update(['unit_number' => $tempNumberExpr, 'updated_at' => $now]);
 
         DB::table('master_units')->upsert(
             $data,

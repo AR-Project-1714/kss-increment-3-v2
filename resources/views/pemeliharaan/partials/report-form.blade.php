@@ -53,6 +53,29 @@
             'notes'        => $item->notes ?? '',
         ];
     }
+    // Carry-over: pekerjaan prioritas yang belum selesai dari laporan terakhir
+    // dimuat otomatis sebagai baris awal laporan baru (kesinambungan antar hari).
+    $carryRows = collect($carryOverPriority ?? []);
+    $carryOverInfo = null;
+    if (! $reportModel && empty($priorityRows) && $carryRows->isNotEmpty()) {
+        foreach ($carryRows as $item) {
+            $carryNote = trim((string) ($item['notes'] ?? ''));
+            $carryMark = $item['source_date'] ? 'Lanjutan dari '.$item['source_date'] : 'Lanjutan laporan sebelumnya';
+
+            $priorityRows[] = [
+                'unit_id'      => $item['unit_id'] ?: $unitIdByLabel->get((string) ($item['unit_label'] ?? ''), ''),
+                'description'  => $item['description'] ?? '',
+                'assignee'     => $item['assignee'] ?? '',
+                'is_completed' => 0,
+                'notes'        => $carryNote === '' ? $carryMark : $carryNote.' — '.$carryMark,
+            ];
+        }
+
+        $carryOverInfo = [
+            'count' => $carryRows->count(),
+            'date'  => $carryRows->first()['source_date'] ?? null,
+        ];
+    }
     if (empty($priorityRows)) {
         $priorityRows[] = ['unit_id' => '', 'description' => '', 'assignee' => '', 'is_completed' => 0, 'notes' => ''];
     }
@@ -330,6 +353,16 @@
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
                 <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Tambah kartu untuk tiap pekerjaan prioritas. Nama unit dipilih dari master data unit.</span></div>
+                @if (! empty($carryOverInfo))
+                    <div class="form-meta-note carry-over-note" style="border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.10); color: #92400E;">
+                        <i class="fi fi-rr-time-forward"></i>
+                        <span>
+                            {{ $carryOverInfo['count'] }} pekerjaan yang belum selesai
+                            {{ $carryOverInfo['date'] ? 'dari laporan '.$carryOverInfo['date'] : 'dari laporan sebelumnya' }}
+                            dimuat otomatis sebagai lanjutan. Hapus kartunya bila pekerjaan tersebut sudah tidak relevan.
+                        </span>
+                    </div>
+                @endif
                 <div class="work-card-list" id="priority-list">
                     @foreach ($priorityRows as $i => $row)
                         <div class="work-card priority-card">
@@ -851,3 +884,4 @@ document.addEventListener('DOMContentLoaded', function () {
 @endpush
 
 @include('partials.report-autosave')
+@include('partials.report-peek')

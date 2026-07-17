@@ -507,7 +507,7 @@ class OpsFlowTest extends TestCase
             ->map(fn ($units) => $units->pluck('unit_number')->values()->all());
 
         $this->assertSame(['KSS-06', 'KSS-07', 'KSS-10'], $activeBusUnits->get('Bus'));
-        $this->assertSame(['KSS-02', 'KSS-04', 'KSS-05', 'KSS-09'], $activeBusUnits->get('Minibus'));
+        $this->assertSame(['KSS-02', 'KSS-03', 'KSS-04', 'KSS-09'], $activeBusUnits->get('Minibus'));
 
         $this->assertDatabaseMissing('master_units', [
             'unit_code' => 'BUS',
@@ -746,8 +746,9 @@ class OpsFlowTest extends TestCase
 
         $html = $response->getContent();
 
-        $this->assertStringContainsString('auth-toast error', $html);
-        $this->assertStringContainsString('Login belum berhasil', $html);
+        // Error login dirender lewat komponen toast bersama (partials.toast).
+        $this->assertStringContainsString('toast-message error', $html);
+        $this->assertStringContainsString('Username/email atau password salah.', $html);
         $this->assertStringContainsString('has-auth-error', $html);
         $this->assertStringNotContainsString('alert alert-danger', $html);
     }
@@ -1229,15 +1230,32 @@ class OpsFlowTest extends TestCase
                 'updated_at' => now()->subDays(3)->subSecond(),
             ]);
 
+            // Kapal kadaluarsa diarsipkan (bukan dihapus): tetap bisa ditemukan
+            // lewat pencarian berkata-kunci dengan status "Diarsipkan"...
             $this->actingAs($user)
                 ->getJson(route('report-ops.ship-operations.suggestions', [
                     'type' => ShipOperation::TYPE_BAG_LOADING,
                     'q' => 'Kadaluarsa',
                 ]))
                 ->assertOk()
-                ->assertJsonCount(0, 'items');
+                ->assertJsonCount(1, 'items')
+                ->assertJsonPath('items.0.id', $staleBagOperation->id)
+                ->assertJsonPath('items.0.status', ShipOperation::STATUS_INACTIVE)
+                ->assertJsonPath('items.0.status_label', 'Diarsipkan');
 
-            $this->assertDatabaseMissing('ship_operations', ['id' => $staleBagOperation->id]);
+            $this->assertDatabaseHas('ship_operations', [
+                'id' => $staleBagOperation->id,
+                'status' => ShipOperation::STATUS_INACTIVE,
+            ]);
+
+            // ...tetapi tidak muncul di saran default (tanpa kata kunci).
+            $this->actingAs($user)
+                ->getJson(route('report-ops.ship-operations.suggestions', [
+                    'type' => ShipOperation::TYPE_BAG_LOADING,
+                ]))
+                ->assertOk()
+                ->assertJsonCount(1, 'items')
+                ->assertJsonPath('items.0.id', $freshBagOperation->id);
 
             $this->actingAs($user)
                 ->getJson(route('report-ops.ship-operations.suggestions', [
@@ -1269,9 +1287,14 @@ class OpsFlowTest extends TestCase
                     'q' => 'Curah Kadaluarsa',
                 ]))
                 ->assertOk()
-                ->assertJsonCount(0, 'items');
+                ->assertJsonCount(1, 'items')
+                ->assertJsonPath('items.0.id', $staleBulkOperation->id)
+                ->assertJsonPath('items.0.status', ShipOperation::STATUS_INACTIVE);
 
-            $this->assertDatabaseMissing('ship_operations', ['id' => $staleBulkOperation->id]);
+            $this->assertDatabaseHas('ship_operations', [
+                'id' => $staleBulkOperation->id,
+                'status' => ShipOperation::STATUS_INACTIVE,
+            ]);
 
             $this->actingAs($user)
                 ->getJson(route('report-ops.ship-operations.suggestions', [

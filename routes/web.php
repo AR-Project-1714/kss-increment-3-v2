@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/report-ops/{report}', [ReportOpsController::class, 'update'])->name('report-ops.update');
         Route::delete('/report-ops/{report}', [ReportOpsController::class, 'destroy'])->name('report-ops.destroy');
         Route::post('/report-ops/{report}/sign', [ReportOpsController::class, 'sign'])->name('report-ops.sign');
+        Route::post('/report-ops/{report}/extend-draft', [ReportOpsController::class, 'extendDraft'])->name('report-ops.extend-draft');
         Route::get('/report-ops/{report}/pdf', [ReportOpsController::class, 'exportPdf'])->name('report-ops.pdf');
         Route::get('/report-ops/{report}/excel', [ReportOpsController::class, 'exportExcel'])->name('report-ops.excel');
     });
@@ -100,6 +101,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{report}/edit', [ReportMaintenanceController::class, 'edit'])->name('edit');
         Route::put('/{report}', [ReportMaintenanceController::class, 'update'])->name('update');
         Route::delete('/{report}', [ReportMaintenanceController::class, 'destroy'])->name('destroy');
+        Route::post('/{report}/extend-draft', [ReportMaintenanceController::class, 'extendDraft'])->name('extend-draft');
         Route::get('/{report}/pdf', [ReportMaintenanceController::class, 'exportPdf'])->name('pdf');
     });
 
@@ -112,6 +114,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/{report}/edit', [ReportSafetyController::class, 'edit'])->name('edit');
         Route::put('/{report}', [ReportSafetyController::class, 'update'])->name('update');
         Route::delete('/{report}', [ReportSafetyController::class, 'destroy'])->name('destroy');
+        Route::post('/{report}/extend-draft', [ReportSafetyController::class, 'extendDraft'])->name('extend-draft');
         Route::get('/{report}/pdf', [ReportSafetyController::class, 'exportPdf'])->name('pdf');
     });
 
