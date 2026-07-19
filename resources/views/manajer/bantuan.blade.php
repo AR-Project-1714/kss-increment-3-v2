@@ -531,7 +531,7 @@
                             <span class="help-step__number orange">3</span>
                             <div class="help-card__content">
                                 <span class="help-card__title">Manajer mengarsipkan</span>
-                                <span class="help-card__text">Manajer meninjau lalu menandatangani. Tidak ada tahap "Diterima" — laporan langsung masuk Arsip.</span>
+                                <span class="help-card__text">Manajer meninjau lalu menandatangani. Tidak ada tahap "Diterima"; laporan langsung masuk Arsip.</span>
                             </div>
                         </div>
                     </div>

@@ -426,7 +426,7 @@
 <section class="section-card help-section" id="dashboard">
     <div class="section-card__header d-flex flex-column align-items-start">
         <span class="section-card__title">Dashboard Sistem</span>
-        <span class="section-card__subtitle">Halaman pertama saat masuk — ringkasan kesehatan sistem secara cepat.</span>
+        <span class="section-card__subtitle">Halaman pertama saat masuk: ringkasan kesehatan sistem secara cepat.</span>
     </div>
     <div class="section-card__body">
         <p class="help-lead" data-help-item>Empat kartu di atas dashboard menampilkan kondisi sistem terkini:</p>
@@ -546,7 +546,7 @@
                 <span class="help-step__num">2</span>
                 <div>
                     <div class="help-step__title">Isi data akun</div>
-                    <div class="help-step__text">Nama, Username (unik), Email (opsional, dibuat otomatis bila kosong), Role, Regu/Group, dan Status. Password minimal 6 karakter — saat edit, kosongkan bila tidak ingin mengganti.</div>
+                    <div class="help-step__text">Nama, Username (unik), Email (opsional, dibuat otomatis bila kosong), Role, Regu/Group, dan Status. Password minimal 6 karakter; saat edit, kosongkan bila tidak ingin mengganti.</div>
                 </div>
             </div>
             <div class="help-step">
@@ -690,7 +690,7 @@
         </div>
         <div class="help-callout" data-help-item>
             <i class="fi fi-rr-route"></i>
-            <span><strong>Operasional:</strong> Draft → Diserahkan → Diterima (regu tujuan) → Diarsipkan (manajer). &nbsp;<strong>Pemeliharaan &amp; Safety:</strong> Draft → Diserahkan → Diarsipkan (manajer) — tanpa tahap "Diterima".</span>
+            <span><strong>Operasional:</strong> Draft → Diserahkan → Diterima (regu tujuan) → Diarsipkan (manajer). &nbsp;<strong>Pemeliharaan &amp; Safety:</strong> Draft → Diserahkan → Diarsipkan (manajer), tanpa tahap "Diterima".</span>
         </div>
     </div>
 </section>
@@ -751,7 +751,7 @@
             </details>
             <details class="faq-item" data-help-item>
                 <summary><span>Apa beda backup manual, jadwal backup, dan backup tahunan?</span><i class="fi fi-rr-angle-small-down"></i></summary>
-                <div class="faq-item__body">Backup manual membuat cadangan saat itu juga. Jadwal backup mengatur kapan backup berjalan otomatis beserta retensinya. Backup tahunan mengarsipkan seluruh laporan tahun lalu ke ZIP lalu menghapusnya dari sistem untuk menghemat penyimpanan — pastikan ZIP-nya diunduh dan disimpan.</div>
+                <div class="faq-item__body">Backup manual membuat cadangan saat itu juga. Jadwal backup mengatur kapan backup berjalan otomatis beserta retensinya. Backup tahunan mengarsipkan seluruh laporan tahun lalu ke ZIP lalu menghapusnya dari sistem untuk menghemat penyimpanan. Pastikan ZIP-nya diunduh dan disimpan.</div>
             </details>
             <details class="faq-item" data-help-item>
                 <summary><span>Kenapa tombol Restore tidak langsung memulihkan data?</span><i class="fi fi-rr-angle-small-down"></i></summary>

@@ -1473,34 +1473,10 @@
         td.aksi .btn-act.delete { background-color: var(--red-main); width: 30px; padding: 7px; }
         td.aksi .btn-act.delete:hover { background-color: var(--red-hover); transform: translateY(-1px); }
 
+        /* Keyframe rotasi dipakai .btn-spinner di bawah, dan oleh overlay
+           first-load (lihat partials/first-load-loader.blade.php). */
         @keyframes sk-rotate {
             to { transform: rotate(360deg); }
-        }
-
-        .sk-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 9998;
-            background-color: var(--main-bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.4s ease, visibility 0.4s ease;
-        }
-
-        .sk-overlay.sk-done {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-
-        .sk-spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid var(--smooth-border);
-            border-top-color: var(--blue-main);
-            border-radius: 50%;
-            animation: sk-rotate 0.8s linear infinite;
         }
 
         /* Inline spinner untuk tombol (konfirmasi TTD & download) */

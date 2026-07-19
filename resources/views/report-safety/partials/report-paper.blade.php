@@ -213,7 +213,7 @@
                     <td>{{ $inc->notes }}</td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="empty-note">Nihil — tidak ada kejadian.</td></tr>
+                <tr><td colspan="5" class="empty-note">Nihil - tidak ada kejadian.</td></tr>
             @endforelse
         </tbody>
     </table>

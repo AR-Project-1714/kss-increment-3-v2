@@ -19,17 +19,21 @@
  *    membuat versi lama nyangkut selamanya saat file vendor di-update.
  */
 
-const CACHE_VERSION = 'kss-offline-v3';
+const CACHE_VERSION = 'kss-offline-v7';
 const STATIC_CACHE = CACHE_VERSION + '-static';
 const RUNTIME_CACHE = CACHE_VERSION + '-runtime';
 
 const OFFLINE_URL = new URL('offline.html', self.registration.scope).href;
+const OFFLINE_ILLUSTRATION_URL = new URL('assets/kss-offline_state.webp', self.registration.scope).href;
 
-// Hanya offline.html — halaman itu sudah self-contained (CSS inline, tanpa
-// gambar). Satu URL 404 di sini membuat cache.addAll menolak dan install
-// service worker gagal total, jadi daftar ini sengaja dijaga seminimal mungkin.
+// offline.html + ilustrasinya — CSS tetap inline, tapi gambar maskot harus
+// ikut di-precache di sini juga, kalau tidak halaman offline sendiri akan
+// tampil dengan gambar rusak saat benar-benar tanpa koneksi. Satu URL 404 di
+// sini membuat cache.addAll menolak dan install service worker gagal total,
+// jadi daftar ini sengaja dijaga seminimal mungkin.
 const PRECACHE_URLS = [
     OFFLINE_URL,
+    OFFLINE_ILLUSTRATION_URL,
 ];
 
 self.addEventListener('install', (event) => {

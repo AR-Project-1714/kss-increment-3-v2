@@ -13,6 +13,7 @@
 
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     @include('partials.offline-support')
+    @include('partials.page-loader')
 
     <!-- Flaticon UICONS -->
     <link rel="stylesheet" href="{{ asset('vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css') }}">
@@ -35,9 +36,7 @@
     {{-- Terapkan dark mode sebelum render agar tidak flicker --}}
     <script>if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');</script>
 
-    <div class="sk-overlay" id="sk-overlay">
-        <div class="sk-spinner"></div>
-    </div>
+    @include('partials.first-load-loader')
 
     {{-- Toast notifikasi (komponen bersama) --}}
     @include('partials.toast')

@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KSS Admin — Dashboard</title>
+    <title>@yield('title', 'Laporan KSS - Manajer')</title>
 
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     @include('partials.offline-support')
+    @include('partials.page-loader')
 
     <!-- Google Fonts: Poppins -->
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
@@ -27,9 +28,7 @@
 
 <body>
 
-    <div class="sk-overlay" id="sk-overlay">
-        <div class="sk-spinner"></div>
-    </div>
+    @include('partials.first-load-loader')
 
     {{-- Toast notifikasi (komponen bersama) --}}
     @include('partials.toast')

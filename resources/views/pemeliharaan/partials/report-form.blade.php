@@ -67,7 +67,7 @@
                 'description'  => $item['description'] ?? '',
                 'assignee'     => $item['assignee'] ?? '',
                 'is_completed' => 0,
-                'notes'        => $carryNote === '' ? $carryMark : $carryNote.' — '.$carryMark,
+                'notes'        => $carryNote === '' ? $carryMark : $carryNote.' - '.$carryMark,
             ];
         }
 

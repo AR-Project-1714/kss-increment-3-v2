@@ -7,6 +7,7 @@
 
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     @include('partials.offline-support')
+    @include('partials.page-loader')
 
     <!-- Google Font -->
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
@@ -37,9 +38,7 @@
     <!-- Dark mode init lebih awal agar overlay langsung pakai warna yang benar -->
     <script>if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');</script>
 
-    <div class="sk-overlay" id="sk-overlay">
-        <div class="sk-spinner"></div>
-    </div>
+    @include('partials.first-load-loader')
 
     {{-- Toast notifikasi (komponen bersama) --}}
     @include('partials.toast')

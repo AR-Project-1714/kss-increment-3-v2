@@ -7,6 +7,7 @@
 
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     @include('partials.offline-support')
+    @include('partials.page-loader')
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
 
     <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet" crossorigin="anonymous">
@@ -22,7 +23,7 @@
 <body class="officer-report-shell">
     <script>if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');</script>
 
-    <div class="sk-overlay" id="sk-overlay"><div class="sk-spinner"></div></div>
+    @include('partials.first-load-loader')
 
     {{-- Toast notifikasi (komponen bersama) --}}
     @include('partials.toast')

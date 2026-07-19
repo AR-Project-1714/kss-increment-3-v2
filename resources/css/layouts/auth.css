@@ -252,9 +252,12 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            min-height: 100dvh;
             margin: 0;
             transition: background-color 0.5s ease-out, color 0.5s ease-out;
-            overflow: hidden; /* Mencegah scroll karena blobs */
+            /* Blobs memakai position: fixed sehingga tidak memicu scroll;
+               overflow-y dibiarkan auto agar card login tetap terjangkau di layar pendek. */
+            overflow-x: hidden;
             position: relative;
         }
 
@@ -263,11 +266,50 @@
         .fw-500 { font-weight: 500 !important; }
         .fw-600 { font-weight: 600 !important; }
 
+        /* =========================================
+           HERO / TOP BAR
+           Di desktop hanya baris atas: brand mark di kiri, toggle tema di kanan.
+           Dibuat fixed agar tetap di luar alur dokumen — kartu login pada
+           .login-wrapper tetap satu-satunya item yang di-center oleh body.
+           Versi mobile (panel gradien) ada di media query paling bawah.
+           ========================================= */
+        .auth-hero {
+            position: relative;
+            z-index: 10;
+            flex: 0 0 auto;
+        }
+
+        .auth-hero__topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 20px;
+        }
+
+        .auth-brand-mark {
+            height: 45px;
+            width: auto;
+            object-fit: contain;
+            flex: 0 0 auto;
+        }
+
+        /* ---------------------------------------------------------------
+           Elemen khusus mobile. Semuanya dimatikan di sini agar tampilan
+           desktop tidak berubah sama sekali; masing-masing dihidupkan lagi
+           di media query ≤640px paling bawah berkas ini.
+           --------------------------------------------------------------- */
+        .auth-hero__intro,
+        .auth-brand-full,
+        .auth-sheet__grabber,
+        .auth-sheet__header { display: none; }
+
+        /* Sheet lenyap dari layout di desktop: .login-wrapper dan .auth-footer
+           tetap menjadi anak langsung .auth-shell seperti sebelumnya. */
+        .auth-sheet { display: contents; }
+
         /* Theme Toggle Button */
         .btn-theme {
-            position: fixed;
-            top: 20px;
-            right: 20px;
             width: 45px;
             height: 45px;
             background-color: var(--btn-theme-bg);
@@ -279,16 +321,27 @@
             justify-content: center;
             transition: all 0.3s ease;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            z-index: 100;
+            flex: 0 0 auto;
         }
         .btn-theme:hover { border-color: var(--blue-main); transform: scale(1.05); }
         .btn-theme i { color: var(--btn-theme-icon); font-size: 20px; transition: transform 0.4s; position: relative; top: 3px; }
+
+        /* Hak Cipta — dasar shell, ikut terdorong saat konten tinggi */
+        .auth-footer {
+            flex: 0 0 auto;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 300;
+            color: var(--muted);
+            letter-spacing: 0.2px;
+            padding: 14px 20px;
+        }
 
         /* =========================================
            BACKGROUND ANIMATED BLOBS
            ========================================= */
         .blob {
-            position: absolute;
+            position: fixed;
             filter: blur(80px);
             z-index: -1;
             opacity: 0.6;
@@ -322,17 +375,38 @@
             100% { transform: translate(-5%, -5%) scale(0.9); }
         }
 
+        /* Shell pembungkus hero + form + hak cipta. Kolom flex setinggi layar:
+           hero di atas, form mengisi sisa ruang, hak cipta di dasar. Semuanya
+           tetap dalam alur dokumen — kalau hero/footer dibuat fixed, di layar
+           pendek keduanya menimpa kartu login alih-alih mendorongnya. */
+        .auth-shell {
+            flex: 1;
+            align-self: stretch;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
         /* =========================================
            LIQUID GLASS LOGIN CARD
            ========================================= */
         .login-wrapper {
+            /* Mengisi ruang sisa antara hero dan footer, kartu dipusatkan di dalamnya */
+            flex: 1 0 auto;
+            align-self: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             width: 100%;
             max-width: 440px;
             padding: 20px;
+            margin: 0;
             z-index: 10;
         }
 
         .login-card {
+            width: 100%;
             background: var(--glass-bg);
             backdrop-filter: blur(28px) saturate(150%);
             -webkit-backdrop-filter: blur(28px) saturate(150%);
@@ -514,13 +588,13 @@
 
         .btn-login:hover {
             background-color: var(--orange-hover);
-            box-shadow: 0 8px 20px var(--orange-main-active);
+            box-shadow: 0 8px 20px var(--orange-main-40);
             transform: translateY(-2px);
         }
 
         .btn-login:active {
             transform: translateY(0);
-            box-shadow: 0 4px 10px var(--orange-main-active);
+            box-shadow: 0 4px 10px var(--orange-main-40);
         }
 
         .btn-login:disabled,
@@ -547,33 +621,11 @@
         }
 
         /* ============================================================
-           LOADING SPINNER - Animasi rotasi saat halaman loading
+           Keyframe rotasi dipakai .login-spinner di atas, dan oleh
+           overlay first-load (lihat partials/first-load-loader.blade.php).
            ============================================================ */
         @keyframes sk-rotate {
             to { transform: rotate(360deg); }
-        }
-        .sk-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 9998;
-            background-color: var(--main-bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.4s ease, visibility 0.4s ease;
-        }
-        .sk-overlay.sk-done {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-        .sk-spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid var(--smooth-border);
-            border-top-color: var(--blue-main);
-            border-radius: 50%;
-            animation: sk-rotate 0.8s linear infinite;
         }
 
         @keyframes authToastEnter {
@@ -649,4 +701,252 @@
                 animation: none !important;
                 opacity: 1;
             }
+        }
+
+        /* =========================================
+           MOBILE LOGIN (≤640px)
+           Pola "hero + bottom sheet" di atas latar yang sama persis dengan
+           desktop (blob biru/cyan di atas --main-bg). Kartu kaca mengambang
+           khas desktop tidak dipakai di sini karena di layar sempit ia
+           menyisakan pinggiran kosong yang tidak berguna — sheet menempel di
+           dasar layar agar terjangkau jempol.
+           ========================================= */
+        @media (max-width: 640px) {
+            body {
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: stretch;
+            }
+
+            /* Transparan supaya blob biru/cyan milik desktop tetap terlihat
+               menembus dari belakang — latar mobile kini identik dengan desktop. */
+            .auth-shell {
+                display: flex;
+                flex-direction: column;
+                flex: 1 0 auto;
+                width: 100%;
+                background: none;
+            }
+
+            /* ---- Hero ---- */
+            .auth-hero {
+                position: relative;
+                /* Wajib menimpa z-index:10 milik versi desktop — kalau tidak, hero
+                   terlukis di atas sheet dan menutupi sudut melengkungnya. */
+                z-index: 1;
+                flex: 0 0 auto;
+                background: none;
+                /* Padding bawah menyediakan ruang yang nanti ditimpa sheet
+                   (lihat margin negatif .auth-sheet) agar subjudul tidak tertutup. */
+                padding: calc(8px + env(safe-area-inset-top, 0px)) 0 56px;
+            }
+
+            /* Gutter horizontal 24px dipakai seragam oleh topbar, intro, dan sheet
+               supaya tepi kiri/kanan seluruh layar berbaris rapi. */
+            .auth-hero__topbar { padding: 0 24px; }
+
+            /* Pojok kiri: desktop memakai ikon webp, mobile memakai logo penuh */
+            .auth-brand-mark { display: none; }
+
+            .auth-brand-full {
+                display: block;
+                height: 30px;
+                width: auto;
+                object-fit: contain;
+                flex: 0 0 auto;
+            }
+
+            /* Gaya tombol sama seperti desktop, hanya sedikit dikecilkan */
+            .auth-hero .btn-theme {
+                width: 40px;
+                height: 40px;
+                margin-left: auto;
+            }
+            .auth-hero .btn-theme i { font-size: 18px; }
+
+            .auth-hero__intro {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                gap: 12px;
+                padding: 20px 24px 0;
+            }
+
+            .auth-hero__logo {
+                width: 72px;
+                height: 72px;
+                object-fit: contain;
+                flex: 0 0 auto;
+            }
+
+            /* Jarak antar elemen intro diatur oleh gap induk, bukan margin
+               masing-masing anak, supaya ritmenya tetap satu sumber. */
+            .auth-hero__title {
+                margin: 0;
+                font-size: 22px;
+                font-weight: 700;
+                color: var(--dark-main);
+                letter-spacing: -0.2px;
+            }
+
+            .auth-hero__subtitle {
+                margin: 0;
+                max-width: 300px;
+                font-size: 13px;
+                font-weight: 400;
+                line-height: 1.5;
+                color: var(--dark-secondary);
+            }
+
+            /* ---- Sheet kaca ---- */
+            .auth-sheet {
+                display: flex;
+                flex-direction: column;
+                flex: 1 0 auto;
+                position: relative;
+                z-index: 2;
+                /* Ditarik naik melebihi radius sudut (32px) supaya seluruh kurva
+                   jatuh di atas gradien — kalau kurang, ujung lengkung terpotong
+                   dan tepinya terbaca hampir lurus. */
+                margin-top: -40px;
+                border-radius: 32px 32px 0 0;
+                padding: 16px 24px calc(20px + env(safe-area-inset-bottom, 0px));
+
+                /* Kaca bergaya sama dengan kartu desktop, tapi gradiennya vertikal
+                   dan tidak seencer --glass-bg. Sheet di sini jauh lebih tinggi
+                   dari kartu desktop, dan pada rentang setinggi itu opasitas 0.1
+                   di ujung gradien membuat dasar sheet nyaris lenyap. */
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.34) 100%);
+                backdrop-filter: blur(28px) saturate(150%);
+                -webkit-backdrop-filter: blur(28px) saturate(150%);
+                border-top: 1px solid var(--glass-border-light);
+                box-shadow: var(--glass-shadow), var(--glass-inner-shadow);
+            }
+
+            body.dark-mode .auth-sheet {
+                background: rgba(30, 41, 59, 0.45);
+                border-top-color: rgba(255, 255, 255, 0.1);
+                box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+            }
+
+            .auth-sheet__grabber {
+                display: block;
+                width: 44px;
+                height: 5px;
+                margin: 0 auto 20px;
+                border-radius: 99px;
+                background: var(--black-10);
+            }
+
+            .auth-sheet__header {
+                display: block;
+                margin-bottom: 24px;
+            }
+
+            /* Lebih kecil dari judul hero (22px): sapaan adalah momen visualnya,
+               judul ini penanda tugas. Hierarki dibedakan lewat ukuran + peran,
+               bukan lewat dua heading tebal berukuran sama yang saling bersaing. */
+            .auth-sheet__title {
+                margin: 0 0 6px;
+                font-size: 18px;
+                font-weight: 700;
+                color: var(--dark-main);
+            }
+
+            .auth-sheet__subtitle {
+                margin: 0;
+                font-size: 13px;
+                font-weight: 400;
+                line-height: 1.5;
+                color: var(--dark-secondary);
+            }
+
+            /* ---- Form: permukaan kaca sudah disediakan sheet ---- */
+            .login-wrapper {
+                flex: 0 0 auto;
+                align-self: stretch;
+                display: block;
+                width: 100%;
+                max-width: none;
+                padding: 0;
+                margin: 0;
+                z-index: auto;
+            }
+
+            .login-card {
+                width: 100%;
+                background: none;
+                border: none;
+                border-radius: 0;
+                box-shadow: none;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                padding: 0;
+                gap: 0;
+            }
+
+            body.dark-mode .login-card {
+                background: none;
+                box-shadow: none;
+            }
+
+            /* Logo & judul sudah disampaikan hero dan header sheet — menampilkannya
+               lagi hanya mengulang informasi yang sama di satu layar. */
+            .login-header { display: none; }
+
+            /* Bentuk input, checkbox, dan tombol tidak ditimpa di sini — sepenuhnya
+               mewarisi gaya pill milik desktop. Hanya jaraknya yang disetel ulang
+               agar masuk ke skala 4px yang sama dengan sisa layar. */
+            .btn-login { margin-top: 24px; }
+
+            /* Inset 10px bawaan desktop membuat label dan checkbox mendarat di 34px:
+               tidak rata dengan tepi input (24px), tidak pula dengan teks di
+               dalamnya (44px). Diratakan ke 24px agar judul, subjudul, label,
+               input, checkbox, dan tombol berdiri di satu kolom yang sama. */
+            .form-group label,
+            .checkbox-wrapper { margin-left: 0; }
+
+            /* ---- Hak cipta: mengalir di dasar sheet, dua baris ---- */
+            .auth-footer {
+                flex-shrink: 0;
+                padding: 24px 0 4px;
+                line-height: 1.6;
+            }
+
+            .auth-footer__line { display: block; }
+        }
+
+        /* =========================================
+           FALLBACK TRANSPARANSI
+           Efek kaca bertumpu pada backdrop-filter. Sebagian pengguna mematikan
+           transparansi di tingkat sistem (pusing, gangguan vestibular, atau
+           sekadar keterbacaan), dan bagi mereka permukaan kaca berubah jadi
+           bidang keruh yang menyulitkan. Di kondisi itu kartu dan sheet dibuat
+           berisi penuh. Tidak mengubah tampilan bawaan siapa pun yang tidak
+           menyalakan preferensi ini.
+           ========================================= */
+        @media (prefers-reduced-transparency: reduce) {
+            .login-card,
+            .auth-sheet {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: var(--white);
+            }
+
+            body.dark-mode .login-card,
+            body.dark-mode .auth-sheet {
+                background: var(--white);
+            }
+
+            .custom-input {
+                background: var(--main-bg);
+                border-color: var(--smooth-border);
+            }
+
+            .custom-input:focus { background: var(--white); }
+
+            /* Blob di balik permukaan yang kini opak tidak lagi terbaca,
+               hanya menyisakan animasi blur yang mahal. */
+            .blob { display: none; }
         }

@@ -19,7 +19,7 @@
     if ($draftRemainingMinutes === null) {
         $draftExpiryLabel = null;
     } elseif ($draftRemainingMinutes <= 0) {
-        $draftExpiryLabel = 'Draft kedaluwarsa — akan dihapus otomatis';
+        $draftExpiryLabel = 'Draft kedaluwarsa, akan dihapus otomatis';
     } elseif ($draftRemainingMinutes < 60) {
         $draftExpiryLabel = 'Terhapus otomatis dalam '.max(1, (int) floor($draftRemainingMinutes)).' menit';
     } elseif ($draftRemainingMinutes < 60 * 24) {

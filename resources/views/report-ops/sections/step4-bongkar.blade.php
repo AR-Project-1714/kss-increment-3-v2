@@ -10,7 +10,7 @@
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
             <div class="step-info-note">
                 <i class="fi fi-rr-info"></i>
-                <span>Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya — nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri.</span>
+                <span>Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri.</span>
             </div>
             <div class="form-bongkar d-flex flex-column align-items-start align-self-stretch" style="gap: 25px;">
                 <div class="tab-bongkar">

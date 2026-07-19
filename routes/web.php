@@ -20,8 +20,10 @@ Route::post('/logout', [LoginV2Controller::class, 'logout'])->middleware('auth')
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN])->group(function () {
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');
     Route::get('/archive', [AdminV2Controller::class, 'archive'])->name('archive');
+    Route::get('/archive/export', [AdminV2Controller::class, 'archiveExport'])->name('archive.export');
     Route::get('/archive/suggestions', [AdminV2Controller::class, 'archiveSuggestions'])->name('archive.suggestions');
     Route::get('/log', [AdminV2Controller::class, 'log'])->name('log');
+    Route::get('/log/export', [AdminV2Controller::class, 'logExport'])->name('log.export');
     Route::get('/user-manage', [AdminV2Controller::class, 'userManage'])->name('user-manage');
     Route::get('/datamaster', [AdminV2Controller::class, 'dataMaster'])->name('datamaster');
     Route::get('/backup', [AdminV2Controller::class, 'backup'])->name('backup');

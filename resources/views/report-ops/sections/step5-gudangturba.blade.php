@@ -8,7 +8,7 @@
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
             <div class="step-info-note">
                 <i class="fi fi-rr-info"></i>
-                <span>Lacak distribusi barang keluar per truck — lengkapi nomor <strong>DO/SO</strong>, marking, dan jumlah terkirim. Kolom <strong>Total</strong> dihitung otomatis (Sekarang + Lalu). Tambah baris untuk tiap truck.</span>
+                <span>Lacak distribusi barang keluar per truck: lengkapi nomor <strong>DO/SO</strong>, marking, dan jumlah terkirim. Kolom <strong>Total</strong> dihitung otomatis (Sekarang + Lalu). Tambah baris untuk tiap truck.</span>
             </div>
 
             <div class="d-flex flex-column align-items-start align-self-stretch w-100" style="gap: 12px;">

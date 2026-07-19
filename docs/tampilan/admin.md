@@ -30,9 +30,9 @@ Manajemen akun staf: tabel (Nama Lengkap, Username, Role, Regu, Status, Aksi) de
 `admin.datamaster` — `resources/views/admin/datamaster.blade.php`
 Pusat konfigurasi data acuan yang dipakai form laporan di divisi lain, terbagi 7 tab:
 - **Data Karyawan** — NPK, Nama, Regu, Jabatan, Divisi, Jam Kerja
-- **Data Unit**
-- **Data Truck** — Nama, Kode, Merk, Plat, Type, Kategori, Tahun
-- **Data Inventaris**
+- **Data Unit** — Nama, Kode, Merk, Plat, Tipe, Kategori, Cek Unit, Tahun
+- **Data Truck** — Nama, Nomor Plat, Keterangan
+- **Data Inventaris** — Nama, Kategori, Jumlah
 - **Data Lingkungan Operasi**
 - **Data Lokasi K3**
 - **Data Item K3**

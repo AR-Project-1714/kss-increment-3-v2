@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
 
-@section('title', 'KSS Admin — Dashboard Sistem')
+@section('title', 'KSS Admin - Dashboard Sistem')
 @section('active', 'dashboard')
 
 @push('styles')

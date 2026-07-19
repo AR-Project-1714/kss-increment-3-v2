@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
 
-@section('title', 'KSS Admin — Arsip Laporan')
+@section('title', 'KSS Admin - Arsip Laporan')
 @section('active', 'archive')
 
 @push('styles')
@@ -713,18 +713,19 @@
                         Reset
                     </a>
                 @endif
-                <button type="button"
+                <a href="{{ route('admin.archive.export', request()->except('page')) }}"
                         class="btn-tool btn-tool--primary"
                         data-confirm
+                        data-confirm-redirect="{{ route('admin.archive.export', request()->except('page')) }}"
                         data-confirm-tone="success"
                         data-confirm-title="Ekspor arsip laporan?"
-                        data-confirm-subtitle="Data arsip akan disiapkan sebagai file unduhan."
-                        data-confirm-message="Gunakan ekspor untuk mengambil daftar laporan sesuai filter yang sedang aktif."
-                        data-confirm-summary="Format preview: Excel"
+                        data-confirm-subtitle="Berkas Excel akan diunduh sesuai filter yang sedang aktif."
+                        data-confirm-message="Ekspor mengambil {{ $archiveTotal }} laporan sesuai pencarian, tanggal, divisi, regu, shift, dan status yang sedang diterapkan pada tabel."
+                        data-confirm-summary="Format: Excel (.xlsx), {{ $archiveTotal }} laporan"
                         data-confirm-label="Ekspor Data"
                         data-confirm-icon="fi fi-rr-cloud-upload-alt">
                     <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
-                </button>
+                </a>
             </div>
         </div>
     </div>

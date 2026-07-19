@@ -10,7 +10,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $docId }} — Laporan Pemeliharaan</title>
+    <title>{{ $docId }} - Laporan Pemeliharaan</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}">
     <link href="{{ asset('vendor/poppins.css') }}" rel="stylesheet">
     <link rel='stylesheet' href='{{ asset('vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css') }}'>

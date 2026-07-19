@@ -398,6 +398,20 @@ Alur status memakai enum `App\Enums\SafetyStatus` (di-cast pada `SafetyReport`):
 - **Draft kadaluarsa**: `SafetyReport::pruneStaleDrafts()` menghapus draft > 3 hari, selaras dengan Operasional & Pemeliharaan.
 - **Master data**: `master_safety_locations`, `master_safety_items`, dan pivot `master_safety_location_items` (dengan `default_qty` per lokasi-item).
 
+### 5.11 Mode Lapangan / Offline (Service Worker)
+
+Aplikasi **sengaja tidak installable** sebagai PWA standalone (tidak ada manifest): alur tinjau/cetak/unduh PDF memakai `target="_blank"` di banyak tempat, dan mode standalone memaksa tab baru menjadi window terpisah. Dukungan offline berjalan cukup lewat Service Worker biasa di tab browser.
+
+- **Registrasi**: `resources/views/partials/offline-support.blade.php`, di-include oleh semua layout (`admin`, `manajer`, `report-ops`, `pemeliharaan`, `report-safety`, `auth`).
+- **Service Worker**: `public/sw.js`. Strategi per jenis request:
+  - **Navigasi halaman** (`request.mode === 'navigate'`): network-first; saat fetch gagal, fallback ke `public/offline.html` dari cache. Halaman laporan (data dinamis milik user) tidak pernah di-cache.
+  - **Aset statis same-origin berversi** (build Vite, `/assets/*`, favicon, font): cache-first — nama file build sudah berhash / dipanggil dengan `?v={filemtime}` sehingga aman disimpan lama.
+  - **Aset vendor tak berversi** (Bootstrap, Poppins, UICons) dan aset lintas origin: stale-while-revalidate agar versi lama tidak nyangkut selamanya.
+  - **Precache saat install**: hanya `offline.html` dan ilustrasinya (`public/assets/kss-offline_state.webp`) — daftar ini sengaja dijaga minimal karena satu URL yang gagal di-fetch membuat `cache.addAll` menolak dan instalasi service worker gagal total.
+  - **Versi cache**: konstanta `CACHE_VERSION` di awal file; dinaikkan setiap precache list atau strategi cache berubah, agar cache lama otomatis dibersihkan saat `activate`.
+- **Halaman fallback**: `public/offline.html` — mandiri (CSS inline, tanpa dependensi eksternal), menampilkan maskot KSS (`kss-offline_state.webp`), judul dan deskripsi Bahasa Indonesia, catatan bahwa isian laporan offline tersimpan otomatis di perangkat, dan tombol **Coba Lagi** (`window.location.reload()`). Mendukung dark mode via `prefers-color-scheme` dan responsif lewat `clamp()`/media query, tanpa memakai `overflow: hidden` agar tetap bisa di-scroll di layar pendek.
+- **Autosave offline**: `resources/views/partials/report-autosave.blade.php` menyimpan payload form ke `localStorage` saat request gagal karena offline, lalu mengirim ulang begitu koneksi kembali (lihat juga Section 9).
+
 ---
 
 ## 6. Skema Data (Ringkas)
@@ -680,6 +694,8 @@ Didefinisikan di `:root` pada `resources/views/report-ops/layouts/app.blade.php`
 | `.kss-date-trigger` / `.kss-date-popover` | Date/time picker custom | Input tanggal, jam, dan datetime dengan format visual konsisten |
 | `.modal-overlay` / `.modal-box` | Modal admin/manajer | Konfirmasi aksi sensitif dan form tambah/edit data |
 | `.admin-pagination` | Pagination admin | Navigasi halaman tabel admin mengikuti gaya riwayat laporan |
+| `.sk-overlay` / `.kss-loader` | Overlay loading full-screen | Loading state saat first load / hard refresh: siklus spinner biru-oranye → logo KSS (partial `partials/first-load-loader.blade.php`), disembunyikan saat navigasi internal |
+| `.kss-progress` / `.kss-progress__bar` | Trickle bar navigasi | Indikator tipis di atas layar saat berpindah antar halaman (partial `partials/page-loader.blade.php`) |
 
 ### 8.5 Icon
 
@@ -705,6 +721,10 @@ Tambahan responsive untuk layout manajer:
 - `max-width: 900px`: sidebar menjadi off-canvas dengan backdrop dan tombol toggle di navbar.
 - `max-width: 560px`: stats card menjadi 2 kolom, tab laporan masuk bisa digeser horizontal, aksi laporan dibuat full-width.
 - `max-width: 360px`: stats card kembali 1 kolom agar teks dan angka tetap terbaca.
+
+Tambahan responsive untuk layout auth (`resources/css/layouts/auth.css`):
+
+- `max-width: 640px`: kartu login berubah dari kartu kaca mengambang (rounded, shadow, blob dekoratif) menjadi lembar penuh layar (`.login-wrapper`/`.login-card` full-bleed, blob disembunyikan). Input beralih dari gaya kaca transparan ke `var(--white)` solid agar tetap kontras terhadap kartu yang kini memakai `var(--main-bg)`.
 
 ### 8.7 Tabel Riwayat (`.history-table`)
 
@@ -810,6 +830,7 @@ Default URL: `http://localhost:8000` → diarahkan ke halaman login.
 ## 11. Konvensi & Catatan Pengembangan
 
 - **Bahasa UI**: Bahasa Indonesia (label, tombol, pesan validasi, pesan empty state).
+- **Timezone aplikasi**: `Asia/Makassar` (WITA, UTC+8) — diset di `config('app.timezone')`, berlaku untuk semua `now()`/`Carbon::now()`, timestamp `created_at`/`updated_at`, dan jadwal cron di `routes/console.php`. Jangan mengasumsikan UTC saat menulis query atau perbandingan tanggal baru.
 - **Locale tanggal**: Indonesian (`Carbon::parse(...)->locale('id')->translatedFormat('d F Y')`) untuk display.
 - **ID Dokumen format**: `#OPS-YYYY-NNN` (NNN = `id` laporan padded 3 digit).
 - **Payload JSON**: kolom `payload` di `daily_reports` menyimpan snapshot lengkap form. Berguna untuk restore di mode edit tanpa harus rebuild dari tabel-tabel relasi.
@@ -861,4 +882,13 @@ Ringkasan pembaruan:
 - Master data K3 (Lokasi & Item) dikelola admin lewat pane Data Lokasi K3 dan Data Item K3 di Data Master.
 - Draft safety kadaluarsa (> 3 hari) dibersihkan via `SafetyReport::pruneStaleDrafts()`, selaras Operasional & Pemeliharaan.
 - Rincian perancangan Increment 3 didokumentasikan di [`PERANCANGAN_MODUL_SAFETY.md`](PERANCANGAN_MODUL_SAFETY.md).
-- Test fitur berada di `tests/Feature/OpsFlowTest.php`; hasil terakhir `php artisan test` (2026-06-14): `39 tests`, `315 assertions` — `38` lulus, `1` gagal pada test master-unit operasional karena keterbatasan fungsi `CONCAT` di SQLite in-memory (tidak terkait modul Safety).
+- **Audit tampilan menyeluruh**: perbaikan token CSS box-shadow tombol Masuk yang tidak pernah ter-render (`auth.css`), halaman login tidak bisa di-scroll di layar pendek diperbaiki (blob dekoratif jadi `position: fixed`, body tidak lagi `overflow: hidden`), judul tab disamakan formatnya, dan header tabel Data Master (Data Karyawan/Unit/Truck/Inventaris) yang campur Bahasa Inggris diterjemahkan ke Bahasa Indonesia.
+- Karakter em dash (`—`) pada teks yang terlihat pengguna (label bantuan step form, status autosave, pesan draft kedaluwarsa, teks kertas laporan K3) diganti tanda baca biasa; sisa em dash hanya ada di komentar kode, tidak terlihat pengguna.
+- **Halaman offline didesain ulang** (`public/offline.html`): memakai ilustrasi maskot KSS, salinan Bahasa Indonesia, tombol "Coba Lagi" dengan ikon reload yang berputar sementara (6 detik) lalu aktif lagi, dark mode otomatis, dan tata letak responsif di semua ukuran layar. Lihat Section 5.11.
+- **Indikator loading dua lapis** lewat dua partial bersama, menggantikan markup/CSS spinner yang sebelumnya terduplikasi manual di 6 layout:
+  - `partials/page-loader.blade.php` (`<head>`, keenam layout): trickle bar tipis di atas layar (gaya NProgress) saat berpindah antar halaman internal, tanpa menggelapkan layar. Deteksi navigasi memakai flag `sessionStorage` sehingga overlay first-load ditekan saat navigasi agar tidak berkedip. Bar hanya muncul untuk navigasi sungguhan; klik/submit yang di-`preventDefault` (tab, modal, form AJAX) diabaikan lewat pengecekan `defaultPrevented` yang ditunda, dan warna bar mengikuti `--blue-main`.
+  - `partials/first-load-loader.blade.php` (baris pertama `<body>`, keenam layout): overlay `#sk-overlay` untuk first load/hard refresh, kini beranimasi siklus 2.4s bolak-balik antara cincin spinner biru-oranye dan logo KSS (`public/assets/loading-state.webp`), bukan lagi lingkaran polos. Latar overlay memakai `var(--main-bg)` sehingga otomatis mengikuti dark mode. Menghormati `prefers-reduced-motion` (animasi mati, logo langsung tampil statis). Keyframe `sk-rotate` beserta `.btn-spinner`/`.login-spinner` (spinner kecil di tombol unduh/TTD/login, tidak berkaitan dengan overlay ini) tetap di masing-masing file CSS layout, tidak dipindah.
+- Skrip dan rancangan pengujian beban k6 (`k6/`) dihapus dari repositori; fokus pengujian saat ini memakai Blackbox Testing dan UAT sesuai [`TESTING.md`](TESTING.md).
+- **Perbaikan timezone aplikasi**: `config('app.timezone')` diubah dari `UTC` ke `Asia/Makassar` (WITA, UTC+8) — sebelumnya seluruh jam yang ditampilkan (Log Aktivitas, Audit Log dashboard, jam kerja, tanggal laporan) tertulis dalam UTC sehingga terlihat mundur 8 jam dari waktu sebenarnya. Perbaikan ini juga meluruskan jam eksekusi tugas terjadwal di `routes/console.php` (`reports:prune-stale` jam 01.30 dan backup otomatis jam 02.00) yang sebelumnya benar-benar berjalan 8 jam lebih siang dari label "WITA" yang ditampilkan ke admin. **Catatan**: baris data yang sudah tersimpan sebelum perbaikan ini tetap menampilkan angka jam versi UTC lama (tidak dikonversi mundur), karena kolom `DATETIME`/`TIMESTAMP` di database tidak menyimpan info zona waktu; hanya data baru setelah perbaikan yang otomatis benar.
+- **Login mobile full-bleed** (`resources/css/layouts/auth.css`, breakpoint `max-width: 640px`): kartu kaca ("island") yang mengambang di tengah layar dengan sudut membulat, bayangan, dan blob dekoratif mengintip di sekelilingnya diganti jadi lembar penuh layar (edge-to-edge) khusus di lebar mobile, tanpa mengubah tampilan desktop/tablet sama sekali. Blob disembunyikan (tertutup penuh oleh kartu, sekaligus menghemat animasi GPU di perangkat mobile). Karena kartu tak lagi kaca transparan, kontras input dijaga lewat pola "page vs surface" yang sudah dipakai di seluruh aplikasi: kartu memakai `var(--main-bg)`, input memakai `var(--white)` — bukan sekadar melebarkan kartu kaca yang sama (yang akan membuat input nyaris tak terlihat karena keduanya sama-sama putih transparan). Aman untuk layar pendek (tetap bisa di-scroll, mengikuti perbaikan `overflow` sebelumnya).
+- Test fitur berada di `tests/Feature/`; hasil terakhir `php artisan test` (2026-07-19): `151 tests`, `769 assertions`, seluruhnya lulus.

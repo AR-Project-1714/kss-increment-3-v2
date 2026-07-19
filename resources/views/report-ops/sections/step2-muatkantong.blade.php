@@ -10,7 +10,7 @@
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
             <div class="step-info-note">
                 <i class="fi fi-rr-info"></i>
-                <span>Catat pemuatan pupuk kantong untuk tiap kapal. Pilih nama kapal dari saran agar kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya — nilai ini masih dapat diubah manual bila perlu. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal.</span>
+                <span>Catat pemuatan pupuk kantong untuk tiap kapal. Pilih nama kapal dari saran agar kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal.</span>
             </div>
             <div class="form-muat-kantong d-flex flex-column align-items-start align-self-stretch">
                 <div class="tab-activity d-flex align-items-center gap-10">

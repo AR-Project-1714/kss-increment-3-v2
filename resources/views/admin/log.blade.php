@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
 
-@section('title', 'KSS Admin — Log Aktivitas')
+@section('title', 'KSS Admin - Log Aktivitas')
 @section('active', 'log')
 
 @push('styles')
@@ -323,18 +323,19 @@
             </div>
             <button type="button" class="btn-tool" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
             <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Terapkan</button>
-            <button type="button"
+            <a href="{{ route('admin.log.export', request()->except('page')) }}"
                     class="btn-tool btn-tool--primary"
                     data-confirm
+                    data-confirm-redirect="{{ route('admin.log.export', request()->except('page')) }}"
                     data-confirm-tone="success"
                     data-confirm-title="Ekspor log aktivitas?"
-                    data-confirm-subtitle="Data audit akan disiapkan sebagai file unduhan."
-                    data-confirm-message="Gunakan ekspor untuk pemeriksaan audit, keamanan, atau dokumentasi aktivitas sistem."
-                    data-confirm-summary="Format preview: Excel"
+                    data-confirm-subtitle="Berkas Excel akan diunduh sesuai filter yang sedang aktif."
+                    data-confirm-message="Ekspor mengambil {{ $activityTotal }} aktivitas sesuai pencarian, tanggal, role, dan tipe yang sedang diterapkan pada tabel."
+                    data-confirm-summary="Format: Excel (.xlsx), {{ $activityTotal }} aktivitas"
                     data-confirm-label="Ekspor Log"
                     data-confirm-icon="fi fi-rr-cloud-upload-alt">
                 <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
-            </button>
+            </a>
         </div>
     </div>
 
@@ -366,6 +367,7 @@
                     <option value="update" @selected(($selectedType ?? 'all') === 'update')>Update</option>
                     <option value="delete" @selected(($selectedType ?? 'all') === 'delete')>Hapus</option>
                     <option value="backup" @selected(($selectedType ?? 'all') === 'backup')>Backup</option>
+                    <option value="export" @selected(($selectedType ?? 'all') === 'export')>Ekspor</option>
                     <option value="support" @selected(($selectedType ?? 'all') === 'support')>Bantuan</option>
                     <option value="login" @selected(($selectedType ?? 'all') === 'login')>Login</option>
                     <option value="security" @selected(($selectedType ?? 'all') === 'security')>Keamanan</option>

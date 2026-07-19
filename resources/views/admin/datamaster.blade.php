@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
 
-@section('title', 'KSS Admin — Master Data')
+@section('title', 'KSS Admin - Master Data')
 @section('active', 'master')
 
 @push('styles')
@@ -548,9 +548,9 @@
                 <tr class="thead d-flex justify-content-between align-items-center">
                     <th class="col-no">No</th>
                     <th class="col-npk">NPK</th>
-                    <th class="col-name">Name</th>
+                    <th class="col-name">Nama</th>
                     <th class="col-group">Group</th>
-                    <th class="col-position">Position</th>
+                    <th class="col-position">Posisi</th>
                     <th class="col-division">Divisi</th>
                     <th class="col-worktime">Jam Kerja</th>
                     <th class="col-aksi">Aksi</th>
@@ -586,11 +586,11 @@
             <table>
                 <tr class="thead d-flex justify-content-between align-items-center">
                     <th class="col-no">No</th>
-                    <th class="col-name">Name</th>
+                    <th class="col-name">Nama</th>
                     <th class="col-code">Kode</th>
                     <th class="col-brand">Merk</th>
                     <th class="col-number">Plat</th>
-                    <th class="col-type">Type</th>
+                    <th class="col-type">Tipe</th>
                     <th class="col-category">Kategori</th>
                     <th class="col-opscheck">Cek Unit</th>
                     <th class="col-year">Tahun</th>
@@ -629,9 +629,9 @@
             <table>
                 <tr class="thead d-flex justify-content-between align-items-center">
                     <th class="col-no">No</th>
-                    <th class="col-name">Name</th>
-                    <th class="col-plate">Plate Number</th>
-                    <th class="col-desc">Description</th>
+                    <th class="col-name">Nama</th>
+                    <th class="col-plate">Nomor Plat</th>
+                    <th class="col-desc">Keterangan</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @forelse ($trucks as $t)
@@ -662,8 +662,8 @@
             <table>
                 <tr class="thead d-flex justify-content-between align-items-center">
                     <th class="col-no">No</th>
-                    <th class="col-name">Name</th>
-                    <th class="col-category">Category</th>
+                    <th class="col-name">Nama</th>
+                    <th class="col-category">Kategori</th>
                     <th class="col-stock">Jumlah</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>

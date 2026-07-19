@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ReportStatus;
 use App\Http\Controllers\Concerns\BuildsDivisionArchive;
+use App\Http\Controllers\Concerns\BuildsExportSpreadsheet;
 use App\Http\Controllers\Concerns\ResolvesMaintenanceMeta;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Http\Controllers\Concerns\ResolvesSafetyMeta;
@@ -26,19 +27,35 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class AdminV2Controller extends Controller
 {
     use BuildsDivisionArchive;
+    use BuildsExportSpreadsheet;
     use ResolvesMaintenanceMeta;
     use ResolvesReportMeta;
     use ResolvesSafetyMeta;
     use SearchesReports;
+
+    /**
+     * Batas baris per sekali ekspor. Melindungi memori server dan mencegah
+     * berkas raksasa yang sebenarnya menandakan filter terlalu longgar.
+     */
+    private const EXPORT_ROW_LIMIT = 5000;
+
+    /**
+     * Kapasitas storage yang ditampilkan pada widget "Kapasitas Storage".
+     * Bukan hasil pengecekan disk fisik (server bisa saja punya kapasitas
+     * berbeda) — ini adalah kuota yang dikomunikasikan ke admin.
+     */
+    private const STORAGE_CAPACITY_BYTES = 30 * 1024 * 1024 * 1024;
 
     public function index(Request $request)
     {
@@ -51,35 +68,124 @@ class AdminV2Controller extends Controller
 
     public function archive(Request $request)
     {
-        $archiveSearch = trim((string) $request->input('q', ''));
-        $sort = $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest';
-        $selectedDate = $request->input('tanggal');
-        $selectedGroup = strtoupper((string) $request->input('regu', 'all'));
-        $selectedShift = strtolower((string) $request->input('shift', 'all'));
-        $selectedDivision = strtolower((string) $request->input('divisi', 'all'));
-        $selectedStatus = strtolower((string) $request->input('status', 'all'));
+        $filters = $this->archiveFiltersFromRequest($request);
 
-        $reports = $this->buildDivisionArchivePaginator($request, [
-            'archiveSearch' => $archiveSearch,
-            'sort' => $sort,
-            'selectedDate' => $selectedDate,
-            'selectedGroup' => $selectedGroup,
-            'selectedShift' => $selectedShift,
-            'selectedDivision' => $selectedDivision,
-            'selectedStatus' => $selectedStatus,
-        ], 'admin');
+        $reports = $this->buildDivisionArchivePaginator($request, $filters, 'admin');
 
         return view('admin.archive', array_merge($this->shellData($request), [
             'stats' => $this->archiveCards(),
             'reports' => $reports,
-            'archiveSearch' => $archiveSearch,
-            'sort' => $sort,
-            'selectedDate' => $selectedDate,
-            'selectedGroup' => $selectedGroup,
-            'selectedShift' => $selectedShift,
-            'selectedDivision' => $selectedDivision,
-            'selectedStatus' => $selectedStatus,
+            'archiveSearch' => $filters['archiveSearch'],
+            'sort' => $filters['sort'],
+            'selectedDate' => $filters['selectedDate'],
+            'selectedGroup' => $filters['selectedGroup'],
+            'selectedShift' => $filters['selectedShift'],
+            'selectedDivision' => $filters['selectedDivision'],
+            'selectedStatus' => $filters['selectedStatus'],
         ]));
+    }
+
+    /**
+     * Ekspor Excel dari seluruh baris arsip yang lolos filter aktif (bukan hanya
+     * halaman yang sedang tampil) — memakai refs+hydrate yang sama dengan
+     * buildDivisionArchivePaginator() supaya isinya taat pada aturan filter yang
+     * identik dengan yang dilihat admin di tabel.
+     */
+    public function archiveExport(Request $request)
+    {
+        $filters = $this->archiveFiltersFromRequest($request);
+
+        $refs = $this->archiveRowRefs($filters);
+
+        if ($refs->isEmpty()) {
+            return back()->with('error', 'Tidak ada laporan pada filter aktif untuk diekspor.');
+        }
+
+        abort_if(
+            $refs->count() > self::EXPORT_ROW_LIMIT,
+            422,
+            'Data terlalu banyak untuk diekspor sekaligus (maks '.self::EXPORT_ROW_LIMIT.' baris). Persempit filter terlebih dahulu.'
+        );
+
+        $rows = $this->hydrateArchiveRows($refs, 'admin');
+
+        $spreadsheet = $this->buildExportSpreadsheet(
+            'Arsip Laporan KSS',
+            [
+                'Diekspor: '.now()->locale('id')->translatedFormat('d F Y, H:i').' oleh '.($request->user()->name ?? '-'),
+                'Filter aktif: '.$this->describeArchiveFilters($filters),
+                'Jumlah baris: '.$rows->count(),
+            ],
+            ['No', 'ID Dokumen', 'Nama Laporan', 'Tanggal', 'Divisi', 'Regu', 'Shift', 'Status', 'Penyetuju', 'Terakhir Diperbarui'],
+            $rows->values()->map(fn (array $row, int $index): array => [
+                $index + 1,
+                $row['id'],
+                $row['title'],
+                $row['date'],
+                $row['division_label'],
+                $row['regu'],
+                $row['shift_label'],
+                $row['status_label'],
+                $row['approver'],
+                $row['updated_diff'],
+            ])
+        );
+
+        $fileName = 'Arsip-Laporan_'.now()->format('Y-m-d_Hi').'.xlsx';
+
+        $this->recordActivity($request, 'export', 'Mengekspor arsip laporan ('.$rows->count().' baris)');
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function archiveFiltersFromRequest(Request $request): array
+    {
+        return [
+            'archiveSearch' => trim((string) $request->input('q', '')),
+            'sort' => $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest',
+            'selectedDate' => $request->input('tanggal'),
+            'selectedGroup' => strtoupper((string) $request->input('regu', 'all')),
+            'selectedShift' => strtolower((string) $request->input('shift', 'all')),
+            'selectedDivision' => strtolower((string) $request->input('divisi', 'all')),
+            'selectedStatus' => strtolower((string) $request->input('status', 'all')),
+        ];
+    }
+
+    private function describeArchiveFilters(array $filters): string
+    {
+        $parts = [];
+
+        if (filled($filters['archiveSearch'])) {
+            $parts[] = 'Pencarian "'.$filters['archiveSearch'].'"';
+        }
+        if (filled($filters['selectedDate'])) {
+            $parts[] = 'Tanggal '.Carbon::parse($filters['selectedDate'])->locale('id')->translatedFormat('d F Y');
+        }
+        if ($filters['selectedDivision'] !== 'all') {
+            $parts[] = 'Divisi '.$this->divisionMeta($filters['selectedDivision'])['label'];
+        }
+        if ($filters['selectedGroup'] !== 'ALL') {
+            $parts[] = 'Regu '.$filters['selectedGroup'];
+        }
+        if ($filters['selectedShift'] !== 'all') {
+            $parts[] = 'Shift '.ucfirst($filters['selectedShift']);
+        }
+        if ($filters['selectedStatus'] !== 'all') {
+            $parts[] = 'Status '.match ($filters['selectedStatus']) {
+                'submitted' => 'Diserahkan',
+                'acknowledged' => 'Diterima',
+                'approved' => 'Diarsipkan',
+                default => ucfirst($filters['selectedStatus']),
+            };
+        }
+
+        return $parts === [] ? 'Tidak ada filter (seluruh arsip)' : implode(', ', $parts);
     }
 
     public function archiveSuggestions(Request $request)
@@ -97,16 +203,115 @@ class AdminV2Controller extends Controller
 
     public function log(Request $request)
     {
-        $activitySearch = trim((string) $request->input('q', ''));
-        $sort = $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest';
-        $selectedDate = $request->input('tanggal');
-        $selectedRole = strtolower((string) $request->input('role', 'all'));
-        $selectedType = strtolower((string) $request->input('type', 'all'));
+        $filters = $this->activityLogFiltersFromRequest($request);
 
+        $query = $this->buildActivityLogQuery($filters);
+        // Dihitung sebelum ->limit(60) supaya jumlah pada dialog ekspor
+        // mencerminkan seluruh baris yang lolos filter, bukan hanya yang tampil.
+        $activityTotal = (clone $query)->count();
+
+        $logs = $query
+            ->when($filters['sort'] === 'oldest', fn (Builder $builder) => $builder->oldest())
+            ->when($filters['sort'] === 'newest', fn (Builder $builder) => $builder->latest())
+            ->limit(60)
+            ->get()
+            ->map(fn (AdminActivityLog $activity): array => $this->activityRow($activity));
+
+        return view('admin.log', array_merge($this->shellData($request), [
+            'stats' => $this->dashboardCards(),
+            'logs' => $logs,
+            'activityTotal' => $activityTotal,
+            'activitySearch' => $filters['activitySearch'],
+            'sort' => $filters['sort'],
+            'selectedDate' => $filters['selectedDate'],
+            'selectedRole' => $filters['selectedRole'],
+            'selectedType' => $filters['selectedType'],
+        ]));
+    }
+
+    /**
+     * Ekspor Excel dari seluruh baris log yang lolos filter aktif. Query dibangun
+     * lewat buildActivityLogQuery() yang sama dengan log() — hanya tanpa batas
+     * 60 baris yang dipakai layar untuk performa tampilan.
+     */
+    public function logExport(Request $request)
+    {
+        $filters = $this->activityLogFiltersFromRequest($request);
+
+        $query = $this->buildActivityLogQuery($filters);
+        $total = (clone $query)->count();
+
+        if ($total === 0) {
+            return back()->with('error', 'Tidak ada aktivitas pada filter aktif untuk diekspor.');
+        }
+
+        abort_if(
+            $total > self::EXPORT_ROW_LIMIT,
+            422,
+            'Data terlalu banyak untuk diekspor sekaligus (maks '.self::EXPORT_ROW_LIMIT.' baris). Persempit filter terlebih dahulu.'
+        );
+
+        $activities = $query
+            ->when($filters['sort'] === 'oldest', fn (Builder $builder) => $builder->oldest())
+            ->when($filters['sort'] === 'newest', fn (Builder $builder) => $builder->latest())
+            ->get();
+
+        $spreadsheet = $this->buildExportSpreadsheet(
+            'Log Aktivitas Sistem KSS',
+            [
+                'Diekspor: '.now()->locale('id')->translatedFormat('d F Y, H:i').' oleh '.($request->user()->name ?? '-'),
+                'Filter aktif: '.$this->describeActivityLogFilters($filters),
+                'Jumlah baris: '.$activities->count(),
+            ],
+            ['No', 'Waktu', 'Pengguna', 'Info', 'Tipe', 'Deskripsi', 'IP Address'],
+            $activities->values()->map(function (AdminActivityLog $activity, int $index): array {
+                $properties = $activity->properties ?? [];
+                $attemptedLogin = $properties['attempted_login'] ?? null;
+
+                return [
+                    $index + 1,
+                    $activity->created_at?->locale('id')->translatedFormat('d F Y, H:i') ?? '-',
+                    $activity->user?->name ?? ($attemptedLogin ? 'Unknown Login' : 'System'),
+                    $activity->user
+                        ? 'Role: '.Role::displayName($activity->user->role?->name)
+                        : ($attemptedLogin ? 'Username: '.$attemptedLogin : 'Aktivitas otomatis'),
+                    $this->activityLabel($activity->type),
+                    $activity->description,
+                    $activity->ip_address ?: '-',
+                ];
+            })
+        );
+
+        $fileName = 'Log-Aktivitas_'.now()->format('Y-m-d_Hi').'.xlsx';
+
+        $this->recordActivity($request, 'export', 'Mengekspor log aktivitas ('.$activities->count().' baris)');
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function activityLogFiltersFromRequest(Request $request): array
+    {
+        return [
+            'activitySearch' => trim((string) $request->input('q', '')),
+            'sort' => $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest',
+            'selectedDate' => $request->input('tanggal'),
+            'selectedRole' => strtolower((string) $request->input('role', 'all')),
+            'selectedType' => strtolower((string) $request->input('type', 'all')),
+        ];
+    }
+
+    private function buildActivityLogQuery(array $filters): Builder
+    {
         $query = AdminActivityLog::query()->with('user.role');
 
-        if ($activitySearch !== '') {
-            $like = '%'.$activitySearch.'%';
+        if ($filters['activitySearch'] !== '') {
+            $like = '%'.$filters['activitySearch'].'%';
             $query->where(function (Builder $builder) use ($like): void {
                 $builder->where('description', 'like', $like)
                     ->orWhere('ip_address', 'like', $like)
@@ -117,34 +322,39 @@ class AdminV2Controller extends Controller
             });
         }
 
-        if ($selectedDate) {
-            $query->whereDate('created_at', $selectedDate);
+        if ($filters['selectedDate']) {
+            $query->whereDate('created_at', $filters['selectedDate']);
         }
 
-        if ($selectedRole !== '' && $selectedRole !== 'all') {
-            $query->whereHas('user.role', fn (Builder $roleQuery) => $roleQuery->where('name', $selectedRole));
+        if ($filters['selectedRole'] !== '' && $filters['selectedRole'] !== 'all') {
+            $query->whereHas('user.role', fn (Builder $roleQuery) => $roleQuery->where('name', $filters['selectedRole']));
         }
 
-        if ($selectedType !== '' && $selectedType !== 'all') {
-            $query->where('type', $selectedType);
+        if ($filters['selectedType'] !== '' && $filters['selectedType'] !== 'all') {
+            $query->where('type', $filters['selectedType']);
         }
 
-        $logs = $query
-            ->when($sort === 'oldest', fn (Builder $builder) => $builder->oldest())
-            ->when($sort === 'newest', fn (Builder $builder) => $builder->latest())
-            ->limit(60)
-            ->get()
-            ->map(fn (AdminActivityLog $activity): array => $this->activityRow($activity));
+        return $query;
+    }
 
-        return view('admin.log', array_merge($this->shellData($request), [
-            'stats' => $this->dashboardCards(),
-            'logs' => $logs,
-            'activitySearch' => $activitySearch,
-            'sort' => $sort,
-            'selectedDate' => $selectedDate,
-            'selectedRole' => $selectedRole,
-            'selectedType' => $selectedType,
-        ]));
+    private function describeActivityLogFilters(array $filters): string
+    {
+        $parts = [];
+
+        if (filled($filters['activitySearch'])) {
+            $parts[] = 'Pencarian "'.$filters['activitySearch'].'"';
+        }
+        if (filled($filters['selectedDate'])) {
+            $parts[] = 'Tanggal '.Carbon::parse($filters['selectedDate'])->locale('id')->translatedFormat('d F Y');
+        }
+        if ($filters['selectedRole'] !== 'all') {
+            $parts[] = 'Role '.ucfirst($filters['selectedRole']);
+        }
+        if ($filters['selectedType'] !== 'all') {
+            $parts[] = 'Tipe '.$this->activityLabel($filters['selectedType']);
+        }
+
+        return $parts === [] ? 'Tidak ada filter (seluruh log)' : implode(', ', $parts);
     }
 
     public function userManage(Request $request)
@@ -412,9 +622,10 @@ class AdminV2Controller extends Controller
         $schedule = $this->backupSchedule();
         $backups = $this->backupFiles();
         $lastBackup = collect($backups)->first();
-        $usedBytes = collect($backups)->sum('bytes');
-        $capacityBytes = 30 * 1024 * 1024 * 1024;
-        $usedPercent = $capacityBytes > 0 ? min(100, (int) round(($usedBytes / $capacityBytes) * 100)) : 0;
+        $usedBytes = $this->systemStorageUsedBytes();
+        $usedPercent = self::STORAGE_CAPACITY_BYTES > 0
+            ? min(100, (int) round(($usedBytes / self::STORAGE_CAPACITY_BYTES) * 100))
+            : 0;
         $annualYear = $this->annualBackupYear();
 
         return view('admin.backup', array_merge($this->shellData($request), [
@@ -1355,19 +1566,100 @@ class AdminV2Controller extends Controller
 
     private function dashboardCards(): array
     {
-        $backupFiles = $this->backupFiles();
-        $usedBytes = collect($backupFiles)->sum('bytes');
-        $lastBackup = collect($backupFiles)->first();
+        $lastBackup = collect($this->backupFiles())->first();
+        $usedPercent = self::STORAGE_CAPACITY_BYTES > 0
+            ? min(100, (int) round(($this->systemStorageUsedBytes() / self::STORAGE_CAPACITY_BYTES) * 100))
+            : 0;
         $securityEventsToday = AdminActivityLog::where('type', 'security')
             ->whereDate('created_at', Carbon::today())
             ->count();
 
         return [
             ['label' => 'Total Pengguna Aktif', 'value' => (string) User::where('status', 'aktif')->count(), 'icon' => 'fi fi-sr-user', 'color' => 'blue', 'success' => false],
-            ['label' => 'Kapasitas Storage Terpakai', 'value' => min(100, (int) round(($usedBytes / (30 * 1024 * 1024 * 1024)) * 100)).'%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan', 'success' => false],
+            ['label' => 'Kapasitas Storage Terpakai', 'value' => $usedPercent.'%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan', 'success' => false],
             ['label' => 'Status Backup Terakhir', 'value' => $lastBackup ? $lastBackup['status_label'] : 'Belum Ada', 'icon' => 'fi fi-sr-cloud-upload', 'color' => $lastBackup ? 'green' : 'orange', 'success' => (bool) $lastBackup],
             ['label' => 'Kejadian Keamanan Hari Ini', 'value' => (string) $securityEventsToday, 'icon' => 'fi fi-sr-shield-exclamation', 'color' => $securityEventsToday > 0 ? 'red' : 'green', 'success' => false],
         ];
+    }
+
+    /**
+     * Total pemakaian storage sesungguhnya: kode aplikasi (tanpa dependency
+     * vendor/node_modules dan riwayat .git) + dokumen laporan yang tersimpan
+     * (foto, tanda tangan, lampiran di storage/app/public) + ukuran database.
+     * Sebelumnya widget ini hanya menjumlahkan berkas backup, sehingga selalu
+     * menampilkan angka yang sangat kecil dan tidak merepresentasikan apa pun.
+     * Di-cache singkat karena memindai filesystem tiap muat halaman terlalu mahal.
+     */
+    private function systemStorageUsedBytes(): int
+    {
+        return Cache::remember('admin.storage-usage-bytes', now()->addMinutes(5), function (): int {
+            return $this->codebaseSizeBytes()
+                + $this->storedReportDocumentsSizeBytes()
+                + $this->databaseSizeBytes();
+        });
+    }
+
+    /**
+     * Ukuran kode aplikasi: seluruh proyek dikurangi dependency yang di-install
+     * (vendor, node_modules) dan metadata version control (.git) — mengikuti
+     * definisi yang sama dipakai .gitignore untuk apa yang "bukan" milik repo ini.
+     */
+    private function codebaseSizeBytes(): int
+    {
+        return $this->directorySizeBytes(base_path(), ['vendor', 'node_modules', '.git', 'storage']);
+    }
+
+    /**
+     * Ukuran seluruh dokumen laporan yang tersimpan (lampiran, foto, hasil
+     * unggahan) di ketiga divisi — bukan berkas backup, yang dihitung terpisah.
+     */
+    private function storedReportDocumentsSizeBytes(): int
+    {
+        return collect(['reports', 'maintenance-reports', 'safety-reports'])
+            ->sum(fn (string $dir): int => $this->directorySizeBytes(Storage::disk('public')->path($dir)));
+    }
+
+    /**
+     * Ukuran database dari katalog information_schema (metadata, bukan table
+     * scan) — portable ke MySQL/MariaDB tanpa perlu akses filesystem ke datadir.
+     */
+    private function databaseSizeBytes(): int
+    {
+        $row = DB::selectOne(
+            'SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes FROM information_schema.tables WHERE table_schema = ?',
+            [DB::getDatabaseName()]
+        );
+
+        return (int) ($row->bytes ?? 0);
+    }
+
+    /**
+     * Jumlahkan ukuran seluruh file di bawah $path secara rekursif. Direktori
+     * bernama sesuai $skipDirs tidak pernah dimasuki sama sekali (bukan
+     * disaring belakangan) — penting agar folder besar seperti vendor/
+     * (puluhan ribu file) tidak pernah benar-benar dipindai satu per satu.
+     */
+    private function directorySizeBytes(string $path, array $skipDirs = []): int
+    {
+        if (! is_dir($path)) {
+            return 0;
+        }
+
+        $filter = new \RecursiveCallbackFilterIterator(
+            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+            function (\SplFileInfo $current) use ($skipDirs): bool {
+                return ! ($current->isDir() && in_array($current->getFilename(), $skipDirs, true));
+            }
+        );
+
+        $total = 0;
+        foreach (new \RecursiveIteratorIterator($filter) as $file) {
+            if ($file->isFile()) {
+                $total += $file->getSize();
+            }
+        }
+
+        return $total;
     }
 
     private function archiveCards(): array
@@ -1632,7 +1924,7 @@ class AdminV2Controller extends Controller
     {
         return match ($type) {
             'delete', 'error', 'security' => 'red',
-            'backup', 'support' => 'green',
+            'backup', 'support', 'export' => 'green',
             'login' => 'blue',
             default => 'blue',
         };
@@ -1647,6 +1939,7 @@ class AdminV2Controller extends Controller
             'login' => 'Login',
             'security' => 'Keamanan',
             'error' => 'Error',
+            'export' => 'Ekspor',
             default => 'Update',
         };
     }

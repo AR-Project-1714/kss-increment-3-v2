@@ -158,7 +158,7 @@
     function finishSpinner() {
         if (!toast.classList.contains('show')) return;
         if (saveError) { hideToast(); return; } // simpan gagal: tutup tanpa "tersimpan"
-        if (label) label.textContent = savedOffline ? 'Tersimpan offline — sinkron saat online' : 'Laporan tersimpan';
+        if (label) label.textContent = savedOffline ? 'Tersimpan offline, sinkron saat online' : 'Laporan tersimpan';
         toast.classList.add('is-done');
         window.clearTimeout(hideTimer);
         hideTimer = window.setTimeout(hideToast, DONE_VISIBLE_MS);

@@ -1,6 +1,6 @@
 @extends('admin.layouts.app')
 
-@section('title', 'KSS Admin — Kelola Pengguna')
+@section('title', 'KSS Admin - Kelola Pengguna')
 @section('active', 'user')
 
 @push('styles')
