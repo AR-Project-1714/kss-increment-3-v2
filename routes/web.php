@@ -72,8 +72,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
     Route::get('/backup/files/{file}', [AdminV2Controller::class, 'downloadBackup'])->name('backup.download');
     Route::delete('/backup/files/{file}', [AdminV2Controller::class, 'destroyBackup'])->name('backup.destroy');
     Route::post('/backup/files/{file}/restore', [AdminV2Controller::class, 'restoreBackup'])->name('backup.restore');
-
-    Route::post('/help/ticket', [AdminV2Controller::class, 'storeHelpTicket'])->name('help.ticket');
 });
 
 Route::middleware('auth')->group(function () {
@@ -123,6 +121,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:'.Role::MANAGER)->group(function () {
         Route::get('/manajer', [ManajerController::class, 'index'])->name('manajer.index');
         Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
+        Route::get('/manajer/archive/export', [ManajerController::class, 'archiveExport'])->name('manajer.archive.export');
         Route::get('/manajer/archive/suggestions', [ManajerController::class, 'archiveSuggestions'])->name('manajer.archive.suggestions');
         Route::get('/manajer/bantuan', [ManajerController::class, 'bantuan'])->name('manajer.bantuan');
         Route::get('/manajer/reports/{report}', [ManajerController::class, 'show'])->name('manajer.reports.show');

@@ -16,15 +16,19 @@
             <div class="inspection-header d-flex justify-content-between align-items-end align-self-stretch">
                 <div class="tab-group" id="karyawan-tabs-group">
                     <div class="tab-sections active" data-target="section-shift" style="cursor: pointer;">
+                        <span class="icon"><i class="fi fi-rr-user-time"></i></span>
                         <span>Karyawan Shift</span>
                     </div>
                     <div class="tab-sections" data-target="section-lembur" style="cursor: pointer;">
+                        <span class="icon"><i class="fi fi-rr-time-forward"></i></span>
                         <span>Relief & Lembur</span>
                     </div>
                     <div class="tab-sections" data-target="section-op7" style="cursor: pointer;">
+                        <span class="icon"><i class="fi fi-rr-forklift"></i></span>
                         <span class="op7">OP.7 & Pengganti</span>
                     </div>
                     <div class="tab-sections" data-target="section-lain" style="cursor: pointer;">
+                        <span class="icon"><i class="fi fi-rr-menu-dots"></i></span>
                         <span>Lain-lain</span>
                     </div>
                 </div>
@@ -161,19 +165,19 @@
                             <div class="table-column main">
                                 <div class="table-input-wrapper">
                                     <span class="icon"><i class="fi fi-sr-user-helmet-safety"></i></span>
-                                    <input type="text" name="op7_logs[0][name]" placeholder="Nama Karyawan OP.7" value="Sabarudin">
+                                    <input type="text" name="op7_logs[0][name]" placeholder="Nama Karyawan OP.7" value="Operator P.6">
                                 </div>
                             </div>
                             <div class="table-column medium">
                                 <div class="table-input-wrapper">
                                     <span class="icon"><i class="fi fi-sr-forklift"></i></span>
-                                    <input type="text" name="op7_logs[0][no_forklift_]" placeholder="No. Forklift">
+                                    <input type="text" name="op7_logs[0][no_forklift_]" placeholder="No. Forklift" value="FL.KSS-100">
                                 </div>
                             </div>
                             <div class="table-column medium">
                                 <div class="table-input-wrapper">
                                     <span class="icon"><i class="fi fi-sr-land-location"></i></span>
-                                    <input type="text" name="op7_logs[0][work_area]" placeholder="Area">
+                                    <input type="text" name="op7_logs[0][work_area]" placeholder="Area" value="P.6">
                                 </div>
                             </div>
                             <div class="table-column absent">

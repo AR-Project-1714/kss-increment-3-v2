@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Concerns;
 use App\Enums\MaintenanceStatus;
 use App\Enums\ReportStatus;
 use App\Enums\SafetyStatus;
+use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\MaintenanceReport;
 use App\Models\SafetyReport;
@@ -14,9 +15,123 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 trait BuildsDivisionArchive
 {
+    use BuildsExportSpreadsheet;
+
+    /**
+     * Parameter filter arsip dari query string — SATU-SATUNYA tempat parsing
+     * ini boleh hidup, dipakai halaman arsip dan ekspornya di admin & manajer
+     * agar keduanya tidak mungkin menafsirkan filter secara berbeda.
+     */
+    protected function archiveFiltersFromRequest(Request $request): array
+    {
+        return [
+            'archiveSearch' => trim((string) $request->input('q', '')),
+            'sort' => $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest',
+            'selectedDate' => $request->input('tanggal'),
+            'selectedGroup' => strtoupper((string) $request->input('regu', 'all')),
+            'selectedShift' => strtolower((string) $request->input('shift', 'all')),
+            'selectedDivision' => strtolower((string) $request->input('divisi', 'all')),
+            'selectedStatus' => strtolower((string) $request->input('status', 'all')),
+        ];
+    }
+
+    /**
+     * Ekspor Excel seluruh baris arsip yang lolos filter aktif (bukan hanya
+     * halaman yang tampil) — refs+hydrate yang sama dengan paginator sehingga
+     * isinya identik dengan yang dilihat pengguna di tabel.
+     */
+    protected function archiveExportResponse(Request $request, string $context)
+    {
+        $filters = $this->archiveFiltersFromRequest($request);
+
+        $refs = $this->archiveRowRefs($filters);
+
+        if ($refs->isEmpty()) {
+            return back()->with('error', 'Tidak ada laporan pada filter aktif untuk diekspor.');
+        }
+
+        abort_if(
+            $refs->count() > self::EXPORT_ROW_LIMIT,
+            422,
+            'Data terlalu banyak untuk diekspor sekaligus (maks '.self::EXPORT_ROW_LIMIT.' baris). Persempit filter terlebih dahulu.'
+        );
+
+        $rows = $this->hydrateArchiveRows($refs, $context);
+
+        $spreadsheet = $this->buildExportSpreadsheet(
+            'Arsip Laporan KSS',
+            [
+                'Diekspor: '.now()->locale('id')->translatedFormat('d F Y, H:i').' oleh '.($request->user()->name ?? '-'),
+                'Filter aktif: '.$this->describeArchiveFilters($filters),
+                'Jumlah baris: '.$rows->count(),
+            ],
+            ['No', 'ID Dokumen', 'Nama Laporan', 'Tanggal', 'Divisi', 'Regu', 'Shift', 'Status', 'Penyetuju', 'Terakhir Diperbarui'],
+            $rows->values()->map(fn (array $row, int $index): array => [
+                $index + 1,
+                $row['id'],
+                $row['title'],
+                $row['date'],
+                $row['division_label'],
+                $row['regu'],
+                $row['shift_label'],
+                $row['status_label'],
+                $row['approver'],
+                $row['updated_diff'],
+            ])
+        );
+
+        $fileName = 'Arsip-Laporan_'.now()->format('Y-m-d_Hi').'.xlsx';
+
+        AdminActivityLog::create([
+            'user_id' => $request->user()?->id,
+            'type' => 'export',
+            'description' => 'Mengekspor arsip laporan ('.$rows->count().' baris)',
+            'ip_address' => $request->ip(),
+        ]);
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    protected function describeArchiveFilters(array $filters): string
+    {
+        $parts = [];
+
+        if (filled($filters['archiveSearch'])) {
+            $parts[] = 'Pencarian "'.$filters['archiveSearch'].'"';
+        }
+        if (filled($filters['selectedDate'])) {
+            $parts[] = 'Tanggal '.Carbon::parse($filters['selectedDate'])->locale('id')->translatedFormat('d F Y');
+        }
+        if ($filters['selectedDivision'] !== 'all') {
+            $parts[] = 'Divisi '.$this->divisionMeta($filters['selectedDivision'])['label'];
+        }
+        if ($filters['selectedGroup'] !== 'ALL') {
+            $parts[] = 'Regu '.$filters['selectedGroup'];
+        }
+        if ($filters['selectedShift'] !== 'all') {
+            $parts[] = 'Shift '.ucfirst($filters['selectedShift']);
+        }
+        if ($filters['selectedStatus'] !== 'all') {
+            $parts[] = 'Status '.match ($filters['selectedStatus']) {
+                'submitted' => 'Diserahkan',
+                'acknowledged' => 'Diterima',
+                'approved' => 'Diarsipkan',
+                default => ucfirst($filters['selectedStatus']),
+            };
+        }
+
+        return $parts === [] ? 'Tidak ada filter (seluruh arsip)' : implode(', ', $parts);
+    }
     protected function buildDivisionArchivePaginator(Request $request, array $filters, string $context): LengthAwarePaginator
     {
         $perPage = 10;

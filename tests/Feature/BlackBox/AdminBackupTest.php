@@ -79,14 +79,17 @@ class AdminBackupTest extends BlackBoxTestCase
         $this->actingAs($admin)->post(route('admin.backup.generate'))->assertRedirect();
         $file = basename(collect(Storage::disk('local')->files('admin-backups'))->first());
 
+        // Restore sengaja tidak dijalankan otomatis: sistem hanya mencatat
+        // permintaan (sukses = permintaan tercatat, bukan data pulih).
         $this->actingAs($admin)
             ->post(route('admin.backup.restore', $file))
-            ->assertSessionHas('error');
+            ->assertSessionHas('success');
 
         $this->assertDatabaseHas('admin_activity_logs', [
             'type' => 'backup',
         ]);
-        $this->assertStringContainsString('Restore tidak dijalankan otomatis', session('error'));
+        $this->assertStringContainsString('dicatat di log aktivitas', session('success'));
+        $this->assertStringContainsString('manual oleh admin server', session('success'));
     }
 
     public function test_tc_abck_06_backup_tahunan_tidak_tersedia_tanpa_laporan_tahun_lalu(): void

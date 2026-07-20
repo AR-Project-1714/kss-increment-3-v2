@@ -530,6 +530,13 @@
                                 @if ($hasActiveFilter)
                                     <a href="{{ route('manajer.archive') }}" class="btn-reset">Reset</a>
                                 @endif
+                                {{-- Unduh langsung tanpa dialog — konsisten dengan tombol unduh
+                                     laporan manajer lain yang juga tanpa pop up konfirmasi. --}}
+                                <a href="{{ route('manajer.archive.export', request()->except('page')) }}"
+                                        class="btn-tool btn-tool--primary"
+                                        title="Ekspor Excel sesuai filter aktif ({{ $archiveTotal }} laporan)">
+                                    <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
+                                </a>
                             </div>
                         </div>
 

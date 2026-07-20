@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\ReportStatus;
 use App\Http\Controllers\Concerns\BuildsDivisionArchive;
-use App\Http\Controllers\Concerns\BuildsExportSpreadsheet;
 use App\Http\Controllers\Concerns\ResolvesMaintenanceMeta;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Http\Controllers\Concerns\ResolvesSafetyMeta;
@@ -38,17 +37,10 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class AdminV2Controller extends Controller
 {
     use BuildsDivisionArchive;
-    use BuildsExportSpreadsheet;
     use ResolvesMaintenanceMeta;
     use ResolvesReportMeta;
     use ResolvesSafetyMeta;
     use SearchesReports;
-
-    /**
-     * Batas baris per sekali ekspor. Melindungi memori server dan mencegah
-     * berkas raksasa yang sebenarnya menandakan filter terlalu longgar.
-     */
-    private const EXPORT_ROW_LIMIT = 5000;
 
     /**
      * Kapasitas storage yang ditampilkan pada widget "Kapasitas Storage".
@@ -85,107 +77,9 @@ class AdminV2Controller extends Controller
         ]));
     }
 
-    /**
-     * Ekspor Excel dari seluruh baris arsip yang lolos filter aktif (bukan hanya
-     * halaman yang sedang tampil) — memakai refs+hydrate yang sama dengan
-     * buildDivisionArchivePaginator() supaya isinya taat pada aturan filter yang
-     * identik dengan yang dilihat admin di tabel.
-     */
     public function archiveExport(Request $request)
     {
-        $filters = $this->archiveFiltersFromRequest($request);
-
-        $refs = $this->archiveRowRefs($filters);
-
-        if ($refs->isEmpty()) {
-            return back()->with('error', 'Tidak ada laporan pada filter aktif untuk diekspor.');
-        }
-
-        abort_if(
-            $refs->count() > self::EXPORT_ROW_LIMIT,
-            422,
-            'Data terlalu banyak untuk diekspor sekaligus (maks '.self::EXPORT_ROW_LIMIT.' baris). Persempit filter terlebih dahulu.'
-        );
-
-        $rows = $this->hydrateArchiveRows($refs, 'admin');
-
-        $spreadsheet = $this->buildExportSpreadsheet(
-            'Arsip Laporan KSS',
-            [
-                'Diekspor: '.now()->locale('id')->translatedFormat('d F Y, H:i').' oleh '.($request->user()->name ?? '-'),
-                'Filter aktif: '.$this->describeArchiveFilters($filters),
-                'Jumlah baris: '.$rows->count(),
-            ],
-            ['No', 'ID Dokumen', 'Nama Laporan', 'Tanggal', 'Divisi', 'Regu', 'Shift', 'Status', 'Penyetuju', 'Terakhir Diperbarui'],
-            $rows->values()->map(fn (array $row, int $index): array => [
-                $index + 1,
-                $row['id'],
-                $row['title'],
-                $row['date'],
-                $row['division_label'],
-                $row['regu'],
-                $row['shift_label'],
-                $row['status_label'],
-                $row['approver'],
-                $row['updated_diff'],
-            ])
-        );
-
-        $fileName = 'Arsip-Laporan_'.now()->format('Y-m-d_Hi').'.xlsx';
-
-        $this->recordActivity($request, 'export', 'Mengekspor arsip laporan ('.$rows->count().' baris)');
-
-        return response()->streamDownload(function () use ($spreadsheet): void {
-            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
-            $writer->save('php://output');
-            $spreadsheet->disconnectWorksheets();
-        }, $fileName, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
-    }
-
-    private function archiveFiltersFromRequest(Request $request): array
-    {
-        return [
-            'archiveSearch' => trim((string) $request->input('q', '')),
-            'sort' => $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest',
-            'selectedDate' => $request->input('tanggal'),
-            'selectedGroup' => strtoupper((string) $request->input('regu', 'all')),
-            'selectedShift' => strtolower((string) $request->input('shift', 'all')),
-            'selectedDivision' => strtolower((string) $request->input('divisi', 'all')),
-            'selectedStatus' => strtolower((string) $request->input('status', 'all')),
-        ];
-    }
-
-    private function describeArchiveFilters(array $filters): string
-    {
-        $parts = [];
-
-        if (filled($filters['archiveSearch'])) {
-            $parts[] = 'Pencarian "'.$filters['archiveSearch'].'"';
-        }
-        if (filled($filters['selectedDate'])) {
-            $parts[] = 'Tanggal '.Carbon::parse($filters['selectedDate'])->locale('id')->translatedFormat('d F Y');
-        }
-        if ($filters['selectedDivision'] !== 'all') {
-            $parts[] = 'Divisi '.$this->divisionMeta($filters['selectedDivision'])['label'];
-        }
-        if ($filters['selectedGroup'] !== 'ALL') {
-            $parts[] = 'Regu '.$filters['selectedGroup'];
-        }
-        if ($filters['selectedShift'] !== 'all') {
-            $parts[] = 'Shift '.ucfirst($filters['selectedShift']);
-        }
-        if ($filters['selectedStatus'] !== 'all') {
-            $parts[] = 'Status '.match ($filters['selectedStatus']) {
-                'submitted' => 'Diserahkan',
-                'acknowledged' => 'Diterima',
-                'approved' => 'Diarsipkan',
-                default => ucfirst($filters['selectedStatus']),
-            };
-        }
-
-        return $parts === [] ? 'Tidak ada filter (seluruh arsip)' : implode(', ', $parts);
+        return $this->archiveExportResponse($request, 'admin');
     }
 
     public function archiveSuggestions(Request $request)
@@ -1444,24 +1338,11 @@ class AdminV2Controller extends Controller
 
         $this->recordActivity($request, 'backup', 'Mencatat permintaan restore dari '.basename($path));
 
-        return back()->with('error', 'Restore tidak dijalankan otomatis oleh sistem. Permintaan sudah dicatat di log; pemulihan data harus dilakukan manual oleh admin server (unduh file lalu impor ke database).');
-    }
-
-    public function storeHelpTicket(Request $request)
-    {
-        $data = $request->validate([
-            'category' => ['required', 'string', 'max:80'],
-            'priority' => ['required', 'string', 'max:30'],
-            'title' => ['required', 'string', 'max:160'],
-            'description' => ['required', 'string', 'max:1000'],
-        ]);
-
-        $this->recordActivity($request, 'support', 'Membuat tiket bantuan: '.$data['title'], [
-            'category' => $data['category'],
-            'priority' => $data['priority'],
-        ]);
-
-        return back()->with('success', 'Tiket bantuan berhasil dicatat.');
+        // Sengaja tidak menjalankan restore otomatis: pemulihan data adalah
+        // operasi destruktif yang harus dikerjakan manual oleh admin server.
+        // Tombolnya berbunyi "Minta Restore", jadi hasil suksesnya adalah
+        // tercatatnya permintaan — bukan pulihnya data.
+        return back()->with('success', 'Permintaan restore dari '.basename($path).' sudah dicatat di log aktivitas. Pemulihan data dilakukan manual oleh admin server: unduh file backup lalu impor ke database.');
     }
 
     private function validateUser(Request $request, ?User $user, bool $isCreate): array
@@ -1620,17 +1501,28 @@ class AdminV2Controller extends Controller
     }
 
     /**
-     * Ukuran database dari katalog information_schema (metadata, bukan table
-     * scan) — portable ke MySQL/MariaDB tanpa perlu akses filesystem ke datadir.
+     * Ukuran database, disesuaikan dengan driver koneksi: MySQL/MariaDB lewat
+     * katalog information_schema (metadata, bukan table scan), SQLite lewat
+     * PRAGMA page_count × page_size (juga metadata; mencakup mode in-memory
+     * yang dipakai test suite). Driver lain atau kegagalan query mengembalikan
+     * 0 — widget statistik boleh kurang akurat, tapi tidak boleh mematikan
+     * halaman.
      */
     private function databaseSizeBytes(): int
     {
-        $row = DB::selectOne(
-            'SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes FROM information_schema.tables WHERE table_schema = ?',
-            [DB::getDatabaseName()]
-        );
-
-        return (int) ($row->bytes ?? 0);
+        try {
+            return match (DB::connection()->getDriverName()) {
+                'mysql', 'mariadb' => (int) (DB::selectOne(
+                    'SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes FROM information_schema.tables WHERE table_schema = ?',
+                    [DB::getDatabaseName()]
+                )->bytes ?? 0),
+                'sqlite' => (int) ((DB::selectOne('PRAGMA page_count')->page_count ?? 0)
+                    * (DB::selectOne('PRAGMA page_size')->page_size ?? 0)),
+                default => 0,
+            };
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     /**

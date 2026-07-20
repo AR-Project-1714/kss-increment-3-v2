@@ -36,11 +36,12 @@
     @include('partials.toast')
 
     {{-- Seluruh elemen khas mobile di bawah ini disembunyikan secara default dan
-         baru dimunculkan di media query ≤640px, sehingga tampilan desktop
+         baru dimunculkan di media query mobile, sehingga tampilan desktop
          (brand mark kiri atas + kartu kaca di tengah + hak cipta) tidak berubah. --}}
     <div class="auth-shell">
         {{-- Hero. Desktop: hanya baris atas (brand kiri + toggle tema kanan).
-             Mobile: logo dan sapaan di bawahnya. --}}
+             Mobile: logo dan sapaan di bawahnya, menyatu dengan form dalam
+             satu permukaan penuh layar (tanpa lembar/sheet terpisah). --}}
         <header class="auth-hero">
             <div class="auth-hero__topbar">
                 {{-- Pojok kiri: desktop memakai ikon webp, mobile memakai logo penuh --}}
@@ -53,34 +54,22 @@
 
             <div class="auth-hero__intro">
                 <img src="{{ asset('assets/login-mobile-kss.webp') }}" alt=""
-                     class="auth-hero__logo" width="52" height="52">
+                     class="auth-hero__logo" width="60" height="60">
                 <h1 class="auth-hero__title">Selamat Datang!</h1>
                 <p class="auth-hero__subtitle">Sistem Manajemen Dokumen Operasional</p>
             </div>
         </header>
 
-        {{-- Sheet. Di desktop display:contents — ia lenyap dari layout sehingga
-             .login-wrapper dan .auth-footer tetap jadi anak langsung shell
-             persis seperti sebelumnya. Di mobile ia jadi permukaan kaca. --}}
-        <div class="auth-sheet">
-            <span class="auth-sheet__grabber" aria-hidden="true"></span>
-
-            <div class="auth-sheet__header">
-                <h2 class="auth-sheet__title">Masuk ke Akun</h2>
-                <p class="auth-sheet__subtitle">Gunakan akun yang telah terdaftar pada Sistem Pelaporan KSS.</p>
-            </div>
-
-            <!-- Wrapper Content -->
-            <div class="login-wrapper">
-                @yield('content')
-            </div>
-
-            <!-- Hak Cipta -->
-            <footer class="auth-footer">
-                <span class="auth-footer__line">© {{ date('Y') }} Sistem Laporan KSS.</span>
-                <span class="auth-footer__line">Dibuat oleh Muhammad Arobi.</span>
-            </footer>
+        <!-- Wrapper Content -->
+        <div class="login-wrapper">
+            @yield('content')
         </div>
+
+        <!-- Hak Cipta -->
+        <footer class="auth-footer">
+            <span class="auth-footer__line">© {{ date('Y') }} Sistem Laporan KSS.</span>
+            <span class="auth-footer__line">Dibuat oleh Muhammad Arobi.</span>
+        </footer>
     </div>
 
     <script src="{{ asset('js/layouts/auth.js') }}?v={{ @filemtime(public_path('js/layouts/auth.js')) }}"></script>

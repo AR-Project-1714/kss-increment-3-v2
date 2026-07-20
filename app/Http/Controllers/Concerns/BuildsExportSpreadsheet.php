@@ -17,6 +17,12 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 trait BuildsExportSpreadsheet
 {
     /**
+     * Batas baris per sekali ekspor. Melindungi memori server dan mencegah
+     * berkas raksasa yang sebenarnya menandakan filter terlalu longgar.
+     */
+    protected const EXPORT_ROW_LIMIT = 5000;
+
+    /**
      * @param  array<int, string>  $contextLines  baris info di bawah judul, mis. "Diekspor: ...", "Filter aktif: ..."
      * @param  array<int, string>  $headers  label kolom
      * @param  Collection<int, array<int, string|int>>  $rows  tiap baris = nilai kolom terurut sesuai $headers

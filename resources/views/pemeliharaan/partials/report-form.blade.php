@@ -439,9 +439,15 @@
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
                 <div class="inspection-header">
-                    <div class="tab-group" style="padding:0">
-                        <div class="tab-sections active" data-cond-target="cond-truck">Trailer / Tronton / DT</div>
-                        <div class="tab-sections" data-cond-target="cond-heavy">Forklift / Excavator / WL</div>
+                    <div class="tab-group">
+                        <div class="tab-sections active" data-cond-target="cond-truck">
+                            <span class="icon"><i class="fi fi-rr-truck-side"></i></span>
+                            <span>Trailer / Tronton / DT</span>
+                        </div>
+                        <div class="tab-sections" data-cond-target="cond-heavy">
+                            <span class="icon"><i class="fi fi-rr-forklift"></i></span>
+                            <span>Forklift / Excavator / WL</span>
+                        </div>
                     </div>
                     <button type="button" class="set-all-good" id="set-all-ready"><i class="fi fi-rr-check-double"></i> Set Semua Ready</button>
                 </div>

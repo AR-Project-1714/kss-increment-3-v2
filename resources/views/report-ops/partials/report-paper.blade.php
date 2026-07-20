@@ -168,8 +168,14 @@
     .report-paper .addr { margin-bottom: 7px; }
     .report-paper .addr td { font-size: 8px; }
     .report-paper .addr .lab { font-weight: bold; }
+    /* Kolom kanan .addr hanya membungkus lebar tabel .meta (shrink-to-fit),
+       jadi tabelnya perlu didorong sendiri ke ujung kanan kolom via margin-left:auto. */
+    .report-paper .addr .meta-cell { text-align: right; }
+    .report-paper .meta { margin-left: auto; margin-right: 0; }
     .report-paper .meta td { padding: 1px 0; }
-    .report-paper .meta .ml { width: 62px; font-weight: bold; }
+    /* white-space: nowrap mencegah label manapun terbungkus dua baris meski
+       lebih panjang dari lebar kolom (mis. "JAM KERJA" vs "HARI"/"GROUP"). */
+    .report-paper .meta .ml { width: 72px; font-weight: bold; white-space: nowrap; }
     .report-paper .meta .line { border-bottom: 1px solid #000; display: inline-block; min-width: 112px; padding-left: 4px; }
     .report-paper .sec { margin-top: 8px; padding: 4px 6px; border: 1px solid #000; border-bottom: none; background: #e5e7eb; font-size: 8.5px; font-weight: bold; text-transform: uppercase; letter-spacing: .2px; page-break-after: avoid; }
     .report-paper .subsec { padding: 3px 5px; border: 1px solid #000; border-bottom: none; background: #eef0f2; font-size: 8px; font-weight: bold; text-transform: uppercase; }
@@ -258,7 +264,7 @@
                 DI<br>
                 &nbsp;&nbsp;&nbsp;&nbsp;<span class="lab">BONTANG</span>
             </td>
-            <td style="width:45%">
+            <td class="meta-cell" style="width:45%">
                 <table class="meta">
                     <tr><td class="ml">HARI</td><td>: <span class="line">{{ $fmtDay($report->report_date) }}</span></td></tr>
                     <tr><td class="ml">TANGGAL</td><td>: <span class="line">{{ $fmtDate($report->report_date) }}</span></td></tr>

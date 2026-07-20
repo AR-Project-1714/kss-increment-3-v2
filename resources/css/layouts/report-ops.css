@@ -1551,18 +1551,16 @@
         .plus-minus-tab .btn.remove { background-color: var(--red-main-5); border: 1px solid var(--red-main-25); }
         .plus-minus-tab .btn.remove:hover { background-color: var(--red-main-10); color: var(--red-main); }
 
-        .tab-bongkar {
-            display: flex; padding: 5px; align-items: center; align-content: center; align-self: stretch;
-            flex-wrap: wrap; gap: 5px 10px; border-radius: 13px; background-color: var(--blue-main-2); border: 1px solid var(--blue-main-25);
+        /* Tab Bongkar memakai komponen segmented .tab-group/.tab-sections yang
+           sama dengan sub-tab lain (island + pill meluncur), hanya warna pill-nya
+           beda per tab: Bahan Baku tetap biru (bawaan), Container jadi oranye
+           lewat :has() yang mengecek tab mana yang sedang .active. */
+        .tab-group.tab-group-bongkar { max-width: none; width: 100%; }
+        .tab-group-bongkar .tab-sections { text-decoration: none; min-width: 0; }
+        .tab-group-bongkar:has(.tab-sections.tab-container.active) .tab-group-indicator {
+            background: var(--orange-main);
+            box-shadow: 0 2px 6px 0 var(--orange-main-40);
         }
-        .tab-bongkar .tab {
-            display: flex; min-width: 250px; padding: 8px 12px; justify-content: center; align-items: center;
-            gap: 8px; flex: 1 0 0; border-radius: 8px; text-decoration: none; color: var(--dark-secondary); font-size: 12px; font-weight: 600; cursor: pointer; transition: .2s;
-        }
-        .tab-bongkar .tab.active.material, .tab-bongkar .tab.active.material:hover { color: var(--button-color); background-color: var(--blue-main); }
-        .tab-bongkar .tab.material:hover { color: var(--blue-main); background-color: var(--blue-main-10); }
-        .tab-bongkar .tab.active.tab-container, .tab-bongkar .tab.active.tab-container:hover { color: var(--button-color); background-color: var(--orange-main); }
-        .tab-bongkar .tab.tab-container:hover { color: var(--orange-main); background-color: var(--orange-main-10); }
 
         /* =========================================
            SUMMARY CARDS
@@ -1944,16 +1942,53 @@
         .container-content .btn-tambah-baris { border: 1.5px dashed var(--orange-main-40); }
         .btn-tambah-baris.red {border: 1.5px dashed var(--red-main-40);}
 
-        /* Tab groups inside table containers */
-        .tab-group { display: flex; max-width: 620px; padding: 5px; align-items: center; align-content: center; gap: 5px 10px; flex: 1 0 0; flex-wrap: wrap; }
-        .tab-sections {
-            display: flex; min-width: 100px; padding: 6px 12px; justify-content: center; align-items: center;
-            gap: 8px; flex: 1 0 0; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+        /* =========================================
+           SUB-TAB SEGMENTED CONTROL ("island" + pill meluncur)
+           Dipakai sub-tab di dalam step (Karyawan, Cek Unit). Tab berdempetan
+           tanpa gap di atas satu island; pill biru meluncur halus ke tab aktif
+           (elemen .tab-group-indicator diisi/diposisikan oleh JS). Tab non-aktif
+           diredupkan (opacity) dan menerang saat hover.
+           ========================================= */
+        .tab-group {
+            position: relative;
+            display: flex; align-items: center; gap: 0; padding: 4px;
+            flex: 1 0 0; max-width: 620px;
+            border-radius: 12px; background-color: rgba(37, 99, 235, 0.06);
         }
-        .tab-sections:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
-        .tab-sections.active { color: var(--button-color, #fff); background-color: var(--blue-main, #0d6efd); box-shadow: 0 0 4px 0 var(--blue-main-40); }
-        .tab-sections.active:hover { color: var(--button-color, #fff); background-color: var(--blue-main, #0d6efd); }
-        .tab-sections i { position: relative; top: 1px; }
+        body.dark-mode .tab-group { background-color: rgba(255, 255, 255, 0.06); }
+        .tab-sections {
+            position: relative; z-index: 1;
+            display: flex; flex: 1 1 0; min-width: 0; padding: 7px 12px;
+            justify-content: center; align-items: center; gap: 8px;
+            font-size: 12px; font-weight: 600; white-space: nowrap;
+            border-radius: 9px; cursor: pointer; background: transparent;
+            color: var(--dark-secondary); opacity: 0.6;
+            transition: color 0.25s ease, opacity 0.25s ease;
+        }
+        .tab-sections:hover { opacity: 1; color: var(--dark-main); }
+        .tab-sections.active,
+        .tab-sections.active:hover { opacity: 1; color: var(--button-color, #fff); background: transparent; }
+        .tab-sections .icon, .tab-sections i { position: relative; top: 1px; }
+
+        .tab-group-indicator {
+            position: absolute; left: 0; top: 4px; bottom: 4px; width: 0;
+            border-radius: 9px; background: var(--blue-main, #0d6efd);
+            box-shadow: 0 2px 6px 0 var(--blue-main-40);
+            transform: translateX(0); opacity: 0; pointer-events: none; z-index: 0;
+            transition: transform 0.34s cubic-bezier(.22,1,.36,1), width 0.34s cubic-bezier(.22,1,.36,1),
+                background-color 0.34s ease, box-shadow 0.34s ease;
+        }
+
+        /* Mobile: tab aktif LEBAR TETAP (½ island) — sama untuk tab mana pun,
+           tidak ikut panjang teksnya. Karena lebar pill konstan, animasi pindah
+           hanya menggeser (translateX) tanpa efek mengecil/membesar — meniru
+           toggle Home/Code Claude yang segmennya seukuran. Tab non-aktif (ikon
+           saja) berbagi sisa ruang rata. */
+        @media (max-width: 640px) {
+            .tab-sections.active { flex: 0 0 50%; }
+            .tab-sections:not(.active) > span:not(.icon) { display: none; }
+            .tab-sections:not(.active) { padding: 7px 11px; gap: 0; }
+        }
 
         /* Custom Radio Buttons */
         .table-column.radio { display: flex; max-width: 250px; padding: 0 10px; align-items: center; gap: 10px; flex: 1 0 0; }

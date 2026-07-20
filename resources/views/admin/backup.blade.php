@@ -396,15 +396,15 @@
                                 @csrf
                                 <button type="submit"
                                         class="btn-act restore"
-                                        title="Restore"
+                                        title="Minta Restore"
                                         data-confirm
                                         data-confirm-submit="true"
                                         data-confirm-tone="warning"
-                                        data-confirm-title="Restore dari backup?"
-                                        data-confirm-subtitle="Permintaan restore akan dicatat."
-                                        data-confirm-message="Restore adalah tindakan sensitif. File akan diverifikasi oleh admin server sebelum data dikembalikan."
+                                        data-confirm-title="Minta restore dari backup?"
+                                        data-confirm-subtitle="Sistem hanya mencatat permintaan — data tidak berubah."
+                                        data-confirm-message="Pemulihan data dilakukan manual oleh admin server: unduh file backup lalu impor ke database. Permintaan ini masuk ke log aktivitas sebagai jejak audit."
                                         data-confirm-summary="{{ $backup['name'] }}"
-                                        data-confirm-label="Catat Restore"
+                                        data-confirm-label="Catat Permintaan"
                                         data-confirm-icon="fi fi-rr-time-past">
                                     <i class="fi fi-rr-time-past"></i>
                                 </button>

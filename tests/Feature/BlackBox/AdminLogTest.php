@@ -55,19 +55,14 @@ class AdminLogTest extends BlackBoxTestCase
 
     public function test_tc_alog_04_tindakan_admin_tercatat_otomatis(): void
     {
+        \Illuminate\Support\Facades\Storage::fake('local');
         $admin = $this->admin();
 
-        // Tindakan: membuat tiket bantuan -> harus tercatat di log.
-        $this->actingAs($admin)->post(route('admin.help.ticket'), [
-            'category' => 'Akun & Role',
-            'priority' => 'Normal',
-            'title' => 'Tiket pemicu log',
-            'description' => 'Memastikan aktivitas tercatat otomatis.',
-        ])->assertRedirect();
+        // Tindakan: generate backup manual -> harus tercatat di log.
+        $this->actingAs($admin)->post(route('admin.backup.generate'))->assertRedirect();
 
         $this->assertDatabaseHas('admin_activity_logs', [
-            'type' => 'support',
-            'description' => 'Membuat tiket bantuan: Tiket pemicu log',
+            'type' => 'backup',
         ]);
     }
 

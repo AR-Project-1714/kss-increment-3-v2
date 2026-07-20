@@ -31,9 +31,12 @@
     $check = fn ($cond) => $cond ? '&#10003;' : '';
 
     $byCat = fn ($cat) => $report->unitConditions->filter(fn ($c) => optional($c->unit)->macro_category === $cat);
+    // Hasil closure ini dirender lewat {!! implode('<br>') !!} di bawah, jadi
+    // setiap cabang WAJIB meng-escape sendiri — unit_label adalah teks bebas
+    // ketikan pengguna dan tampil juga di layar admin/manajer.
     $conditionUnitLabel = function ($condition) {
         if ($condition->unit) {
-            return $condition->unit->maintenance_code;
+            return e($condition->unit->maintenance_code);
         }
 
         $label = trim((string) $condition->unit_label);
@@ -41,7 +44,7 @@
             return strtoupper(str_replace(['.', ' '], '-', $matches[0]));
         }
 
-        return $label;
+        return e($label);
     };
     $labels = fn ($coll) => $coll->map($conditionUnitLabel)->filter()->values();
     $truck = $byCat('truck'); $heavy = $byCat('heavy');
@@ -88,8 +91,12 @@
     .report-paper .addr { width: 100%; margin-bottom: 6px; border-collapse: collapse; }
     .report-paper .addr td { vertical-align: top; font-size: 8px; }
     .report-paper .addr .lab { font-weight: bold; }
+    /* Kolom kanan .addr (45%) sudah menyentuh tepi kertas, tapi .meta yang
+       dulu width:100% membuat isinya rata kiri di dalam kolom itu. Dibiarkan
+       shrink-to-fit lalu didorong sendiri ke ujung kanan lewat margin-left:auto. */
+    .report-paper .addr .meta { margin-left: auto; margin-right: 0; }
     .report-paper .addr .meta td { padding: 1px 0; }
-    .report-paper .addr .meta .ml { width: 50px; font-weight: bold; }
+    .report-paper .addr .meta .ml { width: 50px; font-weight: bold; white-space: nowrap; }
     .report-paper .addr .meta .line { border-bottom: 1px solid #000; }
     .report-paper table.grid { width: 100%; border-collapse: collapse; }
     .report-paper table.grid th, .report-paper table.grid td { border: 1px solid #000; padding: 2px 3px; }
@@ -138,7 +145,7 @@
                 &nbsp;&nbsp;&nbsp;&nbsp;<span class="lab">BONTANG</span>
             </td>
             <td style="width:45%">
-                <table class="meta" style="width:100%">
+                <table class="meta">
                     <tr><td class="ml">HARI</td><td>: <span class="line">&nbsp;{{ $report->day_name }}&nbsp;</span></td></tr>
                     <tr><td class="ml">TANGGAL</td><td>: <span class="line">&nbsp;{{ $fmtDate($report->report_date) }}&nbsp;</span></td></tr>
                 </table>

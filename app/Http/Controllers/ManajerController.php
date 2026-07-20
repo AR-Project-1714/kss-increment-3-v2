@@ -74,35 +74,28 @@ class ManajerController extends Controller
     {
         $this->authorizeManagementAccess($request);
 
-        $archiveSearch = trim((string) $request->input('q', ''));
-        $sort = $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest';
-        $selectedDate = $request->input('tanggal');
-        $selectedGroup = strtoupper((string) $request->input('regu', 'all'));
-        $selectedShift = strtolower((string) $request->input('shift', 'all'));
-        $selectedDivision = strtolower((string) $request->input('divisi', 'all'));
-        $selectedStatus = strtolower((string) $request->input('status', 'all'));
+        $filters = $this->archiveFiltersFromRequest($request);
 
-        $reports = $this->buildDivisionArchivePaginator($request, [
-            'archiveSearch' => $archiveSearch,
-            'sort' => $sort,
-            'selectedDate' => $selectedDate,
-            'selectedGroup' => $selectedGroup,
-            'selectedShift' => $selectedShift,
-            'selectedDivision' => $selectedDivision,
-            'selectedStatus' => $selectedStatus,
-        ], 'manajer');
+        $reports = $this->buildDivisionArchivePaginator($request, $filters, 'manajer');
 
         return view('manajer.archive', [
             'stats' => $this->archiveStats(),
             'reports' => $reports,
-            'archiveSearch' => $archiveSearch,
-            'sort' => $sort,
-            'selectedDate' => $selectedDate,
-            'selectedGroup' => $selectedGroup,
-            'selectedShift' => $selectedShift,
-            'selectedDivision' => $selectedDivision,
-            'selectedStatus' => $selectedStatus,
+            'archiveSearch' => $filters['archiveSearch'],
+            'sort' => $filters['sort'],
+            'selectedDate' => $filters['selectedDate'],
+            'selectedGroup' => $filters['selectedGroup'],
+            'selectedShift' => $filters['selectedShift'],
+            'selectedDivision' => $filters['selectedDivision'],
+            'selectedStatus' => $filters['selectedStatus'],
         ]);
+    }
+
+    public function archiveExport(Request $request)
+    {
+        $this->authorizeManagementAccess($request);
+
+        return $this->archiveExportResponse($request, 'manajer');
     }
 
     public function archiveSuggestions(Request $request)

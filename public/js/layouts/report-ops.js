@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     [
                         { containerSelector: '.tab-content', itemSelector: '.list-tab', indicatorClass: 'tab-slide-indicator' },
                         { containerSelector: '.tab-form', itemSelector: '.list-form-tab', indicatorClass: 'tab-form-indicator' },
+                        { containerSelector: '.tab-group', itemSelector: '.tab-sections', indicatorClass: 'tab-group-indicator' },
                     ].forEach(config => {
                         document.querySelectorAll(config.containerSelector).forEach(container => {
                             let indicator = container.querySelector(`.${config.indicatorClass}`);
@@ -107,14 +108,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             const updateIndicator = () => {
                                 const active = container.querySelector(`${config.itemSelector}.active`);
-                                if (!active) {
+                                if (!active || !active.offsetWidth) {
                                     indicator.style.opacity = '0';
                                     return;
                                 }
 
+                                // Baru terlihat pertama kali (mis. tab-group di dalam step yang baru
+                                // dibuka dari d-none) — langsung posisikan tanpa transition, supaya
+                                // pill tidak "membesar" dari 0. Pergantian tab berikutnya tetap animasi.
+                                const firstReveal = indicator.dataset.positioned !== 'true';
+                                if (firstReveal) indicator.style.transition = 'none';
+
                                 indicator.style.opacity = '1';
                                 indicator.style.width = `${active.offsetWidth}px`;
                                 indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+
+                                if (firstReveal) {
+                                    void indicator.offsetWidth;
+                                    indicator.style.transition = '';
+                                    indicator.dataset.positioned = 'true';
+                                }
                             };
 
                             requestAnimationFrame(updateIndicator);
@@ -457,6 +470,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         tabs[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                         currentStepIndex = index;
                         requestAnimationFrame(scrollToFormTabs);
+                        // Sub-tab group (mis. Karyawan, Cek Unit) baru terukur setelah stepnya
+                        // tampil; hitung ulang posisi pill-nya agar tidak nol/keliru.
+                        requestAnimationFrame(() => window.syncTabIndicators?.());
                     }
 
                     tabs.forEach((tab, index) => tab.addEventListener('click', () => showStep(index)));

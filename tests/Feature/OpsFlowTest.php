@@ -665,18 +665,8 @@ class OpsFlowTest extends TestCase
 
         $this->assertNotEmpty(Storage::disk('local')->files('admin-backups'));
 
-        $this->actingAs($admin)
-            ->post(route('admin.help.ticket'), [
-                'category' => 'Akun & Role',
-                'priority' => 'Normal',
-                'title' => 'Butuh bantuan admin',
-                'description' => 'Tolong cek akses pengguna baru.',
-            ])
-            ->assertRedirect();
-
         $this->assertDatabaseHas('admin_activity_logs', [
-            'type' => 'support',
-            'description' => 'Membuat tiket bantuan: Butuh bantuan admin',
+            'type' => 'backup',
         ]);
     }
 

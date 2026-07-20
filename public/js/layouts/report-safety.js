@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', function () {
             [
                 { containerSelector: '.tab-content', itemSelector: '.list-tab', indicatorClass: 'tab-slide-indicator' },
                 { containerSelector: '.tab-form', itemSelector: '.list-form-tab', indicatorClass: 'tab-form-indicator' },
+                { containerSelector: '.tab-group', itemSelector: '.tab-sections', indicatorClass: 'tab-group-indicator' },
             ].forEach(config => {
                 document.querySelectorAll(config.containerSelector).forEach(container => {
                     let indicator = container.querySelector(`.${config.indicatorClass}`);
@@ -61,14 +62,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     const updateIndicator = () => {
                         const active = container.querySelector(`${config.itemSelector}.active`);
-                        if (!active) {
+                        if (!active || !active.offsetWidth) {
                             indicator.style.opacity = '0';
                             return;
                         }
 
+                        // Baru terlihat pertama kali (mis. tab-group di dalam step yang baru
+                        // dibuka dari d-none) — langsung posisikan tanpa transition, supaya
+                        // pill tidak "membesar" dari 0. Pergantian tab berikutnya tetap animasi.
+                        const firstReveal = indicator.dataset.positioned !== 'true';
+                        if (firstReveal) indicator.style.transition = 'none';
+
                         indicator.style.opacity = '1';
                         indicator.style.width = `${active.offsetWidth}px`;
                         indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+
+                        if (firstReveal) {
+                            void indicator.offsetWidth;
+                            indicator.style.transition = '';
+                            indicator.dataset.positioned = 'true';
+                        }
                     };
 
                     requestAnimationFrame(updateIndicator);

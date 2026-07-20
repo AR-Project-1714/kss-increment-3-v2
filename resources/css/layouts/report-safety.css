@@ -316,11 +316,15 @@
 
         /* ===== FORM: SUB-TAB SECTIONS (Kondisi Unit) ===== */
         .inspection-header{display:flex;justify-content:space-between;align-items:flex-end;align-self:stretch;gap:10px;flex-wrap:wrap}
-        .tab-group{display:flex;max-width:620px;padding:5px;align-items:center;gap:5px 10px;flex:1 0 0;flex-wrap:wrap}
-        .tab-sections{display:flex;min-width:100px;padding:6px 12px;justify-content:center;align-items:center;gap:8px;flex:1 0 0;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;transition:all .2s;color:var(--dark-secondary)}
-        .tab-sections:hover{background-color:var(--blue-main-10);color:var(--blue-main)}
-        .tab-sections.active{color:var(--button-color);background-color:var(--blue-main)}
-        .tab-sections i{position:relative;top:1px}
+        /* Sub-tab segmented control ("island" + pill meluncur); lihat report-ops.css untuk catatan lengkap. */
+        .tab-group{position:relative;display:flex;align-items:center;gap:0;padding:4px;flex:1 0 0;max-width:620px;border-radius:12px;background-color:rgba(37,99,235,0.06)}
+        body.dark-mode .tab-group{background-color:rgba(255,255,255,0.06)}
+        .tab-sections{position:relative;z-index:1;display:flex;flex:1 1 0;min-width:0;padding:7px 12px;justify-content:center;align-items:center;gap:8px;font-size:12px;font-weight:600;white-space:nowrap;border-radius:9px;cursor:pointer;background:transparent;color:var(--dark-secondary);opacity:.6;transition:color .25s ease,opacity .25s ease}
+        .tab-sections:hover{opacity:1;color:var(--dark-main)}
+        .tab-sections.active,.tab-sections.active:hover{opacity:1;color:var(--button-color);background:transparent}
+        .tab-sections .icon,.tab-sections i{position:relative;top:1px}
+        .tab-group-indicator{position:absolute;left:0;top:4px;bottom:4px;width:0;border-radius:9px;background:var(--blue-main);box-shadow:0 2px 6px 0 var(--blue-main-40);transform:translateX(0);opacity:0;pointer-events:none;z-index:0;transition:transform .34s cubic-bezier(.22,1,.36,1),width .34s cubic-bezier(.22,1,.36,1)}
+        @media (max-width:640px){.tab-sections.active{flex:0 0 50%}.tab-sections:not(.active)>span:not(.icon){display:none}.tab-sections:not(.active){padding:7px 11px;gap:0}}
         button.set-all-good{display:flex;padding:8px 14px;align-items:center;gap:8px;border-radius:8px;background-color:var(--success);border:none;font-size:12px;font-weight:600;color:var(--button-color);cursor:pointer}
         button.set-all-good:hover{background-color:var(--success-hover);box-shadow:0 0 4px 0 var(--success-40)}
         button.set-all-good i{position:relative;top:2px}

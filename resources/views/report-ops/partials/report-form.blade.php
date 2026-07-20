@@ -230,10 +230,9 @@
             .form-card { min-width: 220px !important; }
             .timesheet-card { min-width: 280px !important; }
 
-            /* Tab bongkar tabs shrink */
-            .tab-bongkar .tab { min-width: 130px !important; }
-
-            .tab-container { font-size: 10px !important; min-height: 34px !important; }
+            /* Tab Bongkar: label "Bongkar / Muat Container" cukup panjang —
+               perkecil font di kedua tab (bukan cuma satu) agar tetap sebaris. */
+            .tab-group-bongkar .tab-sections { font-size: 11px !important; }
 
             .tab-sections { min-height: 34px !important; }
 
@@ -300,8 +299,9 @@
             .form-card { min-width: 150px !important; }
             .timesheet-card { min-width: 240px !important; }
 
-            /* Sub-tabs pack tighter so they sit 2 per row */
-            .tab-sections { min-width: 120px !important; font-size: 11px !important; padding: 8px !important; }
+            /* Sub-tab segmented control: biarkan aturan icon-only (≤640px di
+               report-ops.css) yang mengatur lebar; di sini cukup perkecil font. */
+            .tab-sections { font-size: 11px !important; }
 
             /* Rentang jam tetap nyaman dilihat */
             .rentang-jam-wrapper { gap: 8px !important; }
@@ -2242,7 +2242,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!op7Table || employees.length === 0) return;
 
-        insertRows(op7Table, employees.map((employee, index) => op7RowHtml(employee, index)));
+        // Baris 1 (FL.KSS-100 / P.6) adalah stasiun tetap "Operator P.6", bukan
+        // karyawan bernama dari master data — karyawan OP.7 mengisi baris 2 dst.
+        // Lihat OP7_FORKLIFT_DEFAULTS: 1 slot tetap + 10 karyawan = 11 baris.
+        const rows = [{ name: 'Operator P.6' }, ...employees];
+
+        insertRows(op7Table, rows.map((employee, index) => op7RowHtml(employee, index)));
         applyMasterDatalists(op7Table);
         hydrateTableSelects(op7Table);
     }
