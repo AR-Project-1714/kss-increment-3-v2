@@ -32,6 +32,103 @@
         .report-button a.btn {
             text-decoration: none;
         }
+
+        /* =============================================
+           OVERLAY PROSES PDF (di atas modal konfirmasi)
+           ============================================= */
+        .pdf-progress-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.62);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 10050;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .pdf-progress-overlay.show { opacity: 1; visibility: visible; }
+
+        .pdf-progress-box {
+            width: 268px;
+            max-width: 100%;
+            padding: 18px 18px 16px;
+            background-color: var(--white);
+            border-radius: 14px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.22);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            transform: scale(0.92);
+            transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+        }
+
+        .pdf-progress-overlay.show .pdf-progress-box { transform: scale(1); }
+
+        .pdf-progress-box__img {
+            width: 104px;
+            height: 104px;      /* gambar sumber 1:1, samakan agar tidak gepeng */
+            object-fit: contain;
+        }
+
+        .pdf-progress-box__text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-height: 34px;
+            justify-content: center;
+        }
+
+        .pdf-progress-box__title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--black);
+            text-align: center;
+        }
+
+        .pdf-progress-box__stage {
+            font-size: 11px;
+            color: var(--muted);
+            text-align: center;
+            min-height: 16px;
+        }
+
+        .pdf-progress-box__meter {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 2px;
+        }
+
+        .pdf-progress-box__track {
+            flex: 1;
+            height: 6px;
+            border-radius: 999px;
+            background-color: var(--divider);
+            overflow: hidden;
+        }
+
+        .pdf-progress-box__bar {
+            width: 0;
+            height: 100%;
+            border-radius: 999px;
+            background-color: var(--success);
+        }
+
+        .pdf-progress-box__percent {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--black);
+            font-variant-numeric: tabular-nums;
+            min-width: 32px;
+            text-align: right;
+        }
     </style>
 @endpush
 
@@ -348,7 +445,7 @@
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="approve-report-modal-{{ $report->id }}">Batal</button>
                     <a href="{{ route('manajer.reports.show', $report) }}" class="btn-modal btn-modal--cancel" target="_blank" rel="noopener">Tinjau</a>
-                    <form action="{{ route('manajer.reports.approve', $report) }}" method="POST">
+                    <form action="{{ route('manajer.reports.approve', $report) }}" method="POST" class="js-approve-form">
                         @csrf
                         <button type="submit" class="btn-modal btn-modal--confirm">
                             <i class="fi fi-br-check-circle"></i> Konfirmasi TTD
@@ -401,7 +498,7 @@
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="approve-maintenance-modal-{{ $report->id }}">Batal</button>
                     <a href="{{ route('manajer.pemeliharaan.show', $report) }}" class="btn-modal btn-modal--cancel" target="_blank" rel="noopener">Tinjau</a>
-                    <form action="{{ route('manajer.pemeliharaan.approve', $report) }}" method="POST">
+                    <form action="{{ route('manajer.pemeliharaan.approve', $report) }}" method="POST" class="js-approve-form">
                         @csrf
                         <button type="submit" class="btn-modal btn-modal--confirm">
                             <i class="fi fi-br-check-circle"></i> Konfirmasi TTD
@@ -454,7 +551,7 @@
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="approve-safety-modal-{{ $report->id }}">Batal</button>
                     <a href="{{ route('manajer.safety.show', $report) }}" class="btn-modal btn-modal--cancel" target="_blank" rel="noopener">Tinjau</a>
-                    <form action="{{ route('manajer.safety.approve', $report) }}" method="POST">
+                    <form action="{{ route('manajer.safety.approve', $report) }}" method="POST" class="js-approve-form">
                         @csrf
                         <button type="submit" class="btn-modal btn-modal--confirm">
                             <i class="fi fi-br-check-circle"></i> Konfirmasi TTD
@@ -464,4 +561,110 @@
             </div>
         </div>
     @endforeach
+
+    {{-- Overlay proses PDF: tampil di atas modal konfirmasi saat TTD dikirim --}}
+    <div class="pdf-progress-overlay" id="pdf-progress-overlay" role="alertdialog" aria-live="polite" aria-hidden="true">
+        <div class="pdf-progress-box" id="pdf-progress-box">
+            <img class="pdf-progress-box__img" src="{{ asset('assets/kss-process.webp') }}" alt="" aria-hidden="true">
+            <div class="pdf-progress-box__text">
+                <span class="pdf-progress-box__title">Memproses PDF laporan</span>
+                <span class="pdf-progress-box__stage" id="pdf-progress-stage">Menyiapkan dokumen&hellip;</span>
+            </div>
+            <div class="pdf-progress-box__meter">
+                <div class="pdf-progress-box__track">
+                    <div class="pdf-progress-box__bar" id="pdf-progress-bar"></div>
+                </div>
+                <span class="pdf-progress-box__percent" id="pdf-progress-percent">0%</span>
+            </div>
+        </div>
+    </div>
+@endpush
+
+@push('scripts')
+    <script>
+        (function () {
+            const overlay = document.getElementById('pdf-progress-overlay');
+            const bar = document.getElementById('pdf-progress-bar');
+            const percentEl = document.getElementById('pdf-progress-percent');
+            const stageEl = document.getElementById('pdf-progress-stage');
+
+            if (!overlay || !bar) return;
+
+            // Progres disimulasikan: bar naik mulus 0→100% dalam DURATION detik.
+            // Form baru di-submit SETELAH bar penuh. Kalau di-submit duluan, redirect
+            // server bisa datang lebih cepat dan bar terpotong sebelum 100%.
+            // Konsekuensinya proses server berjalan setelah animasi, bukan berbarengan.
+            const DURATION = 2.8;   // detik, lama bar 0→100%
+            const HOLD_MS = 400;    // jeda singkat di 100% sebelum request berangkat
+
+            // Ambang tahapan pakai fraksi waktu, bukan persen — kurva easeOut membuat
+            // persen melonjak di awal sehingga teksnya akan terasa terburu-buru.
+            const stages = [
+                [0, 'Menyiapkan dokumen…'],
+                [0.25, 'Membubuhkan tanda tangan digital…'],
+                [0.5, 'Menyusun berkas PDF…'],
+                [0.78, 'Menyimpan ke arsip…'],
+            ];
+
+            let startedAt = 0;
+            let frame = null;
+            let current = 0;
+            let onAnimationEnd = null;
+
+            function render(value, t) {
+                current = value;
+                bar.style.width = value.toFixed(1) + '%';
+                percentEl.textContent = Math.round(value) + '%';
+
+                let label = stages[0][1];
+                for (const [threshold, text] of stages) {
+                    if (t >= threshold) label = text;
+                }
+                if (stageEl.textContent !== label) stageEl.textContent = label;
+            }
+
+            function tick(now) {
+                const t = Math.min((now - startedAt) / 1000 / DURATION, 1);
+                // easeOutCubic: cepat di awal, melambat menjelang 100%.
+                render(100 * (1 - Math.pow(1 - t, 3)), t);
+
+                if (t >= 1) {
+                    frame = null;
+                    if (onAnimationEnd) setTimeout(onAnimationEnd, HOLD_MS);
+                    return;
+                }
+                frame = requestAnimationFrame(tick);
+            }
+
+            // `done` dipanggil setelah bar mencapai 100%.
+            function start(done) {
+                onAnimationEnd = done;
+                overlay.classList.add('show');
+                overlay.setAttribute('aria-hidden', 'false');
+                startedAt = performance.now();
+                render(0, 0);
+                frame = requestAnimationFrame(tick);
+            }
+
+            document.querySelectorAll('.js-approve-form').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+
+                    // Cegah klik/Enter kedua saat overlay sedang berjalan.
+                    if (form.dataset.submitting === '1') return;
+
+                    form.dataset.submitting = '1';
+
+                    const button = form.querySelector('button[type="submit"]');
+                    if (button) button.disabled = true;
+
+                    start(function () {
+                        // Tombol submit yang disabled tidak ikut terkirim, tapi form ini
+                        // tidak butuh nilainya — hanya CSRF token.
+                        form.submit();
+                    });
+                });
+            });
+        })();
+    </script>
 @endpush

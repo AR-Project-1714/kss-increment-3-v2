@@ -49,6 +49,8 @@ class SafetyReportTest extends BlackBoxTestCase
             ->post(route('safety.store'), [
                 'status' => SafetyStatus::Submitted->value,
                 'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
                 'locations' => [
                     ['location_name' => 'Work Shop', 'items' => [
                         ['item_name' => 'Kebersihan', 'condition' => 'normal', 'recommendation' => 'Bersihkan rutin'],
@@ -118,6 +120,8 @@ class SafetyReportTest extends BlackBoxTestCase
             ->post(route('safety.store'), [
                 'status' => SafetyStatus::Submitted->value,
                 'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
             ])
             ->assertRedirect(route('safety.index'));
 
@@ -139,6 +143,61 @@ class SafetyReportTest extends BlackBoxTestCase
         $response = $this->actingAs($user)->get(route('safety.pdf', $report));
         $response->assertOk();
         $this->assertSame('application/pdf', strtolower((string) $response->headers->get('content-type')));
+    }
+
+    public function test_tc_sft_09_laporan_ganda_tanggal_dan_jam_sama_ditolak(): void
+    {
+        $user = $this->safety();
+
+        $this->actingAs($user)
+            ->post(route('safety.store'), [
+                'status' => SafetyStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
+            ])
+            ->assertRedirect(route('safety.index'));
+
+        $this->actingAs($user)
+            ->from(route('safety.create'))
+            ->post(route('safety.store'), [
+                'status' => SafetyStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
+            ])
+            ->assertRedirect(route('safety.create'))
+            ->assertSessionHasErrors('report_date');
+
+        $this->assertSame(1, SafetyReport::where('status', SafetyStatus::Submitted->value)->count());
+    }
+
+    public function test_tc_sft_10_laporan_tanggal_sama_jam_beda_diizinkan(): void
+    {
+        $user = $this->safety();
+
+        $this->actingAs($user)
+            ->post(route('safety.store'), [
+                'status' => SafetyStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
+            ])
+            ->assertRedirect(route('safety.index'));
+
+        // Jam mulai berbeda pada tanggal yang sama tidak lagi dianggap laporan
+        // ganda (mis. laporan shift malam menyusul pada hari yang sama).
+        $this->actingAs($user)
+            ->post(route('safety.store'), [
+                'status' => SafetyStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'work_time_start' => '19:00',
+                'work_time_end' => '03:00',
+            ])
+            ->assertRedirect(route('safety.index'))
+            ->assertSessionDoesntHaveErrors('report_date');
+
+        $this->assertSame(2, SafetyReport::where('status', SafetyStatus::Submitted->value)->count());
     }
 
     public function test_tc_sft_08_form_hanya_menampilkan_item_lokasi_aktif(): void

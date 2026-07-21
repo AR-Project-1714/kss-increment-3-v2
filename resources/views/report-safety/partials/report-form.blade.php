@@ -194,11 +194,11 @@
                         </div>
                     </div>
                     <div class="box-input-1 info-work-time">
-                        <div class="box-label-1"><label for="work_time_start">Jam Kerja</label></div>
+                        <div class="box-label-1"><label for="work_time_start">Jam Kerja</label><span class="text-red">*</span></div>
                         <div class="info-work-time__range d-flex align-items-center gap-10 w-100">
                             <div class="input-wrapper">
                                 <i class="fi fi-rr-clock input-icon" style="left:15px;right:auto;color:var(--blue-main)"></i>
-                                <input type="text" id="work_time_start" name="work_time_start" value="{{ $workStartValue }}" class="custom-input time-picker-input" placeholder="00:00" maxlength="5" style="text-align:center;padding-left:38px">
+                                <input type="text" id="work_time_start" name="work_time_start" value="{{ $workStartValue }}" class="custom-input time-picker-input" placeholder="00:00" maxlength="5" style="text-align:center;padding-left:38px" required>
                             </div>
                             <span class="info-work-time__arrow text-secondary fw-600 fsize-18" style="line-height:1">&rarr;</span>
                             <div class="input-wrapper">
@@ -208,7 +208,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Isi jam masuk dan jam pulang kerja secara manual. Tidak ada pengisian otomatis.</span></div>
+                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Isi jam masuk dan jam pulang kerja secara manual. Tidak ada pengisian otomatis. Jam masuk wajib diisi saat mengirim laporan, dan menjadi pembeda jika ada lebih dari satu laporan pada tanggal yang sama.</span></div>
             </div>
             <div class="content-form box-button" style="padding-top:0">
                 <a href="{{ route('safety.index') }}" class="btn-form cancel"><span class="icon"><i class="fi fi-br-cross-small"></i></span><span>Batalkan</span></a>

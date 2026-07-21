@@ -566,20 +566,28 @@ class ReportSafetyController extends Controller
                         return;
                     }
 
+                    $startTime = trim((string) request()->input('work_time_start'));
+                    if ($startTime === '') {
+                        // Tanpa jam mulai tidak ada pembeda untuk dibandingkan; rule
+                        // work_time_start di bawah yang mewajibkan pengisiannya saat submit.
+                        return;
+                    }
+
                     $current = request()->route('report');
 
                     $duplicate = SafetyReport::query()
                         ->whereDate('report_date', $value)
                         ->where('status', '!=', SafetyStatus::Draft->value)
                         ->when($current instanceof SafetyReport, fn ($query) => $query->whereKeyNot($current->getKey()))
-                        ->exists();
+                        ->get(['id', 'time_range'])
+                        ->contains(fn ($row) => $this->extractStartTime($row->time_range) === $startTime);
 
                     if ($duplicate) {
-                        $fail('Sudah ada laporan K3 terkirim untuk tanggal tersebut. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
+                        $fail('Sudah ada laporan K3 terkirim untuk tanggal dan jam mulai kerja yang sama. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
                     }
                 },
             ],
-            'work_time_start' => ['nullable', 'string', 'max:10'],
+            'work_time_start' => [$requiredWhenSubmit, 'string', 'max:10'],
             'work_time_end'   => ['nullable', 'string', 'max:10'],
             'locations'   => ['nullable', 'array'],
             'operations'  => ['nullable', 'array'],
@@ -590,8 +598,26 @@ class ReportSafetyController extends Controller
     private function attributes(): array
     {
         return [
-            'report_date' => 'tanggal',
+            'report_date'      => 'tanggal',
+            'work_time_start'  => 'jam mulai kerja',
         ];
+    }
+
+    /**
+     * Ambil kembali jam mulai dari kolom "time_range" tersimpan (mis. "07:00 - 16:00"
+     * -> "07:00") agar bisa dibandingkan dengan input work_time_start saat validasi
+     * duplikat. Dipakai supaya proteksi tanggal sama tidak lagi memblokir laporan
+     * dengan jam mulai kerja yang berbeda.
+     */
+    private function extractStartTime(?string $timeRange): ?string
+    {
+        if ($timeRange === null || trim($timeRange) === '') {
+            return null;
+        }
+
+        $parts = preg_split('/\s*[-–—]\s*/u', trim($timeRange), 2);
+
+        return trim($parts[0] ?? '') ?: null;
     }
 
     private function rows(mixed $value): array

@@ -33,6 +33,8 @@ class MaintenanceReportTest extends BlackBoxTestCase
             ->post(route('pemeliharaan.store'), [
                 'status' => MaintenanceStatus::Submitted->value,
                 'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
                 'main_items' => [
                     ['work_group' => 'I', 'description' => 'Servis rutin', 'assignee' => 'Mekanik A'],
                 ],
@@ -96,6 +98,8 @@ class MaintenanceReportTest extends BlackBoxTestCase
             ->post(route('pemeliharaan.store'), [
                 'status' => MaintenanceStatus::Submitted->value,
                 'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
             ])
             ->assertRedirect(route('pemeliharaan.index'));
 
@@ -166,6 +170,8 @@ class MaintenanceReportTest extends BlackBoxTestCase
             ->post(route('pemeliharaan.store'), [
                 'status' => MaintenanceStatus::Submitted->value,
                 'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
                 'priority_items' => [
                     ['description' => 'Ganti oli sudah beres', 'assignee' => 'Mekanik A', 'is_completed' => 1],
                     ['description' => 'Perbaikan rem belum tuntas', 'assignee' => 'Mekanik B', 'is_completed' => 0],
@@ -182,7 +188,7 @@ class MaintenanceReportTest extends BlackBoxTestCase
             ->assertDontSee('Ganti oli sudah beres', false);
     }
 
-    public function test_tc_pml_09_laporan_ganda_tanggal_sama_ditolak(): void
+    public function test_tc_pml_09_laporan_ganda_tanggal_dan_jam_sama_ditolak(): void
     {
         $user = $this->maintenance();
 
@@ -190,6 +196,8 @@ class MaintenanceReportTest extends BlackBoxTestCase
             ->post(route('pemeliharaan.store'), [
                 'status' => MaintenanceStatus::Submitted->value,
                 'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
             ])
             ->assertRedirect(route('pemeliharaan.index'));
 
@@ -198,10 +206,40 @@ class MaintenanceReportTest extends BlackBoxTestCase
             ->post(route('pemeliharaan.store'), [
                 'status' => MaintenanceStatus::Submitted->value,
                 'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
             ])
             ->assertRedirect(route('pemeliharaan.create'))
             ->assertSessionHasErrors('report_date');
 
         $this->assertSame(1, MaintenanceReport::where('status', MaintenanceStatus::Submitted->value)->count());
+    }
+
+    public function test_tc_pml_10_laporan_tanggal_sama_jam_beda_diizinkan(): void
+    {
+        $user = $this->maintenance();
+
+        $this->actingAs($user)
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
+            ])
+            ->assertRedirect(route('pemeliharaan.index'));
+
+        // Jam mulai berbeda pada tanggal yang sama tidak lagi dianggap laporan
+        // ganda (mis. laporan susulan/shift lain pada hari yang sama).
+        $this->actingAs($user)
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'work_time_start' => '19:00',
+                'work_time_end' => '03:00',
+            ])
+            ->assertRedirect(route('pemeliharaan.index'))
+            ->assertSessionDoesntHaveErrors('report_date');
+
+        $this->assertSame(2, MaintenanceReport::where('status', MaintenanceStatus::Submitted->value)->count());
     }
 }

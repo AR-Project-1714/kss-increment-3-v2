@@ -148,6 +148,9 @@
                 <table class="meta">
                     <tr><td class="ml">HARI</td><td>: <span class="line">&nbsp;{{ $report->day_name }}&nbsp;</span></td></tr>
                     <tr><td class="ml">TANGGAL</td><td>: <span class="line">&nbsp;{{ $fmtDate($report->report_date) }}&nbsp;</span></td></tr>
+                    @if ($report->work_time_start || $report->work_time_end)
+                        <tr><td class="ml">JAM KERJA</td><td>: <span class="line">&nbsp;{{ trim($fmtTime($report->work_time_start).($report->work_time_end ? ' - '.$fmtTime($report->work_time_end) : '')) }}&nbsp;</span></td></tr>
+                    @endif
                 </table>
             </td>
         </tr>

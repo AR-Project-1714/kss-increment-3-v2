@@ -89,6 +89,8 @@ class ReportMaintenanceController extends Controller
                     'submitted_at'           => $status === MaintenanceStatus::Submitted->value ? now() : null,
                     'karu_pemeliharaan_name' => $this->string($request->input('karu_pemeliharaan_name')),
                     'karu_peralatan_name'    => $this->string($request->input('karu_peralatan_name')),
+                    'work_time_start'        => $this->string($request->input('work_time_start')),
+                    'work_time_end'          => $this->string($request->input('work_time_end')),
                 ]);
 
                 $this->storeDetails($report, $request);
@@ -161,6 +163,8 @@ class ReportMaintenanceController extends Controller
                     'submitted_at'           => $status === MaintenanceStatus::Submitted->value ? ($report->submitted_at ?? now()) : null,
                     'karu_pemeliharaan_name' => $this->string($request->input('karu_pemeliharaan_name')),
                     'karu_peralatan_name'    => $this->string($request->input('karu_peralatan_name')),
+                    'work_time_start'        => $this->string($request->input('work_time_start')),
+                    'work_time_end'          => $this->string($request->input('work_time_end')),
                 ]);
 
                 $this->deleteDetails($report);
@@ -564,19 +568,29 @@ class ReportMaintenanceController extends Controller
                         return;
                     }
 
+                    $startTime = trim((string) request()->input('work_time_start'));
+                    if ($startTime === '') {
+                        // Tanpa jam mulai tidak ada pembeda untuk dibandingkan; rule
+                        // work_time_start di bawah yang mewajibkan pengisiannya saat submit.
+                        return;
+                    }
+
                     $current = request()->route('report');
 
                     $duplicate = MaintenanceReport::query()
                         ->whereDate('report_date', $value)
                         ->where('status', '!=', MaintenanceStatus::Draft->value)
+                        ->where('work_time_start', $startTime)
                         ->when($current instanceof MaintenanceReport, fn ($query) => $query->whereKeyNot($current->getKey()))
                         ->exists();
 
                     if ($duplicate) {
-                        $fail('Sudah ada laporan pemeliharaan terkirim untuk tanggal tersebut. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
+                        $fail('Sudah ada laporan pemeliharaan terkirim untuk tanggal dan jam mulai kerja yang sama. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
                     }
                 },
             ],
+            'work_time_start'        => [$requiredWhenSubmit, 'string', 'max:10'],
+            'work_time_end'          => ['nullable', 'string', 'max:10'],
             'karu_pemeliharaan_name' => ['nullable', 'string', 'max:255'],
             'karu_peralatan_name'    => ['nullable', 'string', 'max:255'],
             'main_items'             => ['nullable', 'array'],
@@ -591,7 +605,8 @@ class ReportMaintenanceController extends Controller
     private function attributes(): array
     {
         return [
-            'report_date' => 'hari/tanggal',
+            'report_date'     => 'hari/tanggal',
+            'work_time_start' => 'jam mulai kerja',
         ];
     }
 

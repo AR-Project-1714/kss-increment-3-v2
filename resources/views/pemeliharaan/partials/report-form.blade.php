@@ -99,11 +99,14 @@
         }
     }
 
+    // Jam kerja laporan disimpan di kolom work_time_start/work_time_end. Untuk
+    // laporan lama sebelum kolom ini ada, jatuhkan ke jam masuk karyawan pertama
+    // pada Daftar Hadir sebagai perkiraan awal.
     $firstAttendanceTime = collect($attendanceRows)->first(function ($row) {
         return trim((string) ($row['time_in'] ?? '')) !== '' || trim((string) ($row['time_out'] ?? '')) !== '';
     });
-    $initialWorkStart = old('work_time_start', $firstAttendanceTime['time_in'] ?? '');
-    $initialWorkEnd = old('work_time_end', $firstAttendanceTime['time_out'] ?? '');
+    $initialWorkStart = old('work_time_start', $reportModel->work_time_start ?? ($firstAttendanceTime['time_in'] ?? ''));
+    $initialWorkEnd = old('work_time_end', $reportModel->work_time_end ?? ($firstAttendanceTime['time_out'] ?? ''));
 
     $statusValue = $reportModel ? $reportModel->status->value : MaintenanceStatus::Draft->value;
 @endphp
@@ -254,11 +257,11 @@
                         </div>
                     </div>
                     <div class="box-input-1 info-work-time">
-                        <div class="box-label-1"><label>Rentang Jam Kerja</label></div>
+                        <div class="box-label-1"><label for="jam_masuk">Rentang Jam Kerja</label><span class="text-red">*</span></div>
                         <div class="info-work-time__range d-flex align-items-center gap-10 w-100">
                             <div class="input-wrapper">
                                 <i class="fi fi-rr-clock input-icon" style="left:15px;right:auto;color:var(--blue-main)"></i>
-                                <input type="text" id="jam_masuk" name="work_time_start" value="{{ $initialWorkStart }}" class="custom-input time-picker-input" placeholder="00:00" maxlength="5" style="text-align:center;padding-left:38px">
+                                <input type="text" id="jam_masuk" name="work_time_start" value="{{ $initialWorkStart }}" class="custom-input time-picker-input" placeholder="00:00" maxlength="5" style="text-align:center;padding-left:38px" required>
                             </div>
                             <span class="info-work-time__arrow text-secondary fw-600 fsize-18" style="line-height:1">&rarr;</span>
                             <div class="input-wrapper">
@@ -268,7 +271,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Jam kerja otomatis: Senin-Kamis 07.00-16.00, Jumat 07.00-17.00. Sabtu/Minggu dikosongkan dan dapat diisi manual oleh petugas.</span></div>
+                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Jam kerja otomatis: Senin-Kamis 07.00-16.00, Jumat 07.00-17.00. Sabtu/Minggu dikosongkan dan dapat diisi manual oleh petugas. Jam masuk wajib diisi saat mengirim laporan, dan menjadi pembeda jika ada lebih dari satu laporan pada tanggal yang sama.</span></div>
             </div>
             <div class="content-form box-button" style="padding-top:0">
                 <a href="{{ route('pemeliharaan.index') }}" class="btn-form cancel"><span class="icon"><i class="fi fi-br-cross-small"></i></span><span>Batalkan</span></a>
