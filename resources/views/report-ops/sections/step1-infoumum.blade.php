@@ -114,6 +114,27 @@
                 </div>
             </div>
 
+            <div class="step-info-note" data-night-shift-hint style="margin-top:14px">
+                <i class="fi fi-rr-moon-stars"></i>
+                <span>Khusus <strong>Shift Malam</strong> (23.00&ndash;07.00) yang melewati tengah malam: beri tanggal saat shift <strong>dimulai</strong> (malam harinya), walau laporan baru diisi setelah lewat tengah malam. Ini mencegah satu shift tercatat ganda.</span>
+            </div>
+
+            @if (session('night_shift_adjacent') || old('confirm_adjacent_night'))
+                <div class="night-shift-confirm" style="margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--warning,#f0ad4e);background:var(--warning-10,#fff7e6);display:flex;flex-direction:column;gap:10px">
+                    <div style="display:flex;align-items:flex-start;gap:10px">
+                        <i class="fi fi-rr-triangle-warning" style="color:var(--warning,#f0ad4e);margin-top:2px"></i>
+                        <span style="font-size:13px;line-height:1.5">
+                            Sudah ada laporan <strong>Shift Malam</strong> regu ini di tanggal berdekatan{{ session('night_shift_adjacent') ? ' (' . session('night_shift_adjacent') . ')' : '' }}.
+                            Karena shift malam melewati tengah malam, pastikan ini <strong>bukan shift yang sama</strong> yang terlanjur beda tanggal.
+                        </span>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
+                        <input type="checkbox" name="confirm_adjacent_night" value="1" @checked(old('confirm_adjacent_night')) style="width:16px;height:16px;cursor:pointer">
+                        <span>Ya, ini shift malam yang berbeda &mdash; lanjutkan kirim laporan.</span>
+                    </label>
+                </div>
+            @endif
+
             <div class="box-button d-flex justify-content-between align-items-center align-self-stretch mt-5">
                 <a href="{{ route('report-ops.index') }}" type="button" class="btn-form cancel" style="text-decoration: none; cursor: pointer;">
                     <span class="icon"><i class="fi fi-br-cross-small"></i></span>
@@ -126,3 +147,51 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Default tanggal pintar untuk Shift Malam.
+        // Shift Malam (23.00-07.00) melewati tengah malam. Bila petugas memilih
+        // Shift Malam pada dini hari (00.00-07.59), berarti ia sedang melaporkan
+        // shift yang DIMULAI kemarin malam. Konvensi: laporan diberi tanggal saat
+        // shift dimulai, jadi tanggal otomatis digeser ke kemarin. Hanya berlaku
+        // bila field tanggal masih berisi default hari ini (belum diubah manual),
+        // dan petugas tetap bisa mengubahnya.
+        (function () {
+            var shiftSelect = document.getElementById('shift');
+            var dateInput = document.getElementById('tanggal');
+            if (!shiftSelect || !dateInput) {
+                return;
+            }
+
+            function localDateString(date) {
+                var y = date.getFullYear();
+                var m = String(date.getMonth() + 1).padStart(2, '0');
+                var d = String(date.getDate()).padStart(2, '0');
+                return y + '-' + m + '-' + d;
+            }
+
+            function maybeAdjustForNightShift() {
+                if (shiftSelect.value !== 'Malam') {
+                    return;
+                }
+
+                var now = new Date();
+                // Dini hari: 00.00 s/d 07.59 (shift malam belum berakhir).
+                if (now.getHours() >= 8) {
+                    return;
+                }
+
+                // Hanya geser bila tanggal masih default hari ini (belum diubah petugas).
+                if (dateInput.value !== localDateString(now)) {
+                    return;
+                }
+
+                var yesterday = new Date(now.getTime());
+                yesterday.setDate(yesterday.getDate() - 1);
+                dateInput.value = localDateString(yesterday);
+            }
+
+            shiftSelect.addEventListener('change', maybeAdjustForNightShift);
+            maybeAdjustForNightShift();
+        })();
+    </script>

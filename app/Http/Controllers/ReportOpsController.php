@@ -36,6 +36,13 @@ class ReportOpsController extends Controller
 
     private const PENDING_PDF_CACHE_TTL = 60 * 10;
 
+    /**
+     * Batas jumlah laporan terkirim per regu untuk satu tanggal. Satu hari terdiri
+     * dari 3 shift (Pagi, Sore, Malam), jadi satu regu wajar mengirim hingga 3
+     * laporan pada tanggal yang sama. Laporan ke-4 dianggap berlebih dan ditolak.
+     */
+    private const MAX_DAILY_REPORTS_PER_GROUP = 3;
+
     public function index()
     {
         $user = auth()->user();
@@ -268,6 +275,45 @@ class ReportOpsController extends Controller
             'items' => $operations
                 ->map(fn (ShipOperation $operation): array => $this->shipOperationSuggestionItem($operation, $excludeReportId))
                 ->values(),
+        ]);
+    }
+
+    /**
+     * Hitung jumlah laporan terkirim milik satu regu pada tanggal tertentu.
+     * Dipakai form untuk menampilkan peringatan ringan sebelum mengirim bila
+     * pada tanggal itu regu tersebut sudah memiliki laporan lain (mendekati
+     * batas MAX_DAILY_REPORTS_PER_GROUP). Endpoint ini hanya informatif; penjaga
+     * sebenarnya tetap ada di validasi store/update.
+     */
+    public function dayReportCount(Request $request)
+    {
+        $group = strtoupper(trim((string) $request->query('group_name')));
+        $rawDate = trim((string) $request->query('report_date'));
+        $exceptId = (int) $request->query('except');
+
+        $limit = self::MAX_DAILY_REPORTS_PER_GROUP;
+
+        try {
+            $date = $rawDate === '' ? null : Carbon::parse($rawDate)->toDateString();
+        } catch (Throwable) {
+            $date = null;
+        }
+
+        if ($group === '' || $date === null) {
+            return response()->json(['count' => 0, 'limit' => $limit, 'remaining' => $limit]);
+        }
+
+        $count = DailyReport::query()
+            ->whereDate('report_date', $date)
+            ->where('group_name', $group)
+            ->where('status', '!=', ReportStatus::Draft->value)
+            ->when($exceptId > 0, fn ($query) => $query->whereKeyNot($exceptId))
+            ->count();
+
+        return response()->json([
+            'count' => $count,
+            'limit' => $limit,
+            'remaining' => max(0, $limit - $count),
         ]);
     }
 
@@ -1063,16 +1109,63 @@ class ReportOpsController extends Controller
 
                     $current = $request->route('report');
 
-                    $duplicate = DailyReport::query()
+                    // Batas maksimal laporan per regu untuk satu tanggal (3 shift).
+                    // Sesuai kebijakan, regu boleh mengirim hingga 3 laporan pada
+                    // tanggal yang sama -- termasuk pada shift yang sama (mis. koreksi
+                    // atau kiriman ulang) -- sehingga tidak lagi diblokir keras hanya
+                    // karena kombinasi tanggal+shift+regu berulang. Petugas cukup
+                    // diingatkan lewat peringatan ringan di modal konfirmasi sebelum
+                    // mengirim. Yang ditolak keras hanya laporan ke-4 (berlebih).
+                    $dailyCount = DailyReport::query()
                         ->whereDate('report_date', $value)
-                        ->where('shift', $shift)
                         ->where('group_name', $group)
                         ->where('status', '!=', ReportStatus::Draft->value)
                         ->when($current instanceof DailyReport, fn ($query) => $query->whereKeyNot($current->getKey()))
-                        ->exists();
+                        ->count();
 
-                    if ($duplicate) {
-                        $fail('Sudah ada laporan terkirim untuk tanggal, shift, dan regu yang sama. Periksa Riwayat Laporan agar tidak terjadi laporan ganda.');
+                    if ($dailyCount >= self::MAX_DAILY_REPORTS_PER_GROUP) {
+                        $fail('Sudah ada '.self::MAX_DAILY_REPORTS_PER_GROUP.' laporan dari regu '.$group.' untuk tanggal ini (batas maksimal per hari). Periksa Riwayat Laporan bila ada yang perlu diperbaiki.');
+
+                        return;
+                    }
+
+                    // Kelonggaran shift malam: shift Malam melewati tengah malam
+                    // (23.00-07.00), jadi satu shift yang sama bisa terlanjur diisi
+                    // dengan tanggal berbeda -- jam 23.00 (hari mulai) atau setelah
+                    // lewat tengah malam (hari berikutnya). Untuk itu, laporan Malam
+                    // regu sama di tanggal berdekatan (+-1 hari) TIDAK diblokir keras,
+                    // melainkan diberi peringatan agar petugas memastikan ini bukan
+                    // shift yang sama. Petugas mengonfirmasi via confirm_adjacent_night.
+                    if (strtolower($shift) !== 'malam') {
+                        return;
+                    }
+
+                    if ($request->boolean('confirm_adjacent_night')) {
+                        return;
+                    }
+
+                    $date = Carbon::parse($value);
+
+                    $adjacent = DailyReport::query()
+                        ->where('shift', $shift)
+                        ->where('group_name', $group)
+                        ->where('status', '!=', ReportStatus::Draft->value)
+                        ->whereDate('report_date', '!=', $date->toDateString())
+                        ->whereBetween('report_date', [
+                            $date->copy()->subDay()->toDateString(),
+                            $date->copy()->addDay()->toDateString(),
+                        ])
+                        ->when($current instanceof DailyReport, fn ($query) => $query->whereKeyNot($current->getKey()))
+                        ->orderBy('report_date')
+                        ->first(['report_date']);
+
+                    if ($adjacent) {
+                        $adjacentDate = Carbon::parse($adjacent->report_date)
+                            ->locale('id')->translatedFormat('d F Y');
+
+                        session()->flash('night_shift_adjacent', $adjacentDate);
+
+                        $fail("Sudah ada laporan Shift Malam regu {$group} di tanggal berdekatan ({$adjacentDate}). Karena shift malam melewati tengah malam, pastikan ini bukan shift yang sama yang terlanjur beda tanggal. Jika memang shift malam yang berbeda, centang konfirmasi lalu kirim ulang.");
                     }
                 },
             ],

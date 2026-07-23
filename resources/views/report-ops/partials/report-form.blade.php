@@ -3426,7 +3426,7 @@ document.addEventListener('DOMContentLoaded', function () {
     @php
         $finishReceiverGroup = strtoupper((string) old('received_by_group', isset($report) ? $report->received_by_group : ''));
     @endphp
-    <div class="modal-overlay" id="finishModal">
+    <div class="modal-overlay" id="finishModal" data-day-count-url="{{ route('report-ops.day-report-count') }}" data-report-id="{{ isset($report) ? $report->id : '' }}">
         <div class="pop-up signed d-flex flex-column gap-20">
             <div class="pop-up-header d-flex justify-content-between align-items-center">
                 <span class="fw-600 fsize-16">Konfirmasi Penyelesaian</span>
@@ -3444,6 +3444,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 <p class="fsize-12 text-muted m-0">
                     Laporan ini akan dikirim ke <span class="fw-600" data-finish-receiver-label>{{ $finishReceiverGroup !== '' ? 'Regu '.$finishReceiverGroup : 'regu penerima yang dipilih' }}</span> untuk diterima dan ditandatangani. Setelah diterima, laporan akan diteruskan ke manajer.
                 </p>
+                <div class="day-report-warning d-none" data-day-report-warning style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--warning,#f0ad4e);background:var(--warning-10,#fff7e6)">
+                    <i class="fi fi-rr-triangle-warning" style="color:var(--warning,#f0ad4e);margin-top:2px"></i>
+                    <span class="fsize-12" style="line-height:1.5" data-day-report-warning-text></span>
+                </div>
             </div>
 
             <div class="pop-up footer d-flex justify-content-end gap-10">

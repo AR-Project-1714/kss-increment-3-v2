@@ -238,6 +238,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const btnFinalSubmit = document.getElementById('btnFinalSubmit');
                 const mainForm = document.getElementById('mainReportForm');
                 const finishReceiverLabel = document.querySelector('[data-finish-receiver-label]');
+                const dayReportWarning = finishModal?.querySelector('[data-day-report-warning]');
+                const dayReportWarningText = finishModal?.querySelector('[data-day-report-warning-text]');
+                const dayCountUrl = finishModal?.dataset.dayCountUrl || '';
+                const currentReportId = finishModal?.dataset.reportId || '';
 
                 // Modals Script 1
                 const signatureModal = document.getElementById('signatureModal');
@@ -262,10 +266,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelector('[name="received_by_group"]')?.addEventListener('change', updateFinishReceiverLabel);
                 updateFinishReceiverLabel();
 
+                // Peringatan ringan: bila pada tanggal yang dipilih regu ini sudah
+                // memiliki laporan lain (mendekati batas 3/hari), ingatkan petugas
+                // sebelum mengirim agar tidak terjadi laporan ganda/berlebih. Bersifat
+                // informatif; validasi store/update tetap penjaga sebenarnya.
+                async function updateDayReportWarning() {
+                    if (!dayReportWarning) return;
+
+                    dayReportWarning.classList.add('d-none');
+                    if (!dayCountUrl || !mainForm) return;
+
+                    const reportDate = String(mainForm.querySelector('[name="report_date"]')?.value || '').trim();
+                    const groupName = String(mainForm.querySelector('[name="group_name"]')?.value || '').trim();
+                    if (!reportDate || !groupName) return;
+
+                    try {
+                        const url = new URL(dayCountUrl, window.location.origin);
+                        url.searchParams.set('report_date', reportDate);
+                        url.searchParams.set('group_name', groupName);
+                        if (currentReportId) url.searchParams.set('except', currentReportId);
+
+                        const response = await fetch(url.toString(), {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (!response.ok) return;
+
+                        const data = await response.json();
+                        const count = Number(data.count || 0);
+                        const limit = Number(data.limit || 3);
+                        if (count < 1 || !dayReportWarningText) return;
+
+                        const groupUpper = groupName.toUpperCase();
+                        if (count >= limit) {
+                            dayReportWarningText.textContent = `Regu ${groupUpper} sudah memiliki ${count} laporan (batas maksimal ${limit}/hari) untuk tanggal ini. Pengiriman laporan tambahan kemungkinan akan ditolak sebagai laporan berlebih.`;
+                        } else {
+                            dayReportWarningText.textContent = `Sudah ada ${count} laporan dari Regu ${groupUpper} untuk tanggal ini (sisa kuota ${limit - count} lagi). Pastikan ini bukan laporan ganda sebelum mengirim.`;
+                        }
+
+                        dayReportWarning.classList.remove('d-none');
+                    } catch (error) {
+                        // Diamkan; peringatan bersifat opsional.
+                    }
+                }
+
                 // Bind Event Buka Modal Script 2
                 if(btnOpenConfirm && finishModal) {
                     btnOpenConfirm.addEventListener('click', () => {
                         updateFinishReceiverLabel();
+                        updateDayReportWarning();
                         finishModal.classList.add('show');
                     });
                 }

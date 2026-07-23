@@ -80,6 +80,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/report-ops/history/suggestions', [ReportOpsController::class, 'historySuggestions'])->name('report-ops.history.suggestions');
         Route::get('/report-ops/received/suggestions', [ReportOpsController::class, 'receivedSuggestions'])->name('report-ops.received.suggestions');
         Route::get('/report-ops/ship-operations/suggestions', [ReportOpsController::class, 'shipOperationSuggestions'])->name('report-ops.ship-operations.suggestions');
+        Route::get('/report-ops/day-report-count', [ReportOpsController::class, 'dayReportCount'])->name('report-ops.day-report-count');
         Route::get('/report-ops/create', [ReportOpsController::class, 'create'])->name('report-ops.create');
         Route::post('/report-ops', [ReportOpsController::class, 'store'])->name('report-ops.store');
         Route::get('/report-ops/{report}', [ReportOpsController::class, 'show'])->name('report-ops.show');
