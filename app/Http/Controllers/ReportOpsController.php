@@ -37,11 +37,14 @@ class ReportOpsController extends Controller
     private const PENDING_PDF_CACHE_TTL = 60 * 10;
 
     /**
-     * Batas jumlah laporan terkirim per regu untuk satu tanggal. Satu hari terdiri
-     * dari 3 shift (Pagi, Sore, Malam), jadi satu regu wajar mengirim hingga 3
-     * laporan pada tanggal yang sama. Laporan ke-4 dianggap berlebih dan ditolak.
+     * Batas jam (WITA) untuk menentukan "tanggal dinas" shift Malam. Shift Malam
+     * (23.00-07.00) melewati tengah malam, sehingga laporan yang dibuat sebelum jam
+     * ini (dini hari) dianggap sebagai sisa shift yang DIMULAI pada malam sebelumnya
+     * dan tanggalnya digeser -1 hari. Laporan yang dibuat pada jam ini ke atas
+     * dianggap shift yang dimulai pada malam hari yang sama. Lihat
+     * resolveShiftStartDate().
      */
-    private const MAX_DAILY_REPORTS_PER_GROUP = 3;
+    private const NIGHT_SHIFT_CUTOFF_HOUR = 12;
 
     public function index()
     {
@@ -279,41 +282,38 @@ class ReportOpsController extends Controller
     }
 
     /**
-     * Hitung jumlah laporan terkirim milik satu regu pada tanggal tertentu.
-     * Dipakai form untuk menampilkan peringatan ringan sebelum mengirim bila
-     * pada tanggal itu regu tersebut sudah memiliki laporan lain (mendekati
-     * batas MAX_DAILY_REPORTS_PER_GROUP). Endpoint ini hanya informatif; penjaga
-     * sebenarnya tetap ada di validasi store/update.
+     * Cek apakah kombinasi tanggal dinas + shift + regu SUDAH memiliki laporan
+     * terkirim. Dipakai form untuk mengingatkan petugas sebelum mengirim bila
+     * berpotensi menjadi laporan ganda. Tanggal yang diterima dinormalisasi dulu ke
+     * "tanggal dinas" (tanggal shift dimulai) agar konsisten dengan validasi
+     * store/update. Endpoint ini hanya informatif; penjaga sebenarnya tetap ada di
+     * validasi store/update.
      */
     public function dayReportCount(Request $request)
     {
         $group = strtoupper(trim((string) $request->query('group_name')));
+        $shift = trim((string) $request->query('shift'));
         $rawDate = trim((string) $request->query('report_date'));
         $exceptId = (int) $request->query('except');
 
-        $limit = self::MAX_DAILY_REPORTS_PER_GROUP;
+        $dutyDate = $this->resolveShiftStartDate($rawDate === '' ? null : $rawDate, $shift, Carbon::now());
 
-        try {
-            $date = $rawDate === '' ? null : Carbon::parse($rawDate)->toDateString();
-        } catch (Throwable) {
-            $date = null;
+        if ($group === '' || $shift === '' || blank($dutyDate)) {
+            return response()->json(['duplicate' => false]);
         }
 
-        if ($group === '' || $date === null) {
-            return response()->json(['count' => 0, 'limit' => $limit, 'remaining' => $limit]);
-        }
-
-        $count = DailyReport::query()
-            ->whereDate('report_date', $date)
+        $duplicate = DailyReport::query()
+            ->whereDate('report_date', $dutyDate)
+            ->where('shift', $shift)
             ->where('group_name', $group)
             ->where('status', '!=', ReportStatus::Draft->value)
             ->when($exceptId > 0, fn ($query) => $query->whereKeyNot($exceptId))
-            ->count();
+            ->exists();
 
         return response()->json([
-            'count' => $count,
-            'limit' => $limit,
-            'remaining' => max(0, $limit - $count),
+            'duplicate' => $duplicate,
+            'duty_date' => $dutyDate,
+            'duty_date_label' => Carbon::parse($dutyDate)->locale('id')->translatedFormat('d F Y'),
         ]);
     }
 
@@ -321,7 +321,25 @@ class ReportOpsController extends Controller
     {
         $this->pruneStaleDraftReports();
 
-        return view('report-ops.create', $this->masterData());
+        // Reservasi baris draft sejak form dibuka: laporan langsung punya ID dan
+        // seluruh penyimpanan berikutnya menimpa baris ini, bukan bikin duplikat.
+        $userId = auth()->id();
+        $reservedReport = $this->reserveDraftReport(DailyReport::class, [
+            'user_id'    => $userId,
+            'created_by' => $userId,
+            'status'     => ReportStatus::Draft->value,
+        ]);
+
+        return view('report-ops.create', array_merge($this->masterData(), [
+            'reservedReport' => $reservedReport,
+        ]));
+    }
+
+    public function discardBlank(DailyReport $report)
+    {
+        abort_unless($this->canDeleteReport($report, auth()->user()), 403);
+
+        return $this->discardBlankDraftReport($report);
     }
 
     public function store(Request $request)
@@ -332,6 +350,19 @@ class ReportOpsController extends Controller
 
         $status = $request->input('status') === ReportStatus::Draft->value ? ReportStatus::Draft->value : ReportStatus::Submitted->value;
         $request->merge(['status' => $status]);
+
+        // Normalisasi tanggal laporan ke "tanggal dinas" (tanggal shift dimulai)
+        // sebelum divalidasi & disimpan. Khusus shift Malam yang melewati tengah
+        // malam, laporan yang dibuat dini hari digeser ke tanggal malam sebelumnya.
+        if ($status === ReportStatus::Submitted->value && filled($request->input('report_date'))) {
+            $request->merge([
+                'report_date' => $this->resolveShiftStartDate(
+                    $request->input('report_date'),
+                    $request->input('shift'),
+                    Carbon::now(),
+                ),
+            ]);
+        }
 
         $validated = $request->validate($this->rules($status === ReportStatus::Draft->value, $request), [], $this->attributes());
         $payload = $this->decodePayload($request->input('form_payload'));
@@ -429,8 +460,24 @@ class ReportOpsController extends Controller
 
         $request->merge(['status' => $status]);
 
+        // Sama seperti store(): normalisasi ke tanggal dinas. Saat mengedit, acuan
+        // jam pembuatan diambil dari created_at asli laporan agar hasilnya stabil
+        // (idempoten) dan tidak tergeser berulang setiap kali laporan diperbarui.
+        if ($status === ReportStatus::Submitted->value && filled($request->input('report_date'))) {
+            $request->merge([
+                'report_date' => $this->resolveShiftStartDate(
+                    $request->input('report_date'),
+                    $request->input('shift'),
+                    $report->created_at ? Carbon::parse($report->created_at) : Carbon::now(),
+                ),
+            ]);
+        }
+
         $validated = $request->validate($this->rules($status === ReportStatus::Draft->value, $request), [], $this->attributes());
         $payload = $this->decodePayload($request->input('form_payload'));
+        // Draft hasil reservasi form baru: simpan pertama ini "disimpan", bukan
+        // "diperbarui" — dicatat sebelum update karena setelahnya tak kosong lagi.
+        $wasBlank = $report->isBlankDraft();
 
         try {
             DB::transaction(function () use ($request, $report, $validated, $payload): void {
@@ -464,7 +511,7 @@ class ReportOpsController extends Controller
         }
 
         $message = $status === ReportStatus::Draft->value
-            ? 'Draft laporan berhasil diperbarui.'
+            ? ($wasBlank ? 'Draft laporan berhasil disimpan.' : 'Draft laporan berhasil diperbarui.')
             : 'Laporan operasional berhasil dikirim.';
 
         return redirect()->route('report-ops.index')->with('success', $message);
@@ -1084,6 +1131,47 @@ class ReportOpsController extends Controller
         }
     }
 
+    /**
+     * Tentukan "tanggal dinas" laporan, yaitu tanggal saat shift DIMULAI.
+     *
+     * Shift Pagi/Sore tidak melewati tengah malam, jadi tanggal dinas = tanggal
+     * yang diisi petugas. Shift Malam (23.00-07.00) melewati tengah malam: bila
+     * petugas masih memakai tanggal default "hari ini" (tanggal input == tanggal
+     * fisik saat laporan dibuat) DAN laporan dibuat sebelum NIGHT_SHIFT_CUTOFF_HOUR
+     * (dini hari), maka shift sesungguhnya dimulai malam sebelumnya sehingga tanggal
+     * digeser -1 hari. Bila petugas sengaja mengisi tanggal yang berbeda (mis.
+     * tanggal shift mulai atau isi mundur), tanggal input tetap dihormati apa adanya
+     * -- sehingga fungsi ini idempoten dan aman dipanggil ulang ketika mengedit.
+     *
+     * @param  Carbon|null  $filledAt  Acuan waktu pembuatan laporan (WITA): now()
+     *                                 saat membuat, created_at asli saat mengedit.
+     */
+    private function resolveShiftStartDate(?string $reportDate, ?string $shift, ?Carbon $filledAt = null): ?string
+    {
+        if (blank($reportDate)) {
+            return $reportDate;
+        }
+
+        try {
+            $entered = Carbon::parse($reportDate)->startOfDay();
+        } catch (Throwable) {
+            return $reportDate;
+        }
+
+        if (strtolower(trim((string) $shift)) !== 'malam') {
+            return $entered->toDateString();
+        }
+
+        $filledAt ??= Carbon::now();
+        $physicalDate = $filledAt->copy()->startOfDay();
+
+        if ($entered->isSameDay($physicalDate) && $filledAt->hour < self::NIGHT_SHIFT_CUTOFF_HOUR) {
+            return $entered->copy()->subDay()->toDateString();
+        }
+
+        return $entered->toDateString();
+    }
+
     private function rules(bool $isDraft, ?Request $request = null): array
     {
         $requiredWhenSubmit = $isDraft ? 'nullable' : 'required';
@@ -1109,63 +1197,30 @@ class ReportOpsController extends Controller
 
                     $current = $request->route('report');
 
-                    // Batas maksimal laporan per regu untuk satu tanggal (3 shift).
-                    // Sesuai kebijakan, regu boleh mengirim hingga 3 laporan pada
-                    // tanggal yang sama -- termasuk pada shift yang sama (mis. koreksi
-                    // atau kiriman ulang) -- sehingga tidak lagi diblokir keras hanya
-                    // karena kombinasi tanggal+shift+regu berulang. Petugas cukup
-                    // diingatkan lewat peringatan ringan di modal konfirmasi sebelum
-                    // mengirim. Yang ditolak keras hanya laporan ke-4 (berlebih).
-                    $dailyCount = DailyReport::query()
+                    // $value di sini sudah dinormalisasi menjadi "tanggal dinas"
+                    // (tanggal saat shift DIMULAI) oleh store()/update() lewat
+                    // resolveShiftStartDate(). Dengan begitu, dua shift Malam sah yang
+                    // jatuh pada tanggal kalender sama (mis. diisi jam 03.00 dan 23.15)
+                    // otomatis memiliki tanggal dinas berbeda dan tidak saling menutup.
+                    //
+                    // Proteksi ketat: satu regu hanya boleh memiliki SATU laporan
+                    // terkirim untuk kombinasi tanggal dinas + shift yang sama. Bila
+                    // memang perlu (laporan koreksi / kasus khusus), petugas dapat
+                    // melanjutkan dengan mencentang konfirmasi (confirm_duplicate).
+                    $duplicate = DailyReport::query()
                         ->whereDate('report_date', $value)
-                        ->where('group_name', $group)
-                        ->where('status', '!=', ReportStatus::Draft->value)
-                        ->when($current instanceof DailyReport, fn ($query) => $query->whereKeyNot($current->getKey()))
-                        ->count();
-
-                    if ($dailyCount >= self::MAX_DAILY_REPORTS_PER_GROUP) {
-                        $fail('Sudah ada '.self::MAX_DAILY_REPORTS_PER_GROUP.' laporan dari regu '.$group.' untuk tanggal ini (batas maksimal per hari). Periksa Riwayat Laporan bila ada yang perlu diperbaiki.');
-
-                        return;
-                    }
-
-                    // Kelonggaran shift malam: shift Malam melewati tengah malam
-                    // (23.00-07.00), jadi satu shift yang sama bisa terlanjur diisi
-                    // dengan tanggal berbeda -- jam 23.00 (hari mulai) atau setelah
-                    // lewat tengah malam (hari berikutnya). Untuk itu, laporan Malam
-                    // regu sama di tanggal berdekatan (+-1 hari) TIDAK diblokir keras,
-                    // melainkan diberi peringatan agar petugas memastikan ini bukan
-                    // shift yang sama. Petugas mengonfirmasi via confirm_adjacent_night.
-                    if (strtolower($shift) !== 'malam') {
-                        return;
-                    }
-
-                    if ($request->boolean('confirm_adjacent_night')) {
-                        return;
-                    }
-
-                    $date = Carbon::parse($value);
-
-                    $adjacent = DailyReport::query()
                         ->where('shift', $shift)
                         ->where('group_name', $group)
                         ->where('status', '!=', ReportStatus::Draft->value)
-                        ->whereDate('report_date', '!=', $date->toDateString())
-                        ->whereBetween('report_date', [
-                            $date->copy()->subDay()->toDateString(),
-                            $date->copy()->addDay()->toDateString(),
-                        ])
                         ->when($current instanceof DailyReport, fn ($query) => $query->whereKeyNot($current->getKey()))
-                        ->orderBy('report_date')
-                        ->first(['report_date']);
+                        ->exists();
 
-                    if ($adjacent) {
-                        $adjacentDate = Carbon::parse($adjacent->report_date)
-                            ->locale('id')->translatedFormat('d F Y');
+                    if ($duplicate && ! $request->boolean('confirm_duplicate')) {
+                        $dutyDate = Carbon::parse($value)->locale('id')->translatedFormat('d F Y');
 
-                        session()->flash('night_shift_adjacent', $adjacentDate);
+                        session()->flash('duplicate_report_shift', $dutyDate);
 
-                        $fail("Sudah ada laporan Shift Malam regu {$group} di tanggal berdekatan ({$adjacentDate}). Karena shift malam melewati tengah malam, pastikan ini bukan shift yang sama yang terlanjur beda tanggal. Jika memang shift malam yang berbeda, centang konfirmasi lalu kirim ulang.");
+                        $fail("Sudah ada laporan Shift {$shift} regu {$group} untuk tanggal dinas ({$dutyDate}). Bila ini memang laporan yang berbeda atau koreksi, centang konfirmasi lalu kirim ulang.");
                     }
                 },
             ],

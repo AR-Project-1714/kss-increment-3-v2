@@ -10,15 +10,20 @@ use App\Http\Controllers\Concerns\ResolvesMaintenanceMeta;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Http\Controllers\Concerns\ResolvesSafetyMeta;
 use App\Http\Controllers\Concerns\SearchesReports;
+use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\MaintenanceReport;
 use App\Models\Role;
 use App\Models\SafetyReport;
+use App\Services\ArchiveMetricsService;
+use App\Services\OperationalPerformanceService;
+use App\Services\PerformanceExportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Throwable;
 
 class ManajerController extends Controller
@@ -63,6 +68,7 @@ class ManajerController extends Controller
 
         return view('manajer.index', [
             'stats' => $this->dashboardStats(),
+            'kpi' => $this->dashboardKpi(),
             'incomingReports' => $incomingReports,
             'incomingMaintenanceReports' => $incomingMaintenanceReports,
             'incomingSafetyReports' => $incomingSafetyReports,
@@ -79,7 +85,7 @@ class ManajerController extends Controller
         $reports = $this->buildDivisionArchivePaginator($request, $filters, 'manajer');
 
         return view('manajer.archive', [
-            'stats' => $this->archiveStats(),
+            'stats' => app(ArchiveMetricsService::class)->cards(),
             'reports' => $reports,
             'archiveSearch' => $filters['archiveSearch'],
             'sort' => $filters['sort'],
@@ -218,6 +224,193 @@ class ManajerController extends Controller
         $this->authorizeManagementAccess($request);
 
         return view('manajer.bantuan');
+    }
+
+    /**
+     * Halaman analisis performa divisi operasi. Semua angkanya diturunkan dari
+     * laporan harian yang sudah ada lewat OperationalPerformanceService.
+     */
+    public function performa(Request $request, OperationalPerformanceService $performance)
+    {
+        $this->authorizeManagementAccess($request);
+
+        [
+            'presets' => $presets,
+            'preset' => $preset,
+            'filters' => $filters,
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+            'start' => $start,
+            'end' => $end,
+        ] = $this->performanceFiltersFromRequest($request);
+
+        $report = Cache::remember(
+            $this->performanceCacheKey($filters),
+            now()->addMinutes(10),
+            fn (): array => $performance->performanceReport($filters)
+        );
+
+        return view('manajer.performa', [
+            'report' => $report,
+            'kpi' => array_merge($report['summary'], [
+                'comparisonLabel' => $report['comparisonLabel'],
+                'sparklines' => $report['sparklines'],
+            ]),
+            'presets' => $presets,
+            'selectedPreset' => $preset,
+            'selectedStart' => $start->toDateString(),
+            'selectedEnd' => $end->toDateString(),
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+            'filterOptions' => $performance->filterOptions(),
+            'hasActiveFilter' => $preset !== 'bulan-ini' || $selectedGroup !== 'all' || $selectedShift !== 'all',
+        ]);
+    }
+
+    /**
+     * Unduh rekap performa sebagai Excel. Filternya diambil dengan cara yang
+     * persis sama dengan halaman — termasuk cache-nya — sehingga berkas yang
+     * diunduh selalu menggambarkan apa yang sedang tampil di layar.
+     */
+    public function performaExport(
+        Request $request,
+        OperationalPerformanceService $performance,
+        PerformanceExportService $exporter
+    ) {
+        $this->authorizeManagementAccess($request);
+
+        [
+            'filters' => $filters,
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+        ] = $this->performanceFiltersFromRequest($request);
+
+        $report = Cache::remember(
+            $this->performanceCacheKey($filters),
+            now()->addMinutes(10),
+            fn (): array => $performance->performanceReport($filters)
+        );
+
+        $spreadsheet = $exporter->build($report, [
+            'Periode: '.$report['periodLabel'].' · pembanding '.$report['comparisonLabel'],
+            'Filter: Regu '.($selectedGroup === 'all' ? 'Semua' : strtoupper($selectedGroup))
+                .' · Shift '.($selectedShift === 'all' ? 'Semua' : ucfirst($selectedShift)),
+            'Diekspor: '.now()->locale('id')->translatedFormat('d F Y, H:i').' oleh '.($request->user()->name ?? '-'),
+        ]);
+
+        AdminActivityLog::create([
+            'user_id' => $request->user()?->id,
+            'type' => 'export',
+            'description' => 'Mengekspor rekap performa operasional ('.$report['periodLabel'].')',
+            'ip_address' => $request->ip(),
+        ]);
+
+        $fileName = 'Performa-Operasional_'.now()->format('Y-m-d_Hi').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    /**
+     * Preset, rentang tanggal, dan filter regu/shift dari query string.
+     * Dipakai halaman performa maupun ekspornya — satu sumber supaya keduanya
+     * tidak pernah membaca filter dengan cara berbeda.
+     *
+     * @return array{presets: array<string, string>, preset: string, filters: array<string, mixed>, selectedGroup: string, selectedShift: string, start: Carbon, end: Carbon}
+     */
+    private function performanceFiltersFromRequest(Request $request): array
+    {
+        $presets = [
+            'bulan-ini' => 'Bulan Ini',
+            'bulan-lalu' => 'Bulan Lalu',
+            '3-bulan' => '3 Bulan',
+        ];
+
+        $selectedGroup = (string) $request->input('regu', 'all');
+        $selectedShift = (string) $request->input('shift', 'all');
+        [$start, $end, $preset] = $this->resolvePerformancePeriod($request, array_keys($presets));
+
+        return [
+            'presets' => $presets,
+            'preset' => $preset,
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+            'start' => $start,
+            'end' => $end,
+            'filters' => [
+                'start' => $start,
+                'end' => $end,
+                'group' => $selectedGroup !== 'all' ? $selectedGroup : null,
+                'shift' => $selectedShift !== 'all' ? $selectedShift : null,
+            ],
+        ];
+    }
+
+    /**
+     * Tentukan rentang tanggal dari preset atau dari input tanggal bebas.
+     * Tanggal yang terbalik ditukar supaya rentangnya selalu valid.
+     *
+     * @param  array<int, string>  $allowedPresets
+     * @return array{0: Carbon, 1: Carbon, 2: string}
+     */
+    private function resolvePerformancePeriod(Request $request, array $allowedPresets): array
+    {
+        $rawStart = $request->input('dari');
+        $rawEnd = $request->input('sampai');
+
+        if ($rawStart || $rawEnd) {
+            try {
+                $start = $rawStart ? Carbon::parse($rawStart)->startOfDay() : Carbon::today()->startOfMonth();
+                $end = $rawEnd ? Carbon::parse($rawEnd)->startOfDay() : Carbon::today();
+
+                if ($start->greaterThan($end)) {
+                    [$start, $end] = [$end, $start];
+                }
+
+                return [$start, $end, 'custom'];
+            } catch (Throwable) {
+                // Tanggal tidak terbaca — jatuh kembali ke preset bulan berjalan.
+            }
+        }
+
+        $preset = (string) $request->input('periode', 'bulan-ini');
+
+        if (! in_array($preset, $allowedPresets, true)) {
+            $preset = 'bulan-ini';
+        }
+
+        return match ($preset) {
+            'bulan-lalu' => [
+                Carbon::today()->subMonthNoOverflow()->startOfMonth(),
+                Carbon::today()->subMonthNoOverflow()->endOfMonth()->startOfDay(),
+                $preset,
+            ],
+            '3-bulan' => [
+                Carbon::today()->startOfMonth()->subMonthsNoOverflow(2),
+                Carbon::today(),
+                $preset,
+            ],
+            default => [Carbon::today()->startOfMonth(), Carbon::today(), 'bulan-ini'],
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function performanceCacheKey(array $filters): string
+    {
+        return sprintf(
+            'manajer.performa.%s.%s.%s.%s',
+            $filters['start']->toDateString(),
+            $filters['end']->toDateString(),
+            $filters['group'] ?? 'all',
+            $filters['shift'] ?? 'all'
+        );
     }
 
     // ============================================================
@@ -423,6 +616,20 @@ class ManajerController extends Controller
         return back()->with('success', 'Arsip laporan K3 berhasil dihapus.');
     }
 
+    /**
+     * Empat kartu KPI performa operasi di dashboard. Agregasinya menyentuh lima
+     * tabel kegiatan sekaligus, jadi hasilnya disimpan lebih lama daripada
+     * statistik jumlah laporan yang murah dihitung.
+     */
+    private function dashboardKpi(): array
+    {
+        return Cache::remember(
+            $this->managerStatsCacheKey('kpi'),
+            now()->addMinutes(10),
+            fn (): array => app(OperationalPerformanceService::class)->dashboardKpi()
+        );
+    }
+
     private function dashboardStats(): array
     {
         return Cache::remember($this->managerStatsCacheKey('dashboard'), now()->addSeconds(60), function (): array {
@@ -431,20 +638,6 @@ class ManajerController extends Controller
                 [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved],
                 [ReportStatus::Acknowledged]
             );
-
-            return [
-                'todayReports' => $counts['today'],
-                'pendingReports' => $counts['pending'],
-                'monthlyReports' => $counts['month'],
-                'totalReports' => $counts['total'],
-            ];
-        });
-    }
-
-    private function archiveStats(): array
-    {
-        return Cache::remember($this->managerStatsCacheKey('archive'), now()->addSeconds(60), function (): array {
-            $counts = $this->archiveTotalCounts();
 
             return [
                 'todayReports' => $counts['today'],
@@ -496,6 +689,7 @@ class ManajerController extends Controller
     {
         Cache::forget($this->managerStatsCacheKey('dashboard'));
         Cache::forget($this->managerStatsCacheKey('archive'));
+        Cache::forget($this->managerStatsCacheKey('kpi'));
     }
 
     private function cacheApprovedPdf(DailyReport $report): void

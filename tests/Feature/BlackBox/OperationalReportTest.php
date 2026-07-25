@@ -4,6 +4,7 @@ namespace Tests\Feature\BlackBox;
 
 use App\Enums\ReportStatus;
 use App\Models\DailyReport;
+use Carbon\Carbon;
 
 /**
  * Modul K — Operasional / Laporan Operasi Harian (PENGUJIAN_BLACKBOX.md §4.K).
@@ -287,7 +288,7 @@ class OperationalReportTest extends BlackBoxTestCase
         $this->assertSame(ReportStatus::Draft, $report->status);
     }
 
-    public function test_tc_ops_15_laporan_kombinasi_sama_boleh_dikirim_dalam_batas_harian(): void
+    public function test_tc_ops_15_laporan_kombinasi_sama_persis_ditolak_tanpa_konfirmasi(): void
     {
         $operator = $this->operator('A');
 
@@ -295,27 +296,16 @@ class OperationalReportTest extends BlackBoxTestCase
             ->post(route('report-ops.store'), $this->validSubmitPayload())
             ->assertRedirect(route('report-ops.index'));
 
-        // Submit kedua dengan tanggal + shift + regu sama kini TETAP diterima
-        // (mis. koreksi/kiriman ulang), selama masih dalam batas 3 per hari.
+        // Proteksi ketat: submit kedua dengan tanggal dinas + shift + regu sama
+        // persis DITOLAK, kecuali petugas mencentang konfirmasi laporan ganda.
         $this->actingAs($operator)
+            ->from(route('report-ops.create'))
             ->post(route('report-ops.store'), $this->validSubmitPayload())
-            ->assertRedirect(route('report-ops.index'))
-            ->assertSessionHasNoErrors();
+            ->assertRedirect(route('report-ops.create'))
+            ->assertSessionHasErrors('report_date')
+            ->assertSessionHas('duplicate_report_shift');
 
-        // Kombinasi shift lain juga diterima (total menjadi 3).
-        $this->actingAs($operator)
-            ->post(route('report-ops.store'), $this->validSubmitPayload([
-                'shift' => 'Siang',
-                'time_range' => '15.00 - 23.00',
-            ]))
-            ->assertRedirect(route('report-ops.index'));
-
-        // Draft dengan kombinasi sama juga tetap boleh disimpan (tak dihitung batas).
-        $this->actingAs($operator)
-            ->post(route('report-ops.store'), $this->validSubmitPayload(['status' => 'draft']))
-            ->assertRedirect(route('report-ops.index'));
-
-        $this->assertSame(3, DailyReport::where('status', ReportStatus::Submitted->value)->count());
+        $this->assertSame(1, DailyReport::where('status', ReportStatus::Submitted->value)->count());
     }
 
     public function test_tc_ops_16_masa_simpan_draft_dapat_diperpanjang(): void
@@ -359,12 +349,10 @@ class OperationalReportTest extends BlackBoxTestCase
         ]);
     }
 
-    public function test_tc_ops_17_tanggal_shift_regu_sama_persis_boleh_dikirim_dalam_batas(): void
+    public function test_tc_ops_17_laporan_kombinasi_sama_bisa_lanjut_setelah_konfirmasi(): void
     {
-        // Kebijakan baru: kombinasi tanggal+shift+regu yang berulang tidak lagi
-        // diblokir keras (mis. koreksi/kiriman ulang), selama masih dalam batas
-        // 3 laporan per regu per hari. Petugas hanya diingatkan lewat peringatan
-        // ringan di modal konfirmasi.
+        // Laporan dengan kombinasi tanggal dinas + shift + regu yang sama boleh
+        // dikirim (mis. koreksi) HANYA setelah petugas mencentang konfirmasi.
         $this->submittedReport('A', '2026-05-19', 'Pagi', '07.00 - 15.00');
 
         $this->actingAs($this->operator('A'))
@@ -372,6 +360,7 @@ class OperationalReportTest extends BlackBoxTestCase
                 'report_date' => '2026-05-19',
                 'shift' => 'Pagi',
                 'group_name' => 'A',
+                'confirm_duplicate' => '1',
             ]))
             ->assertRedirect(route('report-ops.index'))
             ->assertSessionHasNoErrors();
@@ -379,31 +368,61 @@ class OperationalReportTest extends BlackBoxTestCase
         $this->assertSame(2, DailyReport::where('status', ReportStatus::Submitted->value)->count());
     }
 
-    public function test_tc_ops_17b_laporan_keempat_regu_sama_pada_tanggal_sama_ditolak(): void
+    public function test_tc_ops_17b_shift_berbeda_tanggal_sama_diterima_tanpa_konfirmasi(): void
     {
-        // Batas keras tetap ada di laporan ke-4 untuk regu + tanggal yang sama.
+        // Shift yang berbeda pada tanggal yang sama BUKAN laporan ganda, jadi lolos
+        // tanpa perlu konfirmasi.
         $this->submittedReport('A', '2026-05-19', 'Pagi', '07.00 - 15.00');
-        $this->submittedReport('A', '2026-05-19', 'Sore', '15.00 - 23.00');
-        $this->submittedReport('A', '2026-05-19', 'Malam', '23.00 - 07.00');
 
         $this->actingAs($this->operator('A'))
-            ->from(route('report-ops.create'))
             ->post(route('report-ops.store'), $this->validSubmitPayload([
                 'report_date' => '2026-05-19',
-                'shift' => 'Pagi',
+                'shift' => 'Sore',
                 'group_name' => 'A',
+                'time_range' => '15.00 - 23.00',
             ]))
-            ->assertRedirect(route('report-ops.create'))
-            ->assertSessionHasErrors('report_date');
+            ->assertRedirect(route('report-ops.index'))
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(3, DailyReport::where('status', ReportStatus::Submitted->value)->count());
+        $this->assertSame(2, DailyReport::where('status', ReportStatus::Submitted->value)->count());
     }
 
-    public function test_tc_ops_18_shift_malam_tanggal_berdekatan_diberi_peringatan(): void
+    public function test_tc_ops_18_shift_malam_lintas_tengah_malam_bukan_laporan_ganda(): void
     {
-        // Shift malam 2026-05-19 sudah ada; laporan malam regu sama di 2026-05-20
-        // (berdekatan +1 hari) tidak diblokir keras, tapi diberi peringatan lunak.
+        // Shift malam yang MULAI 19 Mei sudah tersimpan (diisi malam harinya).
         $this->submittedReport('A', '2026-05-19', 'Malam', '23.00 - 07.00');
+
+        // Shift malam BERIKUTNYA diisi di awal jam kerja: 20 Mei pukul 23.15. Karena
+        // jam >= 12, tanggal dinas = 20 Mei -> shift yang berbeda -> diterima tanpa
+        // konfirmasi (tidak dianggap ganda meski keduanya shift Malam regu A).
+        Carbon::setTestNow(Carbon::create(2026, 5, 20, 23, 15, 0, 'Asia/Makassar'));
+
+        $this->actingAs($this->operator('A'))
+            ->post(route('report-ops.store'), $this->validSubmitPayload([
+                'report_date' => '2026-05-20',
+                'shift' => 'Malam',
+                'group_name' => 'A',
+                'time_range' => '23.00 - 07.00',
+            ]))
+            ->assertRedirect(route('report-ops.index'))
+            ->assertSessionHasNoErrors();
+
+        Carbon::setTestNow();
+
+        $this->assertSame(2, DailyReport::where('status', ReportStatus::Submitted->value)->count());
+        $this->assertSame(1, DailyReport::whereDate('report_date', '2026-05-20')->where('shift', 'Malam')->count());
+    }
+
+    public function test_tc_ops_19_laporan_malam_dini_hari_dinormalisasi_ke_tanggal_mulai(): void
+    {
+        // Shift malam yang MULAI 19 Mei sudah tersimpan.
+        $this->submittedReport('A', '2026-05-19', 'Malam', '23.00 - 07.00');
+
+        // Petugas shift yang SAMA mengisi ulang dini hari 20 Mei pukul 03.00 dengan
+        // tanggal default "hari ini" (20 Mei). Sistem menormalkan ke tanggal shift
+        // mulai (19 Mei) -> terdeteksi sebagai laporan untuk shift yang sama ->
+        // ditolak dan meminta konfirmasi.
+        Carbon::setTestNow(Carbon::create(2026, 5, 20, 3, 0, 0, 'Asia/Makassar'));
 
         $this->actingAs($this->operator('A'))
             ->from(route('report-ops.create'))
@@ -415,27 +434,22 @@ class OperationalReportTest extends BlackBoxTestCase
             ]))
             ->assertRedirect(route('report-ops.create'))
             ->assertSessionHasErrors('report_date')
-            ->assertSessionHas('night_shift_adjacent');
+            ->assertSessionHas('duplicate_report_shift');
 
-        // Belum tersimpan karena belum dikonfirmasi.
-        $this->assertSame(1, DailyReport::where('status', ReportStatus::Submitted->value)->count());
-    }
-
-    public function test_tc_ops_19_shift_malam_berdekatan_bisa_lanjut_setelah_konfirmasi(): void
-    {
-        $this->submittedReport('A', '2026-05-19', 'Malam', '23.00 - 07.00');
-
+        // Dengan konfirmasi, laporan koreksi tetap bisa dikirim dan tercatat di 19 Mei.
         $this->actingAs($this->operator('A'))
             ->post(route('report-ops.store'), $this->validSubmitPayload([
                 'report_date' => '2026-05-20',
                 'shift' => 'Malam',
                 'group_name' => 'A',
                 'time_range' => '23.00 - 07.00',
-                'confirm_adjacent_night' => '1',
+                'confirm_duplicate' => '1',
             ]))
             ->assertRedirect(route('report-ops.index'));
 
-        $this->assertSame(2, DailyReport::where('status', ReportStatus::Submitted->value)->count());
+        Carbon::setTestNow();
+
+        $this->assertSame(2, DailyReport::whereDate('report_date', '2026-05-19')->where('shift', 'Malam')->count());
     }
 
     public function test_tc_ops_20_shift_bukan_malam_tanggal_berdekatan_tidak_diperingatkan(): void
@@ -483,17 +497,28 @@ class OperationalReportTest extends BlackBoxTestCase
             ->count());
     }
 
-    public function test_tc_ops_22_endpoint_hitung_laporan_harian_regu(): void
+    public function test_tc_ops_22_endpoint_deteksi_potensi_laporan_ganda(): void
     {
         $this->submittedReport('A', '2026-06-02', 'Pagi', '07.00 - 15.00');
-        $this->submittedReport('A', '2026-06-02', 'Sore', '15.00 - 23.00');
 
+        // Kombinasi tanggal dinas + shift + regu yang sama -> potensi laporan ganda.
         $this->actingAs($this->operator('A'))
             ->getJson(route('report-ops.day-report-count', [
                 'report_date' => '2026-06-02',
                 'group_name' => 'A',
+                'shift' => 'Pagi',
             ]))
             ->assertOk()
-            ->assertJson(['count' => 2, 'limit' => 3, 'remaining' => 1]);
+            ->assertJson(['duplicate' => true]);
+
+        // Shift berbeda pada tanggal sama -> bukan laporan ganda.
+        $this->actingAs($this->operator('A'))
+            ->getJson(route('report-ops.day-report-count', [
+                'report_date' => '2026-06-02',
+                'group_name' => 'A',
+                'shift' => 'Sore',
+            ]))
+            ->assertOk()
+            ->assertJson(['duplicate' => false]);
     }
 }

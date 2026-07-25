@@ -266,10 +266,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelector('[name="received_by_group"]')?.addEventListener('change', updateFinishReceiverLabel);
                 updateFinishReceiverLabel();
 
-                // Peringatan ringan: bila pada tanggal yang dipilih regu ini sudah
-                // memiliki laporan lain (mendekati batas 3/hari), ingatkan petugas
-                // sebelum mengirim agar tidak terjadi laporan ganda/berlebih. Bersifat
-                // informatif; validasi store/update tetap penjaga sebenarnya.
+                // Peringatan ringan: bila kombinasi tanggal dinas + shift + regu yang
+                // dipilih SUDAH memiliki laporan terkirim, ingatkan petugas sebelum
+                // mengirim agar tidak terjadi laporan ganda. Bersifat informatif;
+                // validasi store/update (dengan konfirmasi centang) tetap penjaga
+                // sebenarnya.
                 async function updateDayReportWarning() {
                     if (!dayReportWarning) return;
 
@@ -278,12 +279,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     const reportDate = String(mainForm.querySelector('[name="report_date"]')?.value || '').trim();
                     const groupName = String(mainForm.querySelector('[name="group_name"]')?.value || '').trim();
-                    if (!reportDate || !groupName) return;
+                    const shift = String(mainForm.querySelector('[name="shift"]')?.value || '').trim();
+                    if (!reportDate || !groupName || !shift) return;
 
                     try {
                         const url = new URL(dayCountUrl, window.location.origin);
                         url.searchParams.set('report_date', reportDate);
                         url.searchParams.set('group_name', groupName);
+                        url.searchParams.set('shift', shift);
                         if (currentReportId) url.searchParams.set('except', currentReportId);
 
                         const response = await fetch(url.toString(), {
@@ -292,16 +295,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (!response.ok) return;
 
                         const data = await response.json();
-                        const count = Number(data.count || 0);
-                        const limit = Number(data.limit || 3);
-                        if (count < 1 || !dayReportWarningText) return;
+                        if (!data.duplicate || !dayReportWarningText) return;
 
                         const groupUpper = groupName.toUpperCase();
-                        if (count >= limit) {
-                            dayReportWarningText.textContent = `Regu ${groupUpper} sudah memiliki ${count} laporan (batas maksimal ${limit}/hari) untuk tanggal ini. Pengiriman laporan tambahan kemungkinan akan ditolak sebagai laporan berlebih.`;
-                        } else {
-                            dayReportWarningText.textContent = `Sudah ada ${count} laporan dari Regu ${groupUpper} untuk tanggal ini (sisa kuota ${limit - count} lagi). Pastikan ini bukan laporan ganda sebelum mengirim.`;
-                        }
+                        const dutyLabel = data.duty_date_label || reportDate;
+                        dayReportWarningText.textContent = `Regu ${groupUpper} sudah memiliki laporan Shift ${shift} untuk tanggal dinas ${dutyLabel}. Bila ini memang laporan berbeda atau koreksi, Anda perlu mencentang konfirmasi setelah menekan kirim.`;
 
                         dayReportWarning.classList.remove('d-none');
                     } catch (error) {

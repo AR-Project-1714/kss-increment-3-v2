@@ -13,7 +13,9 @@
     $documentId = '#OPS-'.$documentYear.'-'.str_pad((string) $report->id, 3, '0', STR_PAD_LEFT);
 
     $isEdit = true;
+    $formMethod = 'PUT';
     $formAction = route('report-ops.update', $report);
+    $discardBlankUrl = null;
     $headerTitle = 'Edit Laporan Operasi Harian';
     $headerDocumentLabel = $documentId;
     $draftButtonLabel = 'Simpan Pembaruan';

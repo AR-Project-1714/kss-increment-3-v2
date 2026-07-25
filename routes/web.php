@@ -89,6 +89,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/report-ops/{report}', [ReportOpsController::class, 'destroy'])->name('report-ops.destroy');
         Route::post('/report-ops/{report}/sign', [ReportOpsController::class, 'sign'])->name('report-ops.sign');
         Route::post('/report-ops/{report}/extend-draft', [ReportOpsController::class, 'extendDraft'])->name('report-ops.extend-draft');
+        Route::post('/report-ops/{report}/discard-blank', [ReportOpsController::class, 'discardBlank'])->name('report-ops.discard-blank');
         Route::get('/report-ops/{report}/pdf', [ReportOpsController::class, 'exportPdf'])->name('report-ops.pdf');
         Route::get('/report-ops/{report}/excel', [ReportOpsController::class, 'exportExcel'])->name('report-ops.excel');
     });
@@ -103,6 +104,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{report}', [ReportMaintenanceController::class, 'update'])->name('update');
         Route::delete('/{report}', [ReportMaintenanceController::class, 'destroy'])->name('destroy');
         Route::post('/{report}/extend-draft', [ReportMaintenanceController::class, 'extendDraft'])->name('extend-draft');
+        Route::post('/{report}/discard-blank', [ReportMaintenanceController::class, 'discardBlank'])->name('discard-blank');
         Route::get('/{report}/pdf', [ReportMaintenanceController::class, 'exportPdf'])->name('pdf');
     });
 
@@ -116,11 +118,14 @@ Route::middleware('auth')->group(function () {
         Route::put('/{report}', [ReportSafetyController::class, 'update'])->name('update');
         Route::delete('/{report}', [ReportSafetyController::class, 'destroy'])->name('destroy');
         Route::post('/{report}/extend-draft', [ReportSafetyController::class, 'extendDraft'])->name('extend-draft');
+        Route::post('/{report}/discard-blank', [ReportSafetyController::class, 'discardBlank'])->name('discard-blank');
         Route::get('/{report}/pdf', [ReportSafetyController::class, 'exportPdf'])->name('pdf');
     });
 
     Route::middleware('role:'.Role::MANAGER)->group(function () {
         Route::get('/manajer', [ManajerController::class, 'index'])->name('manajer.index');
+        Route::get('/manajer/performa', [ManajerController::class, 'performa'])->name('manajer.performa');
+        Route::get('/manajer/performa/export', [ManajerController::class, 'performaExport'])->name('manajer.performa.export');
         Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
         Route::get('/manajer/archive/export', [ManajerController::class, 'archiveExport'])->name('manajer.archive.export');
         Route::get('/manajer/archive/suggestions', [ManajerController::class, 'archiveSuggestions'])->name('manajer.archive.suggestions');

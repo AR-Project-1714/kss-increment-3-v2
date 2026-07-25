@@ -21,6 +21,11 @@ Artisan::command('inspire', function () {
 // terjadi walau tidak ada yang membuka halaman (pembersihan on-request tetap ada).
 Schedule::command('reports:prune-stale')->dailyAt('01:30');
 
+// Rekam keadaan sistem menjelang tengah malam, selagi hitungan aktivitas hari
+// itu masih utuh. Storage dan jumlah pengguna tidak punya jejak historis, jadi
+// tanpa rekaman ini kartu dashboard admin kehilangan angka pembandingnya.
+Schedule::command('system:snapshot')->dailyAt('23:50');
+
 // Backup otomatis mengikuti pengaturan admin (admin-backups/schedule.json).
 $backupSchedule = ['frequency' => 'Harian', 'time' => '02:00'];
 

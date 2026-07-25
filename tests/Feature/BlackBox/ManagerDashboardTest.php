@@ -137,4 +137,60 @@ class ManagerDashboardTest extends BlackBoxTestCase
 
         $this->assertSame(SafetyStatus::Approved, $safety->fresh()->status);
     }
+
+    public function test_tc_mgr_08_ekspor_performa_menghasilkan_excel_lima_sheet(): void
+    {
+        $manager = $this->manager();
+        $operator = $this->operator('A');
+        $this->acknowledgedOpsReport($operator);
+
+        $response = $this->actingAs($manager)->get(route('manajer.performa.export'));
+
+        $response->assertOk();
+        $response->assertHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+
+        // Isi berkas dibongkar sungguhan, bukan hanya dicek header-nya:
+        // regresi pada penulisan sheet harus ketahuan di sini.
+        $path = tempnam(sys_get_temp_dir(), 'perf-export');
+        file_put_contents($path, $response->streamedContent());
+
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+
+            $this->assertSame(
+                ['Ringkasan', 'Tren Bulanan', 'Regu & Kegiatan', 'Peringkat Lembur', 'Kapal Dilayani'],
+                $spreadsheet->getSheetNames()
+            );
+
+            $summary = $spreadsheet->getSheetByName('Ringkasan');
+            $this->assertSame('Performa Operasional — Ringkasan', $summary->getCell('A1')->getValue());
+
+            $found = false;
+            foreach ($summary->getRowIterator() as $row) {
+                if ($summary->getCell('A'.$row->getRowIndex())->getValue() === 'Tonase Ditangani') {
+                    $found = true;
+                    break;
+                }
+            }
+            $this->assertTrue($found, 'Baris KPI "Tonase Ditangani" tidak ditemukan pada sheet Ringkasan.');
+
+            $spreadsheet->disconnectWorksheets();
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    public function test_tc_mgr_09_ekspor_performa_ditolak_untuk_selain_manajer(): void
+    {
+        // Middleware role mengarahkan pengguna kembali ke berandanya sendiri,
+        // bukan menampilkan 403 — mengikuti konvensi pada AccessControlTest.
+        $operator = $this->operator('A');
+
+        $this->actingAs($operator)
+            ->get(route('manajer.performa.export'))
+            ->assertRedirect(route('report-ops.index'));
+    }
 }

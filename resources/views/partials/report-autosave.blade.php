@@ -12,8 +12,16 @@
     lalu berubah jadi centang + "Laporan tersimpan". Bila tombol "Simpan Sebagai
     Draft" sedang melayang (header sticky), pil muncul tepat di bawah tombol itu.
 
+    Anti-duplikat: draft direservasi server begitu form dibuka, jadi form laporan
+    baru sekalipun sudah menembak endpoint update (PUT) sejak keystroke pertama.
+    Ini wajib karena penyimpanan lewat sendBeacon tidak bisa membaca response —
+    ia takkan pernah tahu ID draft yang baru dibuat. Kalau form masih menembak
+    endpoint store, tiap kali tab disembunyikan akan lahir draft baru.
+
     Bergantung pada konvensi form yang sama di tiga modul:
-      - <form id="mainReportForm" action="..."> (POST; PUT via _method saat edit)
+      - <form id="mainReportForm" action="..."> (POST; PUT via _method)
+      - data-discard-blank-url pada form baru: dipakai membuang baris reservasi
+        bila form ditinggal tanpa diisi sama sekali
       - opsional window.__reportSyncPayload() untuk menyegarkan hidden form_payload (ops)
       - submitAs() di tiap form menyetel window.__reportAutosaveSuppress = true saat
         pengiriman manual, agar autosave tidak menimpa/menurunkan status laporan.
@@ -104,6 +112,9 @@
     const OFFLINE_KEY_PREFIX = 'kssOfflineDraft:';
     const OFFLINE_TTL_MS = 3 * 24 * 60 * 60 * 1000; // selaras masa simpan draft (3 hari)
     let dirty = false;
+    let dirtyRevision = 0;  // penanda "isian berubah lagi" saat request berjalan
+    let everSaved = false;  // form pernah benar-benar dikirim ke server?
+    let everTouched = false; // pengguna pernah mengetik/memilih sesuatu?
     let saving = false;
     let trackingReady = false;
     let saveError = false;
@@ -269,27 +280,50 @@
         }
     }
 
+    function postDraft() {
+        return fetch(form.action, {
+            method: 'POST',
+            body: buildDraftFormData(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        });
+    }
+
+    // Baris draft yang dituju sudah tidak ada (mis. kedaluwarsa atau terlanjur
+    // dibuang sebagai draft kosong). Isian di layar tidak boleh ikut hilang:
+    // kembali ke endpoint store agar tersimpan sebagai laporan baru.
+    function recoverToStoreEndpoint() {
+        const storeUrl = form.dataset.storeUrl;
+        if (!storeUrl || form.action === storeUrl) return false;
+        form.action = storeUrl;
+        form.querySelector('input[name="_method"]')?.remove();
+        return true;
+    }
+
     async function saveDraft() {
         if (saving || suppressed() || !dirty) return;
         saving = true;
         showSaving(); // spinner tampil ~SPINNER_MS, lalu finishSpinner() menampilkan hasil
         const actionUsed = form.action;
+        // Perubahan yang diketik SELAMA request berlangsung tidak boleh ikut
+        // dianggap tersimpan; hanya bersihkan dirty bila tak ada ketikan baru.
+        const revision = ++dirtyRevision;
         try {
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: buildDraftFormData(),
-                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-                credentials: 'same-origin',
-            });
+            let response = await postDraft();
+            if (response.status === 404 && recoverToStoreEndpoint()) {
+                response = await postDraft();
+            }
             if (!response.ok) { saveError = true; return; }
+            everSaved = true;
             const data = await response.json().catch(() => null);
             if (data && data.update_url) {
-                // Draft baru tercipta: arahkan form ke draft tsb agar simpan berikutnya
-                // (autosave & kirim manual) memperbarui draft yang sama, bukan duplikat.
+                // Jaring pengaman bila form masih menembak endpoint store (mis.
+                // halaman lama yang ter-cache): pindahkan ke draft yang baru
+                // dibuat agar simpanan berikutnya menimpa, bukan menduplikat.
                 form.action = data.update_url;
                 ensurePutMethod();
             }
-            dirty = false;
+            if (revision === dirtyRevision) dirty = false;
             // Server sudah menerima data terbaru — draft offline lama tak diperlukan.
             try {
                 window.localStorage.removeItem(OFFLINE_KEY_PREFIX + actionUsed);
@@ -299,7 +333,7 @@
             // Jaringan gagal: amankan isian ke localStorage agar tidak hilang.
             if (storeOfflineDraft()) {
                 savedOffline = true;
-                dirty = false;
+                if (revision === dirtyRevision) dirty = false;
             } else {
                 saveError = true;
             }
@@ -308,16 +342,49 @@
         }
     }
 
+    // Penyimpanan saat tab disembunyikan/ditutup. sendBeacon tidak bisa membaca
+    // response, jadi ia tak pernah tahu ID draft baru — makanya form laporan baru
+    // pun sudah menembak endpoint update sejak awal (draft direservasi server
+    // saat form dibuka). Dengan begitu beacon berkali-kali tetap menimpa satu
+    // baris yang sama, bukan menumpuk draft.
     function saveDraftBeacon() {
         if (suppressed() || !dirty) return;
         if (!navigator.onLine) { storeOfflineDraft(); return; }
         if (!navigator.sendBeacon) return;
-        try { navigator.sendBeacon(form.action, buildDraftFormData()); } catch (_) {}
+        try {
+            navigator.sendBeacon(form.action, buildDraftFormData());
+            everSaved = true;
+        } catch (_) {}
+    }
+
+    // Form baru yang dibuka lalu ditinggal tanpa diisi: buang baris reservasinya
+    // supaya tab Draft tidak penuh laporan kosong. Server tetap memeriksa ulang
+    // dan menolak menghapus draft yang ternyata sudah ada isinya.
+    //
+    // HANYA dipanggil saat halaman benar-benar ditinggalkan. Sempat dipasang di
+    // visibilitychange juga, dan itu keliru: pindah tab sebentar (buka WhatsApp,
+    // cek data lain) menghapus draft yang formnya masih terbuka, sehingga
+    // simpanan berikutnya menembak ID yang sudah tiada.
+    function discardBlankBeacon() {
+        const url = form.dataset.discardBlankUrl;
+        if (!url || everSaved || everTouched || !navigator.sendBeacon) return;
+        const data = new FormData();
+        const tokenInput = form.querySelector('input[name="_token"]');
+        if (tokenInput) data.set('_token', tokenInput.value);
+        try { navigator.sendBeacon(url, data); } catch (_) {}
     }
 
     // Lacak perubahan pengguna; aktif setelah render awal (prefill baris) selesai
     // supaya draft kosong tidak terbuat tanpa interaksi nyata.
-    const markDirty = () => { if (trackingReady) dirty = true; };
+    //
+    // everTouched dipisah dari dirty dan hanya dinaikkan oleh event asli dari
+    // pengguna (isTrusted) — bukan event sintetis saat prefill. Ini yang menjaga
+    // agar draft yang sudah diketik tidak ikut dibuang lewat discardBlankBeacon,
+    // termasuk ketikan pada 1,2 detik pertama sebelum trackingReady menyala.
+    const markDirty = (event) => {
+        if (event.isTrusted) everTouched = true;
+        if (trackingReady) dirty = true;
+    };
     form.addEventListener('input', markDirty);
     form.addEventListener('change', markDirty);
     window.addEventListener('load', () => window.setTimeout(() => { trackingReady = true; }, 1200));
@@ -328,7 +395,19 @@
     window.addEventListener('load', () => window.setTimeout(syncOfflineDrafts, 2500));
     window.addEventListener('online', () => window.setTimeout(syncOfflineDrafts, 1500));
 
-    window.addEventListener('pagehide', saveDraftBeacon);
+    // "Batalkan" = pernyataan tegas bahwa laporan ini tidak jadi dibuat, jadi
+    // reservasinya langsung dibuang tanpa menunggu pagehide (yang bisa terlewat
+    // bila halaman masuk bfcache).
+    document.addEventListener('click', (event) => {
+        if (event.target.closest?.('.btn-form.cancel')) discardBlankBeacon();
+    });
+
+    window.addEventListener('pagehide', (event) => {
+        saveDraftBeacon();
+        // event.persisted = halaman masuk bfcache dan masih mungkin dibuka lagi;
+        // hanya buang reservasi saat halaman betul-betul ditinggalkan.
+        if (! event.persisted) discardBlankBeacon();
+    });
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') saveDraftBeacon();
     });

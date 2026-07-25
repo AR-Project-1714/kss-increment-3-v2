@@ -60,7 +60,23 @@ class ReportMaintenanceController extends Controller
     {
         MaintenanceReport::pruneStaleDrafts();
 
-        return view('pemeliharaan.create', $this->masterData());
+        // Reservasi baris draft sejak form dibuka: laporan langsung punya ID dan
+        // seluruh penyimpanan berikutnya menimpa baris ini, bukan bikin duplikat.
+        $reservedReport = $this->reserveDraftReport(MaintenanceReport::class, [
+            'created_by' => auth()->id(),
+            'status'     => MaintenanceStatus::Draft->value,
+        ]);
+
+        return view('pemeliharaan.create', array_merge($this->masterData(), [
+            'reservedReport' => $reservedReport,
+        ]));
+    }
+
+    public function discardBlank(MaintenanceReport $report)
+    {
+        abort_unless($this->canDelete($report, auth()->user()), 403);
+
+        return $this->discardBlankDraftReport($report);
     }
 
     public function store(Request $request)
@@ -151,6 +167,9 @@ class ReportMaintenanceController extends Controller
         $request->merge(['status' => $status]);
 
         $validated = $request->validate($this->rules($status === MaintenanceStatus::Draft->value), [], $this->attributes());
+        // Draft hasil reservasi form baru: simpan pertama ini "disimpan", bukan
+        // "diperbarui" — dicatat sebelum update karena setelahnya tak kosong lagi.
+        $wasBlank = $report->isBlankDraft();
 
         try {
             DB::transaction(function () use ($request, $report, $validated, $status): void {
@@ -187,7 +206,9 @@ class ReportMaintenanceController extends Controller
         return redirect()->route('pemeliharaan.index')->with(
             'success',
             $status === MaintenanceStatus::Draft->value
-                ? 'Draft laporan pemeliharaan berhasil diperbarui.'
+                ? ($wasBlank
+                    ? 'Draft laporan pemeliharaan berhasil disimpan.'
+                    : 'Draft laporan pemeliharaan berhasil diperbarui.')
                 : 'Laporan pemeliharaan berhasil dikirim.'
         );
     }

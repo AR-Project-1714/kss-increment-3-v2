@@ -3,11 +3,19 @@
 namespace App\Models;
 
 use App\Enums\SafetyStatus;
+use App\Models\Concerns\ReservesBlankDraft;
 use Illuminate\Database\Eloquent\Model;
 
 class SafetyReport extends Model
 {
+    use ReservesBlankDraft;
+
     public const DRAFT_TTL_DAYS = 3;
+
+    /** Penanda draft sudah benar-benar dikerjakan (lihat ReservesBlankDraft). */
+    public const BLANK_DRAFT_RELATIONS = ['inspections', 'operationLogs', 'incidentLogs'];
+
+    public const BLANK_DRAFT_COLUMNS = ['report_date', 'time_range', 'shift'];
 
     protected $guarded = ['id'];
 

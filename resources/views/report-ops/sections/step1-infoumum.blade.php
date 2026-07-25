@@ -119,18 +119,18 @@
                 <span>Khusus <strong>Shift Malam</strong> (23.00&ndash;07.00) yang melewati tengah malam: beri tanggal saat shift <strong>dimulai</strong> (malam harinya), walau laporan baru diisi setelah lewat tengah malam. Ini mencegah satu shift tercatat ganda.</span>
             </div>
 
-            @if (session('night_shift_adjacent') || old('confirm_adjacent_night'))
+            @if (session('duplicate_report_shift') || old('confirm_duplicate'))
                 <div class="night-shift-confirm" style="margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--warning,#f0ad4e);background:var(--warning-10,#fff7e6);display:flex;flex-direction:column;gap:10px">
                     <div style="display:flex;align-items:flex-start;gap:10px">
                         <i class="fi fi-rr-triangle-warning" style="color:var(--warning,#f0ad4e);margin-top:2px"></i>
                         <span style="font-size:13px;line-height:1.5">
-                            Sudah ada laporan <strong>Shift Malam</strong> regu ini di tanggal berdekatan{{ session('night_shift_adjacent') ? ' (' . session('night_shift_adjacent') . ')' : '' }}.
-                            Karena shift malam melewati tengah malam, pastikan ini <strong>bukan shift yang sama</strong> yang terlanjur beda tanggal.
+                            Sudah ada laporan dengan <strong>shift &amp; regu yang sama</strong> untuk tanggal dinas ini{{ session('duplicate_report_shift') ? ' (' . session('duplicate_report_shift') . ')' : '' }}.
+                            Pastikan ini <strong>bukan laporan ganda</strong>. Bila memang laporan yang berbeda atau koreksi, centang di bawah untuk melanjutkan.
                         </span>
                     </div>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
-                        <input type="checkbox" name="confirm_adjacent_night" value="1" @checked(old('confirm_adjacent_night')) style="width:16px;height:16px;cursor:pointer">
-                        <span>Ya, ini shift malam yang berbeda &mdash; lanjutkan kirim laporan.</span>
+                        <input type="checkbox" name="confirm_duplicate" value="1" @checked(old('confirm_duplicate')) style="width:16px;height:16px;cursor:pointer">
+                        <span>Ya, saya konfirmasi ini laporan yang benar &mdash; lanjutkan kirim.</span>
                     </label>
                 </div>
             @endif

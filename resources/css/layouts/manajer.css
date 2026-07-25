@@ -1,3 +1,5 @@
+@import '../components/charts.css';
+
 /* =============================================
            CSS VARIABLES — Light Mode
            ============================================= */
@@ -711,36 +713,151 @@
         .stat-card__icon--orange { background-color: var(--orange-main-10); color: var(--orange-main); }
         .stat-card__icon--green  { background-color: var(--success-10);     color: var(--success); }
         .stat-card__icon--cyan   { background-color: var(--cyan-main-10);   color: var(--cyan-main); }
+        .stat-card__icon--red    { background-color: var(--red-main-10);    color: var(--red-main); }
+
 
         /* =============================================
-           SECTION CARD (Laporan Masuk)
+           PERFORMA OPERASIONAL
            ============================================= */
-        .section-card {
-            background-color: var(--white);
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(37,99,235,0.07);
-            /* overflow: hidden; Dihapus agar box-shadow hover pada report item tidak terpotong */
-            transition: background-color 0.3s ease;
+        .perf-toolbar {
+            display: flex;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .section-card__header {
+        .perf-toolbar__presets { display: flex; flex-wrap: wrap; gap: 6px; }
+        .perf-toolbar__spacer  { flex: 1 1 auto; }
+
+        .perf-bar__track {
+            height: 6px;
+            border-radius: 50px;
+            background-color: var(--blue-main-10);
+            overflow: hidden;
+        }
+
+        .perf-bar__fill {
+            display: block;
+            height: 100%;
+            border-radius: 50px;
+            background-color: var(--blue-main);
+            transition: width 0.3s ease;
+        }
+
+        .perf-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 11px;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--smooth-border);
+        }
+
+        .perf-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .perf-row:first-child { padding-top: 0; }
+        .perf-row__label { color: var(--black-secondary); }
+        .perf-row__value { font-weight: 600; color: var(--black); white-space: nowrap; }
+
+        /* Baris analitik: grafik utama lebar + panel ringkasan di samping,
+           mengikuti pola "grafik utama | ringkasan" pada panduan dashboard. */
+        .perf-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr);
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        .perf-chart__footer {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            gap: 5px;
-            padding: 15px 20px;
-            background-color: var(--blue-main-3);
-            border-top: 3px solid var(--blue-main);
-            border-top-left-radius: 10px; /* Ditambahkan agar sudut header tetap membulat */
-            border-top-right-radius: 10px;
+            gap: 6px 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--smooth-border);
+            font-size: 11px;
+            color: var(--black-secondary);
         }
 
-        .section-card__title {
-            font-size: 16px;
+        .perf-chart__footer strong {
             font-weight: 600;
             color: var(--black);
+            font-variant-numeric: tabular-nums;
         }
 
+
+        .perf-table { width: 100%; border-collapse: collapse; }
+
+        .perf-table th {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--black-secondary);
+            text-align: left;
+            padding: 0 10px 10px 0;
+            border-bottom: 1px solid var(--smooth-border);
+            white-space: nowrap;
+        }
+
+        .perf-table td {
+            font-size: 11px;
+            color: var(--black);
+            padding: 11px 10px 11px 0;
+            border-bottom: 1px solid var(--smooth-border);
+            vertical-align: middle;
+        }
+
+        .perf-table tbody tr:last-child td { border-bottom: none; }
+        .perf-table th:last-child, .perf-table td:last-child { padding-right: 0; text-align: right; }
+        .perf-table__name { font-weight: 600; white-space: nowrap; }
+        .perf-table__muted { color: var(--black-secondary); }
+
+        .perf-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 50px;
+            font-size: 10px;
+            font-weight: 500;
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+            white-space: nowrap;
+        }
+
+        .perf-tag--curah { background-color: var(--cyan-main-10); color: var(--cyan-main); }
+
+        .perf-delta { font-size: 10px; font-weight: 500; white-space: nowrap; }
+        .perf-delta--up   { color: var(--success); }
+        .perf-delta--down { color: var(--red-main); }
+        .perf-delta--flat { color: var(--muted); }
+
+        .perf-empty {
+            padding: 28px 18px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--muted);
+            border: 1px dashed var(--divider);
+            border-radius: 10px;
+            background-color: var(--blue-main-3);
+        }
+
+        /* Sub-judul kecil di dalam kartu (mis. memisahkan sebaran shift
+           dari daftar beban kerja). */
+        .perf-subhead {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--black);
+            margin: 14px 0 4px;
+            padding-top: 12px;
+            border-top: 1px solid var(--smooth-border);
+        }
+
+        @media (max-width: 1100px) {
+            .perf-layout { grid-template-columns: 1fr; }
+        }
+
+        /* Lencana jumlah pada judul kartu — khusus dashboard manajer. */
         .section-card__badge {
             width: 18px;
             height: 18px;
@@ -753,20 +870,6 @@
             font-weight: 600;
             color: #fff;
             flex-shrink: 0;
-        }
-
-        .section-card__subtitle {
-            font-size: 10px;
-            font-weight: 400;
-            color: var(--black-secondary);
-            flex: 1;
-        }
-
-        .section-card__body {
-            padding: 20px 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
         }
 
         /* =============================================
@@ -1299,6 +1402,17 @@
         .filter-select-wrapper { position: relative; min-width: 150px; }
         .toolbar-sort-wrapper { min-width: 120px; }
 
+        /* .filter-field menyusun anaknya sebagai kolom, sehingga flex-basis di
+           dalamnya mengunci TINGGI — bukan lebar seperti saat wrapper dipakai
+           langsung di toolbar baris. Tanpa reset ini aturan responsif
+           "flex: 1 1 140px" membuat dropdown setinggi 140px dan panah
+           absolutnya melayang jauh di bawah kotaknya. */
+        .filter-field .filter-select-wrapper {
+            flex: 0 0 auto;
+            width: 100%;
+            min-width: 0;
+        }
+
         .filter-select-trigger {
             display: flex;
             align-items: center;
@@ -1802,6 +1916,56 @@
 
             .filter-field {
                 width: 100%;
+            }
+
+            /* Toolbar Performa: satu kolom penuh, bukan flex baris yang
+               membungkus. Pembungkusan menyisakan celah ganjil antar kendali dan
+               menggantung pada align-items:flex-end yang tak berarti saat tiap
+               field sudah selebar layar. */
+            .perf-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
+            }
+
+            .perf-toolbar__spacer { display: none; }
+
+            /* Tiga preode sejajar; lebih ringkas daripada tiga baris tombol. */
+            .perf-toolbar__presets {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 6px;
+            }
+
+            .perf-toolbar__presets .btn-tool {
+                justify-content: center;
+                padding: 8px 6px;
+                text-align: center;
+            }
+
+            /* Target sentuh minimal 44px sesuai panduan mobile. */
+            .perf-toolbar .filter-input,
+            .perf-toolbar .filter-select-trigger,
+            .perf-toolbar .btn-tool,
+            .perf-toolbar .btn-reset {
+                min-height: 44px;
+            }
+
+            .perf-toolbar .archive-toolbar__actions {
+                display: flex;
+                width: 100%;
+                gap: 8px;
+            }
+
+            .perf-toolbar .archive-toolbar__actions > * {
+                flex: 1 1 0;
+                justify-content: center;
+            }
+
+            /* Label kosong hanya penyelaras di layar lebar; di mobile ia cuma
+               menyisakan baris kosong di atas tombol. */
+            .perf-toolbar .filter-field:has(.archive-toolbar__actions) > label {
+                display: none;
             }
         }
 

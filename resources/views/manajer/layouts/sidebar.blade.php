@@ -19,6 +19,11 @@
                         <span class="nav-label">Dashboard</span>
                     </a>
 
+                    <a href="{{ route('manajer.performa') }}" class="sidebar__nav-item {{ request()->routeIs('manajer.performa') ? 'active' : '' }}" data-tooltip="Performa Operasional">
+                        <span class="nav-icon"><i class="fi fi-sr-chart-histogram"></i></span>
+                        <span class="nav-label">Performa Operasi</span>
+                    </a>
+
                     <a href="{{ route('manajer.archive') }}" class="sidebar__nav-item {{ request()->routeIs('manajer.archive') ? 'active' : '' }}" data-tooltip="Arsip Laporan">
                         <span class="nav-icon"><i class="fi fi-sr-folder"></i></span>
                         <span class="nav-label">Arsip Laporan</span>

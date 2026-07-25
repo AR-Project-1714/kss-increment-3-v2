@@ -242,11 +242,7 @@
                     </table>
                 </div>
 
-                @if (method_exists($historyReports, 'hasPages') && $historyReports->hasPages())
-                    <div class="d-flex justify-content-center align-items-center gap-10 mt-3 align-self-stretch">
-                        {{ $historyReports->onEachSide(1)->links() }}
-                    </div>
-                @endif
+                @include('partials.pagination', ['paginator' => $historyReports, 'label' => 'laporan'])
             </div>
         </div>
     </div>

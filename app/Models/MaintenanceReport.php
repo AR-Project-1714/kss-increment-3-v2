@@ -3,11 +3,25 @@
 namespace App\Models;
 
 use App\Enums\MaintenanceStatus;
+use App\Models\Concerns\ReservesBlankDraft;
 use Illuminate\Database\Eloquent\Model;
 
 class MaintenanceReport extends Model
 {
+    use ReservesBlankDraft;
+
     public const DRAFT_TTL_DAYS = 3;
+
+    /** Penanda draft sudah benar-benar dikerjakan (lihat ReservesBlankDraft). */
+    public const BLANK_DRAFT_RELATIONS = ['workItems', 'unitConditions', 'attendances'];
+
+    public const BLANK_DRAFT_COLUMNS = [
+        'report_date',
+        'work_time_start',
+        'work_time_end',
+        'karu_pemeliharaan_name',
+        'karu_peralatan_name',
+    ];
 
     protected $guarded = ['id'];
 

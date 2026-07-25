@@ -21,7 +21,9 @@ use App\Models\MasterUnit;
 use App\Models\Role;
 use App\Models\SafetyReport;
 use App\Models\User;
+use App\Services\ArchiveMetricsService;
 use App\Services\SystemBackupService;
+use App\Services\SystemMetricsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,10 +51,12 @@ class AdminV2Controller extends Controller
      */
     private const STORAGE_CAPACITY_BYTES = 30 * 1024 * 1024 * 1024;
 
-    public function index(Request $request)
+    public function index(Request $request, SystemMetricsService $metrics)
     {
         return view('admin.index', array_merge($this->shellData($request), [
-            'stats' => $this->dashboardCards(),
+            'stats' => $metrics->dashboardCards(),
+            'activityTrend' => $metrics->activityTrend(30),
+            'lastBackup' => collect($this->backupFiles())->first(),
             'auditLogs' => $this->latestAuditCards(),
             'roles' => Role::orderBy('name')->get(),
         ]));
@@ -65,7 +69,7 @@ class AdminV2Controller extends Controller
         $reports = $this->buildDivisionArchivePaginator($request, $filters, 'admin');
 
         return view('admin.archive', array_merge($this->shellData($request), [
-            'stats' => $this->archiveCards(),
+            'stats' => app(ArchiveMetricsService::class)->cards(),
             'reports' => $reports,
             'archiveSearch' => $filters['archiveSearch'],
             'sort' => $filters['sort'],
@@ -112,7 +116,7 @@ class AdminV2Controller extends Controller
             ->map(fn (AdminActivityLog $activity): array => $this->activityRow($activity));
 
         return view('admin.log', array_merge($this->shellData($request), [
-            'stats' => $this->dashboardCards(),
+            'stats' => app(SystemMetricsService::class)->dashboardCards(),
             'logs' => $logs,
             'activityTotal' => $activityTotal,
             'activitySearch' => $filters['activitySearch'],
@@ -1445,125 +1449,13 @@ class AdminV2Controller extends Controller
         ];
     }
 
-    private function dashboardCards(): array
-    {
-        $lastBackup = collect($this->backupFiles())->first();
-        $usedPercent = self::STORAGE_CAPACITY_BYTES > 0
-            ? min(100, (int) round(($this->systemStorageUsedBytes() / self::STORAGE_CAPACITY_BYTES) * 100))
-            : 0;
-        $securityEventsToday = AdminActivityLog::where('type', 'security')
-            ->whereDate('created_at', Carbon::today())
-            ->count();
-
-        return [
-            ['label' => 'Total Pengguna Aktif', 'value' => (string) User::where('status', 'aktif')->count(), 'icon' => 'fi fi-sr-user', 'color' => 'blue', 'success' => false],
-            ['label' => 'Kapasitas Storage Terpakai', 'value' => $usedPercent.'%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan', 'success' => false],
-            ['label' => 'Status Backup Terakhir', 'value' => $lastBackup ? $lastBackup['status_label'] : 'Belum Ada', 'icon' => 'fi fi-sr-cloud-upload', 'color' => $lastBackup ? 'green' : 'orange', 'success' => (bool) $lastBackup],
-            ['label' => 'Kejadian Keamanan Hari Ini', 'value' => (string) $securityEventsToday, 'icon' => 'fi fi-sr-shield-exclamation', 'color' => $securityEventsToday > 0 ? 'red' : 'green', 'success' => false],
-        ];
-    }
-
     /**
-     * Total pemakaian storage sesungguhnya: kode aplikasi (tanpa dependency
-     * vendor/node_modules dan riwayat .git) + dokumen laporan yang tersimpan
-     * (foto, tanda tangan, lampiran di storage/app/public) + ukuran database.
-     * Sebelumnya widget ini hanya menjumlahkan berkas backup, sehingga selalu
-     * menampilkan angka yang sangat kecil dan tidak merepresentasikan apa pun.
-     * Di-cache singkat karena memindai filesystem tiap muat halaman terlalu mahal.
+     * Perhitungan pemakaian storage tinggal di SystemMetricsService, dipakai
+     * bersama oleh halaman backup dan perekam metrik harian.
      */
     private function systemStorageUsedBytes(): int
     {
-        return Cache::remember('admin.storage-usage-bytes', now()->addMinutes(5), function (): int {
-            return $this->codebaseSizeBytes()
-                + $this->storedReportDocumentsSizeBytes()
-                + $this->databaseSizeBytes();
-        });
-    }
-
-    /**
-     * Ukuran kode aplikasi: seluruh proyek dikurangi dependency yang di-install
-     * (vendor, node_modules) dan metadata version control (.git) — mengikuti
-     * definisi yang sama dipakai .gitignore untuk apa yang "bukan" milik repo ini.
-     */
-    private function codebaseSizeBytes(): int
-    {
-        return $this->directorySizeBytes(base_path(), ['vendor', 'node_modules', '.git', 'storage']);
-    }
-
-    /**
-     * Ukuran seluruh dokumen laporan yang tersimpan (lampiran, foto, hasil
-     * unggahan) di ketiga divisi — bukan berkas backup, yang dihitung terpisah.
-     */
-    private function storedReportDocumentsSizeBytes(): int
-    {
-        return collect(['reports', 'maintenance-reports', 'safety-reports'])
-            ->sum(fn (string $dir): int => $this->directorySizeBytes(Storage::disk('public')->path($dir)));
-    }
-
-    /**
-     * Ukuran database, disesuaikan dengan driver koneksi: MySQL/MariaDB lewat
-     * katalog information_schema (metadata, bukan table scan), SQLite lewat
-     * PRAGMA page_count × page_size (juga metadata; mencakup mode in-memory
-     * yang dipakai test suite). Driver lain atau kegagalan query mengembalikan
-     * 0 — widget statistik boleh kurang akurat, tapi tidak boleh mematikan
-     * halaman.
-     */
-    private function databaseSizeBytes(): int
-    {
-        try {
-            return match (DB::connection()->getDriverName()) {
-                'mysql', 'mariadb' => (int) (DB::selectOne(
-                    'SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes FROM information_schema.tables WHERE table_schema = ?',
-                    [DB::getDatabaseName()]
-                )->bytes ?? 0),
-                'sqlite' => (int) ((DB::selectOne('PRAGMA page_count')->page_count ?? 0)
-                    * (DB::selectOne('PRAGMA page_size')->page_size ?? 0)),
-                default => 0,
-            };
-        } catch (\Throwable) {
-            return 0;
-        }
-    }
-
-    /**
-     * Jumlahkan ukuran seluruh file di bawah $path secara rekursif. Direktori
-     * bernama sesuai $skipDirs tidak pernah dimasuki sama sekali (bukan
-     * disaring belakangan) — penting agar folder besar seperti vendor/
-     * (puluhan ribu file) tidak pernah benar-benar dipindai satu per satu.
-     */
-    private function directorySizeBytes(string $path, array $skipDirs = []): int
-    {
-        if (! is_dir($path)) {
-            return 0;
-        }
-
-        $filter = new \RecursiveCallbackFilterIterator(
-            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-            function (\SplFileInfo $current) use ($skipDirs): bool {
-                return ! ($current->isDir() && in_array($current->getFilename(), $skipDirs, true));
-            }
-        );
-
-        $total = 0;
-        foreach (new \RecursiveIteratorIterator($filter) as $file) {
-            if ($file->isFile()) {
-                $total += $file->getSize();
-            }
-        }
-
-        return $total;
-    }
-
-    private function archiveCards(): array
-    {
-        $counts = $this->archiveTotalCounts();
-
-        return [
-            ['label' => 'Laporan Hari Ini', 'value' => (string) $counts['today'], 'icon' => 'fi fi-sr-calendar', 'color' => 'green'],
-            ['label' => 'Laporan Pending', 'value' => (string) $counts['pending'], 'icon' => 'fi fi-sr-document', 'color' => 'orange'],
-            ['label' => 'Laporan Bulan Ini', 'value' => (string) $counts['month'], 'icon' => 'fi fi-sr-folder', 'color' => 'cyan'],
-            ['label' => 'Total Laporan', 'value' => (string) $counts['total'], 'icon' => 'fi fi-sr-book-alt', 'color' => 'blue'],
-        ];
+        return app(SystemMetricsService::class)->storageUsedBytes();
     }
 
     private function latestAuditCards(): array

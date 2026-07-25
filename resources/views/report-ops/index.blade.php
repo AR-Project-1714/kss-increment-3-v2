@@ -503,6 +503,18 @@
             cursor: not-allowed;
         }
 
+        .history-page-ellipsis {
+            display: inline-flex;
+            min-width: 34px;
+            height: 34px;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+            user-select: none;
+        }
+
         .action-modal-trigger {
             border: none;
             cursor: pointer;
@@ -1126,6 +1138,8 @@
                 </div>
 
                 @if (method_exists($historyReports, 'hasPages') && $historyReports->hasPages())
+                    @php($historyPaginationWindow = \App\Support\PaginationWindow::build($historyReports))
+
                     <div class="history-pagination">
                         <div class="history-pagination-info fsize-11 fw-500">
                             Menampilkan {{ $historyFirstItem }}-{{ $historyLastItem }} dari {{ $historyTotal }} {{ $historySearch !== '' ? 'hasil' : 'laporan' }}
@@ -1139,10 +1153,17 @@
                                 </a>
                             @endif
 
-                            @foreach ($historyReports->getUrlRange(1, $historyReports->lastPage()) as $page => $url)
-                                <a href="{{ $url }}" class="history-page-link {{ $historyReports->currentPage() === $page ? 'active' : '' }}" aria-label="Halaman {{ $page }}">
-                                    {{ $page }}
-                                </a>
+                            @foreach ($historyPaginationWindow as $item)
+                                @if ($item['type'] === 'ellipsis')
+                                    <span class="history-page-ellipsis" aria-hidden="true">&hellip;</span>
+                                @else
+                                    <a href="{{ $historyReports->url($item['page']) }}"
+                                       class="history-page-link {{ $historyReports->currentPage() === $item['page'] ? 'active' : '' }}"
+                                       aria-label="Halaman {{ $item['page'] }}"
+                                       @if ($historyReports->currentPage() === $item['page']) aria-current="page" @endif>
+                                        {{ $item['page'] }}
+                                    </a>
+                                @endif
                             @endforeach
 
                             @if ($historyReports->hasMorePages())
@@ -1317,6 +1338,8 @@
                 </div>
 
                 @if (method_exists($receivedReports, 'hasPages') && $receivedReports->hasPages())
+                    @php($receivedPaginationWindow = \App\Support\PaginationWindow::build($receivedReports))
+
                     <div class="history-pagination">
                         <div class="history-pagination-info fsize-11 fw-500">
                             Menampilkan {{ $receivedFirstItem }}-{{ $receivedLastItem }} dari {{ $receivedTotal }} {{ $receivedSearch !== '' ? 'hasil' : 'laporan' }}
@@ -1330,10 +1353,17 @@
                                 </a>
                             @endif
 
-                            @foreach ($receivedReports->getUrlRange(1, $receivedReports->lastPage()) as $page => $url)
-                                <a href="{{ $url }}" class="history-page-link {{ $receivedReports->currentPage() === $page ? 'active' : '' }}" aria-label="Halaman {{ $page }}">
-                                    {{ $page }}
-                                </a>
+                            @foreach ($receivedPaginationWindow as $item)
+                                @if ($item['type'] === 'ellipsis')
+                                    <span class="history-page-ellipsis" aria-hidden="true">&hellip;</span>
+                                @else
+                                    <a href="{{ $receivedReports->url($item['page']) }}"
+                                       class="history-page-link {{ $receivedReports->currentPage() === $item['page'] ? 'active' : '' }}"
+                                       aria-label="Halaman {{ $item['page'] }}"
+                                       @if ($receivedReports->currentPage() === $item['page']) aria-current="page" @endif>
+                                        {{ $item['page'] }}
+                                    </a>
+                                @endif
                             @endforeach
 
                             @if ($receivedReports->hasMorePages())

@@ -16,11 +16,51 @@
     $mainItems = $report->workItems->where('work_type', 'utama')->sortBy('sort_order')->values();
     $priorityItems = $report->workItems->where('work_type', 'prioritas')->sortBy('sort_order')->values();
 
-    $groups = ['I', 'II', 'III', 'IV'];
-    $mainByGroup = [];
-    foreach ($groups as $idx => $g) {
-        $mainByGroup[$g] = $mainItems->first(fn ($it) => $it->work_group === $g) ?? $mainItems->get($idx);
+    // Pekerjaan Utama minimal empat baris (Group I-IV) namun mengikuti jumlah
+    // group yang benar-benar diisi petugas bila lebih dari empat.
+    $romanize = function (int $number): string {
+        $map = ['L' => 50, 'XL' => 40, 'X' => 10, 'IX' => 9, 'V' => 5, 'IV' => 4, 'I' => 1];
+        $roman = '';
+        foreach ($map as $symbol => $value) {
+            while ($number >= $value) {
+                $roman .= $symbol;
+                $number -= $value;
+            }
+        }
+
+        return $roman !== '' ? $roman : 'I';
+    };
+    $romanOrder = [];
+    for ($n = 1; $n <= 60; $n++) {
+        $romanOrder[$romanize($n)] = $n;
     }
+
+    $mainRows = [];
+    foreach ($mainItems as $item) {
+        $mainRows[] = ['group' => trim((string) $item->work_group), 'item' => $item];
+    }
+    $usedGroups = array_values(array_filter(array_column($mainRows, 'group')));
+    foreach (['I', 'II', 'III', 'IV'] as $grp) {
+        if (! in_array($grp, $usedGroups, true)) {
+            $mainRows[] = ['group' => $grp, 'item' => null];
+            $usedGroups[] = $grp;
+        }
+    }
+    $nextGroup = 1;
+    foreach ($mainRows as $idx => $row) {
+        if ($row['group'] !== '') {
+            continue;
+        }
+
+        while (in_array($romanize($nextGroup), $usedGroups, true)) {
+            $nextGroup++;
+        }
+
+        $mainRows[$idx]['group'] = $romanize($nextGroup);
+        $usedGroups[] = $romanize($nextGroup);
+        $nextGroup++;
+    }
+    usort($mainRows, fn ($a, $b) => ($romanOrder[$a['group']] ?? PHP_INT_MAX) <=> ($romanOrder[$b['group']] ?? PHP_INT_MAX));
 
     $unitNama = function ($item) {
         if (! $item) return '';
@@ -175,8 +215,9 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($groups as $idx => $g)
-                @php($item = $mainByGroup[$g])
+            @foreach ($mainRows as $idx => $row)
+                @php($item = $row['item'])
+                @php($g = $row['group'])
                 <tr class="utama-row">
                     <td class="c grp">{{ $idx + 1 }}</td>
                     <td>{{ $unitNama($item) }}</td>

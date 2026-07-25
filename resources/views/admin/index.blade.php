@@ -342,21 +342,17 @@
 
 @section('content')
 @php
-    // Sample data — ganti dengan binding controller saat sudah ada backend.
-    $stats = $stats ?? [
-        ['label' => 'Total Pengguna Aktif',      'value' => '12',  'icon' => 'fi fi-sr-user',         'color' => 'blue',  'success' => false],
-        ['label' => 'Kapasitas Server Terpakai', 'value' => '65%', 'icon' => 'fi fi-sr-database',     'color' => 'cyan',  'success' => false],
-        ['label' => 'Status Backup Terakhir',    'value' => 'Berhasil', 'icon' => 'fi fi-sr-cloud-upload', 'color' => 'green', 'success' => true],
-    ];
-
-    $auditLogs = $auditLogs ?? [
-        ['time' => '10:24', 'type' => 'blue',  'text' => 'Admin menonaktifkan akun <strong>"karu_a"</strong>'],
-        ['time' => '10:24', 'type' => 'red',   'text' => 'Gagal Login: Percobaan password salah 3x oleh <strong>"Pak Mustari"</strong>'],
-        ['time' => '10:24', 'type' => 'green', 'text' => '<strong>"Pak Nurul Huda"</strong> berhasil membuat laporan operasional'],
-        ['time' => '10:24', 'type' => 'dark',  'text' => '<strong>"Pak Sabarudin"</strong> login ke sistem'],
-    ];
-
+    $stats = $stats ?? [];
+    $activityTrend = $activityTrend ?? [];
+    $auditLogs = $auditLogs ?? [];
     $roles = $roles ?? collect();
+    $lastBackup = $lastBackup ?? null;
+
+    $activityTotal = array_sum(array_map(
+        fn (array $row) => $row['Login'] + $row['Perubahan Data'] + $row['Keamanan'],
+        $activityTrend
+    ));
+    $securityTotal = array_sum(array_column($activityTrend, 'Keamanan'));
 @endphp
 
 <div class="page-header">
@@ -364,17 +360,48 @@
     <span class="page-subtitle">Pantau status infrastruktur, pengguna, dan pencadangan sistem (Backup).</span>
 </div>
 
-<!-- Stats Row -->
-<div class="stats-row">
-    @foreach ($stats as $s)
-        <div class="stat-card">
-            <span class="stat-card__label">{{ $s['label'] }}</span>
-            <div class="stat-card__row">
-                <span class="stat-card__value {{ $s['success'] ? 'stat-card__value--success' : '' }}">{{ $s['value'] }}</span>
-                <span class="stat-card__icon stat-card__icon--{{ $s['color'] }}"><i class="{{ $s['icon'] }}"></i></span>
-            </div>
+{{-- Kartu ringkasan dengan angka pembanding. Storage dan jumlah pengguna
+     dibandingkan terhadap rekaman harian (system_metric_snapshots), sedangkan
+     aktivitas dan insiden keamanan dihitung langsung dari log. --}}
+@include('charts.kpi-row', ['cards' => $stats])
+
+<!-- Aktivitas sistem 30 hari -->
+<div class="section-card">
+    <div class="section-card__header">
+        <div class="section-card__heading">
+            <span class="section-card__title">Aktivitas Sistem</span>
+            <span class="section-card__subtitle">30 hari terakhir, dikelompokkan menurut jenis kejadian.</span>
         </div>
-    @endforeach
+    </div>
+    <div class="section-card__body">
+        @include('charts.area-stacked', [
+            'rows' => $activityTrend,
+            'series' => [
+                ['key' => 'Login',          'label' => 'Login',          'color' => 'var(--chart-1)'],
+                ['key' => 'Perubahan Data', 'label' => 'Perubahan Data', 'color' => 'var(--chart-2)'],
+                ['key' => 'Keamanan',       'label' => 'Keamanan',       'color' => 'var(--chart-3)'],
+            ],
+            'suffix' => ' kejadian',
+            'emptyText' => 'Belum ada aktivitas tercatat pada 30 hari terakhir.',
+            'ariaLabel' => 'Grafik aktivitas sistem 30 hari terakhir menurut jenis kejadian',
+        ])
+
+        {{-- Keterangan bawah selalu tampil: Status Backup Terakhir tidak lagi
+             jadi kartu KPI karena nilainya bukan angka dan tidak punya
+             pembanding, jadi tempatnya di sini dan tidak boleh ikut hilang
+             ketika belum ada aktivitas tercatat. --}}
+        <div class="perf-chart__footer">
+            @if ($activityTotal > 0)
+                <span>Total: <strong>{{ number_format($activityTotal, 0, ',', '.') }} kejadian</strong></span>
+                <span>Rata-rata harian: <strong>{{ number_format($activityTotal / max(count($activityTrend), 1), 1, ',', '.') }}</strong></span>
+                <span>Kejadian keamanan: <strong>{{ number_format($securityTotal, 0, ',', '.') }}</strong></span>
+            @endif
+
+            <span>Status Backup Terakhir:
+                <strong>{{ $lastBackup ? $lastBackup['status_label'].' · '.$lastBackup['date_short'] : 'Belum Ada' }}</strong>
+            </span>
+        </div>
+    </div>
 </div>
 
 <!-- Dashboard Panels -->
@@ -538,6 +565,7 @@
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/components/charts.js') }}?v={{ @filemtime(public_path('js/components/charts.js')) }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const dashboardUserModal = document.getElementById('dashboardUserModal');

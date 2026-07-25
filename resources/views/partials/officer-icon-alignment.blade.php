@@ -28,6 +28,22 @@
         top: 0 !important;
     }
 
+    /* Ikon catatan bantuan (step-info-note pada Operasi, form-meta-note pada
+       Pemeliharaan/Safety) memakai kotak setinggi font-size (11px, lihat
+       line-height:1 di atas), sedangkan teks di sampingnya memakai
+       line-height 1.5 (~16px). Kedua komponen memakai align-items:flex-start
+       agar ikon mengikuti baris PERTAMA teks (bukan pusat seluruh paragraf,
+       yang membuat ikon terlihat "mengambang" di celah antar baris pada
+       catatan 2 baris). +2px berikut menggeser pusat optik ikon turun agar
+       sejajar pusat baris pertama itu -- nilai ini diukur langsung dari
+       selisih baseline, bukan tebakan. Selector diberi bobot ekstra
+       (:not ganda) agar menang atas aturan top:0 di atas yang spesifisitasnya
+       lebih tinggi. */
+    body.officer-report-shell .step-info-note i.fi:not(.input-icon):not(.tbl-icon-dropdown),
+    body.officer-report-shell .form-meta-note i.fi:not(.input-icon):not(.tbl-icon-dropdown) {
+        top: 2px !important;
+    }
+
     /* Hapus offset positif pada wrapper ikon lama (icon-tab, icon-new, dst.). */
     body.officer-report-shell [class^="icon-"],
     body.officer-report-shell [class*=" icon-"],

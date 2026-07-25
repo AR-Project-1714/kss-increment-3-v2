@@ -640,18 +640,7 @@
     <span class="page-subtitle">Daftar seluruh laporan yang telah diserahkan, diterima, dan diarsipkan.</span>
 </div>
 
-<!-- Stats Row -->
-<div class="stats-row">
-    @foreach ($stats as $s)
-        <div class="stat-card">
-            <span class="stat-card__label">{{ $s['label'] }}</span>
-            <div class="stat-card__row">
-                <span class="stat-card__value">{{ $s['value'] }}</span>
-                <span class="stat-card__icon stat-card__icon--{{ $s['color'] }}"><i class="{{ $s['icon'] }}"></i></span>
-            </div>
-        </div>
-    @endforeach
-</div>
+@include('charts.kpi-row', ['cards' => $stats])
 
 <!-- Riwayat Laporan -->
 @component('admin.layouts.card', ['title' => 'Riwayat Laporan'])

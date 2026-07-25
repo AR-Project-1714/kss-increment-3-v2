@@ -1,3 +1,5 @@
+@import '../components/pagination.css';
+
 /* ===== DESIGN TOKENS (selaras modul Operasional) ===== */
         :root {
             --blue-main: #2563EB; --blue-hover: #1D4ED8; --blue-active: #1E40AF;

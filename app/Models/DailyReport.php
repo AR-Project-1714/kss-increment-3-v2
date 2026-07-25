@@ -3,14 +3,29 @@
 namespace App\Models;
 
 use App\Enums\ReportStatus;
+use App\Models\Concerns\ReservesBlankDraft;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class DailyReport extends Model
 {
     use HasFactory;
+    use ReservesBlankDraft;
 
     public const DRAFT_TTL_DAYS = 3;
+
+    /** Penanda draft sudah benar-benar dikerjakan (lihat ReservesBlankDraft). */
+    public const BLANK_DRAFT_RELATIONS = [
+        'loadingActivities',
+        'bulkLoadingActivities',
+        'materialActivity',
+        'containerActivity',
+        'turbaActivity',
+        'unitCheckLogs',
+        'employeeLogs',
+    ];
+
+    public const BLANK_DRAFT_COLUMNS = ['report_date', 'shift', 'group_name', 'time_range', 'payload'];
 
     protected $guarded = ['id'];
 

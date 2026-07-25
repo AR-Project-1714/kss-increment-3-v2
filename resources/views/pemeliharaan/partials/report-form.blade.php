@@ -1,6 +1,7 @@
 {{--
     Partial form laporan harian pemeliharaan (dipakai create & edit).
-    Variabel dari wrapper: $isEdit, $formAction, $headerTitle, $headerDocumentLabel
+    Variabel dari wrapper: $isEdit, $formMethod, $formAction, $discardBlankUrl,
+    $headerTitle, $headerDocumentLabel
     Master data dari controller: $units, $unitsTruck, $unitsHeavy, $employees, $workGroups
 --}}
 @php
@@ -24,21 +25,63 @@
 
     $unitIdByLabel = collect($units ?? [])->mapWithKeys(fn ($u) => [(string) $u['label'] => (string) $u['id']]);
 
-    // Empat baris tetap Pekerjaan Utama (Group I-IV).
-    $mainRows = [];
-    foreach ($workGroups as $i => $grp) {
-        $item = $existingMain[$i] ?? null;
-        $mainUnitId = $item ? ($item->master_unit_id ?? '') : '';
+    // Pekerjaan Utama: default empat kartu (Group I-IV), namun boleh ditambah
+    // atau dikurangi seperti Pekerjaan Prioritas. Label group memakai angka
+    // romawi sehingga kartu ke-5 otomatis menjadi Group V, dst.
+    $romanize = function (int $number): string {
+        $map = ['L' => 50, 'XL' => 40, 'X' => 10, 'IX' => 9, 'V' => 5, 'IV' => 4, 'I' => 1];
+        $roman = '';
+        foreach ($map as $symbol => $value) {
+            while ($number >= $value) {
+                $roman .= $symbol;
+                $number -= $value;
+            }
+        }
 
+        return $roman !== '' ? $roman : 'I';
+    };
+    $romanOrder = [];
+    for ($n = 1; $n <= 60; $n++) {
+        $romanOrder[$romanize($n)] = $n;
+    }
+
+    $mainRows = [];
+    foreach ($existingMain as $item) {
         $mainRows[] = [
-            'work_group'   => $item->work_group ?? $grp,
-            'unit_id'      => $mainUnitId,
+            'work_group'   => trim((string) ($item->work_group ?? '')),
+            'unit_id'      => $item->master_unit_id ?: $unitIdByLabel->get((string) ($item->unit_label ?? ''), ''),
             'description'  => $item->description ?? '',
             'assignee'     => $item->assignee ?? '',
-            'is_completed' => $item ? (int) $item->is_completed : 0,
+            'is_completed' => (int) $item->is_completed,
             'notes'        => $item->notes ?? '',
         ];
     }
+    // Kartu kosong tidak ikut tersimpan, jadi Group I-IV selalu dimunculkan
+    // kembali sebagai default (kartu tambahan di luar itu ikut apa adanya).
+    $usedGroups = array_values(array_filter(array_column($mainRows, 'work_group')));
+    foreach ($workGroups as $grp) {
+        if (! in_array($grp, $usedGroups, true)) {
+            $mainRows[] = ['work_group' => $grp, 'unit_id' => '', 'description' => '', 'assignee' => '', 'is_completed' => 0, 'notes' => ''];
+            $usedGroups[] = $grp;
+        }
+    }
+    // Item lama tanpa label group memakai angka romawi terkecil yang belum
+    // dipakai, lalu semuanya diurutkan agar Group I, II, III, ... berurutan.
+    $nextGroup = 1;
+    foreach ($mainRows as $i => $row) {
+        if ($row['work_group'] !== '') {
+            continue;
+        }
+
+        while (in_array($romanize($nextGroup), $usedGroups, true)) {
+            $nextGroup++;
+        }
+
+        $mainRows[$i]['work_group'] = $romanize($nextGroup);
+        $usedGroups[] = $romanize($nextGroup);
+        $nextGroup++;
+    }
+    usort($mainRows, fn ($a, $b) => ($romanOrder[$a['work_group']] ?? PHP_INT_MAX) <=> ($romanOrder[$b['work_group']] ?? PHP_INT_MAX));
 
     // Pekerjaan Prioritas (dinamis); minimal satu baris kosong.
     $priorityRows = [];
@@ -113,12 +156,13 @@
 
 @push('styles')
 <style>
-    /* Lebar form konsisten & lega (mengikuti modul operasional) */
     /* <form> adalah anak langsung body (flex column, align-items:center); tanpa ini
        form menyusut mengikuti isi tiap tab sehingga lebar berubah-ubah. */
     #mainReportForm { width: 100%; align-self: stretch; display: block; }
-    .content { max-width: 1800px; width: 100%; margin: 0 auto; }
-    .content-header { width: 100%; max-width: 1800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 20px; }
+    /* Lebar mengikuti .content bawaan layout (1440px) supaya form sejajar dengan
+       dashboard modul ini — samakan perilakunya dengan modul operasional. */
+    .content { width: 100%; margin: 0 auto; }
+    .content-header { width: 100%; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 20px; }
     .title-header { display: flex; flex-direction: column; gap: 2px; min-width: auto; }
 
     /* Animasi tombol navigasi (ikon meluncur / berputar saat hover) — sama seperti operasional */
@@ -179,9 +223,10 @@
     /* Beri jarak ekstra antara kolom Status dan Keterangan di Pekerjaan Prioritas */
     #priority-table .table-column.radio-col { padding-right: 18px; }
     #priority-table .table-column.medium { min-width: 165px; }
-    .form-meta-note { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; }
-    .form-meta-note { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; }
-    .form-meta-note i { position:relative; top:1px; }
+    /* align-items:flex-start (bukan center) agar ikon mengikuti baris PERTAMA
+       teks, bukan pusat seluruh paragraf -- catatan ini sering 2 baris.
+       Koreksi vertikal ikon sendiri ada di officer-icon-alignment.blade.php. */
+    .form-meta-note { font-size:11px; color:var(--muted); display:flex; align-items:flex-start; gap:6px; }
     .info-work-time { min-width:160px; }
     .info-work-time__range { flex-wrap:nowrap; }
     .info-work-time__range .input-wrapper { min-width:0; flex:1 1 0; }
@@ -203,9 +248,9 @@
 @endpush
 
 @section('content')
-<form action="{{ $formAction }}" method="POST" id="mainReportForm">
+<form action="{{ $formAction }}" method="POST" id="mainReportForm" data-discard-blank-url="{{ $discardBlankUrl ?? '' }}" data-store-url="{{ route('pemeliharaan.store') }}">
     @csrf
-    @if ($isEdit) @method('PUT') @endif
+    @if ($formMethod === 'PUT') @method('PUT') @endif
     <input type="hidden" name="status" id="reportStatus" value="{{ $statusValue }}">
 
     <div class="content d-flex flex-column align-items-start align-self-stretch gap-30 p-content">
@@ -289,21 +334,24 @@
                 <div class="counter-form">Form 2 dari 5</div>
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Empat kelompok kerja (Group I–IV). Kartu boleh dibiarkan kosong bila grup tidak ada pekerjaan.</span></div>
-                <div class="work-card-list">
+                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Default empat kelompok kerja (Group I–IV). Kartu boleh dibiarkan kosong bila grup tidak ada pekerjaan, ditambah bila ada grup lain, atau dihapus bila tidak dipakai.</span></div>
+                <div class="work-card-list" id="main-list">
                     @foreach ($mainRows as $i => $row)
-                        <div class="work-card">
+                        <div class="work-card main-card">
                             <div class="work-card-head">
-                                <span class="wc-badge"><i class="fi fi-sr-bookmark"></i> Group {{ $row['work_group'] }}</span>
-                                <div class="radio-group-custom wc-status">
-                                    <div class="radio-custom neutral">
-                                        <input type="radio" name="main_items[{{ $i }}][is_completed]" id="mu_undone_{{ $i }}" value="0" @checked($row['is_completed'] !== 1)>
-                                        <label for="mu_undone_{{ $i }}"><i class="fi fi-rr-clock"></i> Belum</label>
+                                <span class="wc-badge"><i class="fi fi-sr-bookmark"></i> Group <span class="mu-no">{{ $row['work_group'] }}</span></span>
+                                <div class="d-flex align-items-center gap-10">
+                                    <div class="radio-group-custom wc-status">
+                                        <div class="radio-custom neutral">
+                                            <input type="radio" name="main_items[{{ $i }}][is_completed]" id="mu_undone_{{ $i }}" value="0" @checked($row['is_completed'] !== 1)>
+                                            <label for="mu_undone_{{ $i }}"><i class="fi fi-rr-clock"></i> Belum</label>
+                                        </div>
+                                        <div class="radio-custom good">
+                                            <input type="radio" name="main_items[{{ $i }}][is_completed]" id="mu_done_{{ $i }}" value="1" @checked($row['is_completed'] === 1)>
+                                            <label for="mu_done_{{ $i }}"><i class="fi fi-rr-check"></i> Selesai</label>
+                                        </div>
                                     </div>
-                                    <div class="radio-custom good">
-                                        <input type="radio" name="main_items[{{ $i }}][is_completed]" id="mu_done_{{ $i }}" value="1" @checked($row['is_completed'] === 1)>
-                                        <label for="mu_done_{{ $i }}"><i class="fi fi-rr-check"></i> Selesai</label>
-                                    </div>
+                                    <button type="button" class="wc-remove" data-remove-card><i class="fi fi-rr-trash"></i></button>
                                 </div>
                             </div>
                             <div class="work-card-body">
@@ -323,7 +371,7 @@
                                     <div class="box-input-1">
                                         <div class="box-label-1"><label>Petugas</label></div>
                                         <div class="input-wrapper">
-                                            <input type="text" name="main_items[{{ $i }}][assignee]" value="{{ $row['assignee'] }}" list="maintenance-employee-datalist" class="custom-input" placeholder="Nama petugas">
+                                            <input type="text" name="main_items[{{ $i }}][assignee]" value="{{ $row['assignee'] }}" data-suggest="maintenance-employee-datalist" data-multi="true" autocomplete="off" class="custom-input" placeholder="Nama petugas">
                                             <i class="fi fi-rr-user input-icon"></i>
                                         </div>
                                     </div>
@@ -338,6 +386,7 @@
                         </div>
                     @endforeach
                 </div>
+                <button type="button" class="btn-tambah-card" id="add-main-card"><i class="fi fi-rr-plus-small"></i> Tambah Pekerjaan Utama</button>
             </div>
             <div class="content-form box-button" style="padding-top:0">
                 <button type="button" class="btn-form back btn-back-step"><span class="icon"><i class="fi fi-rr-arrow-small-left"></i></span><span>Kembali</span></button>
@@ -401,7 +450,7 @@
                                     <div class="box-input-1">
                                         <div class="box-label-1"><label>Petugas</label></div>
                                         <div class="input-wrapper">
-                                            <input type="text" name="priority_items[{{ $i }}][assignee]" value="{{ $row['assignee'] }}" list="maintenance-employee-datalist" class="custom-input" placeholder="Nama petugas">
+                                            <input type="text" name="priority_items[{{ $i }}][assignee]" value="{{ $row['assignee'] }}" data-suggest="maintenance-employee-datalist" data-multi="true" autocomplete="off" class="custom-input" placeholder="Nama petugas">
                                             <i class="fi fi-rr-user input-icon"></i>
                                         </div>
                                     </div>
@@ -445,11 +494,13 @@
                     <div class="tab-group">
                         <div class="tab-sections active" data-cond-target="cond-truck">
                             <span class="icon"><i class="fi fi-rr-truck-side"></i></span>
-                            <span>Trailer / Tronton / DT</span>
+                            <span class="tab-label-full">Trailer / Tronton / Dumptruck</span>
+                            <span class="tab-label-short">TRL/TRT/DT</span>
                         </div>
                         <div class="tab-sections" data-cond-target="cond-heavy">
                             <span class="icon"><i class="fi fi-rr-forklift"></i></span>
-                            <span>Forklift / Excavator / WL</span>
+                            <span class="tab-label-full">Forklift / Excavator / Wheel Loader</span>
+                            <span class="tab-label-short">FL/EXCA/WL</span>
                         </div>
                     </div>
                     <button type="button" class="set-all-good" id="set-all-ready"><i class="fi fi-rr-check-double"></i> Set Semua Ready</button>
@@ -688,7 +739,8 @@ document.addEventListener('DOMContentLoaded', function () {
         recountConditions();
     });
 
-    // ---- Tambah / hapus baris (Prioritas & Daftar Hadir) ----
+    // ---- Tambah / hapus baris (Utama, Prioritas & Daftar Hadir) ----
+    let mainIndex = {{ count($mainRows) }};
     let priorityIndex = {{ count($priorityRows) }};
     let attendanceIndex = {{ count($attendanceRows) }};
 
@@ -702,6 +754,54 @@ document.addEventListener('DOMContentLoaded', function () {
     function renumberPriorityCards() {
         document.querySelectorAll('#priority-list .priority-card .pr-no').forEach((el, i) => { el.textContent = i + 1; });
     }
+
+    // Label group Pekerjaan Utama memakai angka romawi; kartu baru mengambil
+    // nomor terkecil yang belum dipakai supaya tidak ada label kembar.
+    const ROMAN_MAP = [[50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+
+    function toRoman(number) {
+        let n = number, roman = '';
+        ROMAN_MAP.forEach(([value, symbol]) => { while (n >= value) { roman += symbol; n -= value; } });
+        return roman || 'I';
+    }
+
+    function nextMainGroup() {
+        const used = new Set(
+            Array.from(document.querySelectorAll('#main-list input[name$="[work_group]"]'))
+                .map(el => el.value.trim())
+        );
+        let n = 1;
+        while (used.has(toRoman(n))) n++;
+        return toRoman(n);
+    }
+
+    document.getElementById('add-main-card')?.addEventListener('click', function () {
+        const i = mainIndex++;
+        const group = nextMainGroup();
+        const html = `
+            <div class="work-card main-card">
+                <div class="work-card-head">
+                    <span class="wc-badge"><i class="fi fi-sr-bookmark"></i> Group <span class="mu-no">${group}</span></span>
+                    <div class="d-flex align-items-center gap-10">
+                        <div class="radio-group-custom wc-status">
+                            <div class="radio-custom neutral"><input type="radio" name="main_items[${i}][is_completed]" id="mu_undone_${i}" value="0" checked><label for="mu_undone_${i}"><i class="fi fi-rr-clock"></i> Belum</label></div>
+                            <div class="radio-custom good"><input type="radio" name="main_items[${i}][is_completed]" id="mu_done_${i}" value="1"><label for="mu_done_${i}"><i class="fi fi-rr-check"></i> Selesai</label></div>
+                        </div>
+                        <button type="button" class="wc-remove" data-remove-card><i class="fi fi-rr-trash"></i></button>
+                    </div>
+                </div>
+                <div class="work-card-body">
+                    <input type="hidden" name="main_items[${i}][work_group]" value="${group}">
+                    <div class="work-card-grid">
+                        <div class="box-input-1"><div class="box-label-1"><label>Jenis Unit</label></div><div class="tbl-select-wrapper" data-search="true"><select name="main_items[${i}][unit_id]" class="tbl-native-select"><option value="">Pilih Unit</option>@foreach ($unitsTruck as $u)<option value="{{ $u['id'] }}">{{ $u['label'] }}</option>@endforeach @foreach ($unitsHeavy as $u)<option value="{{ $u['id'] }}">{{ $u['label'] }}</option>@endforeach</select><span class="sel-caret"><i class="fi fi-rr-angle-small-down"></i></span></div></div>
+                        <div class="box-input-1"><div class="box-label-1"><label>Petugas</label></div><div class="input-wrapper"><input type="text" name="main_items[${i}][assignee]" data-suggest="maintenance-employee-datalist" data-multi="true" autocomplete="off" class="custom-input" placeholder="Nama petugas (pisahkan dengan koma)"><i class="fi fi-rr-user input-icon"></i></div></div>
+                    </div>
+                    <div class="box-input-1"><div class="box-label-1"><label>Pekerjaan Utama</label></div><div class="input-wrapper"><textarea name="main_items[${i}][description]" class="custom-input" rows="2" placeholder="Uraian pekerjaan utama..."></textarea></div></div>
+                </div>
+            </div>`;
+        document.getElementById('main-list').insertAdjacentHTML('beforeend', html);
+        window.__pmlHydrateSelects?.(document.getElementById('main-list').lastElementChild);
+    });
 
     document.getElementById('add-priority-card')?.addEventListener('click', function () {
         const i = priorityIndex++;
@@ -720,7 +820,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="work-card-body">
                     <div class="work-card-grid">
                         <div class="box-input-1"><div class="box-label-1"><label>Unit</label></div><div class="tbl-select-wrapper" data-search="true"><select name="priority_items[${i}][unit_id]" class="tbl-native-select"><option value="">Pilih Unit</option>@foreach ($unitsTruck as $u)<option value="{{ $u['id'] }}">{{ $u['label'] }}</option>@endforeach @foreach ($unitsHeavy as $u)<option value="{{ $u['id'] }}">{{ $u['label'] }}</option>@endforeach</select><span class="sel-caret"><i class="fi fi-rr-angle-small-down"></i></span></div></div>
-                        <div class="box-input-1"><div class="box-label-1"><label>Petugas</label></div><div class="input-wrapper"><input type="text" name="priority_items[${i}][assignee]" list="maintenance-employee-datalist" class="custom-input" placeholder="Nama petugas"><i class="fi fi-rr-user input-icon"></i></div></div>
+                        <div class="box-input-1"><div class="box-label-1"><label>Petugas</label></div><div class="input-wrapper"><input type="text" name="priority_items[${i}][assignee]" data-suggest="maintenance-employee-datalist" data-multi="true" autocomplete="off" class="custom-input" placeholder="Nama petugas (pisahkan dengan koma)"><i class="fi fi-rr-user input-icon"></i></div></div>
                     </div>
                     <div class="box-input-1"><div class="box-label-1"><label>Pekerjaan Prioritas</label></div><div class="input-wrapper"><textarea name="priority_items[${i}][description]" class="custom-input" rows="2" placeholder="Uraian pekerjaan prioritas..."></textarea></div></div>
                     <div class="box-input-1"><div class="box-label-1"><label>Keterangan</label></div><div class="input-wrapper"><input type="text" name="priority_items[${i}][notes]" class="custom-input" placeholder="Keterangan (opsional)"><i class="fi fi-rr-comment-alt input-icon"></i></div></div>
@@ -892,5 +992,6 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 @endpush
 
+@include('partials.multi-suggest')
 @include('partials.report-autosave')
 @include('partials.report-peek')

@@ -1,0 +1,711 @@
+/* =============================================
+   KOMPONEN GRAFIK & KARTU KPI
+
+   Dipakai bersama oleh dashboard manajer dan admin, jadi ditaruh di berkas
+   sendiri dan di-import dari kedua layout. Seluruh warnanya mengambil dari
+   variabel tema, sehingga mode gelap ikut menyesuaikan tanpa aturan tambahan.
+   ============================================= */
+
+:root {
+    /* Palet grafik. Dipakai bergantian pada donut, area bertumpuk, dan bar
+       perbandingan supaya kategori mudah dibedakan tanpa harus membaca legend.
+       Urutannya sengaja tidak semuanya biru. */
+    --chart-1: #2563EB;   /* biru   — seri utama */
+    --chart-2: #10B981;   /* hijau  — capaian baik */
+    --chart-3: #F59E0B;   /* oranye — perhatian */
+    --chart-4: #06B6D4;   /* cyan   — kategori pendukung */
+    --chart-5: #8B5CF6;   /* ungu   — kategori pendukung */
+    --chart-grid: rgba(15,23,42,0.07);
+}
+
+body.dark-mode {
+    /* Versi lebih terang agar tetap terbaca di atas permukaan gelap. */
+    --chart-1: #60A5FA;
+    --chart-2: #34D399;
+    --chart-3: #FBBF24;
+    --chart-4: #22D3EE;
+    --chart-5: #A78BFA;
+    --chart-grid: rgba(248,250,252,0.09);
+}
+
+        /* =============================================
+           KARTU KPI PERFORMA OPERASI
+           (dashboard manajer & halaman Performa — terpisah dari
+           .stat-card yang dipakai statistik arsip/admin)
+           ============================================= */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .kpi-card {
+            background-color: var(--white);
+            border: 1px solid var(--smooth-border);
+            border-radius: 14px;
+            padding: 16px 18px 14px;
+            min-height: 128px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 2px 4px rgba(37,99,235,0.07);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .kpi-card__head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .kpi-card__icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .kpi-card__icon i { position: relative; top: 1px; }
+
+        .kpi-card__icon--blue   { background-color: var(--blue-main-10);   color: var(--blue-main); }
+        .kpi-card__icon--orange { background-color: var(--orange-main-10); color: var(--orange-main); }
+        .kpi-card__icon--green  { background-color: var(--success-10);     color: var(--success); }
+        .kpi-card__icon--cyan   { background-color: var(--cyan-main-10);   color: var(--cyan-main); }
+
+        .kpi-card__label {
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.35;
+            color: var(--black-secondary);
+        }
+
+        .kpi-card__row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+        }
+
+        .kpi-card__value {
+            font-size: 26px;
+            font-weight: 700;
+            line-height: 1.1;
+            color: var(--black);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi-card__value--empty { color: var(--muted); }
+
+        .kpi-card__unit {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--muted);
+            margin-left: 5px;
+        }
+
+        /* Badge pill perubahan. Nada warna dipisah dari arah panah supaya
+           metrik seperti rasio kerusakan bisa memakai panah turun dengan
+           warna hijau (turun = membaik). */
+        .kpi-card__delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kpi-card__delta i { font-size: 10px; position: relative; top: 1px; }
+
+        .kpi-card__delta--up   { background-color: var(--success-10);  color: var(--success-hover); }
+        .kpi-card__delta--down { background-color: var(--red-main-10); color: var(--red-main); }
+        .kpi-card__delta--flat { background-color: var(--blue-main-5); color: var(--black-secondary); }
+
+        body.dark-mode .kpi-card__delta--up { color: var(--success); }
+
+        .kpi-card__note {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .kpi-card__spark {
+            display: block;
+            width: 100%;
+            height: 26px;
+            overflow: visible;
+            margin-top: auto;
+        }
+
+        .kpi-card__spark polyline {
+            fill: none;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
+        }
+
+        /* currentColor dipakai supaya isian gradien di dalam SVG ikut warna
+           nada delta tanpa perlu mendefinisikan gradien per warna. */
+        .kpi-card__spark--up   { color: var(--success); }
+        .kpi-card__spark--down { color: var(--red-main); }
+        .kpi-card__spark--flat { color: var(--muted); }
+
+        .kpi-card__spark polyline { stroke: currentColor; }
+        .kpi-card__spark-area { stroke: none; }
+
+        @media (max-width: 1100px) {
+            .kpi-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .kpi-card { padding: 14px 14px 12px; min-height: 112px; }
+            .kpi-card__value { font-size: 22px; }
+        }
+
+        @media (max-width: 430px) {
+            .kpi-row { grid-template-columns: 1fr; gap: 10px; }
+            .kpi-card { min-height: auto; }
+        }
+
+        /* =============================================
+           SISTEM GRAFIK
+
+           Seluruh grafik digambar sebagai SVG dari sisi server; JavaScript
+           hanya menangani tooltip dan pergantian jenis grafik. Konsekuensinya
+           grafik tetap tampil meski JS gagal dimuat, dan warnanya otomatis
+           ikut tema karena semuanya memakai variabel CSS.
+           ============================================= */
+        .chart {
+            display: block;
+            width: 100%;
+            height: auto;
+            overflow: visible;
+        }
+
+        .chart__grid line {
+            stroke: var(--chart-grid);
+            stroke-width: 1;
+            shape-rendering: crispEdges;
+        }
+
+        .chart__baseline {
+            stroke: var(--smooth-border);
+            stroke-width: 1;
+            shape-rendering: crispEdges;
+        }
+
+        .chart__mean {
+            stroke: var(--muted);
+            stroke-width: 1;
+            stroke-dasharray: 5 5;
+        }
+
+        .chart__tick {
+            font-size: 10px;
+            fill: var(--muted);
+            font-family: inherit;
+        }
+
+        .chart__tick--now { fill: var(--black); font-weight: 600; }
+
+        .chart__line {
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .chart__dot {
+            stroke: var(--white);
+            stroke-width: 2;
+            transition: r 0.16s ease;
+        }
+
+        .chart__bar {
+            transition: opacity 0.16s ease;
+        }
+
+        /* Area transparan di atas tiap kolom data: memperbesar sasaran hover
+           supaya tooltip tidak perlu dibidik tepat di titiknya. */
+        .chart__hotspot {
+            fill: transparent;
+            cursor: pointer;
+        }
+
+        .chart__hotspot:hover ~ .chart__marker .chart__dot,
+        .chart__hotspot.is-active ~ .chart__marker .chart__dot { r: 6; }
+
+        .chart__cursor {
+            stroke: var(--divider);
+            stroke-width: 1;
+            stroke-dasharray: 3 3;
+            opacity: 0;
+            transition: opacity 0.16s ease;
+        }
+
+        .chart__cursor.is-visible { opacity: 1; }
+
+        /* Pergantian jenis grafik. Kedua bentuk sudah ada di DOM, JS hanya
+           menukar kelas — jadi tidak ada kedipan saat berpindah. */
+        .chart-stack__bar,
+        .chart-stack[data-chart-view="bar"] .chart-stack__line { display: none; }
+        .chart-stack[data-chart-view="bar"] .chart-stack__bar { display: inline; }
+
+        .chart-toggle {
+            display: inline-flex;
+            padding: 3px;
+            gap: 2px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 8px;
+            background-color: var(--main-bg);
+        }
+
+        .chart-toggle__btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--black-secondary);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.18s ease, color 0.18s ease;
+        }
+
+        .chart-toggle__btn i { font-size: 11px; position: relative; top: 1px; }
+        .chart-toggle__btn:hover { color: var(--blue-main); }
+
+        .chart-toggle__btn.is-active {
+            background-color: var(--white);
+            color: var(--blue-main);
+            box-shadow: 0 1px 2px rgba(15,23,42,0.08);
+        }
+
+        /* Legend dipakai bersama oleh donut dan area bertumpuk. */
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .chart-legend__item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            color: var(--black-secondary);
+        }
+
+        .chart-legend__swatch {
+            width: 9px;
+            height: 9px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .chart-legend__value {
+            font-weight: 600;
+            color: var(--black);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Tooltip melayang, satu elemen dipakai bergantian oleh semua grafik. */
+        .chart-tooltip {
+            position: fixed;
+            z-index: 12500;
+            min-width: 120px;
+            padding: 9px 11px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 10px;
+            background-color: var(--white);
+            box-shadow: 0 8px 22px rgba(15,23,42,0.14);
+            font-size: 11px;
+            color: var(--black);
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -100%) translateY(-10px);
+            transition: opacity 0.14s ease;
+        }
+
+        .chart-tooltip.is-visible { opacity: 1; }
+
+        .chart-tooltip__title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--smooth-border);
+        }
+
+        .chart-tooltip__row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 3px;
+        }
+
+        .chart-tooltip__row:first-of-type { margin-top: 0; }
+
+        .chart-tooltip__swatch {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .chart-tooltip__label { color: var(--black-secondary); }
+
+        .chart-tooltip__value {
+            margin-left: auto;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ---------- Donut komposisi ----------
+           Donut ditumpuk di atas legend, bukan bersebelahan: nama kegiatan
+           cukup panjang sehingga lebih terbaca sebagai daftar selebar kartu. */
+        .donut-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .donut {
+            width: 100%;
+            height: auto;
+            transform: rotate(-90deg);
+            overflow: visible;
+        }
+
+        .donut__segment {
+            fill: none;
+            stroke-width: 26;
+            transition: stroke-width 0.16s ease, opacity 0.16s ease;
+            cursor: pointer;
+        }
+
+        .donut__segment:hover { stroke-width: 31; }
+
+        .donut__track {
+            fill: none;
+            stroke: var(--chart-grid);
+            stroke-width: 26;
+        }
+
+        .donut-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+        }
+
+        .donut-center__value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--black);
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .donut-center__label { font-size: 10px; color: var(--muted); }
+
+        /* Donut mengisi selebar kartu. Batas atas menjaga proporsinya tetap
+           wajar di kartu lebar — bukan memenuhi seluruh kolom. */
+        .donut__stage {
+            position: relative;
+            width: 100%;
+            max-width: 210px;
+        }
+
+        .donut__stage .donut-center {
+            position: absolute;
+            inset: 0;
+        }
+
+        .donut-legend {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-top: 16px;
+            border-top: 1px solid var(--smooth-border);
+        }
+
+        .donut-legend__row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .donut-legend__name {
+            color: var(--black-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .donut-legend__value {
+            margin-left: auto;
+            font-weight: 600;
+            color: var(--black);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .donut-legend__share {
+            color: var(--muted);
+            font-weight: 400;
+            margin-left: 4px;
+        }
+
+        /* ---------- Bar horizontal perbandingan regu ---------- */
+        .rank-bar { display: flex; flex-direction: column; gap: 14px; }
+
+        .rank-bar__row { display: flex; flex-direction: column; gap: 6px; }
+
+        .rank-bar__head {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .rank-bar__name { font-weight: 600; color: var(--black); }
+        .rank-bar__meta { color: var(--muted); }
+
+        .rank-bar__value {
+            margin-left: auto;
+            font-weight: 600;
+            color: var(--black);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rank-bar__track {
+            height: 10px;
+            border-radius: 50px;
+            background-color: var(--chart-grid);
+            overflow: hidden;
+        }
+
+        .rank-bar__fill {
+            display: block;
+            height: 100%;
+            border-radius: 50px;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        /* ---------- Papan peringkat personil ---------- */
+        /* Dua daftar bersebelahan bila kartunya lebar, bertumpuk bila sempit.
+           Pemisahnya ikut berpindah dari garis atas menjadi garis kiri. */
+        .leader-board {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+        }
+
+        .leader-board__panel { display: flex; flex-direction: column; gap: 10px; }
+
+        .leader-board__panel + .leader-board__panel {
+            padding-left: 24px;
+            border-left: 1px solid var(--smooth-border);
+        }
+
+        @media (max-width: 720px) {
+            .leader-board { grid-template-columns: 1fr; gap: 18px; }
+
+            .leader-board__panel + .leader-board__panel {
+                padding-left: 0;
+                padding-top: 18px;
+                border-left: 0;
+                border-top: 1px solid var(--smooth-border);
+            }
+        }
+
+        .leader-board__title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--black);
+        }
+
+        .leader-board__empty { font-size: 11px; color: var(--muted); }
+
+        .leader-board__list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .leader-board__item { display: flex; align-items: center; gap: 10px; }
+
+        /* Nomor urut ditulis eksplisit supaya peringkat terbaca tanpa harus
+           membandingkan panjang batang. */
+        .leader-board__rank {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            border-radius: 6px;
+            background-color: var(--chart-grid);
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--black-secondary);
+        }
+
+        .leader-board__item:first-child .leader-board__rank {
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+        }
+
+        .leader-board__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+
+        .leader-board__head { display: flex; align-items: baseline; gap: 8px; font-size: 11px; }
+
+        .leader-board__name {
+            color: var(--black);
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .leader-board__value {
+            margin-left: auto;
+            font-weight: 600;
+            color: var(--black);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .leader-board__track {
+            height: 7px;
+            border-radius: 50px;
+            background-color: var(--chart-grid);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .leader-board__fill {
+            display: block;
+            height: 100%;
+            border-radius: 50px;
+            transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        /* ---------- Gauge rasio kerusakan ---------- */
+        /* Kartu gauge biasanya bersanding dengan kartu yang lebih tinggi, jadi
+           isinya dipusatkan agar tidak menggantung di tepi atas. */
+        .gauge-wrap {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .gauge { width: 100%; max-width: 260px; height: auto; overflow: visible; }
+
+        .gauge__track { fill: none; stroke: var(--chart-grid); stroke-width: 18; stroke-linecap: round; }
+        .gauge__value { fill: none; stroke-width: 18; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+        .gauge__needle { stroke: var(--black); stroke-width: 2.5; stroke-linecap: round; }
+        .gauge__pivot  { fill: var(--black); }
+        .gauge__tick   { stroke: var(--divider); stroke-width: 1.5; }
+
+        .gauge__reading {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--black);
+            font-variant-numeric: tabular-nums;
+            line-height: 1.1;
+        }
+
+        .gauge__caption { font-size: 11px; color: var(--muted); text-align: center; }
+
+/* =============================================
+   SECTION CARD
+
+   Header memakai latar yang sama dengan badan kartu dan hanya dipisah
+   garis rambut — aksen biru tebal di atas dihilangkan supaya warna
+   pada halaman datang dari isi grafik, bukan dari bingkai kartu.
+   ============================================= */
+.section-card {
+    background-color: var(--white);
+    border: 1px solid var(--smooth-border);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    /* overflow: hidden; Dihapus agar box-shadow hover pada report item tidak terpotong */
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.section-card__header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px 10px;
+    padding: 16px 20px;
+    background-color: transparent;
+    border-bottom: 1px solid var(--smooth-border);
+}
+
+/* Judul dan keterangan ditumpuk di kiri, alat kendali di kanan —
+   susunan "Judul grafik | filter" seperti pada panduan. */
+.section-card__heading {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 240px;
+}
+
+.section-card__tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.section-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--black);
+}
+
+.section-card__subtitle {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--black-secondary);
+    flex: 1;
+}
+
+.section-card__body {
+    padding: 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}

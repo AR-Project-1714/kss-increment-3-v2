@@ -7,6 +7,8 @@
 @endphp
 
 @if ($paginator && method_exists($paginator, 'hasPages') && $paginator->hasPages())
+    @php($paginationWindow = \App\Support\PaginationWindow::build($paginator))
+
     <div class="admin-pagination">
         <div class="admin-pagination__info">
             Menampilkan {{ $firstItem }}-{{ $lastItem }} dari {{ $total }} {{ $label }}
@@ -20,12 +22,20 @@
                 </a>
             @endif
 
-            @foreach ($paginator->getUrlRange(1, $paginator->lastPage()) as $page => $url)
-                <a href="{{ $url }}"
-                   class="admin-pagination__link {{ $paginator->currentPage() === $page ? 'active' : '' }}"
-                   aria-label="Halaman {{ $page }}">
-                    {{ $page }}
-                </a>
+            {{-- Jendela nomor halaman: halaman pertama & terakhir selalu
+                 terlihat sebagai pintasan lompat ke ujung, elipsis mengisi
+                 jarak yang terpotong di tengah. --}}
+            @foreach ($paginationWindow as $item)
+                @if ($item['type'] === 'ellipsis')
+                    <span class="admin-pagination__ellipsis" aria-hidden="true">&hellip;</span>
+                @else
+                    <a href="{{ $paginator->url($item['page']) }}"
+                       class="admin-pagination__link {{ $paginator->currentPage() === $item['page'] ? 'active' : '' }}"
+                       aria-label="Halaman {{ $item['page'] }}"
+                       @if ($paginator->currentPage() === $item['page']) aria-current="page" @endif>
+                        {{ $item['page'] }}
+                    </a>
+                @endif
             @endforeach
 
             @if ($paginator->hasMorePages())

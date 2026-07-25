@@ -2,9 +2,13 @@
     Partial form laporan shift harian, dipakai bersama oleh halaman buat (create)
     dan ubah (edit). Wrapper masing-masing yang menyetel variabel berikut:
       $formAction          : URL submit form
-      $isEdit              : true saat mode ubah (mengirim @method('PUT'))
+      $formMethod          : 'PUT' bila menimpa baris yang sudah ada (create pun
+                             begitu: drafnya sudah direservasi saat form dibuka)
+      $isEdit              : true saat membuka laporan lama, false untuk form baru
       $headerTitle         : judul di header form
-      $headerDocumentLabel : label "ID:" (mis. "Draft Baru" atau "#OPS-...")
+      $headerDocumentLabel : label "ID:" (mis. "#OPS-2026-007")
+      $discardBlankUrl     : URL pembuang draft reservasi yang ditinggal kosong
+                             (null saat mode ubah)
       $draftButtonLabel    : teks tombol simpan draft/pembaruan
 --}}
 @push('styles')
@@ -187,7 +191,10 @@
             width: 100%; align-self: stretch; margin-bottom: 4px;
             font-size: 11px; color: var(--muted); line-height: 1.5;
         }
-        .step-info-note i { position: relative; top: 1px; flex-shrink: 0; }
+        /* Posisi vertikal ikon (top) dikendalikan secara terpusat di
+           officer-icon-alignment.blade.php, bukan di sini -- top di sini
+           ditimpa !important oleh partial tersebut. */
+        .step-info-note i { flex-shrink: 0; }
         .step-info-note strong { font-weight: 600; color: inherit; }
 
         /* =========================================
@@ -3331,9 +3338,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
 @section('content')
     <!-- MAIN APP WRAPPER -->
-    <form id="mainReportForm" action="{{ $formAction }}" method="POST" class="content d-flex flex-column align-items-start align-self-stretch gap-30 p-content">
+    <form id="mainReportForm" action="{{ $formAction }}" method="POST" class="content d-flex flex-column align-items-start align-self-stretch gap-30 p-content" data-discard-blank-url="{{ $discardBlankUrl ?? '' }}" data-store-url="{{ route('report-ops.store') }}">
         @csrf
-        @if (! empty($isEdit))
+        @if ($formMethod === 'PUT')
             @method('PUT')
         @endif
         <input type="hidden" name="status" id="reportStatus" value="submitted">

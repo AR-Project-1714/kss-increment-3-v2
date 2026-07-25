@@ -40,9 +40,15 @@
         box-sizing: border-box;
     }
 
+    /* Toolbar filter (mis. Performa Operasional): tinggi & tipografi harus
+       sama persis dengan .filter-input dan .filter-select-trigger di
+       sampingnya, jadi min-height 42px bawaan trigger tidak dipakai di sini. */
     .kss-date-trigger.filter-input {
-        min-height: 42px;
-        padding: 0 12px;
+        min-height: 0;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.5;
     }
 
     .kss-date-trigger.kss-modal__input {

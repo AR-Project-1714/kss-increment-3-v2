@@ -1,6 +1,7 @@
 {{--
     Partial form laporan harian K3 (dipakai create & edit).
-    Variabel dari wrapper: $isEdit, $formAction, $headerTitle, $headerDocumentLabel
+    Variabel dari wrapper: $isEdit, $formMethod, $formAction, $discardBlankUrl,
+    $headerTitle, $headerDocumentLabel
     Master/template dari controller: $locationGroups, $operationRows, $incidentRows, $catalogItems, $conditions
 --}}
 @php
@@ -43,8 +44,10 @@
 @push('styles')
 <style>
     #mainReportForm { width: 100%; align-self: stretch; display: block; }
-    .content { max-width: 1800px; width: 100%; margin: 0 auto; }
-    .content-header { width: 100%; max-width: 1800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 20px; }
+    /* Lebar mengikuti .content bawaan layout (1440px) supaya form sejajar dengan
+       dashboard modul ini — samakan perilakunya dengan modul operasional. */
+    .content { width: 100%; margin: 0 auto; }
+    .content-header { width: 100%; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 20px; }
     .title-header { display: flex; flex-direction: column; gap: 2px; min-width: auto; }
 
     /* Animasi tombol navigasi (sama seperti operasional/pemeliharaan) */
@@ -61,8 +64,10 @@
     .btn-form.finish:hover .icon { opacity: 1; max-width: 20px; margin-left: 10px; transform: translateX(0); }
     .btn-form .icon i { position: relative; top: 2px; line-height: 1; }
 
-    .form-meta-note { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; }
-    .form-meta-note i { position:relative; top:1px; }
+    /* align-items:flex-start (bukan center) agar ikon mengikuti baris PERTAMA
+       teks, bukan pusat seluruh paragraf -- catatan ini sering 2 baris.
+       Koreksi vertikal ikon sendiri ada di officer-icon-alignment.blade.php. */
+    .form-meta-note { font-size:11px; color:var(--muted); display:flex; align-items:flex-start; gap:6px; }
 
     /* ===== Accordion Lokasi Inspeksi ===== */
     .loc-list { display:flex; flex-direction:column; gap:14px; width:100%; }
@@ -141,9 +146,9 @@
 @endpush
 
 @section('content')
-<form action="{{ $formAction }}" method="POST" id="mainReportForm">
+<form action="{{ $formAction }}" method="POST" id="mainReportForm" data-discard-blank-url="{{ $discardBlankUrl ?? '' }}" data-store-url="{{ route('safety.store') }}">
     @csrf
-    @if ($isEdit) @method('PUT') @endif
+    @if ($formMethod === 'PUT') @method('PUT') @endif
     <input type="hidden" name="status" id="reportStatus" value="{{ $statusValue }}">
 
     <div class="content d-flex flex-column align-items-start align-self-stretch gap-30 p-content">

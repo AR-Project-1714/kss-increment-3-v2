@@ -196,7 +196,7 @@
             <span class="page-subtitle">Ringkasan performa dan aktivitas pelaporan dari ketiga divisi.</span>
         </div>
 
-        @include('manajer.layouts.card')
+        @include('manajer.layouts.card-kpi')
 
         <div class="section-card">
             <div class="section-card__header d-flex flex-column align-items-start">

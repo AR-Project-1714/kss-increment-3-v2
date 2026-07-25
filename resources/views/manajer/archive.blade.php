@@ -346,6 +346,18 @@
             opacity: .55;
         }
 
+        .archive-page-ellipsis {
+            display: inline-flex;
+            min-width: 34px;
+            height: 34px;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+            user-select: none;
+        }
+
         td.aksi form {
             margin: 0;
         }
@@ -476,7 +488,7 @@
             <span class="page-subtitle">Daftar laporan yang berstatus diserahkan, ditanda tangani, dan diarsipkan.</span>
         </div>
 
-        @include('manajer.layouts.card')
+        @include('charts.kpi-row', ['cards' => $stats])
 
         <div class="section-card">
             <div class="archive-body">
@@ -690,6 +702,8 @@
                 </div>
 
                 @if ($reports->hasPages())
+                    @php($archivePaginationWindow = \App\Support\PaginationWindow::build($reports))
+
                     <div class="archive-pagination">
                         <div class="fsize-11 fw-500 text-muted-custom">
                             Menampilkan {{ $archiveFirstItem }}-{{ $archiveLastItem }} dari {{ $archiveTotal }} {{ $archiveSearch !== '' || $hasActiveFilter ? 'hasil' : 'laporan' }}
@@ -703,10 +717,19 @@
                                 </a>
                             @endif
 
-                            @foreach ($reports->getUrlRange(1, $reports->lastPage()) as $page => $url)
-                                <a href="{{ $url }}" class="archive-page-link {{ $reports->currentPage() === $page ? 'active' : '' }}" aria-label="Halaman {{ $page }}">
-                                    {{ $page }}
-                                </a>
+                            {{-- Jendela nomor halaman: halaman pertama & terakhir selalu
+                                 terlihat sebagai pintasan lompat ke ujung. --}}
+                            @foreach ($archivePaginationWindow as $item)
+                                @if ($item['type'] === 'ellipsis')
+                                    <span class="archive-page-ellipsis" aria-hidden="true">&hellip;</span>
+                                @else
+                                    <a href="{{ $reports->url($item['page']) }}"
+                                       class="archive-page-link {{ $reports->currentPage() === $item['page'] ? 'active' : '' }}"
+                                       aria-label="Halaman {{ $item['page'] }}"
+                                       @if ($reports->currentPage() === $item['page']) aria-current="page" @endif>
+                                        {{ $item['page'] }}
+                                    </a>
+                                @endif
                             @endforeach
 
                             @if ($reports->hasMorePages())

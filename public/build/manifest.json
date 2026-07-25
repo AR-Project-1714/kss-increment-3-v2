@@ -61,7 +61,7 @@
     "isEntry": true
   },
   "resources/css/layouts/admin.css": {
-    "file": "assets/admin-BVDLHBzq.css",
+    "file": "assets/admin-ppLYfEvb.css",
     "name": "admin",
     "names": [
       "admin.css"
@@ -79,7 +79,7 @@
     "isEntry": true
   },
   "resources/css/layouts/manajer.css": {
-    "file": "assets/manajer-BUpBOMMw.css",
+    "file": "assets/manajer-Ci0u2ykD.css",
     "name": "manajer",
     "names": [
       "manajer.css"
@@ -88,11 +88,10 @@
     "isEntry": true
   },
   "resources/css/layouts/pemeliharaan.css": {
-    "file": "assets/pemeliharaan-J1ipcUG_.css",
-    "name": "report-safety",
+    "file": "assets/pemeliharaan-BJ4Xg9S5.css",
+    "name": "pemeliharaan",
     "names": [
-      "pemeliharaan.css",
-      "report-safety.css"
+      "pemeliharaan.css"
     ],
     "src": "resources/css/layouts/pemeliharaan.css",
     "isEntry": true
@@ -107,13 +106,12 @@
     "isEntry": true
   },
   "resources/css/layouts/report-safety.css": {
-    "file": "assets/pemeliharaan-J1ipcUG_.css",
+    "file": "assets/report-safety-DwxcvsjY.css",
     "name": "report-safety",
     "names": [
-      "pemeliharaan.css",
       "report-safety.css"
     ],
-    "src": "resources/css/layouts/pemeliharaan.css",
+    "src": "resources/css/layouts/report-safety.css",
     "isEntry": true
   },
   "resources/js/app.js": {

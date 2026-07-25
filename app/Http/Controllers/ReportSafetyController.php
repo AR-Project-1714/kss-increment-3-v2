@@ -67,7 +67,23 @@ class ReportSafetyController extends Controller
     {
         SafetyReport::pruneStaleDrafts();
 
-        return view('report-safety.create', $this->formData());
+        // Reservasi baris draft sejak form dibuka: laporan langsung punya ID dan
+        // seluruh penyimpanan berikutnya menimpa baris ini, bukan bikin duplikat.
+        $reservedReport = $this->reserveDraftReport(SafetyReport::class, [
+            'created_by' => auth()->id(),
+            'status'     => SafetyStatus::Draft->value,
+        ]);
+
+        return view('report-safety.create', array_merge($this->formData(), [
+            'reservedReport' => $reservedReport,
+        ]));
+    }
+
+    public function discardBlank(SafetyReport $report)
+    {
+        abort_unless($this->canDelete($report, auth()->user()), 403);
+
+        return $this->discardBlankDraftReport($report);
     }
 
     public function store(Request $request)
@@ -152,6 +168,9 @@ class ReportSafetyController extends Controller
         $request->merge(['status' => $status]);
 
         $validated = $request->validate($this->rules($status === SafetyStatus::Draft->value), [], $this->attributes());
+        // Draft hasil reservasi form baru: simpan pertama ini "disimpan", bukan
+        // "diperbarui" — dicatat sebelum update karena setelahnya tak kosong lagi.
+        $wasBlank = $report->isBlankDraft();
 
         try {
             DB::transaction(function () use ($request, $report, $validated, $status): void {
@@ -182,7 +201,7 @@ class ReportSafetyController extends Controller
         return redirect()->route('safety.index')->with(
             'success',
             $status === SafetyStatus::Draft->value
-                ? 'Draft laporan K3 berhasil diperbarui.'
+                ? ($wasBlank ? 'Draft laporan K3 berhasil disimpan.' : 'Draft laporan K3 berhasil diperbarui.')
                 : 'Laporan K3 berhasil dikirim.'
         );
     }

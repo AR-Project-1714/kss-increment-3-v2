@@ -291,18 +291,8 @@
     <span class="page-subtitle">Pantau rekam jejak aktivitas seluruh pengguna untuk keperluan audit dan keamanan.</span>
 </div>
 
-<!-- Stats Row -->
-<div class="stats-row">
-    @foreach ($stats as $s)
-        <div class="stat-card">
-            <span class="stat-card__label">{{ $s['label'] }}</span>
-            <div class="stat-card__row">
-                <span class="stat-card__value">{{ $s['value'] }}</span>
-                <span class="stat-card__icon stat-card__icon--{{ $s['color'] }}"><i class="{{ $s['icon'] }}"></i></span>
-            </div>
-        </div>
-    @endforeach
-</div>
+{{-- Kartu yang sama dengan Dashboard Sistem, lengkap dengan angka pembanding. --}}
+@include('charts.kpi-row', ['cards' => $stats])
 
 <!-- Riwayat Aktivitas Sistem -->
 @component('admin.layouts.card', ['title' => 'Riwayat Aktivitas Sistem'])
