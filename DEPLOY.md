@@ -31,7 +31,7 @@ php artisan down --render="errors::503"
 ```
 
 ```bash
-git pull && composer install --no-dev --optimize-autoloader && npm ci && npm run build
+git pull && composer install --no-dev --optimize-autoloader
 ```
 
 ```bash
@@ -41,6 +41,13 @@ php artisan migrate --force && php artisan optimize
 ```bash
 sudo systemctl reload php8.3-fpm && php artisan up
 ```
+
+> **Jangan jalankan `npm` di server.** VPS ini tidak memasang Node/npm, dan
+> memang tidak perlu: hasil build Vite sengaja di-commit ke repo (lihat
+> [`.gitignore`](.gitignore) baris 17). Aset di-build di mesin lokal dengan
+> `npm run build`, lalu ikut ter-push — jadi `git pull` sudah membawa
+> `public/build/` versi terbaru. Kalau lupa build sebelum push, aset lama yang
+> naik ke produksi.
 
 `reload php8.3-fpm` disertakan sebagai pengaman. Dengan setelan sekarang
 (`opcache.validate_timestamps=On`) OPcache sudah memuat kode baru sendiri, jadi
@@ -108,12 +115,11 @@ php artisan migrate --force
 ```
 
 ```bash
-npm ci && npm run build
-```
-
-```bash
 php artisan optimize
 ```
+
+Aset frontend tidak di-build di server — lihat catatan di "Ringkasan perintah
+rutin" di atas.
 
 `php artisan optimize` menggabungkan cache config, event, route, dan view dalam
 satu perintah. Sudah diuji pada aplikasi ini dan keempatnya terbentuk bersih —

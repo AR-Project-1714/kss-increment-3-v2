@@ -87,6 +87,27 @@
         return e($label);
     };
     $labels = fn ($coll) => $coll->map($conditionUnitLabel)->filter()->values();
+    // Kolom kondisi unit kini selebar setengah kertas (bukan seperempat seperti
+    // saat masih bersebelahan dengan personil), jadi label disusun 3 per baris
+    // memakai tabel dalam — pola yang aman untuk dompdf — agar tidak memanjang
+    // ke bawah dan menyisakan ruang kosong.
+    $unitGrid = function ($coll) {
+        if ($coll->isEmpty()) {
+            return '';
+        }
+
+        $html = '<table class="unitgrid">';
+        foreach ($coll->chunk(3) as $chunk) {
+            $cells = $chunk->values();
+            $html .= '<tr>';
+            for ($i = 0; $i < 3; $i++) {
+                $html .= '<td>'.($cells[$i] ?? '').'</td>';
+            }
+            $html .= '</tr>';
+        }
+
+        return $html.'</table>';
+    };
     $truck = $byCat('truck'); $heavy = $byCat('heavy');
     $truckReady = $labels($truck->where('condition', 'ready')); $truckRusak = $labels($truck->where('condition', 'rusak'));
     $heavyReady = $labels($heavy->where('condition', 'ready')); $heavyRusak = $labels($heavy->where('condition', 'rusak'));
@@ -145,10 +166,9 @@
     .report-paper .utama-row td { height: 34px; vertical-align: top; }
     .report-paper .grp { font-weight: bold; text-align: center; vertical-align: middle; }
     .report-paper .sec { background: #fff; font-weight: bold; text-align: center; font-size: 8px; padding: 3px; border: 1px solid #000; border-bottom: none; }
-    .report-paper .layout { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    .report-paper .layout > tbody > tr > td { vertical-align: top; padding: 0; }
-    .report-paper .layout .gap { width: 8px; border: none; }
-    .report-paper .unitcell { font-size: 7px; line-height: 1.4; text-align: center; vertical-align: top; height: 150px; }
+    .report-paper .unitcell { font-size: 7px; line-height: 1.4; text-align: center; vertical-align: top; height: 60px; }
+    .report-paper table.grid .unitgrid { width: 100%; border-collapse: collapse; }
+    .report-paper table.grid .unitgrid td { width: 33.33%; border: none; padding: 0 1px; text-align: center; }
     .report-paper .unitcell.ready { color: #14532d; }
     .report-paper .unitcell.rusak { color: #7f1d1d; }
     .report-paper .totrow td { font-weight: bold; text-align: center; background: #f2f2f2; font-size: 7.5px; }
@@ -270,60 +290,55 @@
         </tbody>
     </table>
 
-    {{-- KONDISI UNIT + PERSONIL --}}
-    <table class="layout">
+    {{-- PERSONIL (lebar penuh) --}}
+    <div class="sec" style="margin-top:8px">PERSONIL</div>
+    <table class="grid">
         <tr>
-            <td style="width:50%">
-                <div class="sec">KONDISI UNIT SAAT INI</div>
-                <table class="grid">
-                    <tr>
-                        <th colspan="2">TRAILER / TRONTON / DUMP TRUCK</th>
-                        <th colspan="2">FORKLIFT / EXCAVATOR / WHEEL LOADER</th>
-                    </tr>
-                    <tr>
-                        <th style="width:25%">READY / OPERASI</th>
-                        <th style="width:25%">RUSAK / TDK OPERASI</th>
-                        <th style="width:25%">READY / OPERASI</th>
-                        <th style="width:25%">RUSAK / TDK OPERASI</th>
-                    </tr>
-                    <tr>
-                        <td class="unitcell ready">{!! $truckReady->implode('<br>') !!}</td>
-                        <td class="unitcell rusak">{!! $truckRusak->implode('<br>') !!}</td>
-                        <td class="unitcell ready">{!! $heavyReady->implode('<br>') !!}</td>
-                        <td class="unitcell rusak">{!! $heavyRusak->implode('<br>') !!}</td>
-                    </tr>
-                    <tr class="totrow">
-                        <td>{{ $truckReady->count() }}</td>
-                        <td>{{ $truckRusak->count() }}</td>
-                        <td>{{ $heavyReady->count() }}</td>
-                        <td>{{ $heavyRusak->count() }}</td>
-                    </tr>
-                </table>
-            </td>
-            <td class="gap"></td>
-            <td style="width:49%">
-                <div class="sec">PERSONIL</div>
-                <table class="grid">
-                    <tr>
-                        <th style="width:8%">NO</th>
-                        <th>NAMA KARYAWAN</th>
-                        <th style="width:24%">JABATAN</th>
-                        <th style="width:14%">MASUK</th>
-                        <th style="width:14%">PULANG</th>
-                    </tr>
-                    @forelse ($personil as $i => $p)
-                        <tr>
-                            <td class="c">{{ $i + 1 }}</td>
-                            <td>{{ $p->employee_name }}</td>
-                            <td>{{ $p->position }}</td>
-                            <td class="c">{{ $fmtTime($p->time_in) }}</td>
-                            <td class="c">{{ $fmtTime($p->time_out) }}</td>
-                        </tr>
-                    @empty
-                        <tr><td class="c">1</td><td></td><td></td><td></td><td></td></tr>
-                    @endforelse
-                </table>
-            </td>
+            <th style="width:5%">NO</th>
+            <th style="width:32%">NAMA KARYAWAN</th>
+            <th style="width:22%">JABATAN</th>
+            <th style="width:10%">MASUK</th>
+            <th style="width:10%">PULANG</th>
+            <th style="width:21%">KETERANGAN</th>
+        </tr>
+        @forelse ($personil as $i => $p)
+            <tr>
+                <td class="c">{{ $i + 1 }}</td>
+                <td>{{ $p->employee_name }}</td>
+                <td>{{ $p->position }}</td>
+                <td class="c">{{ $fmtTime($p->time_in) }}</td>
+                <td class="c">{{ $fmtTime($p->time_out) }}</td>
+                <td class="c">{{ $p->notes }}</td>
+            </tr>
+        @empty
+            <tr><td class="c">1</td><td></td><td></td><td></td><td></td><td></td></tr>
+        @endforelse
+    </table>
+
+    {{-- KONDISI UNIT SAAT INI (lebar penuh, di bawah personil) --}}
+    <div class="sec" style="margin-top:8px">KONDISI UNIT SAAT INI</div>
+    <table class="grid">
+        <tr>
+            <th colspan="2">TRAILER / TRONTON / DUMP TRUCK</th>
+            <th colspan="2">FORKLIFT / EXCAVATOR / WHEEL LOADER</th>
+        </tr>
+        <tr>
+            <th style="width:25%">READY / OPERASI</th>
+            <th style="width:25%">RUSAK / TDK OPERASI</th>
+            <th style="width:25%">READY / OPERASI</th>
+            <th style="width:25%">RUSAK / TDK OPERASI</th>
+        </tr>
+        <tr>
+            <td class="unitcell ready">{!! $unitGrid($truckReady) !!}</td>
+            <td class="unitcell rusak">{!! $unitGrid($truckRusak) !!}</td>
+            <td class="unitcell ready">{!! $unitGrid($heavyReady) !!}</td>
+            <td class="unitcell rusak">{!! $unitGrid($heavyRusak) !!}</td>
+        </tr>
+        <tr class="totrow">
+            <td>{{ $truckReady->count() }}</td>
+            <td>{{ $truckRusak->count() }}</td>
+            <td>{{ $heavyReady->count() }}</td>
+            <td>{{ $heavyRusak->count() }}</td>
         </tr>
     </table>
 

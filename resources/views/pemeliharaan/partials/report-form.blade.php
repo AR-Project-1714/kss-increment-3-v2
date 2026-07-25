@@ -651,6 +651,7 @@
     <option value="Sakit"></option>
     <option value="Cuti"></option>
     <option value="Tidak Masuk"></option>
+    <option value="Tanpa Keterangan"></option>
 </datalist>
 @endsection
 
@@ -851,9 +852,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ---- Jam Kerja (range) -> auto-isi Masuk/Pulang di Daftar Hadir ----
-    // Keterangan diketik bebas (bukan dropdown terkunci); Sakit/Cuti/Tidak Masuk
-    // hanya saran cepat lewat datalist, dicocokkan tanpa peduli huruf besar/kecil.
-    const ABSEN = ['sakit', 'cuti', 'tidak masuk'];
+    // Keterangan diketik bebas (bukan dropdown terkunci); Sakit/Cuti/Tidak Masuk/
+    // Tanpa Keterangan hanya saran cepat lewat datalist, dicocokkan tanpa peduli
+    // huruf besar/kecil.
+    const ABSEN = ['sakit', 'cuti', 'tidak masuk', 'tanpa keterangan'];
 
     function isAbsentNote(value) {
         return ABSEN.includes(String(value || '').trim().toLowerCase());
