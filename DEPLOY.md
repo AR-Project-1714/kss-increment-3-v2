@@ -4,11 +4,27 @@ Dokumen ini mencatat langkah dan konfigurasi yang harus dijalankan saat aplikasi
 dipasang di server production. Semua isinya bersifat konfigurasi — tidak ada
 perubahan fitur.
 
+## Lingkungan produksi saat ini
+
+| | |
+|---|---|
+| Server | Ubuntu 24.04 LTS, VPS (`kss-operational`) |
+| Web server | **Nginx** (bukan Apache) |
+| PHP | 8.3 FPM, pool khusus `php8.3-fpm-kss-multidivisi.sock` |
+| Domain | `app.kss-operation.my.id`, HTTPS via Certbot |
+| Root aplikasi | `/var/www/kss-multidivisi` |
+| Config Nginx | `/etc/nginx/sites-enabled/kss-multidivisi` |
+
+> Karena produksi memakai Nginx, berkas `public/.htaccess` **tidak dibaca sama
+> sekali di server**. Berkas itu tetap disimpan karena development lokal
+> (Laragon) memakai Apache. Aturan yang setara untuk produksi ada di bagian 4.
+
 ---
 
 ## Ringkasan perintah rutin
 
-Untuk update rutin di VPS, urutan ini yang dipakai:
+Untuk update rutin di VPS, urutan ini yang dipakai. Jalankan dari
+`/var/www/kss-multidivisi`:
 
 ```bash
 php artisan down --render="errors::503"
@@ -26,11 +42,12 @@ php artisan migrate --force && php artisan optimize
 sudo systemctl reload php8.3-fpm && php artisan up
 ```
 
-**`reload php8.3-fpm` wajib** kalau `opcache.validate_timestamps=0` diaktifkan
-(lihat bagian 3). Tanpa itu, PHP tetap menjalankan kode versi lama dari memori
-dan perubahan tidak akan muncul sama sekali — ini jebakan paling sering terjadi.
+`reload php8.3-fpm` disertakan sebagai pengaman. Dengan setelan sekarang
+(`opcache.validate_timestamps=On`) OPcache sudah memuat kode baru sendiri, jadi
+langkah ini tidak wajib — tapi murah dan menghilangkan satu sumber kebingungan.
+Kalau suatu saat `validate_timestamps` dimatikan, langkah ini jadi **wajib**.
 
-Setup satu kali di server (modul Apache dan OPcache) ada di bagian 3 dan 4.
+Setup satu kali di server (OPcache dan konfigurasi Nginx) ada di bagian 3 dan 4.
 
 ---
 
@@ -119,31 +136,55 @@ php artisan storage:link
 
 ---
 
-## 3. OPcache — perbaikan backend terbesar
+## 3. OPcache
 
-**Ini butuh perhatian khusus.** Saat pemeriksaan, OPcache dalam keadaan mati
-total. Tanpa OPcache, PHP mem-parsing ulang seluruh berkas aplikasi pada setiap
+Tanpa OPcache, PHP mem-parsing ulang seluruh berkas aplikasi pada setiap
 request, dan manfaat `php artisan optimize` hampir tidak terasa — keduanya
-saling bergantung.
+saling bergantung. Pada pengukuran di lingkungan lokal (OPcache mati),
+`php artisan optimize` tidak memberi perbaikan sama sekali.
 
-Aktifkan di `php.ini` server production:
+### Kondisi terverifikasi di produksi (25 Juli 2026)
 
-```ini
-zend_extension=opcache
+`php-fpm8.3 -i` menunjukkan OPcache **sudah aktif** dengan nilai bawaan:
 
-opcache.enable=1
-opcache.memory_consumption=192
-opcache.interned_strings_buffer=16
-opcache.max_accelerated_files=20000
-opcache.revalidate_freq=0
+| Setelan | Nilai | Penilaian |
+|---|---|---|
+| `opcache.enable` | On | Sudah benar |
+| `opcache.max_accelerated_files` | 10000 | Cukup — lihat catatan di bawah |
+| `opcache.memory_consumption` | 128 MB | Cukup, bisa dinaikkan sebagai margin |
+| `opcache.interned_strings_buffer` | 8 MB | Agak kecil untuk Laravel |
+| `opcache.validate_timestamps` | On | **Biarkan On** — lihat di bawah |
 
-; Berkas tidak berubah di antara deploy, jadi PHP tidak perlu mengecek
-; timestamp tiap request. WAJIB restart PHP/web server setelah tiap deploy
-; kalau ini diaktifkan, kalau tidak perubahan kode tidak akan terbaca.
-opcache.validate_timestamps=0
+Aplikasi ini berisi **7.236 berkas PHP**. Angka `max_accelerated_files=10000`
+terlihat mepet, tapi tidak: PHP membulatkannya ke bilangan prima berikutnya
+dari daftar internalnya, sehingga kapasitas sebenarnya **16.229 berkas**.
+Tidak perlu diubah.
+
+### Soal `validate_timestamps`
+
+**Biarkan `On` (bawaan).** Mematikannya (`=0`) sering disarankan di panduan
+umum, tapi untuk konteks ini tidak sepadan: keuntungannya kecil — PHP hanya
+melakukan `stat()` per berkas maksimal tiap 2 detik, praktis tak terasa di
+SSD — sementara risikonya nyata. Sekali lupa `reload php8.3-fpm` setelah
+deploy, server menjalankan kode lama tanpa gejala apa pun, dan gejala itu
+sangat menyesatkan saat ditelusuri.
+
+### Penyetelan opsional
+
+Hanya menambah margin, bukan memperbaiki masalah. Lewatkan saja kalau server
+sedang terbatas RAM-nya:
+
+```bash
+sudo nano /etc/php/8.3/fpm/conf.d/99-kss-opcache.ini
 ```
 
-Setelah setiap deploy, restart PHP-FPM atau Apache agar OPcache memuat kode baru:
+```ini
+opcache.memory_consumption=192
+opcache.interned_strings_buffer=16
+```
+
+Dipasang lewat `conf.d`, bukan mengedit `php.ini` langsung, supaya tidak
+tertimpa saat paket PHP di-upgrade. Terapkan dengan:
 
 ```bash
 sudo systemctl reload php8.3-fpm
@@ -151,70 +192,142 @@ sudo systemctl reload php8.3-fpm
 
 ---
 
-## 4. Kompresi & cache header (Apache)
+## 4. Kompresi & cache header (Nginx)
 
-Aturannya sudah ditulis di [`public/.htaccess`](public/.htaccess) dan aktif
-otomatis — **asalkan modul Apache-nya dimuat**. Blok kompresi dibungkus
-`<IfModule mod_deflate.c>`, jadi kalau modulnya tidak ada, berkas tetap dikirim
-tanpa kompresi tanpa menimbulkan error.
+**Status: sudah terpasang dan terverifikasi di produksi (25 Juli 2026).**
+Bagian ini didokumentasikan supaya bisa dipasang ulang kalau server diganti
+atau konfigurasinya hilang.
 
-Pastikan modul berikut aktif di server production:
+Dua berkas yang terlibat:
+
+| Berkas | Isi |
+|---|---|
+| `/etc/nginx/conf.d/gzip.conf` | Kompresi, berlaku untuk semua site |
+| `/etc/nginx/snippets/kss-static-cache.conf` | Cache header aset statis |
+
+Keduanya sengaja berupa berkas terpisah, bukan editan langsung pada
+`nginx.conf` — supaya tidak tertimpa saat paket nginx di-upgrade.
+
+### 4.1 Kompresi
+
+Bawaan Ubuntu menyalakan `gzip on` tapi membiarkan `gzip_types` ter-komentar,
+sehingga **hanya `text/html` yang terkompresi** dan seluruh CSS/JS terkirim
+mentah. Ini yang diperbaiki:
 
 ```bash
-sudo a2enmod deflate headers setenvif && sudo systemctl restart apache2
-```
-
-Verifikasi setelah deploy:
-
-```bash
-curl -sI -H "Accept-Encoding: gzip" https://domain-anda.com/vendor/bootstrap/bootstrap.min.css | grep -i "content-encoding\|cache-control"
-```
-
-Hasil yang diharapkan: `Content-Encoding: gzip` dan `Cache-Control: public, max-age=2592000`.
-
-Dampak kompresi pada aset aplikasi ini (hasil pengukuran):
-
-| Berkas | Mentah | Gzip | Hemat |
-|---|---|---|---|
-| uicons-regular.css | 249 KB | 30 KB | 88% |
-| bootstrap.min.css | 227 KB | 30 KB | 87% |
-| bootstrap.bundle.js | 78 KB | 23 KB | 71% |
-| report-ops.css | 55 KB | 9 KB | 84% |
-| report-ops.js | 43 KB | 8 KB | 81% |
-
-Total CSS + JS turun dari ±1.170 KB menjadi ±160 KB per kunjungan pertama.
-
-### Kalau server memakai Nginx
-
-`.htaccess` tidak dibaca Nginx. Padanan konfigurasinya:
-
-```nginx
-gzip on;
+sudo tee /etc/nginx/conf.d/gzip.conf > /dev/null <<'EOF'
+gzip_vary on;
+gzip_proxied any;
 gzip_comp_level 6;
 gzip_min_length 256;
-gzip_types text/plain text/css text/xml text/javascript
-           application/javascript application/json application/xml image/svg+xml;
+gzip_types
+    text/plain
+    text/css
+    text/xml
+    text/javascript
+    application/javascript
+    application/json
+    application/xml
+    application/rss+xml
+    image/svg+xml;
+EOF
+```
 
-# Berhash / berversi — aman disimpan lama
-location ~ ^/(build|js)/ {
+Berkas biner (woff2, png, webp, ico, pdf, xlsx) sengaja tidak didaftarkan —
+formatnya sudah terkompresi, mengompres ulang hanya membakar CPU. `text/html`
+juga tidak perlu ditulis karena nginx selalu mengompresnya saat `gzip on`.
+
+### 4.2 Cache header
+
+```bash
+sudo tee /etc/nginx/snippets/kss-static-cache.conf > /dev/null <<'EOF'
+location ^~ /build/ {
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
     add_header Cache-Control "public, max-age=31536000, immutable";
+    access_log off;
 }
-
-# Tidak berversi — dibatasi 30 hari
-location ~ ^/(vendor|assets)/ {
+location ^~ /js/ {
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    access_log off;
+}
+location ^~ /vendor/ {
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
     add_header Cache-Control "public, max-age=2592000";
+    access_log off;
 }
-
-# Tanda tangan bersifat privat
+location ^~ /assets/ {
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+    add_header Cache-Control "public, max-age=2592000";
+    access_log off;
+}
 location ^~ /signatures/ {
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
     add_header Cache-Control "private, no-store";
 }
-
-# Service worker harus selalu divalidasi ulang
 location = /sw.js {
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
     add_header Cache-Control "public, max-age=0, must-revalidate";
 }
+EOF
 ```
+
+Lalu satu baris di `/etc/nginx/sites-enabled/kss-multidivisi`, di dalam
+`server { }` yang punya `root`, tepat setelah penutup `location / { }`:
+
+```nginx
+    include snippets/kss-static-cache.conf;
+```
+
+**Dua hal yang WAJIB diperhatikan kalau blok ini diubah:**
+
+1. `X-Frame-Options` dan `X-Content-Type-Options` ditulis ulang di setiap
+   `location`. Ini bukan duplikasi ceroboh — di Nginx, begitu sebuah `location`
+   punya `add_header` sendiri, ia **berhenti mewarisi seluruh `add_header` dari
+   blok induk**. Menghapusnya berarti menghilangkan header keamanan pada semua
+   aset statis, tanpa peringatan apa pun.
+2. Prefix `^~` dipakai supaya blok ini menang atas `location` regex di
+   bawahnya, termasuk aturan `deny all` untuk dotfile.
+
+### 4.3 Pasang & verifikasi
+
+Selalu test sebelum reload — kalau ada salah ketik, `nginx -t` menangkapnya
+sebelum situs mati:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+```bash
+for p in /vendor/bootstrap/bootstrap.min.css /build/manifest.json /signatures/manajer.png /sw.js; do echo "--- $p"; curl -sI -H "Accept-Encoding: gzip" "https://app.kss-operation.my.id$p" | grep -iE "content-encoding|cache-control|x-content-type-options"; done
+```
+
+Hasil yang benar:
+
+| Path | Cache-Control | Content-Encoding |
+|---|---|---|
+| `/vendor/bootstrap/bootstrap.min.css` | `public, max-age=2592000` | `gzip` |
+| `/build/manifest.json` | `max-age=31536000, immutable` | `gzip` |
+| `/signatures/manajer.png` | `private, no-store` | — (benar, PNG tidak dikompres) |
+| `/sw.js` | `max-age=0, must-revalidate` | `gzip` |
+
+`X-Content-Type-Options: nosniff` harus muncul di keempatnya.
+
+### 4.4 Hasil terukur di produksi
+
+Pengukuran nyata pada `uicons-regular-rounded.css` setelah konfigurasi aktif:
+
+```
+255.338 byte  ->  33.709 byte   (hemat 86,8%)
+```
+
+Total CSS + JS per kunjungan pertama turun dari ±1.173 KB menjadi ±171 KB.
 
 ---
 
@@ -224,7 +337,7 @@ Tanpa cron ini, pembersihan draft kadaluarsa, snapshot metrik dashboard admin,
 dan backup otomatis tidak akan berjalan (lihat [`routes/console.php`](routes/console.php)):
 
 ```bash
-* * * * * cd /path-ke-aplikasi && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /var/www/kss-multidivisi && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 ---
@@ -234,7 +347,9 @@ dan backup otomatis tidak akan berjalan (lihat [`routes/console.php`](routes/con
 - [ ] `php artisan about` menampilkan `Environment: production`, `Debug Mode: OFF`
 - [ ] Config, Events, Routes, Views semuanya `CACHED` pada output `php artisan about`
 - [ ] `curl -sI` pada berkas di `/vendor/` mengembalikan `Content-Encoding: gzip`
+      dan `X-Content-Type-Options: nosniff`
 - [ ] Halaman dinamis tetap mengembalikan `Cache-Control: no-cache, private`
-      (jangan sampai ikut ter-cache — ini dijaga oleh Laravel, bukan `.htaccess`)
+      (jangan sampai ikut ter-cache — ini dijaga oleh Laravel, bukan Nginx)
 - [ ] Login, buat laporan, dan export PDF berjalan normal
+- [ ] Tanda tangan tampil di laporan dan di PDF hasil export
 - [ ] `storage/logs` tidak membengkak setelah beberapa jam pemakaian
