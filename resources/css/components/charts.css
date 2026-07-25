@@ -186,50 +186,125 @@ body.dark-mode {
            grafik tetap tampil meski JS gagal dimuat, dan warnanya otomatis
            ikut tema karena semuanya memakai variabel CSS.
            ============================================= */
+        /* Bingkai grafik.
+
+           Kanvas SVG sengaja diregangkan mengikuti lebar kartu
+           (preserveAspectRatio="none") supaya bentuk datanya selalu memenuhi
+           bidang. Konsekuensinya seluruh isi viewBox ikut melar mendatar — pada
+           kartu lebar, faktornya bisa 1,7x mendatar tetapi hanya 1,1x menegak,
+           sehingga angka sumbu terlihat lonjong dan kebesaran.
+
+           Karena itu sumbu, garis bantu, dan angkanya berada di luar viewBox:
+           elemen HTML biasa yang diposisikan dalam persen bidang plot. Ukuran
+           hurufnya tetap dalam piksel, sedangkan letaknya tetap sejajar dengan
+           kanvas berapa pun lebar kartunya. */
+        .chart-frame {
+            position: relative;
+            /* Selokan kiri menampung angka sumbu Y; lebarnya dikirim tiap
+               grafik lewat --chart-gutter karena "100.000" jauh lebih panjang
+               daripada "30". Selokan bawah menampung label sumbu X. */
+            margin-left: var(--chart-gutter, 48px);
+            margin-bottom: 32px;
+        }
+
         .chart {
             display: block;
+            position: relative;
+            /* Kanvas berada di atas garis bantu yang diposisikan absolut. */
+            z-index: 1;
             width: 100%;
-            height: auto;
+            /* Skala mengikuti lebar layar sampai batas ini — di monitor lebar,
+               tinggi bawaan (mengikuti aspek viewBox) jadi berlebihan. */
+            height: clamp(150px, 22vw, 240px);
             overflow: visible;
         }
 
-        .chart__grid line {
-            stroke: var(--chart-grid);
-            stroke-width: 1;
-            shape-rendering: crispEdges;
+        /* Garis bantu horizontal: memakai border 1px, jadi ketebalannya persis
+           satu piksel dan pola putus-putusnya tidak ikut teregang. */
+        .chart-rule {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 0;
+            border-top: 1px solid var(--chart-grid);
+            pointer-events: none;
         }
 
-        .chart__baseline {
-            stroke: var(--smooth-border);
-            stroke-width: 1;
-            shape-rendering: crispEdges;
+        .chart-rule--base { border-top-color: var(--smooth-border); }
+
+        .chart-rule--mean {
+            border-top-style: dashed;
+            border-top-color: var(--muted);
         }
 
-        .chart__mean {
-            stroke: var(--muted);
-            stroke-width: 1;
-            stroke-dasharray: 5 5;
+        .chart-axis {
+            position: absolute;
+            z-index: 2;
+            font-size: 11px;
+            line-height: 1;
+            color: var(--muted);
+            white-space: nowrap;
+            pointer-events: none;
+            font-variant-numeric: tabular-nums;
         }
 
+        /* Angka sumbu Y digantung di selokan kiri, rata kanan ke tepi plot. */
+        .chart-axis--y {
+            right: 100%;
+            padding-right: 9px;
+            transform: translateY(-50%);
+        }
+
+        /* Label sumbu X dikumpulkan dalam satu baris setinggi nol tepat di
+           bawah plot, lalu tiap label dipusatkan di titik datanya. Dibungkus
+           supaya penjarangan pada layar sempit bisa memakai nth-child. */
+        .chart-axis-row {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            height: 0;
+        }
+
+        .chart-axis--x {
+            top: 0;
+            padding-top: 10px;
+            transform: translateX(-50%);
+        }
+
+        .chart-axis--now { color: var(--black); font-weight: 600; }
+
+        /* Deret padat (mis. 30 hari) tidak muat penuh di kartu sempit, jadi
+           labelnya diselang-seling. Label periode berjalan selalu ditahan. */
+        @media (max-width: 700px) {
+            .chart-axis-row--dense > .chart-axis--x:nth-child(even):not(.chart-axis--now) {
+                display: none;
+            }
+        }
+
+        /* Dipakai gauge, yang penskalaannya seragam sehingga teks di dalam
+           viewBox tetap proporsional. */
         .chart__tick {
             font-size: 10px;
             fill: var(--muted);
             font-family: inherit;
         }
 
-        .chart__tick--now { fill: var(--black); font-weight: 600; }
-
         .chart__line {
             fill: none;
             stroke-width: 2.5;
             stroke-linecap: round;
             stroke-linejoin: round;
+            /* Tanpa ini, bagian garis yang menegak ikut menebal mengikuti
+               regangan mendatar kanvas. */
+            vector-effect: non-scaling-stroke;
         }
 
         .chart__dot {
             stroke: var(--white);
             stroke-width: 2;
             transition: r 0.16s ease;
+            vector-effect: non-scaling-stroke;
         }
 
         .chart__bar {
@@ -252,6 +327,7 @@ body.dark-mode {
             stroke-dasharray: 3 3;
             opacity: 0;
             transition: opacity 0.16s ease;
+            vector-effect: non-scaling-stroke;
         }
 
         .chart__cursor.is-visible { opacity: 1; }
@@ -296,7 +372,32 @@ body.dark-mode {
             box-shadow: 0 1px 2px rgba(15,23,42,0.08);
         }
 
+        /* Keterangan ringkas di bawah grafik tren (mis. "Total 6 bulan: ...").
+           Dipakai dashboard manajer maupun admin, jadi ditaruh di sini —
+           bukan di layout manajer — supaya kedua sisi memuatnya. */
+        .perf-chart__footer {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--smooth-border);
+            font-size: 11px;
+            color: var(--black-secondary);
+        }
+
+        .perf-chart__footer strong {
+            font-weight: 600;
+            color: var(--black);
+            font-variant-numeric: tabular-nums;
+        }
+
         /* Legend dipakai bersama oleh donut dan area bertumpuk. */
+        /* Selokan label sumbu X sudah memberi jarak sendiri, jadi jarak dari
+           induk flex dikurangi agar legend tidak terlepas jauh dari grafik. */
+        .chart-frame + .chart-legend { margin-top: -14px; }
+
         .chart-legend {
             display: flex;
             flex-wrap: wrap;

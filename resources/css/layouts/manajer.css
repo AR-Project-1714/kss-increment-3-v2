@@ -768,25 +768,6 @@
             align-items: stretch;
         }
 
-        .perf-chart__footer {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 6px 16px;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--smooth-border);
-            font-size: 11px;
-            color: var(--black-secondary);
-        }
-
-        .perf-chart__footer strong {
-            font-weight: 600;
-            color: var(--black);
-            font-variant-numeric: tabular-nums;
-        }
-
-
         .perf-table { width: 100%; border-collapse: collapse; }
 
         .perf-table th {

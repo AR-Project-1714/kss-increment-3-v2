@@ -23,3 +23,69 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# ============================================================================
+# Kompresi respons teks
+# ----------------------------------------------------------------------------
+# CSS vendor (uicons 3x 249 KB, bootstrap 227 KB) sebelumnya dikirim mentah.
+# Gzip memangkasnya ~87%. Berkas biner yang sudah terkompresi sendiri (woff2,
+# png, webp, ico, pdf, xlsx, zip) sengaja TIDAK didaftarkan: mengompresnya
+# hanya membakar CPU tanpa mengecilkan ukuran.
+# ============================================================================
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/x-javascript text/javascript
+    AddOutputFilterByType DEFLATE application/json application/xml application/rss+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+
+    # Cegah kompresi ganda pada berkas yang formatnya sudah terkompresi.
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|avif|ico|woff2?|zip|gz|pdf|xlsx?)$ no-gzip dont-vary
+</IfModule>
+
+# ============================================================================
+# Cache header aset statis
+# ----------------------------------------------------------------------------
+# Pencocokan berbasis path memakai SetEnvIf karena <FilesMatch> di .htaccess
+# hanya melihat nama berkas, bukan foldernya.
+#
+# Catatan: pola di bawah mengasumsikan document root diarahkan ke folder
+# public/ (deploy Laravel standar). Kalau aplikasi dipasang di subfolder,
+# sesuaikan awalan "^/" menjadi "^/nama-subfolder/".
+# ============================================================================
+<IfModule mod_setenvif.c>
+    <IfModule mod_headers.c>
+        # Berkas build Vite berhash, dan public/js dipanggil dengan
+        # ?v={filemtime} — URL-nya ikut berubah setiap isinya berubah,
+        # sehingga aman disimpan lama.
+        SetEnvIf Request_URI "^/build/"      KSS_CACHE_IMMUTABLE=1
+        SetEnvIf Request_URI "^/js/"         KSS_CACHE_IMMUTABLE=1
+
+        # Vendor (bootstrap, uicons, poppins) dan gambar aplikasi tidak
+        # berversi. Umur cache dibatasi 30 hari supaya pembaruan berkas masih
+        # sampai ke pengguna tanpa hard-refresh. Service worker sudah memakai
+        # stale-while-revalidate untuk /vendor/, jadi tampilan tetap instan.
+        SetEnvIf Request_URI "^/vendor/"     KSS_CACHE_LONG=1
+        SetEnvIf Request_URI "^/assets/"     KSS_CACHE_LONG=1
+        SetEnvIf Request_URI "^/favicon\.ico$" KSS_CACHE_LONG=1
+
+        # Tanda tangan bersifat privat — sejalan dengan aturan di public/sw.js
+        # yang juga menolak menyimpannya.
+        SetEnvIf Request_URI "^/signatures/" KSS_CACHE_PRIVATE=1
+
+        # Service worker harus selalu diperiksa ulang, kalau tidak versi lama
+        # bisa nyangkut dan menahan strategi cache yang sudah diperbarui.
+        SetEnvIf Request_URI "^/sw\.js$"     KSS_CACHE_REVALIDATE=1
+
+        Header set Cache-Control "public, max-age=31536000, immutable" env=KSS_CACHE_IMMUTABLE
+        Header set Cache-Control "public, max-age=2592000"             env=KSS_CACHE_LONG
+        Header set Cache-Control "private, no-store"                   env=KSS_CACHE_PRIVATE
+        Header set Cache-Control "public, max-age=0, must-revalidate"  env=KSS_CACHE_REVALIDATE
+    </IfModule>
+</IfModule>
+
+# Tipe MIME font — sebagian server lama belum mengenalinya dan mengirim
+# application/octet-stream, yang membuat browser menolak memuat font.
+<IfModule mod_mime.c>
+    AddType font/woff2 .woff2
+    AddType font/woff .woff
+</IfModule>
