@@ -377,9 +377,9 @@
         @include('charts.area-stacked', [
             'rows' => $activityTrend,
             'series' => [
-                ['key' => 'Login',          'label' => 'Login',          'color' => 'var(--chart-1)'],
-                ['key' => 'Perubahan Data', 'label' => 'Perubahan Data', 'color' => 'var(--chart-2)'],
-                ['key' => 'Keamanan',       'label' => 'Keamanan',       'color' => 'var(--chart-3)'],
+                ['key' => 'Login',          'label' => 'Login',          'color' => 'var(--chart-3)'],
+                ['key' => 'Perubahan Data', 'label' => 'Perubahan Data', 'color' => 'var(--chart-1)'],
+                ['key' => 'Keamanan',       'label' => 'Keamanan',       'color' => 'var(--red-main)'],
             ],
             'suffix' => ' kejadian',
             'emptyText' => 'Belum ada aktivitas tercatat pada 30 hari terakhir.',
