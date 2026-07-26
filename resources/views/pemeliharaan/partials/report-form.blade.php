@@ -650,7 +650,7 @@
 <datalist id="pemeliharaan-keterangan-options">
     <option value="Sakit"></option>
     <option value="Cuti"></option>
-    <option value="Tidak Masuk"></option>
+    <option value="Izin"></option>
     <option value="Tanpa Keterangan"></option>
 </datalist>
 @endsection
@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Keterangan diketik bebas (bukan dropdown terkunci); Sakit/Cuti/Tidak Masuk/
     // Tanpa Keterangan hanya saran cepat lewat datalist, dicocokkan tanpa peduli
     // huruf besar/kecil.
-    const ABSEN = ['sakit', 'cuti', 'tidak masuk', 'tanpa keterangan'];
+    const ABSEN = ['sakit', 'cuti', 'izin', 'tanpa keterangan'];
 
     function isAbsentNote(value) {
         return ABSEN.includes(String(value || '').trim().toLowerCase());
