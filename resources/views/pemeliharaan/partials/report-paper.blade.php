@@ -141,8 +141,8 @@
 @endphp
 
 <style>
-    .report-paper { color: #000; font-size: 8px; font-family: Arial, Helvetica, sans-serif; }
-    .report-paper * { font-family: Arial, Helvetica, sans-serif; }
+    .report-paper { color: #000; font-size: 8px; font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif; }
+    .report-paper * { font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif; }
     .report-paper .head-wrap { width: 100%; margin-bottom: 6px; border-collapse: collapse; }
     .report-paper .head-wrap td { vertical-align: middle; }
     .report-paper .logo { height: 36px; }
@@ -220,7 +220,7 @@
     <table class="grid">
         <thead>
             <tr>
-                <th rowspan="2" style="width:4%">NO</th>
+                <th rowspan="2" style="width:4%">GROUP</th>
                 <th colspan="2">JENIS UNIT</th>
                 <th rowspan="2" style="width:30%">PEKERJAAN UTAMA</th>
                 <th rowspan="2" style="width:15%">PETUGAS</th>
@@ -235,18 +235,18 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($mainRows as $idx => $row)
+            @foreach ($mainRows as $row)
                 @php($item = $row['item'])
                 @php($g = $row['group'])
                 <tr class="utama-row">
-                    <td class="c grp">{{ $idx + 1 }}</td>
+                    <td class="c grp">{{ $g }}</td>
                     <td>{{ $unitNama($item) }}</td>
                     <td class="c">{{ $unitNomor($item) }}</td>
                     <td>{{ $item->description ?? '' }}</td>
                     <td>{{ $item->assignee ?? '' }}</td>
                     <td class="c" style="vertical-align:middle">{!! $item ? $check($item->is_completed) : '' !!}</td>
                     <td class="c" style="vertical-align:middle">{!! $item ? $check(! $item->is_completed && ($item->description || $item->assignee)) : '' !!}</td>
-                    <td class="grp">Group. {{ $g }}</td>
+                    <td>{{ $item->notes ?? '' }}</td>
                 </tr>
             @endforeach
         </tbody>

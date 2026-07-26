@@ -376,10 +376,18 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="box-input-1">
-                                    <div class="box-label-1"><label>Pekerjaan Utama</label></div>
-                                    <div class="input-wrapper">
-                                        <textarea name="main_items[{{ $i }}][description]" class="custom-input" rows="2" placeholder="Uraian pekerjaan utama...">{{ $row['description'] }}</textarea>
+                                <div class="work-card-grid">
+                                    <div class="box-input-1">
+                                        <div class="box-label-1"><label>Pekerjaan Utama</label></div>
+                                        <div class="input-wrapper">
+                                            <textarea name="main_items[{{ $i }}][description]" class="custom-input" rows="2" placeholder="Uraian pekerjaan utama...">{{ $row['description'] }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="box-input-1 wc-notes">
+                                        <div class="box-label-1"><label>Keterangan</label></div>
+                                        <div class="input-wrapper">
+                                            <textarea name="main_items[{{ $i }}][notes]" class="custom-input" rows="2" placeholder='Keterangan (Opsional)'>{{ $row['notes'] }}</textarea>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -797,7 +805,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="box-input-1"><div class="box-label-1"><label>Jenis Unit</label></div><div class="tbl-select-wrapper" data-search="true"><select name="main_items[${i}][unit_id]" class="tbl-native-select"><option value="">Pilih Unit</option>@foreach ($unitsTruck as $u)<option value="{{ $u['id'] }}">{{ $u['label'] }}</option>@endforeach @foreach ($unitsHeavy as $u)<option value="{{ $u['id'] }}">{{ $u['label'] }}</option>@endforeach</select><span class="sel-caret"><i class="fi fi-rr-angle-small-down"></i></span></div></div>
                         <div class="box-input-1"><div class="box-label-1"><label>Petugas</label></div><div class="input-wrapper"><input type="text" name="main_items[${i}][assignee]" data-suggest="maintenance-employee-datalist" data-multi="true" autocomplete="off" class="custom-input" placeholder="Nama petugas (pisahkan dengan koma)"><i class="fi fi-rr-user input-icon"></i></div></div>
                     </div>
-                    <div class="box-input-1"><div class="box-label-1"><label>Pekerjaan Utama</label></div><div class="input-wrapper"><textarea name="main_items[${i}][description]" class="custom-input" rows="2" placeholder="Uraian pekerjaan utama..."></textarea></div></div>
+                    <div class="work-card-grid">
+                        <div class="box-input-1"><div class="box-label-1"><label>Pekerjaan Utama</label></div><div class="input-wrapper"><textarea name="main_items[${i}][description]" class="custom-input" rows="2" placeholder="Uraian pekerjaan utama..."></textarea></div></div>
+                        <div class="box-input-1 wc-notes"><div class="box-label-1"><label>Keterangan</label></div><div class="input-wrapper"><textarea name="main_items[${i}][notes]" class="custom-input" rows="2" placeholder='Jika pekerjaan belum selesai, maka kasi pemeliharaan dapat menulis alasannya disini seperti "masih menunggu spare part"'></textarea></div></div>
+                    </div>
                 </div>
             </div>`;
         document.getElementById('main-list').insertAdjacentHTML('beforeend', html);
