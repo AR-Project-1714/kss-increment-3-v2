@@ -252,6 +252,7 @@ class ManajerController extends Controller
 
         return view('manajer.performa', [
             'report' => $report,
+            'activityCards' => $report['activityCards'] ?? [],
             'kpi' => array_merge($report['summary'], [
                 'comparisonLabel' => $report['comparisonLabel'],
                 'sparklines' => $report['sparklines'],
@@ -265,6 +266,33 @@ class ManajerController extends Controller
             'filterOptions' => $performance->filterOptions(),
             'hasActiveFilter' => $preset !== 'bulan-ini' || $selectedGroup !== 'all' || $selectedShift !== 'all',
         ]);
+    }
+
+    /**
+     * Isi satu panel kegiatan, diambil terpisah saat tabnya dibuka.
+     *
+     * Panel tidak ikut dihitung ketika halaman utama dirender: kelima panel
+     * sekaligus berarti lima kali beban query untuk sesuatu yang biasanya
+     * hanya dibaca satu. Tiap panel punya kunci cache sendiri supaya baris
+     * cache-nya tetap kecil — penyimpanan cache aplikasi ini ada di database.
+     */
+    public function performaKegiatan(Request $request, OperationalPerformanceService $performance, string $key)
+    {
+        $this->authorizeManagementAccess($request);
+
+        if (! array_key_exists($key, $performance->activityCatalog())) {
+            abort(404);
+        }
+
+        ['filters' => $filters] = $this->performanceFiltersFromRequest($request);
+
+        $detail = Cache::remember(
+            $this->performanceCacheKey($filters, 'kegiatan.'.$key),
+            now()->addMinutes(10),
+            fn (): array => $performance->activityDetail($key, $filters)
+        );
+
+        return view('manajer.partials.activity-detail', ['detail' => $detail]);
     }
 
     /**
@@ -400,17 +428,41 @@ class ManajerController extends Controller
     }
 
     /**
+     * Kunci cache satu bagian halaman performa.
+     *
+     * Cap waktu laporan terakhir ikut masuk kunci, sehingga laporan yang baru
+     * disetujui langsung tercermin tanpa perlu menghapus kunci satu per satu —
+     * kombinasi filternya terlalu banyak untuk dibersihkan manual.
+     *
      * @param  array<string, mixed>  $filters
      */
-    private function performanceCacheKey(array $filters): string
+    private function performanceCacheKey(array $filters, string $section = 'ringkasan'): string
     {
         return sprintf(
-            'manajer.performa.%s.%s.%s.%s',
+            'manajer.performa.v2.%s.%s.%s.%s.%s.%s',
+            $section,
+            $this->performanceStamp(),
             $filters['start']->toDateString(),
             $filters['end']->toDateString(),
             $filters['group'] ?? 'all',
             $filters['shift'] ?? 'all'
         );
+    }
+
+    /**
+     * Cap waktu laporan terakhir yang ikut dihitung. Dicari maksimal sekali
+     * per menit karena query-nya murah tetapi tetap tidak perlu diulang tiap
+     * kali kunci cache disusun.
+     */
+    private function performanceStamp(): string
+    {
+        return Cache::remember('manajer.performa.stamp', now()->addSeconds(60), function (): string {
+            $latest = DailyReport::query()
+                ->whereIn('status', OperationalPerformanceService::COUNTED_STATUSES)
+                ->max('updated_at');
+
+            return $latest ? Carbon::parse($latest)->format('YmdHis') : 'kosong';
+        });
     }
 
     // ============================================================

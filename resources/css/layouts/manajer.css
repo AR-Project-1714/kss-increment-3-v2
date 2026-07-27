@@ -838,6 +838,230 @@
             .perf-layout { grid-template-columns: 1fr; }
         }
 
+
+        /* =============================================
+           PERFORMA PER KEGIATAN
+           Strip kartu ringkas + panel rincian bertab.
+           ============================================= */
+        .act-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .act-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 14px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 10px;
+            background-color: var(--white);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .act-card__head { display: flex; align-items: center; gap: 8px; }
+
+        .act-card__label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--black-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .act-card__row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+
+        .act-card__value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--black);
+            line-height: 1.1;
+        }
+
+        .act-card__unit {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--black-secondary);
+            margin-left: 4px;
+        }
+
+        .act-card__meta { font-size: 10px; color: var(--muted); }
+
+        .act-card__spark {
+            width: 100%;
+            height: 24px;
+            margin-top: 2px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            color: var(--muted);
+        }
+
+        .act-card__spark--up   { color: var(--success); }
+        .act-card__spark--down { color: var(--red-main); }
+
+        /* Tab kegiatan: bisa digeser mendatar pada layar sempit supaya kelima
+           kegiatan tetap terjangkau tanpa membungkus jadi dua baris. */
+        .act-tabs {
+            display: flex;
+            gap: 6px;
+            margin-top: 16px;
+            padding-bottom: 10px;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--smooth-border);
+            scrollbar-width: thin;
+        }
+
+        .act-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 12px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 50px;
+            background-color: transparent;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--black-secondary);
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .act-tab:hover { background-color: var(--blue-main-5); color: var(--blue-main); }
+
+        .act-tab.is-active {
+            background-color: var(--blue-main);
+            border-color: var(--blue-main);
+            color: var(--white);
+        }
+
+        .act-panel { padding-top: 16px; }
+        .act-panel__inner { display: flex; flex-direction: column; gap: 18px; }
+
+        .act-panel__note {
+            font-size: 10px;
+            color: var(--muted);
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .act-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .act-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 12px;
+            border-radius: 10px;
+            background-color: var(--blue-main-3);
+        }
+
+        .act-metric__label { font-size: 10px; color: var(--black-secondary); }
+        .act-metric__value { font-size: 15px; font-weight: 600; color: var(--black); }
+        .act-metric__unit  { font-size: 10px; font-weight: 500; color: var(--black-secondary); }
+        .act-metric__caption { font-size: 10px; color: var(--muted); }
+
+        .act-block { display: flex; flex-direction: column; gap: 4px; }
+
+        .act-block__title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--black);
+        }
+
+        .act-block__subtitle {
+            font-size: 10px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        /* Kolom tren enam bulan. Tingginya tetap supaya panel tidak melonjak
+           saat data berpindah antar kegiatan. */
+        .act-trend {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            height: 150px;
+            padding-top: 8px;
+        }
+
+        .act-trend__col {
+            flex: 1 1 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            height: 100%;
+            cursor: default;
+        }
+
+        .act-trend__slot {
+            flex: 1 1 auto;
+            width: 100%;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .act-trend__bar {
+            display: block;
+            width: 100%;
+            max-width: 34px;
+            border-radius: 6px 6px 0 0;
+            background-color: var(--blue-main);
+            transition: opacity 0.2s ease;
+        }
+
+        .act-trend__col:hover .act-trend__bar { opacity: 0.78; }
+        .act-trend__label { font-size: 10px; color: var(--black-secondary); }
+
+        /* Rangka penantian saat panel sedang diambil. */
+        .act-panel__loading { display: flex; flex-direction: column; gap: 12px; }
+
+        .act-skeleton {
+            display: block;
+            border-radius: 10px;
+            background: linear-gradient(90deg, var(--blue-main-5) 25%, var(--blue-main-10) 37%, var(--blue-main-5) 63%);
+            background-size: 400% 100%;
+            animation: act-skeleton-shimmer 1.4s ease infinite;
+        }
+
+        .act-skeleton--metrics { height: 64px; }
+        .act-skeleton--block   { height: 180px; }
+
+        @keyframes act-skeleton-shimmer {
+            0%   { background-position: 100% 50%; }
+            100% { background-position: 0 50%; }
+        }
+
+        .donut-note {
+            font-size: 10px;
+            color: var(--muted);
+            text-align: center;
+            margin: 10px 0 0;
+        }
+
+        @media (max-width: 1100px) {
+            .act-grid    { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .act-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 640px) {
+            .act-grid    { grid-template-columns: 1fr; }
+            .act-metrics { grid-template-columns: 1fr; }
+            .act-trend   { height: 120px; gap: 6px; }
+        }
+
         /* Lencana jumlah pada judul kartu — khusus dashboard manajer. */
         .section-card__badge {
             width: 18px;

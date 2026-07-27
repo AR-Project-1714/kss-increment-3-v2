@@ -126,6 +126,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/manajer', [ManajerController::class, 'index'])->name('manajer.index');
         Route::get('/manajer/performa', [ManajerController::class, 'performa'])->name('manajer.performa');
         Route::get('/manajer/performa/export', [ManajerController::class, 'performaExport'])->name('manajer.performa.export');
+        Route::get('/manajer/performa/kegiatan/{key}', [ManajerController::class, 'performaKegiatan'])->name('manajer.performa.kegiatan');
         Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
         Route::get('/manajer/archive/export', [ManajerController::class, 'archiveExport'])->name('manajer.archive.export');
         Route::get('/manajer/archive/suggestions', [ManajerController::class, 'archiveSuggestions'])->name('manajer.archive.suggestions');

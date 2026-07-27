@@ -16,10 +16,15 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * Berkasnya menyalin isi halaman apa adanya, satu sheet per bagian:
  *
  *   Ringkasan        — empat KPI + beban kerja + status rasio kerusakan
+ *   Per Kegiatan     — lima kegiatan operasi beserta satuannya masing-masing
  *   Tren Bulanan     — tabel 6 bulan (tonase, laporan, kapal, per shift)
  *   Regu & Kegiatan  — perbandingan regu + komposisi jenis kegiatan
  *   Peringkat Lembur — jam terbanyak & paling sering, berdampingan
  *   Kapal Dilayani   — daftar kunjungan kapal beserta realisasinya
+ *
+ * Satuan ditulis di kolom tersendiri karena tidak seragam: container dicatat
+ * dalam Teus sedangkan kegiatan lain dalam Ton, sehingga penerimanya tidak
+ * keliru menjumlahkan keduanya.
  *
  * Berbeda dari ekspor arsip yang menulis semua nilai sebagai teks, angka di
  * sini ditulis sebagai sel numerik dengan format tampilan — rekap performa
@@ -43,6 +48,7 @@ class PerformanceExportService
         $spreadsheet->removeSheetByIndex(0);
 
         $this->summarySheet($spreadsheet->createSheet(), $report, $contextLines);
+        $this->activitySheet($spreadsheet->createSheet(), $report);
         $this->trendSheet($spreadsheet->createSheet(), $report);
         $this->groupActivitySheet($spreadsheet->createSheet(), $report);
         $this->overtimeSheet($spreadsheet->createSheet(), $report);
@@ -123,7 +129,47 @@ class PerformanceExportService
     }
 
     // ============================================================
-    // Sheet 2 — Tren bulanan
+    // Sheet 2 — Performa per kegiatan
+    // ============================================================
+
+    /**
+     * Kelima kegiatan operasi apa adanya, lengkap dengan satuannya.
+     *
+     * Sheet ini sengaja tidak menuliskan baris total: menjumlahkan Ton dengan
+     * Teus tidak punya arti, dan total tonase yang sah sudah ada di sheet
+     * Ringkasan.
+     *
+     * @param  array<string, mixed>  $report
+     */
+    private function activitySheet(Worksheet $sheet, array $report): void
+    {
+        $sheet->setTitle('Per Kegiatan');
+
+        $row = $this->writeHeading($sheet, 'Performa per Kegiatan', [
+            'Periode '.($report['periodLabel'] ?? '-').' · perubahan dihitung '.($report['comparisonLabel'] ?? '-').'.',
+            'Container dicatat dalam Teus sehingga tidak dijumlahkan bersama kegiatan bersatuan Ton.',
+        ]);
+
+        $rows = [];
+
+        foreach ($report['activityCards'] ?? [] as $card) {
+            $rows[] = [
+                $card['label'] ?? '-',
+                $this->num($card['value'] ?? 0, 1),
+                $card['unit'] ?? '-',
+                $this->deltaText($card['delta'] ?? []),
+            ];
+        }
+
+        $this->writeTable($sheet, $row, 'Kegiatan Operasi', [
+            'Jenis Kegiatan', 'Nilai', 'Satuan', 'Perubahan',
+        ], $rows, 'Belum ada kegiatan tercatat pada periode ini.');
+
+        $this->autoSize($sheet, 4);
+    }
+
+    // ============================================================
+    // Sheet 3 — Tren bulanan
     // ============================================================
 
     /**
@@ -212,7 +258,9 @@ class PerformanceExportService
             ];
         }
 
-        $this->writeTable($sheet, $row, 'Komposisi Kegiatan', [
+        // Hanya kegiatan bersatuan Ton yang muncul di sini, karena porsinya
+        // dihitung terhadap total tonase. Container ada di sheet Per Kegiatan.
+        $this->writeTable($sheet, $row, 'Komposisi Kegiatan (satuan Ton)', [
             'Jenis Kegiatan', 'Tonase (Ton)', 'Porsi', 'Δ Tonase',
         ], $activityRows, 'Belum ada tonase pada periode ini.');
 

@@ -193,6 +193,101 @@
     }
 
     // ============================================================
+    // Panel kegiatan (halaman Performa Operasional)
+    //
+    // Kelima panel tidak ikut dirender bersama halaman: isinya diambil lewat
+    // permintaan terpisah saat tabnya dibuka, dan panel pertama baru diambil
+    // ketika stripnya benar-benar masuk layar. Hasil yang sudah diambil
+    // disimpan di memori supaya berpindah tab tidak memanggil server lagi.
+    // ============================================================
+
+    function initActivityPanel() {
+        var panel = document.getElementById('activity-panel');
+        var tabs = Array.prototype.slice.call(document.querySelectorAll('[data-activity-tab]'));
+
+        if (!panel || tabs.length === 0) return;
+
+        var cache = {};
+        var pending = null;
+
+        function markActive(active) {
+            tabs.forEach(function (tab) {
+                var isActive = tab === active;
+                tab.classList.toggle('is-active', isActive);
+                tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            });
+        }
+
+        function showSkeleton() {
+            panel.innerHTML =
+                '<div class="act-panel__loading">' +
+                '<span class="act-skeleton act-skeleton--metrics"></span>' +
+                '<span class="act-skeleton act-skeleton--block"></span>' +
+                '</div>';
+        }
+
+        function load(tab) {
+            var key = tab.getAttribute('data-activity-tab');
+
+            markActive(tab);
+            hideTooltip();
+
+            if (cache[key]) {
+                panel.innerHTML = cache[key];
+                return;
+            }
+
+            showSkeleton();
+            pending = key;
+
+            fetch(tab.getAttribute('data-activity-url'), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            })
+                .then(function (response) {
+                    if (!response.ok) throw new Error('Gagal memuat panel');
+                    return response.text();
+                })
+                .then(function (html) {
+                    cache[key] = html;
+
+                    // Pengguna bisa sudah pindah tab sebelum jawabannya tiba —
+                    // jangan timpa panel dengan isi kegiatan yang sudah lewat.
+                    if (pending === key) panel.innerHTML = html;
+                })
+                .catch(function () {
+                    if (pending !== key) return;
+
+                    panel.innerHTML =
+                        '<div class="perf-empty">Rincian kegiatan gagal dimuat. ' +
+                        'Coba pilih ulang tab ini atau muat ulang halaman.</div>';
+                });
+        }
+
+        tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                load(tab);
+            });
+        });
+
+        // Panel pertama diambil setelah halaman selesai digambar, empat sisanya
+        // menunggu tabnya diklik. Penundaannya sengaja memakai timer, bukan
+        // IntersectionObserver atau perhitungan posisi: isi halaman berada di
+        // wadah bergulir sendiri, dan pada sebagian peramban peristiwa gulir
+        // maupun observer tidak pernah sampai ke jendela — panel yang diam-diam
+        // tidak pernah termuat jauh lebih buruk daripada satu permintaan kecil.
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(function () {
+                load(tabs[0]);
+            }, { timeout: 1200 });
+        } else {
+            window.setTimeout(function () {
+                load(tabs[0]);
+            }, 200);
+        }
+    }
+
+    // ============================================================
     // Pemasangan
     // ============================================================
 
@@ -243,6 +338,7 @@
     function init() {
         initStacks();
         bindTooltips();
+        initActivityPanel();
     }
 
     if (document.readyState === 'loading') {

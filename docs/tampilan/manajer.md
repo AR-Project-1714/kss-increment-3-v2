@@ -16,6 +16,18 @@ Subjudul: "Ringkasan performa dan aktivitas pelaporan dari ketiga divisi." Panel
 
 Ini adalah alur kerja inti manajer: menyetujui laporan dari ketiga divisi melalui satu dashboard.
 
+### Performa Operasi
+`manajer.performa` — `resources/views/manajer/performa.blade.php`
+Analisis produktivitas divisi operasi dengan filter periode (preset Bulan Ini / Bulan Lalu / 3 Bulan atau rentang tanggal bebas), regu, dan shift. Seluruh angkanya diturunkan dari laporan harian yang sudah masuk — tidak ada tabel data tersendiri.
+
+Isi halaman:
+- **Empat kartu KPI** — tonase ditangani, kapal dilayani, tonase per shift, rasio kerusakan, masing-masing dengan perbandingan periode setara dan sparkline 6 bulan.
+- **Performa per Kegiatan** — lima kartu ringkas (pemuatan pupuk kantong, pemuatan urea curah, bongkar bahan baku, bongkar/muat container, trucking pengiriman pupuk kantong) beserta tab rinciannya. Isi tab diambil lewat `manajer.performa.kegiatan` saat dibuka, bukan ikut dirender bersama halaman.
+- **Grafik** — tren tonase 6 bulan, komposisi kegiatan, tonase per shift, rasio kerusakan, perbandingan regu, beban kerja, peringkat lembur, dan daftar kapal dilayani.
+- **Ekspor** — `manajer.performa.export` menghasilkan Excel enam sheet mengikuti filter yang sedang aktif.
+
+**Satuan tidak seragam:** container dicatat dalam **Teus**, kegiatan lain dalam **Ton**. Karena itu container tidak ikut dijumlahkan ke Total Tonase maupun ke donut Komposisi Kegiatan — angkanya berdiri sendiri di kartu kegiatan dan panel rinciannya. Penandanya ada di `OperationalPerformanceService::activityCatalog()` lewat `countsToTonnage`.
+
 ### Arsip Laporan
 `manajer.archive` — `resources/views/manajer/archive.blade.php`
 "Riwayat Laporan" — daftar laporan yang berstatus diserahkan, ditandatangani, dan diarsipkan, dilengkapi pencarian. Manajer dapat mengunduh atau menghapus laporan dari sini.

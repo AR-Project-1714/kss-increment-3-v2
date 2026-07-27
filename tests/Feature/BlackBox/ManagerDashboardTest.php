@@ -138,7 +138,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->assertSame(SafetyStatus::Approved, $safety->fresh()->status);
     }
 
-    public function test_tc_mgr_08_ekspor_performa_menghasilkan_excel_lima_sheet(): void
+    public function test_tc_mgr_08_ekspor_performa_menghasilkan_excel_enam_sheet(): void
     {
         $manager = $this->manager();
         $operator = $this->operator('A');
@@ -161,7 +161,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
 
             $this->assertSame(
-                ['Ringkasan', 'Tren Bulanan', 'Regu & Kegiatan', 'Peringkat Lembur', 'Kapal Dilayani'],
+                ['Ringkasan', 'Per Kegiatan', 'Tren Bulanan', 'Regu & Kegiatan', 'Peringkat Lembur', 'Kapal Dilayani'],
                 $spreadsheet->getSheetNames()
             );
 

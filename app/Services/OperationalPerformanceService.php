@@ -7,6 +7,7 @@ use App\Models\DailyReport;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -19,6 +20,15 @@ use Illuminate\Support\Facades\DB;
  * sedangkan qty_*_prev adalah akumulasi shift sebelumnya. Karena itu penjumlahan
  * kolom current di rentang tanggal tidak menghitung ganda meskipun satu kapal
  * muncul pada banyak laporan.
+ *
+ * Catatan penting soal satuan: container dicatat dalam Teus (jumlah box), bukan
+ * ton, sehingga tidak boleh ikut dijumlahkan ke Total Tonase. Penandanya ada di
+ * activityCatalog() lewat `countsToTonnage`, bukan di masing-masing pemanggil,
+ * supaya kekeliruan satuan tidak bisa terulang saat kegiatan baru ditambahkan.
+ *
+ * Catatan penting soal jumlah query: seluruh rincian per regu dan per shift
+ * diambil dari satu query beragregasi per sumber, bukan satu query per regu.
+ * Dengan begitu jumlah query tidak ikut tumbuh saat regu atau shift bertambah.
  */
 class OperationalPerformanceService
 {
@@ -32,6 +42,126 @@ class OperationalPerformanceService
         ReportStatus::Approved->value,
     ];
 
+    /** Panjang deret tren bulanan untuk grafik dan sparkline. */
+    private const TREND_MONTHS = 6;
+
+    /** Batas baris tabel rincian pada panel kegiatan; sisanya lewat Ekspor. */
+    private const DETAIL_ROW_LIMIT = 50;
+
+    // ============================================================
+    // Katalog kegiatan — satu-satunya sumber kebenaran
+    // ============================================================
+
+    /**
+     * Lima jenis kegiatan operasi beserta asal datanya.
+     *
+     * `countsToTonnage` menandai kegiatan yang boleh dijumlahkan ke Total Tonase.
+     * Container bernilai false karena satuannya Teus.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function activityCatalog(): array
+    {
+        return [
+            'muat_kantong' => [
+                'label' => 'Pemuatan Pupuk Kantong',
+                'short' => 'Muat Kantong',
+                'unit' => 'Ton',
+                'icon' => 'fi fi-sr-box',
+                'tint' => 'blue',
+                'countsToTonnage' => true,
+                'from' => 'loading_activities',
+                'column' => 'loading_activities.qty_loading_current',
+                'joins' => [],
+                'reportKey' => 'loading_activities.daily_report_id',
+                // Kolom tambahan yang ikut dijumlahkan pada query yang sama,
+                // sehingga rasio kerusakan tidak butuh query sendiri.
+                'extra' => [
+                    'damage' => 'loading_activities.qty_damage_current',
+                    'delivery' => 'loading_activities.qty_delivery_current',
+                ],
+            ],
+            'muat_curah' => [
+                'label' => 'Pemuatan Urea Curah',
+                'short' => 'Muat Curah',
+                'unit' => 'Ton',
+                'icon' => 'fi fi-sr-ship',
+                'tint' => 'cyan',
+                'countsToTonnage' => true,
+                'from' => 'bulk_loading_logs',
+                'column' => 'bulk_loading_logs.cob',
+                'joins' => [
+                    ['bulk_loading_activities', 'bulk_loading_logs.bulk_loading_activity_id', 'bulk_loading_activities.id'],
+                ],
+                'reportKey' => 'bulk_loading_activities.daily_report_id',
+                'extra' => [],
+            ],
+            'bongkar_bahan_baku' => [
+                'label' => 'Bongkar Bahan Baku',
+                'short' => 'Bongkar Bahan Baku',
+                'unit' => 'Ton',
+                'icon' => 'fi fi-sr-inbox-in',
+                'tint' => 'green',
+                'countsToTonnage' => true,
+                'from' => 'material_items',
+                'column' => 'material_items.qty_current',
+                'joins' => [
+                    ['material_activities', 'material_items.material_activity_id', 'material_activities.id'],
+                ],
+                'reportKey' => 'material_activities.daily_report_id',
+                'extra' => [],
+            ],
+            'container' => [
+                'label' => 'Bongkar/Muat Container',
+                'short' => 'Container',
+                // Satuan Teus, bukan Ton — karena itu tidak ikut Total Tonase.
+                'unit' => 'Teus',
+                'icon' => 'fi fi-sr-box-open',
+                'tint' => 'orange',
+                'countsToTonnage' => false,
+                'from' => 'container_items',
+                'column' => 'container_items.qty_current',
+                'joins' => [
+                    ['container_activities', 'container_items.container_activity_id', 'container_activities.id'],
+                ],
+                'reportKey' => 'container_activities.daily_report_id',
+                'extra' => [],
+            ],
+            'trucking_turba' => [
+                'label' => 'Trucking Pengiriman Pupuk Kantong',
+                'short' => 'Trucking Turba',
+                'unit' => 'Ton',
+                'icon' => 'fi fi-sr-truck-side',
+                'tint' => 'blue',
+                'countsToTonnage' => true,
+                'from' => 'turba_deliveries',
+                'column' => 'turba_deliveries.qty_current',
+                'joins' => [
+                    ['turba_activities', 'turba_deliveries.turba_activity_id', 'turba_activities.id'],
+                ],
+                'reportKey' => 'turba_activities.daily_report_id',
+                'extra' => [],
+            ],
+        ];
+    }
+
+    /**
+     * Kegiatan yang satuannya Ton — hanya ini yang boleh dijumlahkan.
+     *
+     * @return array<int, string>
+     */
+    private function tonnageKeys(): array
+    {
+        return array_keys(array_filter(
+            $this->activityCatalog(),
+            static fn (array $activity): bool => $activity['countsToTonnage']
+        ));
+    }
+
+    // ============================================================
+    // Ringkasan untuk dashboard & halaman performa
+    // ============================================================
+
     /**
      * Ringkasan untuk empat kartu KPI dashboard: bulan berjalan dibanding
      * periode setara bulan lalu, lengkap dengan seri enam bulan untuk sparkline.
@@ -40,50 +170,29 @@ class OperationalPerformanceService
      */
     public function dashboardKpi(): array
     {
-        $start = Carbon::today()->startOfMonth();
-        $end = Carbon::today();
-
-        $summary = $this->summaryFor(['start' => $start, 'end' => $end]);
-        [$prevStart, $prevEnd] = $this->equivalentPreviousPeriod($start, $end);
-        $previous = $this->summaryFor(['start' => $prevStart, 'end' => $prevEnd]);
-
-        $trend = $this->monthlyMetrics(6);
-        $comparisonLabel = 'vs '.$this->periodLabel($prevStart, $prevEnd);
-
-        return [
-            'periodLabel' => $this->periodLabel($start, $end),
-            'comparisonLabel' => $comparisonLabel,
-            'tonnage' => [
-                'value' => $summary['tonnage'],
-                'delta' => $this->delta($summary['tonnage'], $previous['tonnage']),
-            ],
-            'ships' => [
-                'value' => $summary['ships'],
-                'delta' => $this->delta($summary['ships'], $previous['ships']),
-            ],
-            'tonnagePerShift' => [
-                'value' => $summary['tonnagePerShift'],
-                'delta' => $this->delta($summary['tonnagePerShift'], $previous['tonnagePerShift']),
-            ],
-            'damageRatio' => [
-                'value' => $summary['damageRatio'],
-                // Rasio 0% tanpa muatan kantong bukan capaian — kartu menampilkan
-                // tanda strip alih-alih angka ketika dasar hitungnya kosong.
-                'hasBase' => $summary['hasDamageBase'],
-                'delta' => $this->deltaPoint(
-                    $summary['damageRatio'],
-                    $previous['damageRatio'],
-                    $summary['hasDamageBase'] && $previous['hasDamageBase']
-                ),
-            ],
-            'trend' => $trend,
-            'sparklines' => [
-                'tonnage' => $this->sparklinePoints(array_column($trend, 'tonnage')),
-                'ships' => $this->sparklinePoints(array_column($trend, 'ships')),
-                'tonnagePerShift' => $this->sparklinePoints(array_column($trend, 'tonnagePerShift')),
-                'damageRatio' => $this->sparklinePoints(array_column($trend, 'damageRatio')),
-            ],
+        $filters = [
+            'start' => Carbon::today()->startOfMonth(),
+            'end' => Carbon::today(),
         ];
+
+        [$prevStart, $prevEnd] = $this->equivalentPreviousPeriod($filters['start'], $filters['end']);
+
+        $matrix = $this->periodMatrix($filters, $prevStart, $prevEnd);
+        $monthly = $this->monthlyMatrix($filters);
+
+        $summary = $this->summaryFrom($matrix, 'ini', $filters);
+        $previous = $this->summaryFrom($matrix, 'lalu', $filters);
+        $trend = $this->trendSeries($monthly, $filters);
+
+        return array_merge(
+            $this->summaryCards($summary, $previous),
+            [
+                'periodLabel' => $this->periodLabel($filters['start'], $filters['end']),
+                'comparisonLabel' => 'vs '.$this->periodLabel($prevStart, $prevEnd),
+                'trend' => $trend,
+                'sparklines' => $this->sparklinesFor($trend),
+            ]
+        );
     }
 
     /**
@@ -96,56 +205,29 @@ class OperationalPerformanceService
     {
         $start = $filters['start'];
         $end = $filters['end'];
-
-        $summary = $this->summaryFor($filters);
         [$prevStart, $prevEnd] = $this->equivalentPreviousPeriod($start, $end);
-        $previous = $this->summaryFor(array_merge($filters, ['start' => $prevStart, 'end' => $prevEnd]));
 
-        $activityCurrent = $this->tonnageByActivity($filters);
-        $activityPrevious = $this->tonnageByActivity(array_merge($filters, ['start' => $prevStart, 'end' => $prevEnd]));
+        $matrix = $this->periodMatrix($filters, $prevStart, $prevEnd);
+        $monthly = $this->monthlyMatrix($filters);
 
-        $trend = $this->monthlyMetrics(6, $filters);
+        $summary = $this->summaryFrom($matrix, 'ini', $filters);
+        $previous = $this->summaryFrom($matrix, 'lalu', $filters);
+        $trend = $this->trendSeries($monthly, $filters);
 
         return [
             'periodLabel' => $this->periodLabel($start, $end),
             'comparisonLabel' => 'vs '.$this->periodLabel($prevStart, $prevEnd),
-            'summary' => [
-                'tonnage' => [
-                    'value' => $summary['tonnage'],
-                    'delta' => $this->delta($summary['tonnage'], $previous['tonnage']),
-                ],
-                'ships' => [
-                    'value' => $summary['ships'],
-                    'delta' => $this->delta($summary['ships'], $previous['ships']),
-                ],
-                'tonnagePerShift' => [
-                    'value' => $summary['tonnagePerShift'],
-                    'delta' => $this->delta($summary['tonnagePerShift'], $previous['tonnagePerShift']),
-                ],
-                'damageRatio' => [
-                    'value' => $summary['damageRatio'],
-                    'hasBase' => $summary['hasDamageBase'],
-                    'delta' => $this->deltaPoint(
-                        $summary['damageRatio'],
-                        $previous['damageRatio'],
-                        $summary['hasDamageBase'] && $previous['hasDamageBase']
-                    ),
-                ],
-            ],
+            'summary' => $this->summaryCards($summary, $previous),
             'reportCount' => $summary['reports'],
             'trend' => $trend,
-            'sparklines' => [
-                'tonnage' => $this->sparklinePoints(array_column($trend, 'tonnage')),
-                'ships' => $this->sparklinePoints(array_column($trend, 'ships')),
-                'tonnagePerShift' => $this->sparklinePoints(array_column($trend, 'tonnagePerShift')),
-                'damageRatio' => $this->sparklinePoints(array_column($trend, 'damageRatio')),
-            ],
+            'sparklines' => $this->sparklinesFor($trend),
             'trendMax' => max(1.0, max(array_column($trend, 'tonnage') ?: [0.0])),
-            'shiftTrend' => $this->shiftTrend(6, $filters),
-            'groups' => $this->groupPerformance($filters, $prevStart, $prevEnd),
-            'activities' => $this->activityBreakdown($activityCurrent, $activityPrevious),
-            'shifts' => $this->shiftBreakdown($filters),
-            'workload' => $this->workload($filters, $prevStart, $prevEnd),
+            'shiftTrend' => $this->shiftTrend($monthly, $filters),
+            'groups' => $this->groupPerformance($matrix, $filters),
+            'activities' => $this->activityBreakdown($matrix, $filters),
+            'activityCards' => $this->activityCards($matrix, $monthly, $filters),
+            'shifts' => $this->shiftBreakdown($matrix, $filters),
+            'workload' => $this->workload($matrix, $filters),
             'overtimeLeaders' => $this->overtimeLeaders($filters),
             'ships' => $this->shipList($filters),
         ];
@@ -174,191 +256,319 @@ class OperationalPerformanceService
     }
 
     // ============================================================
-    // Agregasi inti
+    // Matriks agregat — inti perhitungan
+    //
+    // Satu query per sumber, dikelompokkan menurut periode × regu × shift.
+    // Filter regu/shift sengaja TIDAK diterapkan di SQL: hasilnya adalah
+    // superset yang dipotong di PHP, sehingga tabel "Perbandingan Regu" tetap
+    // memuat seluruh regu meski filter regu sedang aktif — persis seperti
+    // perilaku halaman sebelumnya.
     // ============================================================
 
     /**
      * @param  array<string, mixed>  $filters
-     * @return array<string, float|int>
+     * @return array<string, mixed>
      */
-    private function summaryFor(array $filters): array
+    private function periodMatrix(array $filters, CarbonInterface $prevStart, CarbonInterface $prevEnd): array
     {
-        $tonnage = array_sum($this->tonnageByActivity($filters));
-        $reports = $this->reportQuery($filters)->count();
-        $damage = $this->damageTotals($filters);
+        $range = [
+            'start' => $filters['start'],
+            'end' => $filters['end'],
+            'prevStart' => $prevStart,
+            'prevEnd' => $prevEnd,
+        ];
+
+        $activities = [];
+
+        foreach ($this->activityCatalog() as $key => $source) {
+            $activities[$key] = $this->sourceQuery($source, $range)
+                ->groupBy(DB::raw('periode'), 'daily_reports.group_name', 'daily_reports.shift')
+                ->selectRaw($this->periodCase().' as periode', [$filters['start']->toDateString()])
+                ->selectRaw('daily_reports.group_name as regu')
+                ->selectRaw('daily_reports.shift as shift')
+                ->selectRaw('COALESCE(SUM('.$source['column'].'), 0) as total')
+                ->tap(function (QueryBuilder $query) use ($source): void {
+                    foreach ($source['extra'] as $alias => $column) {
+                        $query->selectRaw('COALESCE(SUM('.$column.'), 0) as '.$alias);
+                    }
+                })
+                ->get();
+        }
+
+        $reports = $this->reportQuery($range)
+            ->groupBy(DB::raw('periode'), 'daily_reports.group_name', 'daily_reports.shift')
+            ->selectRaw($this->periodCase().' as periode', [$filters['start']->toDateString()])
+            ->selectRaw('daily_reports.group_name as regu')
+            ->selectRaw('daily_reports.shift as shift')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN '.$this->sameDayExpression().' THEN 1 ELSE 0 END) as ontime')
+            ->get();
+
+        return [
+            'activities' => $activities,
+            'reports' => $reports,
+            'visits' => $this->visitRows($range, $filters['start']),
+            'workload' => $this->workloadRows($range, $filters['start']),
+        ];
+    }
+
+    /**
+     * Baris kunjungan kapal tanpa agregasi. Satu kunjungan bisa tersebar di
+     * beberapa laporan lintas shift, jadi penghitungan distinct-nya dilakukan
+     * di PHP untuk tiap potongan yang dibutuhkan — menjumlahkan hasil COUNT
+     * DISTINCT per potongan akan menghitung ganda.
+     *
+     * @param  array<string, mixed>  $range
+     */
+    private function visitRows(array $range, CarbonInterface $start): Collection
+    {
+        $rows = collect();
+
+        foreach ($this->shipVisitSources() as $visit) {
+            $rows = $rows->concat(
+                $this->applyRangeFilters(
+                    DB::table($visit['table'])->join('daily_reports', 'daily_reports.id', '=', $visit['table'].'.daily_report_id'),
+                    $range
+                )
+                    ->whereNotNull($visit['table'].'.ship_name')
+                    ->where($visit['table'].'.ship_name', '!=', '')
+                    ->distinct()
+                    ->selectRaw($this->periodCase().' as periode', [$start->toDateString()])
+                    ->selectRaw('daily_reports.group_name as regu')
+                    ->selectRaw('daily_reports.shift as shift')
+                    ->selectRaw($visit['identity'].' as identity')
+                    ->get()
+            );
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Beban kerja personil dalam satu query: jumlah personil shift, entri dan
+     * durasi lembur, serta relief/pengganti.
+     *
+     * @param  array<string, mixed>  $range
+     */
+    private function workloadRows(array $range, CarbonInterface $start): Collection
+    {
+        $overtime = "employee_logs.category = 'operasi' AND employee_logs.description = 'Lembur'";
+
+        return $this->applyRangeFilters(
+            DB::table('employee_logs')->join('daily_reports', 'daily_reports.id', '=', 'employee_logs.daily_report_id'),
+            $range
+        )
+            ->groupBy(DB::raw('periode'), 'daily_reports.group_name', 'daily_reports.shift')
+            ->selectRaw($this->periodCase().' as periode', [$start->toDateString()])
+            ->selectRaw('daily_reports.group_name as regu')
+            ->selectRaw('daily_reports.shift as shift')
+            ->selectRaw("SUM(CASE WHEN employee_logs.category = 'shift' THEN 1 ELSE 0 END) as personnel")
+            ->selectRaw('SUM(CASE WHEN '.$overtime.' THEN 1 ELSE 0 END) as overtime_count')
+            ->selectRaw(
+                'SUM(CASE WHEN '.$overtime.' AND employee_logs.time_in IS NOT NULL AND employee_logs.time_out IS NOT NULL'
+                .' THEN '.$this->overtimeSecondsExpression().' ELSE 0 END) as overtime_seconds'
+            )
+            ->selectRaw(
+                "SUM(CASE WHEN (employee_logs.category = 'operasi' AND employee_logs.description = 'Relief')"
+                ." OR employee_logs.category = 'replacement' THEN 1 ELSE 0 END) as relief"
+            )
+            ->get();
+    }
+
+    /**
+     * Deret bulanan enam bulan terakhir, dikelompokkan menurut bulan × regu ×
+     * shift. Satu query per sumber melayani grafik tren, grafik shift, dan
+     * sparkline sekaligus.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function monthlyMatrix(array $filters): array
+    {
+        $end = Carbon::today()->endOfMonth();
+        $start = Carbon::today()->startOfMonth()->subMonthsNoOverflow(self::TREND_MONTHS - 1);
+        $range = ['start' => $start, 'end' => $end];
+        $bucket = $this->monthBucket('daily_reports.report_date');
+
+        $activities = [];
+
+        foreach ($this->activityCatalog() as $key => $source) {
+            $activities[$key] = $this->sourceQuery($source, $range)
+                ->groupBy(DB::raw($bucket), 'daily_reports.group_name', 'daily_reports.shift')
+                ->selectRaw($bucket.' as bucket')
+                ->selectRaw('daily_reports.group_name as regu')
+                ->selectRaw('daily_reports.shift as shift')
+                ->selectRaw('COALESCE(SUM('.$source['column'].'), 0) as total')
+                ->tap(function (QueryBuilder $query) use ($source): void {
+                    foreach ($source['extra'] as $alias => $column) {
+                        $query->selectRaw('COALESCE(SUM('.$column.'), 0) as '.$alias);
+                    }
+                })
+                ->get();
+        }
+
+        $reports = $this->reportQuery($range)
+            ->groupBy(DB::raw($bucket), 'daily_reports.group_name', 'daily_reports.shift')
+            ->selectRaw($bucket.' as bucket')
+            ->selectRaw('daily_reports.group_name as regu')
+            ->selectRaw('daily_reports.shift as shift')
+            ->selectRaw('COUNT(*) as total')
+            ->get();
+
+        $visits = collect();
+
+        foreach ($this->shipVisitSources() as $visit) {
+            $visits = $visits->concat(
+                $this->applyRangeFilters(
+                    DB::table($visit['table'])->join('daily_reports', 'daily_reports.id', '=', $visit['table'].'.daily_report_id'),
+                    $range
+                )
+                    ->whereNotNull($visit['table'].'.ship_name')
+                    ->where($visit['table'].'.ship_name', '!=', '')
+                    ->distinct()
+                    ->selectRaw($bucket.' as bucket')
+                    ->selectRaw('daily_reports.group_name as regu')
+                    ->selectRaw('daily_reports.shift as shift')
+                    ->selectRaw($visit['identity'].' as identity')
+                    ->get()
+            );
+        }
+
+        return [
+            'buckets' => $this->monthBuckets($start, $end),
+            'activities' => $activities,
+            'reports' => $reports,
+            'visits' => $visits,
+        ];
+    }
+
+    // ============================================================
+    // Pemotongan matriks di PHP
+    // ============================================================
+
+    /**
+     * Apakah satu baris agregat masuk potongan yang diminta.
+     *
+     * $ignore menyebut filter yang sengaja diabaikan: tabel perbandingan regu
+     * mengabaikan filter regu, dan sebaran shift mengabaikan filter shift.
+     *
+     * @param  array<string, mixed>  $filters
+     * @param  array<int, string>  $ignore
+     */
+    private function rowMatches(object $row, array $filters, array $ignore = []): bool
+    {
+        if (! in_array('group', $ignore, true) && ! empty($filters['group']) && $row->regu !== $filters['group']) {
+            return false;
+        }
+
+        if (! in_array('shift', $ignore, true) && ! empty($filters['shift']) && $row->shift !== $filters['shift']) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Jumlahkan satu kolom dari baris agregat sesuai potongan.
+     *
+     * @param  array<string, mixed>  $filters
+     * @param  array<int, string>  $ignore
+     */
+    private function sumRows(Collection $rows, ?string $periode, array $filters, array $ignore = [], string $field = 'total'): float
+    {
+        return (float) $rows
+            ->filter(fn (object $row): bool => ($periode === null || $row->periode === $periode) && $this->rowMatches($row, $filters, $ignore))
+            ->sum(fn (object $row) => (float) ($row->{$field} ?? 0));
+    }
+
+    /**
+     * Hitung kunjungan kapal unik pada satu potongan.
+     *
+     * @param  array<string, mixed>  $filters
+     * @param  array<int, string>  $ignore
+     */
+    private function countVisits(Collection $rows, ?string $periode, array $filters, array $ignore = []): int
+    {
+        return $rows
+            ->filter(fn (object $row): bool => ($periode === null || $row->periode === $periode) && $this->rowMatches($row, $filters, $ignore))
+            ->pluck('identity')
+            ->unique()
+            ->count();
+    }
+
+    /**
+     * Angka pokok satu periode: tonase, laporan, kapal, dan kerusakan.
+     *
+     * @param  array<string, mixed>  $matrix
+     * @param  array<string, mixed>  $filters
+     * @param  array<int, string>  $ignore
+     * @return array<string, mixed>
+     */
+    private function summaryFrom(array $matrix, string $periode, array $filters, array $ignore = []): array
+    {
+        $perActivity = [];
+
+        foreach ($matrix['activities'] as $key => $rows) {
+            $perActivity[$key] = $this->sumRows($rows, $periode, $filters, $ignore);
+        }
+
+        $tonnage = 0.0;
+
+        foreach ($this->tonnageKeys() as $key) {
+            $tonnage += $perActivity[$key] ?? 0.0;
+        }
+
+        $reports = (int) $this->sumRows($matrix['reports'], $periode, $filters, $ignore);
+        $loading = $perActivity['muat_kantong'] ?? 0.0;
+        $damage = $this->sumRows($matrix['activities']['muat_kantong'], $periode, $filters, $ignore, 'damage');
 
         return [
             'tonnage' => $tonnage,
+            'perActivity' => $perActivity,
             'reports' => $reports,
-            'ships' => $this->shipCount($filters),
+            'ships' => $this->countVisits($matrix['visits'], $periode, $filters, $ignore),
             'tonnagePerShift' => $reports > 0 ? $tonnage / $reports : 0.0,
-            'damageRatio' => $damage['loading'] > 0 ? ($damage['damage'] / $damage['loading']) * 100 : 0.0,
+            'damageRatio' => $loading > 0 ? ($damage / $loading) * 100 : 0.0,
             // Penanda apakah rasio kerusakan punya dasar hitung. Periode tanpa
             // muatan menghasilkan rasio 0% yang bukan capaian, jadi tidak boleh
             // dipakai sebagai pembanding.
-            'hasDamageBase' => $damage['loading'] > 0,
+            'hasDamageBase' => $loading > 0,
+            'onTime' => (int) $this->sumRows($matrix['reports'], $periode, $filters, $ignore, 'ontime'),
         ];
     }
 
     /**
-     * Lima sumber tonase yang tersebar di jenis kegiatan berbeda. Tiap sumber
-     * dijelaskan lewat tabel asal, kolom nilai, rantai join, dan kolom yang
-     * menghubungkannya kembali ke daily_reports.
+     * Empat indikator utama beserta deltanya.
      *
-     * @return array<string, array<string, mixed>>
+     * @param  array<string, mixed>  $summary
+     * @param  array<string, mixed>  $previous
+     * @return array<string, mixed>
      */
-    private function tonnageSources(): array
+    private function summaryCards(array $summary, array $previous): array
     {
         return [
-            'muat_kantong' => [
-                'label' => 'Muat Kantong',
-                'from' => 'loading_activities',
-                'column' => 'loading_activities.qty_loading_current',
-                'joins' => [],
-                'reportKey' => 'loading_activities.daily_report_id',
+            'tonnage' => [
+                'value' => $summary['tonnage'],
+                'delta' => $this->delta($summary['tonnage'], $previous['tonnage']),
             ],
-            'muat_curah' => [
-                'label' => 'Muat Curah',
-                'from' => 'bulk_loading_logs',
-                'column' => 'bulk_loading_logs.cob',
-                'joins' => [
-                    ['bulk_loading_activities', 'bulk_loading_logs.bulk_loading_activity_id', 'bulk_loading_activities.id'],
-                ],
-                'reportKey' => 'bulk_loading_activities.daily_report_id',
+            'ships' => [
+                'value' => $summary['ships'],
+                'delta' => $this->delta($summary['ships'], $previous['ships']),
             ],
-            'bongkar_bahan_baku' => [
-                'label' => 'Bongkar Bahan Baku',
-                'from' => 'material_items',
-                'column' => 'material_items.qty_current',
-                'joins' => [
-                    ['material_activities', 'material_items.material_activity_id', 'material_activities.id'],
-                ],
-                'reportKey' => 'material_activities.daily_report_id',
+            'tonnagePerShift' => [
+                'value' => $summary['tonnagePerShift'],
+                'delta' => $this->delta($summary['tonnagePerShift'], $previous['tonnagePerShift']),
             ],
-            'container' => [
-                'label' => 'Bongkar/Muat Container',
-                'from' => 'container_items',
-                'column' => 'container_items.qty_current',
-                'joins' => [
-                    ['container_activities', 'container_items.container_activity_id', 'container_activities.id'],
-                ],
-                'reportKey' => 'container_activities.daily_report_id',
-            ],
-            'turba' => [
-                'label' => 'Turba (Pupuk Kantong)',
-                'from' => 'turba_deliveries',
-                'column' => 'turba_deliveries.qty_current',
-                'joins' => [
-                    ['turba_activities', 'turba_deliveries.turba_activity_id', 'turba_activities.id'],
-                ],
-                'reportKey' => 'turba_activities.daily_report_id',
+            'damageRatio' => [
+                'value' => $summary['damageRatio'],
+                'hasBase' => $summary['hasDamageBase'],
+                'delta' => $this->deltaPoint(
+                    $summary['damageRatio'],
+                    $previous['damageRatio'],
+                    $summary['hasDamageBase'] && $previous['hasDamageBase']
+                ),
             ],
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
-     * @return array<string, float>
-     */
-    private function tonnageByActivity(array $filters): array
-    {
-        $totals = [];
-
-        foreach ($this->tonnageSources() as $key => $source) {
-            $totals[$key] = (float) $this->sourceQuery($source, $filters)->sum($source['column']);
-        }
-
-        return $totals;
-    }
-
-    /**
-     * @param  array<string, mixed>  $source
-     * @param  array<string, mixed>  $filters
-     */
-    private function sourceQuery(array $source, array $filters): QueryBuilder
-    {
-        $query = DB::table($source['from']);
-
-        foreach ($source['joins'] as [$table, $left, $right]) {
-            $query->join($table, $left, '=', $right);
-        }
-
-        $query->join('daily_reports', 'daily_reports.id', '=', $source['reportKey']);
-
-        return $this->applyReportFilters($query, $filters);
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
-     */
-    private function reportQuery(array $filters): QueryBuilder
-    {
-        return $this->applyReportFilters(DB::table('daily_reports'), $filters);
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
-     */
-    private function applyReportFilters(QueryBuilder $query, array $filters): QueryBuilder
-    {
-        $query->whereIn('daily_reports.status', self::COUNTED_STATUSES)
-            ->whereBetween('daily_reports.report_date', [
-                $filters['start']->toDateString(),
-                $filters['end']->toDateString(),
-            ]);
-
-        if (! empty($filters['group'])) {
-            $query->where('daily_reports.group_name', $filters['group']);
-        }
-
-        if (! empty($filters['shift'])) {
-            $query->where('daily_reports.shift', $filters['shift']);
-        }
-
-        return $query;
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
-     * @return array{loading: float, damage: float}
-     */
-    private function damageTotals(array $filters): array
-    {
-        $row = $this->sourceQuery($this->tonnageSources()['muat_kantong'], $filters)
-            ->selectRaw('COALESCE(SUM(loading_activities.qty_loading_current), 0) as loading')
-            ->selectRaw('COALESCE(SUM(loading_activities.qty_damage_current), 0) as damage')
-            ->first();
-
-        return [
-            'loading' => (float) ($row->loading ?? 0),
-            'damage' => (float) ($row->damage ?? 0),
-        ];
-    }
-
-    /**
-     * Jumlah kunjungan kapal. Satu kapal bisa muncul di banyak laporan lintas
-     * shift, jadi pembeda kunjungan adalah pasangan nama kapal dengan waktu
-     * kedatangan (kantong) atau waktu sandar (curah). ship_operations tidak
-     * dipakai karena relasinya belum terisi pada data yang ada.
-     *
-     * @param  array<string, mixed>  $filters
-     */
-    private function shipCount(array $filters): int
-    {
-        $total = 0;
-
-        foreach ($this->shipVisitSources() as $visit) {
-            $total += (int) $this->applyReportFilters(
-                DB::table($visit['table'])->join('daily_reports', 'daily_reports.id', '=', $visit['table'].'.daily_report_id'),
-                $filters
-            )
-                ->whereNotNull($visit['table'].'.ship_name')
-                ->where($visit['table'].'.ship_name', '!=', '')
-                ->distinct()
-                ->count(DB::raw($visit['identity']));
-        }
-
-        return $total;
     }
 
     // ============================================================
@@ -366,31 +576,31 @@ class OperationalPerformanceService
     // ============================================================
 
     /**
+     * @param  array<string, mixed>  $matrix
      * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    private function groupPerformance(array $filters, CarbonInterface $prevStart, CarbonInterface $prevEnd): array
+    private function groupPerformance(array $matrix, array $filters): array
     {
-        $groups = DailyReport::query()
-            ->whereIn('status', self::COUNTED_STATUSES)
-            ->whereNotNull('group_name')
-            ->where('group_name', '!=', '')
-            ->distinct()
-            ->orderBy('group_name')
-            ->pluck('group_name')
-            ->all();
+        $groups = $matrix['reports']
+            ->concat($matrix['activities']['muat_kantong'])
+            ->pluck('regu')
+            ->filter(fn ($regu) => $regu !== null && $regu !== '')
+            ->unique()
+            ->sort()
+            ->values();
 
         $rows = [];
 
         foreach ($groups as $group) {
             $scoped = array_merge($filters, ['group' => $group]);
-            $current = $this->summaryFor($scoped);
+            $current = $this->summaryFrom($matrix, 'ini', $scoped);
 
             if ($current['reports'] === 0 && $current['tonnage'] <= 0.0) {
                 continue;
             }
 
-            $previous = $this->summaryFor(array_merge($scoped, ['start' => $prevStart, 'end' => $prevEnd]));
+            $previous = $this->summaryFrom($matrix, 'lalu', $scoped);
 
             $rows[] = [
                 'name' => $group,
@@ -414,24 +624,43 @@ class OperationalPerformanceService
     }
 
     /**
-     * @param  array<string, float>  $current
-     * @param  array<string, float>  $previous
+     * Komposisi tonase menurut kegiatan. Hanya kegiatan bersatuan Ton yang
+     * masuk, karena porsinya dihitung terhadap total tonase.
+     *
+     * @param  array<string, mixed>  $matrix
+     * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    private function activityBreakdown(array $current, array $previous): array
+    private function activityBreakdown(array $matrix, array $filters): array
     {
-        $sources = $this->tonnageSources();
-        $total = array_sum($current);
-        $max = $current === [] ? 0.0 : max($current);
-        $rows = [];
+        $catalog = $this->activityCatalog();
+        $current = $this->summaryFrom($matrix, 'ini', $filters);
+        $previous = $this->summaryFrom($matrix, 'lalu', $filters);
 
-        foreach ($current as $key => $tonnage) {
+        $rows = [];
+        $total = 0.0;
+
+        foreach ($this->tonnageKeys() as $key) {
+            $total += $current['perActivity'][$key] ?? 0.0;
+        }
+
+        $max = 0.0;
+
+        foreach ($this->tonnageKeys() as $key) {
+            $max = max($max, $current['perActivity'][$key] ?? 0.0);
+        }
+
+        foreach ($this->tonnageKeys() as $key) {
+            $tonnage = $current['perActivity'][$key] ?? 0.0;
+
             $rows[] = [
-                'label' => $sources[$key]['label'],
+                'key' => $key,
+                'label' => $catalog[$key]['short'],
+                'unit' => $catalog[$key]['unit'],
                 'tonnage' => $tonnage,
                 'contribution' => $total > 0 ? ($tonnage / $total) * 100 : 0.0,
                 'share' => $max > 0 ? ($tonnage / $max) * 100 : 0.0,
-                'delta' => $this->delta($tonnage, $previous[$key] ?? 0.0),
+                'delta' => $this->delta($tonnage, $previous['perActivity'][$key] ?? 0.0),
             ];
         }
 
@@ -441,24 +670,670 @@ class OperationalPerformanceService
     }
 
     /**
+     * Kartu ringkas untuk kelima kegiatan. Seluruh angkanya diambil dari
+     * matriks yang sudah dihitung, jadi tidak ada query tambahan.
+     *
+     * @param  array<string, mixed>  $matrix
+     * @param  array<string, mixed>  $monthly
      * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    private function shiftBreakdown(array $filters): array
+    private function activityCards(array $matrix, array $monthly, array $filters): array
     {
-        $shifts = DailyReport::query()
-            ->whereIn('status', self::COUNTED_STATUSES)
-            ->whereNotNull('shift')
-            ->where('shift', '!=', '')
-            ->distinct()
-            ->pluck('shift')
+        $current = $this->summaryFrom($matrix, 'ini', $filters);
+        $previous = $this->summaryFrom($matrix, 'lalu', $filters);
+        $cards = [];
+
+        foreach ($this->activityCatalog() as $key => $activity) {
+            $series = $this->activitySeries($monthly, $key, $filters);
+
+            $cards[] = [
+                'key' => $key,
+                'label' => $activity['label'],
+                'short' => $activity['short'],
+                'unit' => $activity['unit'],
+                'icon' => $activity['icon'],
+                'tint' => $activity['tint'],
+                'value' => $current['perActivity'][$key] ?? 0.0,
+                'delta' => $this->delta($current['perActivity'][$key] ?? 0.0, $previous['perActivity'][$key] ?? 0.0),
+                'sparkline' => $this->sparklinePoints($series),
+                'reports' => (int) $this->sumRows($matrix['reports'], 'ini', $filters),
+            ];
+        }
+
+        return $cards;
+    }
+
+    /**
+     * Deret bulanan satu kegiatan untuk sparkline kartunya.
+     *
+     * @param  array<string, mixed>  $monthly
+     * @param  array<string, mixed>  $filters
+     * @return array<int, float>
+     */
+    private function activitySeries(array $monthly, string $key, array $filters): array
+    {
+        $buckets = $monthly['buckets'];
+        $totals = array_fill_keys(array_keys($buckets), 0.0);
+
+        foreach ($monthly['activities'][$key] as $row) {
+            if (isset($totals[$row->bucket]) && $this->rowMatches($row, $filters)) {
+                $totals[$row->bucket] += (float) $row->total;
+            }
+        }
+
+        return array_values($totals);
+    }
+
+    // ============================================================
+    // Panel detail per kegiatan
+    //
+    // Dipanggil lewat endpoint tersendiri ketika tab kegiatan dibuka, bukan
+    // saat halaman utama dirender, supaya beban query-nya hanya dibayar oleh
+    // kegiatan yang benar-benar dilihat.
+    // ============================================================
+
+    /**
+     * Isi satu panel kegiatan: metrik sekunder, tren bulanan, peringkat regu,
+     * dan tabel rincian.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    public function activityDetail(string $key, array $filters): array
+    {
+        $catalog = $this->activityCatalog();
+        $activity = $catalog[$key] ?? null;
+
+        if ($activity === null) {
+            throw new \InvalidArgumentException('Kegiatan tidak dikenal: '.$key);
+        }
+
+        $detail = match ($key) {
+            'muat_kantong' => $this->baggedDetail($activity, $filters),
+            'muat_curah' => $this->bulkDetail($activity, $filters),
+            'bongkar_bahan_baku' => $this->materialDetail($activity, $filters),
+            'container' => $this->containerDetail($activity, $filters),
+            'trucking_turba' => $this->turbaDetail($activity, $filters),
+        };
+
+        $trend = $this->activityTrend($activity, $filters);
+
+        return array_merge([
+            'key' => $key,
+            'label' => $activity['label'],
+            'unit' => $activity['unit'],
+            'icon' => $activity['icon'],
+            'tint' => $activity['tint'],
+            'periodLabel' => $this->periodLabel($filters['start'], $filters['end']),
+            'breakdown' => null,
+            'breakdownTitle' => null,
+            'note' => null,
+        ], $detail, [
+            'trend' => $trend,
+            'trendMax' => max(1.0, max(array_column($trend, 'value') ?: [0.0])),
+            'groups' => $this->activityGroupRanking($activity, $filters),
+        ]);
+    }
+
+    /**
+     * Tren enam bulan terakhir untuk satu kegiatan saja.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    private function activityTrend(array $activity, array $filters): array
+    {
+        $end = Carbon::today()->endOfMonth();
+        $start = Carbon::today()->startOfMonth()->subMonthsNoOverflow(self::TREND_MONTHS - 1);
+        $bucket = $this->monthBucket('daily_reports.report_date');
+
+        $totals = [];
+
+        foreach ($this->monthBuckets($start, $end) as $monthKey => $month) {
+            $totals[$monthKey] = ['label' => $month['label'], 'value' => 0.0];
+        }
+
+        $rows = $this->scopedSourceQuery($activity, array_merge($filters, ['start' => $start, 'end' => $end]))
+            ->groupBy(DB::raw($bucket))
+            ->selectRaw($bucket.' as bucket')
+            ->selectRaw('COALESCE(SUM('.$activity['column'].'), 0) as total')
+            ->get();
+
+        foreach ($rows as $row) {
+            if (isset($totals[$row->bucket])) {
+                $totals[$row->bucket]['value'] = (float) $row->total;
+            }
+        }
+
+        return array_values($totals);
+    }
+
+    /**
+     * Peringkat regu untuk satu kegiatan. Filter regu sengaja diabaikan —
+     * gunanya memang membandingkan antar regu, sama seperti tabel
+     * "Perbandingan Regu" di halaman utama.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    private function activityGroupRanking(array $activity, array $filters): array
+    {
+        $rows = $this->scopedSourceQuery($activity, array_merge($filters, ['group' => null]))
+            ->groupBy('daily_reports.group_name')
+            ->selectRaw('daily_reports.group_name as name')
+            ->selectRaw('COALESCE(SUM('.$activity['column'].'), 0) as total')
+            ->get()
+            ->filter(fn (object $row): bool => $row->name !== null && $row->name !== '' && (float) $row->total > 0)
+            ->map(fn (object $row): array => ['name' => (string) $row->name, 'value' => (float) $row->total])
+            ->sortByDesc('value')
+            ->values()
             ->all();
+
+        $max = $rows === [] ? 0.0 : (float) $rows[0]['value'];
+
+        foreach ($rows as $index => $row) {
+            $rows[$index]['share'] = $max > 0 ? ($row['value'] / $max) * 100 : 0.0;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Query satu sumber kegiatan dengan filter periode + regu + shift.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     */
+    private function scopedSourceQuery(array $activity, array $filters): QueryBuilder
+    {
+        $query = DB::table($activity['from']);
+
+        foreach ($activity['joins'] as [$table, $left, $right]) {
+            $query->join($table, $left, '=', $right);
+        }
+
+        $query->join('daily_reports', 'daily_reports.id', '=', $activity['reportKey']);
+
+        return $this->applyReportFilters($query, $filters);
+    }
+
+    /**
+     * Query tabel induk kegiatan (bukan tabel rinciannya), untuk metrik yang
+     * bersifat per kapal/per kegiatan seperti kapasitas.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function parentQuery(string $table, array $filters): QueryBuilder
+    {
+        return $this->applyReportFilters(
+            DB::table($table)->join('daily_reports', 'daily_reports.id', '=', $table.'.daily_report_id'),
+            $filters
+        );
+    }
+
+    /**
+     * Potong daftar baris ke batas tampilan dan tandai bila masih ada sisanya.
+     *
+     * @param  array<int, array<int, mixed>>  $rows
+     * @return array{rows: array<int, array<int, mixed>>, limited: bool, total: int}
+     */
+    private function limitRows(array $rows): array
+    {
+        $total = count($rows);
+
+        return [
+            'rows' => array_slice($rows, 0, self::DETAIL_ROW_LIMIT),
+            'limited' => $total > self::DETAIL_ROW_LIMIT,
+            'total' => $total,
+        ];
+    }
+
+    /**
+     * Pemuatan pupuk kantong: satu baris tabel mewakili satu kunjungan kapal.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function baggedDetail(array $activity, array $filters): array
+    {
+        $totals = $this->parentQuery('loading_activities', $filters)
+            ->selectRaw('COALESCE(SUM(loading_activities.qty_loading_current), 0) as loaded')
+            ->selectRaw('COALESCE(SUM(loading_activities.qty_delivery_current), 0) as delivery')
+            ->selectRaw('COALESCE(SUM(loading_activities.qty_damage_current), 0) as damage')
+            ->selectRaw('COALESCE(AVG(NULLIF(loading_activities.tkbm_count, 0)), 0) as tkbm')
+            ->selectRaw('COUNT(DISTINCT '.$this->visitIdentity('loading_activities.ship_name', 'loading_activities.arrival_time').') as visits')
+            ->first();
+
+        $rows = $this->parentQuery('loading_activities', $filters)
+            ->whereNotNull('loading_activities.ship_name')
+            ->where('loading_activities.ship_name', '!=', '')
+            ->groupBy('loading_activities.ship_name', 'loading_activities.arrival_time')
+            ->selectRaw('loading_activities.ship_name as ship_name')
+            ->selectRaw('loading_activities.arrival_time as moment')
+            ->selectRaw('MAX(loading_activities.agent) as agent')
+            ->selectRaw('MAX(loading_activities.jetty) as jetty')
+            ->selectRaw('MAX(loading_activities.destination) as destination')
+            ->selectRaw('MAX(loading_activities.capacity) as capacity')
+            ->selectRaw('MAX(loading_activities.qty_loading_current + loading_activities.qty_loading_prev) as loaded')
+            ->selectRaw('COALESCE(SUM(loading_activities.qty_damage_current), 0) as damage')
+            ->selectRaw('MAX(loading_activities.tkbm_count) as tkbm')
+            ->get()
+            ->sortByDesc('loaded')
+            ->map(fn (object $row): array => [
+                (string) $row->ship_name,
+                $row->agent ?: '-',
+                $row->jetty ?: '-',
+                $row->destination ?: '-',
+                (float) $row->capacity,
+                (float) $row->loaded,
+                $this->realization((float) $row->loaded, (float) $row->capacity),
+                (float) $row->damage,
+                (int) $row->tkbm,
+                $this->momentText($row->moment),
+            ])
+            ->values()
+            ->all();
+
+        $loaded = (float) ($totals->loaded ?? 0);
+        $damage = (float) ($totals->damage ?? 0);
+
+        return [
+            'value' => $loaded,
+            'metrics' => [
+                ['label' => 'Kapal dilayani', 'value' => (int) ($totals->visits ?? 0), 'unit' => 'kapal', 'decimals' => 0],
+                ['label' => 'Tonase delivery gudang → kapal', 'value' => (float) ($totals->delivery ?? 0), 'unit' => 'Ton', 'decimals' => 1],
+                ['label' => 'Rasio kerusakan', 'value' => $loaded > 0 ? ($damage / $loaded) * 100 : 0.0, 'unit' => '%', 'decimals' => 2],
+                ['label' => 'Rata-rata TKBM per kegiatan', 'value' => (float) ($totals->tkbm ?? 0), 'unit' => 'orang', 'decimals' => 1],
+            ],
+            'columns' => [
+                ['label' => 'Kapal', 'type' => 'name'],
+                ['label' => 'Agen', 'type' => 'muted'],
+                ['label' => 'Dermaga', 'type' => 'muted'],
+                ['label' => 'Tujuan', 'type' => 'muted'],
+                ['label' => 'Kapasitas', 'type' => 'number', 'decimals' => 0, 'unit' => 'Ton'],
+                ['label' => 'Termuat', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
+                ['label' => 'Realisasi', 'type' => 'ratio'],
+                ['label' => 'Kerusakan', 'type' => 'number', 'decimals' => 2, 'unit' => 'Ton'],
+                ['label' => 'TKBM', 'type' => 'number', 'decimals' => 0],
+                ['label' => 'Waktu Tiba', 'type' => 'muted'],
+            ],
+            'table' => $this->limitRows($rows),
+            'note' => 'Termuat memakai akumulasi tertinggi (shift ini + shift sebelumnya), '
+                .'sedangkan angka utama panel hanya menghitung tonase pada periode terpilih.',
+        ];
+    }
+
+    /**
+     * Pemuatan urea curah: jeda sandar → mulai muat jadi metrik khas panel ini
+     * karena hanya di sini kedua waktunya tersimpan sebagai kolom tanggal-waktu.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function bulkDetail(array $activity, array $filters): array
+    {
+        $totals = $this->scopedSourceQuery($activity, $filters)
+            ->selectRaw('COALESCE(SUM(bulk_loading_logs.cob), 0) as loaded')
+            ->selectRaw('COUNT(bulk_loading_logs.id) as log_count')
+            ->first();
+
+        $rows = $this->parentQuery('bulk_loading_activities', $filters)
+            ->leftJoin('bulk_loading_logs', 'bulk_loading_logs.bulk_loading_activity_id', '=', 'bulk_loading_activities.id')
+            ->whereNotNull('bulk_loading_activities.ship_name')
+            ->where('bulk_loading_activities.ship_name', '!=', '')
+            ->groupBy('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time')
+            ->selectRaw('bulk_loading_activities.ship_name as ship_name')
+            ->selectRaw('bulk_loading_activities.berthing_time as berthing')
+            ->selectRaw('MAX(bulk_loading_activities.start_loading_time) as start_loading')
+            ->selectRaw('MAX(bulk_loading_activities.agent) as agent')
+            ->selectRaw('MAX(bulk_loading_activities.stevedoring) as stevedoring')
+            ->selectRaw('MAX(bulk_loading_activities.commodity) as commodity')
+            ->selectRaw('MAX(bulk_loading_activities.jetty) as jetty')
+            ->selectRaw('MAX(bulk_loading_activities.capacity) as capacity')
+            ->selectRaw('COALESCE(SUM(bulk_loading_logs.cob), 0) as loaded')
+            ->get()
+            ->sortByDesc('loaded')
+            ->values();
+
+        $waits = [];
+
+        $tableRows = $rows->map(function (object $row) use (&$waits): array {
+            $wait = $this->waitHours($row->berthing, $row->start_loading);
+
+            if ($wait !== null) {
+                $waits[] = $wait;
+            }
+
+            return [
+                (string) $row->ship_name,
+                $row->agent ?: '-',
+                $row->stevedoring ?: '-',
+                $row->commodity ?: '-',
+                $row->jetty ?: '-',
+                (float) $row->capacity,
+                (float) $row->loaded,
+                $this->realization((float) $row->loaded, (float) $row->capacity),
+                $this->momentText($row->berthing),
+                $this->momentText($row->start_loading),
+                $wait,
+            ];
+        })->all();
+
+        return [
+            'value' => (float) ($totals->loaded ?? 0),
+            'metrics' => [
+                ['label' => 'Kapal dilayani', 'value' => $rows->count(), 'unit' => 'kapal', 'decimals' => 0],
+                ['label' => 'Entri log jam', 'value' => (int) ($totals->log_count ?? 0), 'unit' => 'entri', 'decimals' => 0],
+                ['label' => 'Rata-rata COB per entri', 'value' => ($totals->log_count ?? 0) > 0 ? (float) $totals->loaded / (int) $totals->log_count : 0.0, 'unit' => 'Ton', 'decimals' => 1],
+                ['label' => 'Rata-rata jeda sandar → mulai muat', 'value' => $waits === [] ? null : array_sum($waits) / count($waits), 'unit' => 'jam', 'decimals' => 1],
+            ],
+            'columns' => [
+                ['label' => 'Kapal', 'type' => 'name'],
+                ['label' => 'Agen', 'type' => 'muted'],
+                ['label' => 'Stevedoring', 'type' => 'muted'],
+                ['label' => 'Komoditi', 'type' => 'muted'],
+                ['label' => 'Dermaga', 'type' => 'muted'],
+                ['label' => 'Kapasitas', 'type' => 'number', 'decimals' => 0, 'unit' => 'Ton'],
+                ['label' => 'COB', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
+                ['label' => 'Realisasi', 'type' => 'ratio'],
+                ['label' => 'Sandar', 'type' => 'muted'],
+                ['label' => 'Mulai Muat', 'type' => 'muted'],
+                ['label' => 'Jeda', 'type' => 'number', 'decimals' => 1, 'unit' => 'jam'],
+            ],
+            'table' => $this->limitRows($tableRows),
+        ];
+    }
+
+    /**
+     * Bongkar bahan baku: nilai tambah panelnya adalah komposisi menurut jenis
+     * bahan baku, yang tidak terlihat di halaman utama.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function materialDetail(array $activity, array $filters): array
+    {
+        $breakdown = $this->scopedSourceQuery($activity, $filters)
+            ->groupBy('material_items.raw_material_type')
+            ->selectRaw('material_items.raw_material_type as name')
+            ->selectRaw('COALESCE(SUM(material_items.qty_current), 0) as total')
+            ->get()
+            ->map(fn (object $row): array => [
+                'name' => $row->name ?: 'Tidak diisi',
+                'value' => (float) $row->total,
+            ])
+            ->filter(fn (array $row): bool => $row['value'] > 0)
+            ->sortByDesc('value')
+            ->values()
+            ->all();
+
+        $rows = $this->parentQuery('material_activities', $filters)
+            ->leftJoin('material_items', 'material_items.material_activity_id', '=', 'material_activities.id')
+            ->groupBy('material_activities.ship_name')
+            ->selectRaw('material_activities.ship_name as ship_name')
+            ->selectRaw('MAX(material_activities.agent) as agent')
+            ->selectRaw('MAX(material_activities.jetty) as jetty')
+            ->selectRaw('MAX(material_activities.capacity) as capacity')
+            ->selectRaw('MAX(material_activities.working_hours) as working_hours')
+            ->selectRaw('COALESCE(SUM(material_items.qty_current), 0) as loaded')
+            ->selectRaw('COUNT(DISTINCT material_activities.id) as activities')
+            ->get()
+            ->sortByDesc('loaded')
+            ->map(fn (object $row): array => [
+                $row->ship_name ?: 'Nama kapal belum diisi',
+                $row->agent ?: '-',
+                $row->jetty ?: '-',
+                (float) $row->capacity,
+                (float) $row->loaded,
+                $this->realization((float) $row->loaded, (float) $row->capacity),
+                (int) $row->activities,
+                $row->working_hours ?: '-',
+            ])
+            ->values()
+            ->all();
+
+        $total = array_sum(array_column($breakdown, 'value'));
+        $max = $breakdown === [] ? 0.0 : (float) $breakdown[0]['value'];
+
+        foreach ($breakdown as $index => $row) {
+            $breakdown[$index]['share'] = $max > 0 ? ($row['value'] / $max) * 100 : 0.0;
+            $breakdown[$index]['contribution'] = $total > 0 ? ($row['value'] / $total) * 100 : 0.0;
+        }
+
+        return [
+            'value' => $total,
+            'metrics' => [
+                ['label' => 'Kapal dilayani', 'value' => count($rows), 'unit' => 'kapal', 'decimals' => 0],
+                ['label' => 'Jenis bahan baku', 'value' => count($breakdown), 'unit' => 'jenis', 'decimals' => 0],
+                ['label' => 'Kegiatan tercatat', 'value' => array_sum(array_column($rows, 6)), 'unit' => 'kegiatan', 'decimals' => 0],
+                ['label' => 'Rata-rata per kapal', 'value' => $rows === [] ? 0.0 : $total / count($rows), 'unit' => 'Ton', 'decimals' => 1],
+            ],
+            'columns' => [
+                ['label' => 'Kapal', 'type' => 'name'],
+                ['label' => 'Agen', 'type' => 'muted'],
+                ['label' => 'Dermaga', 'type' => 'muted'],
+                ['label' => 'Kapasitas', 'type' => 'number', 'decimals' => 0, 'unit' => 'Ton'],
+                ['label' => 'Bongkar', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
+                ['label' => 'Realisasi', 'type' => 'ratio'],
+                ['label' => 'Kegiatan', 'type' => 'number', 'decimals' => 0],
+                ['label' => 'Jam Kerja', 'type' => 'muted'],
+            ],
+            'table' => $this->limitRows($rows),
+            'breakdown' => $breakdown,
+            'breakdownTitle' => 'Komposisi menurut Jenis Bahan Baku',
+        ];
+    }
+
+    /**
+     * Bongkar/muat container. Seluruh angkanya bersatuan Teus — bongkar dan
+     * muat masih tercatat dalam satu bagian pada form laporan, jadi keduanya
+     * tampil menyatu di sini.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function containerDetail(array $activity, array $filters): array
+    {
+        $totals = $this->scopedSourceQuery($activity, $filters)
+            ->selectRaw('COALESCE(SUM(container_items.qty_current), 0) as loaded')
+            ->selectRaw('COUNT(container_items.id) as item_count')
+            ->first();
+
+        $capacities = $this->parentQuery('container_activities', $filters)
+            ->selectRaw('COALESCE(SUM(COALESCE(container_activities.capacity_empty, container_activities.capacity)), 0) as capacity_empty')
+            ->selectRaw('COALESCE(SUM(container_activities.capacity_full), 0) as capacity_full')
+            ->selectRaw('COUNT(DISTINCT container_activities.ship_name) as ships')
+            ->first();
+
+        $rows = $this->parentQuery('container_activities', $filters)
+            ->join('container_items', 'container_items.container_activity_id', '=', 'container_activities.id')
+            ->orderByDesc('daily_reports.report_date')
+            ->orderBy('container_items.id')
+            ->selectRaw('container_activities.ship_name as ship_name')
+            ->selectRaw('container_activities.agent as agent')
+            ->selectRaw('container_activities.jetty as jetty')
+            ->selectRaw('container_items.time_text as time_text')
+            ->selectRaw('container_items.time as time')
+            ->selectRaw('container_items.qty_current as qty_current')
+            ->selectRaw('container_items.qty_prev as qty_prev')
+            ->selectRaw('container_items.qty_total as qty_total')
+            ->selectRaw('container_items.status as status')
+            ->get()
+            ->map(fn (object $row): array => [
+                $row->ship_name ?: 'Nama kapal belum diisi',
+                $row->agent ?: '-',
+                $row->jetty ?: '-',
+                $row->time_text ?: ($row->time ? substr((string) $row->time, 0, 5) : '-'),
+                (float) $row->qty_current,
+                (float) $row->qty_prev,
+                (float) $row->qty_total,
+                $row->status ?: '-',
+            ])
+            ->all();
+
+        return [
+            'value' => (float) ($totals->loaded ?? 0),
+            'metrics' => [
+                ['label' => 'Kapal dilayani', 'value' => (int) ($capacities->ships ?? 0), 'unit' => 'kapal', 'decimals' => 0],
+                ['label' => 'Kapasitas Empty', 'value' => (float) ($capacities->capacity_empty ?? 0), 'unit' => 'Teus', 'decimals' => 0],
+                ['label' => 'Kapasitas Full', 'value' => (float) ($capacities->capacity_full ?? 0), 'unit' => 'Teus', 'decimals' => 0],
+                ['label' => 'Baris kegiatan tercatat', 'value' => (int) ($totals->item_count ?? 0), 'unit' => 'baris', 'decimals' => 0],
+            ],
+            'columns' => [
+                ['label' => 'Kapal', 'type' => 'name'],
+                ['label' => 'Agen', 'type' => 'muted'],
+                ['label' => 'Dermaga', 'type' => 'muted'],
+                ['label' => 'Jam Kerja', 'type' => 'muted'],
+                ['label' => 'Sekarang', 'type' => 'number', 'decimals' => 0, 'unit' => 'Teus'],
+                ['label' => 'Lalu', 'type' => 'number', 'decimals' => 0, 'unit' => 'Teus'],
+                ['label' => 'Total', 'type' => 'number', 'decimals' => 0, 'unit' => 'Teus'],
+                ['label' => 'Ket', 'type' => 'muted'],
+            ],
+            'table' => $this->limitRows($rows),
+            'note' => 'Seluruh angka pada panel ini bersatuan Teus, sehingga tidak ikut '
+                .'dijumlahkan ke Total Tonase. Bongkar dan muat masih tercatat menyatu '
+                .'karena form laporan memakai satu bagian untuk keduanya.',
+        ];
+    }
+
+    /**
+     * Trucking pengiriman pupuk kantong. Kolom truck_name pada data lapangan
+     * berisi tujuan pengiriman (mis. Buffer Stock), bukan nama truk — jadi
+     * yang diperingkat adalah tujuannya.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function turbaDetail(array $activity, array $filters): array
+    {
+        $breakdown = $this->scopedSourceQuery($activity, $filters)
+            ->groupBy('turba_deliveries.truck_name')
+            ->selectRaw('turba_deliveries.truck_name as name')
+            ->selectRaw('COALESCE(SUM(turba_deliveries.qty_current), 0) as total')
+            ->selectRaw('COUNT(turba_deliveries.id) as trips')
+            ->get()
+            ->map(fn (object $row): array => [
+                'name' => $row->name ?: 'Tujuan belum diisi',
+                'value' => (float) $row->total,
+                'trips' => (int) $row->trips,
+            ])
+            ->sortByDesc('value')
+            ->values()
+            ->all();
+
+        $rows = $this->scopedSourceQuery($activity, $filters)
+            ->orderByDesc('daily_reports.report_date')
+            ->orderBy('turba_deliveries.id')
+            ->selectRaw('turba_deliveries.truck_name as destination')
+            ->selectRaw('turba_deliveries.do_so_number as do_so_number')
+            ->selectRaw('turba_deliveries.marking_type as marking_type')
+            ->selectRaw('turba_deliveries.capacity as capacity')
+            ->selectRaw('turba_deliveries.qty_current as qty_current')
+            ->selectRaw('turba_deliveries.qty_accumulated as qty_accumulated')
+            ->get()
+            ->map(fn (object $row): array => [
+                $row->destination ?: 'Tujuan belum diisi',
+                $row->do_so_number ?: '-',
+                $row->marking_type ?: '-',
+                (float) $row->capacity,
+                (float) $row->qty_current,
+                $this->realization((float) $row->qty_current, (float) $row->capacity),
+                (float) $row->qty_accumulated,
+            ])
+            ->all();
+
+        $total = array_sum(array_column($breakdown, 'value'));
+        $trips = array_sum(array_column($breakdown, 'trips'));
+        $max = $breakdown === [] ? 0.0 : (float) $breakdown[0]['value'];
+
+        foreach ($breakdown as $index => $row) {
+            $breakdown[$index]['share'] = $max > 0 ? ($row['value'] / $max) * 100 : 0.0;
+            $breakdown[$index]['contribution'] = $total > 0 ? ($row['value'] / $total) * 100 : 0.0;
+        }
+
+        return [
+            'value' => $total,
+            'metrics' => [
+                ['label' => 'Rit / DO tercatat', 'value' => $trips, 'unit' => 'rit', 'decimals' => 0],
+                ['label' => 'Tujuan pengiriman', 'value' => count($breakdown), 'unit' => 'tujuan', 'decimals' => 0],
+                ['label' => 'Rata-rata muatan per rit', 'value' => $trips > 0 ? $total / $trips : 0.0, 'unit' => 'Ton', 'decimals' => 1],
+                ['label' => 'Tujuan terbesar', 'value' => $breakdown === [] ? null : $breakdown[0]['value'], 'unit' => 'Ton', 'decimals' => 1, 'caption' => $breakdown[0]['name'] ?? null],
+            ],
+            'columns' => [
+                ['label' => 'Tujuan', 'type' => 'name'],
+                ['label' => 'No DO/SO', 'type' => 'muted'],
+                ['label' => 'Marking', 'type' => 'muted'],
+                ['label' => 'Kapasitas', 'type' => 'number', 'decimals' => 0, 'unit' => 'Ton'],
+                ['label' => 'Terkirim', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
+                ['label' => 'Realisasi', 'type' => 'ratio'],
+                ['label' => 'Akumulasi', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
+            ],
+            'table' => $this->limitRows($rows),
+            'breakdown' => $breakdown,
+            'breakdownTitle' => 'Peringkat Tujuan Pengiriman',
+        ];
+    }
+
+    /**
+     * Realisasi terhadap kapasitas. Kapasitas kosong berarti tidak bisa
+     * dihitung — dikembalikan null supaya tampilan menandainya, bukan 0%.
+     */
+    private function realization(float $value, float $capacity): ?float
+    {
+        return $capacity > 0 ? min(($value / $capacity) * 100, 999.9) : null;
+    }
+
+    /**
+     * Selisih dua waktu dalam jam, untuk jeda sandar → mulai muat.
+     */
+    private function waitHours(mixed $from, mixed $to): ?float
+    {
+        if (! $from || ! $to) {
+            return null;
+        }
+
+        $hours = Carbon::parse($from)->floatDiffInHours(Carbon::parse($to), false);
+
+        return $hours >= 0 ? round($hours, 2) : null;
+    }
+
+    /**
+     * Waktu siap tampil. Hasil panel masuk cache, jadi tanggal disimpan
+     * sebagai teks — objek tanggal tidak aman melewati serialisasi.
+     */
+    private function momentText(mixed $moment): string
+    {
+        return $moment
+            ? Carbon::parse($moment)->locale('id')->translatedFormat('d M · H:i')
+            : '-';
+    }
+
+    /**
+     * @param  array<string, mixed>  $matrix
+     * @param  array<string, mixed>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    private function shiftBreakdown(array $matrix, array $filters): array
+    {
+        $shifts = $matrix['reports']
+            ->pluck('shift')
+            ->filter(fn ($shift) => $shift !== null && $shift !== '')
+            ->unique()
+            ->values();
 
         $rows = [];
 
         foreach ($shifts as $shift) {
             $scoped = array_merge($filters, ['shift' => $shift]);
-            $summary = $this->summaryFor($scoped);
+            $summary = $this->summaryFrom($matrix, 'ini', $scoped);
 
             if ($summary['reports'] === 0) {
                 continue;
@@ -481,13 +1356,30 @@ class OperationalPerformanceService
      * Beban kerja personil: rata-rata jumlah orang per shift, jam lembur,
      * relief/pengganti, dan kedisiplinan waktu pelaporan.
      *
+     * @param  array<string, mixed>  $matrix
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    private function workload(array $filters, CarbonInterface $prevStart, CarbonInterface $prevEnd): array
+    private function workload(array $matrix, array $filters): array
     {
-        $current = $this->workloadTotals($filters);
-        $previous = $this->workloadTotals(array_merge($filters, ['start' => $prevStart, 'end' => $prevEnd]));
+        $totals = function (string $periode) use ($matrix, $filters): array {
+            $reports = (int) $this->sumRows($matrix['reports'], $periode, $filters);
+            $onTime = (int) $this->sumRows($matrix['reports'], $periode, $filters, [], 'ontime');
+
+            return [
+                'reports' => $reports,
+                'personnelPerShift' => $reports > 0
+                    ? $this->sumRows($matrix['workload'], $periode, $filters, [], 'personnel') / $reports
+                    : 0.0,
+                'overtimeHours' => $this->sumRows($matrix['workload'], $periode, $filters, [], 'overtime_seconds') / 3600,
+                'overtimeCount' => (int) $this->sumRows($matrix['workload'], $periode, $filters, [], 'overtime_count'),
+                'reliefCount' => (int) $this->sumRows($matrix['workload'], $periode, $filters, [], 'relief'),
+                'punctuality' => $reports > 0 ? ($onTime / $reports) * 100 : 0.0,
+            ];
+        };
+
+        $current = $totals('ini');
+        $previous = $totals('lalu');
 
         return [
             'personnelPerShift' => $current['personnelPerShift'],
@@ -514,62 +1406,6 @@ class OperationalPerformanceService
                     downIsGood: false
                 ),
             ],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
-     * @return array<string, float|int>
-     */
-    private function workloadTotals(array $filters): array
-    {
-        $reports = $this->reportQuery($filters)->count();
-
-        $employeeQuery = fn () => $this->applyReportFilters(
-            DB::table('employee_logs')->join('daily_reports', 'daily_reports.id', '=', 'employee_logs.daily_report_id'),
-            $filters
-        );
-
-        $personnel = (int) $employeeQuery()->where('employee_logs.category', 'shift')->count();
-
-        // Sebagian entri lembur diisi lewat input cepat yang hanya menyimpan nama
-        // tanpa jam, sehingga jumlah entri tetap dihitung terpisah agar beban
-        // lembur tidak terlihat nol saat jamnya memang tidak pernah diisi.
-        $overtimeCount = (int) $employeeQuery()
-            ->where('employee_logs.category', 'operasi')
-            ->where('employee_logs.description', 'Lembur')
-            ->count();
-
-        // Durasi disimpan sebagai kolom TIME, jadi shift yang melewati tengah
-        // malam dikoreksi dengan menambah 24 jam saat jam pulang lebih kecil.
-        $overtimeSeconds = (float) $employeeQuery()
-            ->where('employee_logs.category', 'operasi')
-            ->where('employee_logs.description', 'Lembur')
-            ->whereNotNull('employee_logs.time_in')
-            ->whereNotNull('employee_logs.time_out')
-            ->sum(DB::raw($this->overtimeSecondsExpression()));
-
-        $relief = (int) $employeeQuery()
-            ->where(function (QueryBuilder $query): void {
-                $query->where(function (QueryBuilder $inner): void {
-                    $inner->where('employee_logs.category', 'operasi')
-                        ->where('employee_logs.description', 'Relief');
-                })->orWhere('employee_logs.category', 'replacement');
-            })
-            ->count();
-
-        $onTime = (int) $this->reportQuery($filters)
-            ->whereNotNull('daily_reports.report_date')
-            ->whereRaw('DATE(daily_reports.created_at) = daily_reports.report_date')
-            ->count();
-
-        return [
-            'reports' => $reports,
-            'personnelPerShift' => $reports > 0 ? $personnel / $reports : 0.0,
-            'overtimeHours' => $overtimeSeconds / 3600,
-            'overtimeCount' => $overtimeCount,
-            'reliefCount' => $relief,
-            'punctuality' => $reports > 0 ? ($onTime / $reports) * 100 : 0.0,
         ];
     }
 
@@ -708,12 +1544,10 @@ class OperationalPerformanceService
             ->get()
             ->map(fn ($row) => $this->shipRow($row, 'Muat Curah'));
 
-        $rows = $bagged->concat($bulk)
+        return $bagged->concat($bulk)
             ->sortByDesc('loaded')
             ->values()
             ->all();
-
-        return $rows;
     }
 
     /**
@@ -741,22 +1575,17 @@ class OperationalPerformanceService
         ];
     }
 
-    /**
-     * Deret bulanan untuk grafik tren dan sparkline kartu KPI.
-     *
-     * Semua metrik dikumpulkan dengan query yang dikelompokkan per bulan, bukan
-     * satu query per bulan, sehingga jumlah query tetap sama berapa pun panjang
-     * rentang yang diminta.
-     *
-     * @param  array<string, mixed>  $filters
-     * @return array<int, array<string, mixed>>
-     */
-    private function monthlyMetrics(int $months, array $filters = []): array
-    {
-        $end = Carbon::today()->endOfMonth();
-        $start = Carbon::today()->startOfMonth()->subMonthsNoOverflow($months - 1);
-        $bucketExpression = $this->monthBucket('daily_reports.report_date');
+    // ============================================================
+    // Deret bulanan
+    // ============================================================
 
+    /**
+     * Kerangka bulan kosong sebagai wadah hasil agregasi.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function monthBuckets(CarbonInterface $start, CarbonInterface $end): array
+    {
         $buckets = [];
         $cursor = $start->copy();
 
@@ -764,64 +1593,65 @@ class OperationalPerformanceService
             $buckets[$cursor->format('Y-m')] = [
                 'key' => $cursor->format('Y-m'),
                 'label' => $cursor->locale('id')->translatedFormat('M'),
+            ];
+            $cursor->addMonthNoOverflow();
+        }
+
+        return $buckets;
+    }
+
+    /**
+     * Deret bulanan untuk grafik tren dan sparkline kartu KPI.
+     *
+     * @param  array<string, mixed>  $monthly
+     * @param  array<string, mixed>  $filters
+     * @return array<int, array<string, mixed>>
+     */
+    private function trendSeries(array $monthly, array $filters): array
+    {
+        $buckets = [];
+
+        foreach ($monthly['buckets'] as $key => $bucket) {
+            $buckets[$key] = $bucket + [
                 'tonnage' => 0.0,
                 'reports' => 0,
                 'ships' => 0,
                 'loading' => 0.0,
                 'damage' => 0.0,
             ];
-            $cursor->addMonthNoOverflow();
         }
 
-        $scope = array_merge($filters, ['start' => $start, 'end' => $end]);
-
-        $absorb = function ($rows, string $field) use (&$buckets): void {
-            foreach ($rows as $row) {
-                if (isset($buckets[$row->bucket])) {
-                    $buckets[$row->bucket][$field] += $row->total;
+        foreach ($this->tonnageKeys() as $key) {
+            foreach ($monthly['activities'][$key] as $row) {
+                if (isset($buckets[$row->bucket]) && $this->rowMatches($row, $filters)) {
+                    $buckets[$row->bucket]['tonnage'] += (float) $row->total;
                 }
             }
-        };
-
-        foreach ($this->tonnageSources() as $source) {
-            $absorb($this->sourceQuery($source, $scope)
-                ->groupBy(DB::raw($bucketExpression))
-                ->selectRaw($bucketExpression.' as bucket')
-                ->selectRaw('COALESCE(SUM('.$source['column'].'), 0) as total')
-                ->get(), 'tonnage');
         }
 
-        $absorb($this->reportQuery($scope)
-            ->groupBy(DB::raw($bucketExpression))
-            ->selectRaw($bucketExpression.' as bucket')
-            ->selectRaw('COUNT(*) as total')
-            ->get(), 'reports');
-
-        $damageRows = $this->sourceQuery($this->tonnageSources()['muat_kantong'], $scope)
-            ->groupBy(DB::raw($bucketExpression))
-            ->selectRaw($bucketExpression.' as bucket')
-            ->selectRaw('COALESCE(SUM(loading_activities.qty_loading_current), 0) as loading')
-            ->selectRaw('COALESCE(SUM(loading_activities.qty_damage_current), 0) as damage')
-            ->get();
-
-        foreach ($damageRows as $row) {
-            if (isset($buckets[$row->bucket])) {
-                $buckets[$row->bucket]['loading'] += (float) $row->loading;
+        foreach ($monthly['activities']['muat_kantong'] as $row) {
+            if (isset($buckets[$row->bucket]) && $this->rowMatches($row, $filters)) {
+                $buckets[$row->bucket]['loading'] += (float) $row->total;
                 $buckets[$row->bucket]['damage'] += (float) $row->damage;
             }
         }
 
-        foreach ($this->shipVisitSources() as $visit) {
-            $absorb($this->applyReportFilters(
-                DB::table($visit['table'])->join('daily_reports', 'daily_reports.id', '=', $visit['table'].'.daily_report_id'),
-                $scope
-            )
-                ->whereNotNull($visit['table'].'.ship_name')
-                ->where($visit['table'].'.ship_name', '!=', '')
-                ->groupBy(DB::raw($bucketExpression))
-                ->selectRaw($bucketExpression.' as bucket')
-                ->selectRaw('COUNT(DISTINCT '.$visit['identity'].') as total')
-                ->get(), 'ships');
+        foreach ($monthly['reports'] as $row) {
+            if (isset($buckets[$row->bucket]) && $this->rowMatches($row, $filters)) {
+                $buckets[$row->bucket]['reports'] += (int) $row->total;
+            }
+        }
+
+        $visitsByBucket = [];
+
+        foreach ($monthly['visits'] as $row) {
+            if (isset($buckets[$row->bucket]) && $this->rowMatches($row, $filters)) {
+                $visitsByBucket[$row->bucket][$row->identity] = true;
+            }
+        }
+
+        foreach ($visitsByBucket as $bucket => $identities) {
+            $buckets[$bucket]['ships'] = count($identities);
         }
 
         return array_values(array_map(static function (array $bucket): array {
@@ -837,44 +1667,28 @@ class OperationalPerformanceService
      * bertumpuk. Nama shift di data lapangan tidak seragam ("1", "Pagi",
      * "Shift 1"), jadi dirapikan dulu ke tiga kelompok tetap.
      *
+     * @param  array<string, mixed>  $monthly
      * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    private function shiftTrend(int $months, array $filters = []): array
+    private function shiftTrend(array $monthly, array $filters): array
     {
-        $end = Carbon::today()->endOfMonth();
-        $start = Carbon::today()->startOfMonth()->subMonthsNoOverflow($months - 1);
-        $bucketExpression = $this->monthBucket('daily_reports.report_date');
-
         $buckets = [];
-        $cursor = $start->copy();
 
-        while ($cursor->lessThanOrEqualTo($end)) {
-            $buckets[$cursor->format('Y-m')] = [
-                'label' => $cursor->locale('id')->translatedFormat('M'),
+        foreach ($monthly['buckets'] as $key => $bucket) {
+            $buckets[$key] = [
+                'label' => $bucket['label'],
                 'Pagi' => 0.0,
                 'Sore' => 0.0,
                 'Malam' => 0.0,
             ];
-            $cursor->addMonthNoOverflow();
         }
 
-        $scope = array_merge($filters, ['start' => $start, 'end' => $end]);
-
-        foreach ($this->tonnageSources() as $source) {
-            $rows = $this->sourceQuery($source, $scope)
-                ->groupBy(DB::raw($bucketExpression), 'daily_reports.shift')
-                ->selectRaw($bucketExpression.' as bucket')
-                ->selectRaw('daily_reports.shift as shift')
-                ->selectRaw('COALESCE(SUM('.$source['column'].'), 0) as total')
-                ->get();
-
-            foreach ($rows as $row) {
-                if (! isset($buckets[$row->bucket])) {
-                    continue;
+        foreach ($this->tonnageKeys() as $key) {
+            foreach ($monthly['activities'][$key] as $row) {
+                if (isset($buckets[$row->bucket]) && $this->rowMatches($row, $filters)) {
+                    $buckets[$row->bucket][$this->normalizeShift($row->shift)] += (float) $row->total;
                 }
-
-                $buckets[$row->bucket][$this->normalizeShift($row->shift)] += (float) $row->total;
             }
         }
 
@@ -883,6 +1697,20 @@ class OperationalPerformanceService
 
             return $bucket;
         }, $buckets));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $trend
+     * @return array<string, string>
+     */
+    private function sparklinesFor(array $trend): array
+    {
+        return [
+            'tonnage' => $this->sparklinePoints(array_column($trend, 'tonnage')),
+            'ships' => $this->sparklinePoints(array_column($trend, 'ships')),
+            'tonnagePerShift' => $this->sparklinePoints(array_column($trend, 'tonnagePerShift')),
+            'damageRatio' => $this->sparklinePoints(array_column($trend, 'damageRatio')),
+        ];
     }
 
     /**
@@ -903,6 +1731,11 @@ class OperationalPerformanceService
     /**
      * Dua sumber kunjungan kapal beserta ekspresi identitas kunjungannya.
      *
+     * Satu kapal bisa muncul di banyak laporan lintas shift, jadi pembeda
+     * kunjungan adalah pasangan nama kapal dengan waktu kedatangan (kantong)
+     * atau waktu sandar (curah). ship_operations tidak dipakai karena
+     * relasinya belum terisi pada data yang ada.
+     *
      * @return array<int, array{table: string, identity: string}>
      */
     private function shipVisitSources(): array
@@ -917,6 +1750,96 @@ class OperationalPerformanceService
                 'identity' => $this->visitIdentity('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time'),
             ],
         ];
+    }
+
+    // ============================================================
+    // Penyusun query dasar
+    // ============================================================
+
+    /**
+     * @param  array<string, mixed>  $source
+     * @param  array<string, mixed>  $range
+     */
+    private function sourceQuery(array $source, array $range): QueryBuilder
+    {
+        $query = DB::table($source['from']);
+
+        foreach ($source['joins'] as [$table, $left, $right]) {
+            $query->join($table, $left, '=', $right);
+        }
+
+        $query->join('daily_reports', 'daily_reports.id', '=', $source['reportKey']);
+
+        return $this->applyRangeFilters($query, $range);
+    }
+
+    /**
+     * @param  array<string, mixed>  $range
+     */
+    private function reportQuery(array $range): QueryBuilder
+    {
+        return $this->applyRangeFilters(DB::table('daily_reports'), $range);
+    }
+
+    /**
+     * Batasi query pada status yang dihitung dan rentang tanggal yang diminta.
+     * Bila `prevStart` diisi, periode pembanding ikut ditarik dalam satu query
+     * supaya keduanya tidak perlu dijalankan dua kali.
+     *
+     * @param  array<string, mixed>  $range
+     */
+    private function applyRangeFilters(QueryBuilder $query, array $range): QueryBuilder
+    {
+        $query->whereIn('daily_reports.status', self::COUNTED_STATUSES);
+
+        $current = [$range['start']->toDateString(), $range['end']->toDateString()];
+
+        if (empty($range['prevStart'])) {
+            return $query->whereBetween('daily_reports.report_date', $current);
+        }
+
+        $previous = [$range['prevStart']->toDateString(), $range['prevEnd']->toDateString()];
+
+        return $query->where(function (QueryBuilder $inner) use ($current, $previous): void {
+            $inner->whereBetween('daily_reports.report_date', $current)
+                ->orWhereBetween('daily_reports.report_date', $previous);
+        });
+    }
+
+    /**
+     * Filter laporan versi sederhana (satu periode + regu/shift), dipakai oleh
+     * bagian yang memang tidak butuh pembanding: daftar kapal, peringkat
+     * lembur, dan tabel rincian panel kegiatan.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyReportFilters(QueryBuilder $query, array $filters): QueryBuilder
+    {
+        $query->whereIn('daily_reports.status', self::COUNTED_STATUSES)
+            ->whereBetween('daily_reports.report_date', [
+                $filters['start']->toDateString(),
+                $filters['end']->toDateString(),
+            ]);
+
+        if (! empty($filters['group'])) {
+            $query->where('daily_reports.group_name', $filters['group']);
+        }
+
+        if (! empty($filters['shift'])) {
+            $query->where('daily_reports.shift', $filters['shift']);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Penanda periode pada baris agregat. Rentang periode ini dan periode
+     * pembanding tidak pernah bertumpang tindih, jadi cukup dibedakan dari
+     * tanggal mulai periode berjalan — nilainya diikat lewat binding selectRaw.
+     */
+    private function periodCase(): string
+    {
+        return "CASE WHEN daily_reports.report_date >= ? THEN 'ini' ELSE 'lalu' END";
     }
 
     // ============================================================
@@ -940,6 +1863,16 @@ class OperationalPerformanceService
         return $this->isSqlite()
             ? "strftime('%Y-%m', ".$column.')'
             : 'DATE_FORMAT('.$column.", '%Y-%m')";
+    }
+
+    /**
+     * Laporan yang dibuat pada hari yang sama dengan tanggal laporannya.
+     */
+    private function sameDayExpression(): string
+    {
+        return $this->isSqlite()
+            ? "date(daily_reports.created_at) = date(daily_reports.report_date)"
+            : 'DATE(daily_reports.created_at) = daily_reports.report_date';
     }
 
     /**

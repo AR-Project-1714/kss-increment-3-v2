@@ -91,5 +91,9 @@
                 </div>
             @endforeach
         </div>
+
+        {{-- Container sengaja tidak ada di donut ini: satuannya Teus, sehingga
+             porsinya tidak bisa dihitung terhadap total tonase. --}}
+        <p class="donut-note">Container dihitung terpisah karena bersatuan Teus.</p>
     </div>
 @endif
