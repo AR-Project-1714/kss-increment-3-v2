@@ -406,6 +406,9 @@ class AdminV2Controller extends Controller
             'npk' => $employee->npk ?: '-',
             'name' => $employee->name,
             'group' => $this->displayGroup($employee->group_name),
+            'shift_group' => filled($employee->shift_group_name)
+                ? $this->displayGroup($employee->shift_group_name)
+                : '-',
             'position' => $employee->position ?: '-',
             'division' => $this->displayDivision($employee->division),
             'work_time' => $employee->work_time ?: '-',
@@ -818,6 +821,7 @@ class AdminV2Controller extends Controller
             'npk' => ['nullable', 'string', 'max:50', 'unique:master_employees,npk'],
             'name' => ['required', 'string', 'max:255'],
             'group' => ['nullable', 'string', 'max:20'],
+            'shift_group' => ['nullable', 'string', 'max:20'],
             'position' => ['nullable', 'string', 'max:255'],
             'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Office', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_OFFICE, MasterEmployee::DIVISION_BOTH])],
             'work_time' => ['nullable', Rule::in(['Non Shift', 'Shift', 'Relief', 'non shift', 'shift', 'relief'])],
@@ -827,6 +831,7 @@ class AdminV2Controller extends Controller
             'npk' => $data['npk'],
             'name' => $data['name'],
             'group_name' => $this->normalizeGroup($data['group'] ?? null),
+            'shift_group_name' => $this->normalizeShiftGroup($data['shift_group'] ?? null),
             'position' => $this->nullableSelectValue($data['position'] ?? null),
             'division' => $this->normalizeDivision($data['division'] ?? null),
             'work_time' => $this->normalizeWorkTime($data['work_time'] ?? null),
@@ -846,6 +851,7 @@ class AdminV2Controller extends Controller
             'npk' => ['nullable', 'string', 'max:50', Rule::unique('master_employees', 'npk')->ignore($employee->id)],
             'name' => ['required', 'string', 'max:255'],
             'group' => ['nullable', 'string', 'max:20'],
+            'shift_group' => ['nullable', 'string', 'max:20'],
             'position' => ['nullable', 'string', 'max:255'],
             'division' => ['nullable', Rule::in(['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Safety', 'Office', 'Keduanya', MasterEmployee::DIVISION_OPERATIONAL, MasterEmployee::DIVISION_MAINTENANCE, MasterEmployee::DIVISION_SAFETY, MasterEmployee::DIVISION_OFFICE, MasterEmployee::DIVISION_BOTH])],
             'work_time' => ['nullable', Rule::in(['Non Shift', 'Shift', 'Relief', 'non shift', 'shift', 'relief'])],
@@ -855,6 +861,7 @@ class AdminV2Controller extends Controller
             'npk' => $data['npk'],
             'name' => $data['name'],
             'group_name' => $this->normalizeGroup($data['group'] ?? null),
+            'shift_group_name' => $this->normalizeShiftGroup($data['shift_group'] ?? null),
             'position' => $this->nullableSelectValue($data['position'] ?? null),
             'division' => $this->normalizeDivision($data['division'] ?? null),
             'work_time' => $this->normalizeWorkTime($data['work_time'] ?? null),
@@ -1786,6 +1793,28 @@ class AdminV2Controller extends Controller
         $value = preg_replace('/^(?:regu|group|grup)\s+/i', '', $value) ?? $value;
 
         return strtoupper($value);
+    }
+
+    /**
+     * Penugasan regu shift untuk personil yang asalnya bukan dari regu itu
+     * (mis. Relief/Bengkel yang mendampingi sebuah regu). Berbeda dengan
+     * group_name, kolom ini TIDAK memindahkan karyawan — asalnya tetap, ia
+     * hanya ikut tampil di daftar Karyawan Shift regu tujuan.
+     *
+     * Hanya menerima Regu A-D karena daftar shift memang cuma untuk regu
+     * reguler. Disimpan sebagai 'Group A' agar seragam dengan seeder.
+     */
+    private function normalizeShiftGroup(?string $group): ?string
+    {
+        $value = trim((string) $group);
+
+        if ($value === '' || in_array(Str::lower($value), ['-', 'tidak ada'], true)) {
+            return null;
+        }
+
+        $letter = strtoupper(preg_replace('/^(?:regu|group|grup)\s+/i', '', $value) ?? $value);
+
+        return in_array($letter, ['A', 'B', 'C', 'D'], true) ? 'Group '.$letter : null;
     }
 
     private function nullableUpper(?string $value): ?string

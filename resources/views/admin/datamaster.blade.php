@@ -302,6 +302,7 @@
     .thead th.col-number,   .tbody td.col-number   { min-width: 110px; }
     .thead th.col-npk,      .tbody td.col-npk      { min-width: 110px; }
     .thead th.col-group,    .tbody td.col-group    { min-width: 100px; }
+    .thead th.col-shiftgroup, .tbody td.col-shiftgroup { min-width: 110px; }
     .thead th.col-position, .tbody td.col-position { min-width: 100px; }
     .thead th.col-division, .tbody td.col-division { min-width: 120px; }
     .thead th.col-worktime, .tbody td.col-worktime { min-width: 110px; }
@@ -550,6 +551,7 @@
                     <th class="col-npk">NPK</th>
                     <th class="col-name">Nama</th>
                     <th class="col-group">Group</th>
+                    <th class="col-shiftgroup">Regu Shift</th>
                     <th class="col-position">Posisi</th>
                     <th class="col-division">Divisi</th>
                     <th class="col-worktime">Jam Kerja</th>
@@ -561,6 +563,7 @@
                         <td class="col-npk">{{ $e['npk'] }}</td>
                         <td class="col-name">{{ $e['name'] }}</td>
                         <td class="col-group">{{ $e['group'] }}</td>
+                        <td class="col-shiftgroup">{{ $e['shift_group'] ?? '-' }}</td>
                         <td class="col-position">{{ $e['position'] }}</td>
                         <td class="col-division">{{ $e['division'] ?? 'Operasional' }}</td>
                         <td class="col-worktime">{{ $e['work_time'] ?? '-' }}</td>
@@ -855,6 +858,10 @@
         };
 
         const employeeGroupOptions = ['-', 'Bengkel', 'Relief 1', 'Relief 2', 'A', 'B', 'C', 'D', 'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D'];
+        // Penugasan regu shift: TIDAK memindahkan karyawan, hanya membuatnya
+        // ikut tampil di daftar Karyawan Shift regu tujuan. Untuk personil
+        // Relief/Bengkel yang mendampingi sebuah regu sementara waktu.
+        const employeeShiftGroupOptions = ['-', 'A', 'B', 'C', 'D'];
         const employeePositionOptions = [
             '-',
             'Kepala Regu ( KARU )',
@@ -892,6 +899,7 @@
                     { key: 'npk', label: 'NPK', placeholder: 'cth, 2000.1.010' },
                     { key: 'name', label: 'Nama Karyawan', placeholder: 'cth, Budi Santoso' },
                     { key: 'group', label: 'Group', type: 'select', options: employeeGroupOptions },
+                    { key: 'shift_group', label: 'Regu Shift (opsional)', type: 'select', options: employeeShiftGroupOptions },
                     { key: 'position', label: 'Jabatan', type: 'select', options: employeePositionOptions },
                     { key: 'division', label: 'Divisi', type: 'select', options: employeeDivisionOptions },
                     { key: 'work_time', label: 'Jam Kerja', type: 'select', options: employeeWorkTimeOptions },
@@ -1057,10 +1065,13 @@
             if (pane === 'karyawan') {
                 const group = text('.col-group');
 
+                const shiftGroup = text('.col-shiftgroup');
+
                 return {
                     npk: text('.col-npk') === '-' ? '' : text('.col-npk'),
                     name: text('.col-name'),
                     group: group === 'Kantor' || group === '-' ? '-' : group.replace(/^Regu\s+/i, ''),
+                    shift_group: shiftGroup === '' || shiftGroup === '-' ? '-' : shiftGroup.replace(/^Regu\s+/i, ''),
                     position: text('.col-position') === '-' ? '' : text('.col-position'),
                     division: text('.col-division') || 'Operasional',
                     work_time: text('.col-worktime') === '-' ? 'Non Shift' : text('.col-worktime'),
