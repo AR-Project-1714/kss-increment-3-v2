@@ -1796,13 +1796,19 @@ class AdminV2Controller extends Controller
     }
 
     /**
-     * Penugasan regu shift untuk personil yang asalnya bukan dari regu itu
-     * (mis. Relief/Bengkel yang mendampingi sebuah regu). Berbeda dengan
-     * group_name, kolom ini TIDAK memindahkan karyawan — asalnya tetap, ia
-     * hanya ikut tampil di daftar Karyawan Shift regu tujuan.
+     * Penugasan sementara ke unit lain. Berbeda dengan group_name, kolom ini
+     * TIDAK memindahkan karyawan — asalnya tetap tercatat, ia hanya ikut
+     * tampil di daftar unit tujuan:
      *
-     * Hanya menerima Regu A-D karena daftar shift memang cuma untuk regu
-     * reguler. Disimpan sebagai 'Group A' agar seragam dengan seeder.
+     *   Group A-D   -> daftar Karyawan Shift regu tsb
+     *   Relief 1/2  -> tab Relief & Lembur laporan operasional
+     *   Bengkel     -> daftar absensi laporan pemeliharaan
+     *
+     * OP.7 sengaja tidak didukung: barisnya terikat nomor forklift dan area
+     * kerja, sehingga menambah orang akan menggeser pemetaan posisi.
+     *
+     * Nilai disimpan mengikuti penamaan group_name agar bucket di
+     * ReportOpsController::employeesGrouped() langsung cocok.
      */
     private function normalizeShiftGroup(?string $group): ?string
     {
@@ -1810,6 +1816,14 @@ class AdminV2Controller extends Controller
 
         if ($value === '' || in_array(Str::lower($value), ['-', 'tidak ada'], true)) {
             return null;
+        }
+
+        if (in_array(Str::lower($value), ['bengkel', 'pemeliharaan'], true)) {
+            return 'Bengkel';
+        }
+
+        if (preg_match('/^relief\s*([12])$/i', $value, $matches)) {
+            return 'Relief '.$matches[1];
         }
 
         $letter = strtoupper(preg_replace('/^(?:regu|group|grup)\s+/i', '', $value) ?? $value);

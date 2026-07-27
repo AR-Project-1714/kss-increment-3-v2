@@ -858,10 +858,13 @@
         };
 
         const employeeGroupOptions = ['-', 'Bengkel', 'Relief 1', 'Relief 2', 'A', 'B', 'C', 'D', 'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D'];
-        // Penugasan regu shift: TIDAK memindahkan karyawan, hanya membuatnya
-        // ikut tampil di daftar Karyawan Shift regu tujuan. Untuk personil
-        // Relief/Bengkel yang mendampingi sebuah regu sementara waktu.
-        const employeeShiftGroupOptions = ['-', 'A', 'B', 'C', 'D'];
+        // Penugasan sementara: TIDAK memindahkan karyawan, hanya membuatnya
+        // ikut tampil di daftar unit tujuan. Regu A-D masuk daftar Karyawan
+        // Shift, Relief masuk tab Relief & Lembur, Bengkel masuk absensi
+        // laporan pemeliharaan. Nilainya harus sama dengan yang ditampilkan
+        // kolom Regu Shift (setelah awalan 'Regu' dibuang) supaya dropdown
+        // terisi balik saat form edit dibuka.
+        const employeeShiftGroupOptions = ['-', 'A', 'B', 'C', 'D', 'Relief 1', 'Relief 2', 'Bengkel'];
         const employeePositionOptions = [
             '-',
             'Kepala Regu ( KARU )',
@@ -899,7 +902,7 @@
                     { key: 'npk', label: 'NPK', placeholder: 'cth, 2000.1.010' },
                     { key: 'name', label: 'Nama Karyawan', placeholder: 'cth, Budi Santoso' },
                     { key: 'group', label: 'Group', type: 'select', options: employeeGroupOptions },
-                    { key: 'shift_group', label: 'Regu Shift (opsional)', type: 'select', options: employeeShiftGroupOptions },
+                    { key: 'shift_group', label: 'Penugasan Sementara (opsional)', type: 'select', options: employeeShiftGroupOptions },
                     { key: 'position', label: 'Jabatan', type: 'select', options: employeePositionOptions },
                     { key: 'division', label: 'Divisi', type: 'select', options: employeeDivisionOptions },
                     { key: 'work_time', label: 'Jam Kerja', type: 'select', options: employeeWorkTimeOptions },

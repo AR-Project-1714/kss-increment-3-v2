@@ -47,9 +47,18 @@ class MasterEmployee extends Model
         return $this->hasMany(MaintenanceAttendance::class, 'master_employee_id');
     }
 
+    /**
+     * Karyawan yang bisa dipilih di modul pemeliharaan: personil divisi
+     * pemeliharaan, ditambah siapa pun yang sedang ditugaskan ke Bengkel lewat
+     * `shift_group_name`. Penugasan tidak mengubah divisi, jadi harus dicek
+     * terpisah di sini.
+     */
     public function scopeForMaintenance($query)
     {
-        return $query->whereIn('division', [self::DIVISION_MAINTENANCE, self::DIVISION_BOTH]);
+        return $query->where(function ($query): void {
+            $query->whereIn('division', [self::DIVISION_MAINTENANCE, self::DIVISION_BOTH])
+                ->orWhere('shift_group_name', 'Bengkel');
+        });
     }
 
     public function scopeForOperational($query)
