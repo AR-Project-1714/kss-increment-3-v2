@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Sumber kebenaran TUNGGAL untuk master karyawan KSS.
@@ -40,7 +41,9 @@ class MasterEmployeeSeeder extends Seeder
         $withNpk = [];
         $withoutNpk = [];
 
-        foreach ($rows as [$npk, $name, $group, $position, $division, $workTime]) {
+        foreach ($rows as $row) {
+            [$npk, $name, $group, $position, $division, $workTime] = $row;
+
             $payload = [
                 'npk' => $npk,
                 'name' => $name,
@@ -51,6 +54,12 @@ class MasterEmployeeSeeder extends Seeder
                 'status' => 'active',
                 'updated_at' => $now,
             ];
+
+            // Elemen ke-7 opsional: regu shift tempat karyawan ikut bertugas
+            // walau asalnya dari Relief/Bengkel.
+            if (Schema::hasColumn('master_employees', 'shift_group_name')) {
+                $payload['shift_group_name'] = $row[6] ?? null;
+            }
 
             if ($npk !== null) {
                 // Adopsi baris lama tanpa NPK bernama sama (mis. sisa migrasi
@@ -122,7 +131,9 @@ class MasterEmployeeSeeder extends Seeder
             ['2006.1.049', 'Amiruddin', 'Bengkel', 'Checker', 'pemeliharaan', 'Non Shift'],
             ['2003.1.038', 'Rizal Paselleri', 'Bengkel', 'Driver', 'pemeliharaan', 'Non Shift'],
             ['2004.1.044', 'Nasrayuddin', 'Bengkel', 'Driver', 'pemeliharaan', 'Non Shift'],
-            ['2023.K.020', 'Supriadi Budianto', 'Bengkel', 'Operator WL/ Exca', 'pemeliharaan', 'Non Shift'],
+            // Divisi 'both': tetap di modul pemeliharaan, sekaligus terbaca
+            // operasional agar bisa ikut daftar shift Regu D.
+            ['2023.K.020', 'Supriadi Budianto', 'Bengkel', 'Operator WL/ Exca', 'both', 'Non Shift', 'Group D'],
             ['2023.K.019', 'Irfan Teguh Andriyanto', 'Bengkel', 'Operator Exca/ WL', 'pemeliharaan', 'Non Shift'],
         ];
     }
@@ -131,11 +142,13 @@ class MasterEmployeeSeeder extends Seeder
     private function relief(): array
     {
         return [
-            ['2025.K.064', 'Rahardian Efendi', 'Relief 1', 'Driver', 'operasional', 'Relief'],
-            ['2023.K.021', 'Hermanto Susanto', 'Relief 1', null, 'operasional', 'Relief'],
+            // Elemen ke-7 = regu shift tempat mereka ikut bertugas (posisi 3
+            // daftar Karyawan Shift), tanpa keluar dari Relief.
+            ['2025.K.064', 'Rahardian Efendi', 'Relief 1', 'Driver', 'operasional', 'Relief', 'Group A'],
+            ['2023.K.021', 'Hermanto Susanto', 'Relief 1', null, 'operasional', 'Relief', 'Group B'],
             ['2023.K.027', 'Muhammad Ardi', 'Relief 1', 'Operator FL', 'operasional', 'Relief'],
 
-            ['2025.K.063', 'Awaluddin Fitroh', 'Relief 2', 'Driver', 'operasional', 'Relief'],
+            ['2025.K.063', 'Awaluddin Fitroh', 'Relief 2', 'Driver', 'operasional', 'Relief', 'Group C'],
             ['2023.K.033', 'Usaid Nur Rachman', 'Relief 2', 'Operator FL', 'operasional', 'Relief'],
             ['2024.K.057', 'Abdul Khair', 'Relief 2', 'Operator FL', 'operasional', 'Relief'],
         ];
@@ -169,9 +182,9 @@ class MasterEmployeeSeeder extends Seeder
             ['2005.1.047', 'Ahmad Nur', 'Group B', 'Operator FL', 'operasional', 'Shift'],
             ['2023.K.001', 'Freddy Widiarto', 'Group B', 'Driver', 'operasional', 'Shift'],
             ['2025.1.072', 'Agus Ibnu Thufail', 'Group B', 'Driver', 'operasional', 'Shift'],
+            ['2023.K.037', 'Habibi', 'Group B', 'Operator FL', 'operasional', 'Shift'],
             [null, 'Agus Hendra Jaya', 'Group B', 'Driver', 'operasional', 'Shift'],
             [null, 'Andre Oktavianus Damanik', 'Group B', 'Operator FL', 'operasional', 'Shift'],
-            ['2023.K.037', 'Habibi', 'Group B', 'Operator FL', 'operasional', 'Shift'],
 
             // Group C
             ['2001.1.020', 'Jawawi', 'Group C', 'Kepala Regu ( KARU )', 'operasional', 'Shift'],

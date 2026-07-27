@@ -24,6 +24,12 @@ return new class extends Migration
 {
     private const GROUP = 'OP.7 Group C';
 
+    /**
+     * Anggota lama yang memang sudah tidak ada di daftar resmi petugas
+     * lapangan. Hanya nama di sini yang boleh hilang saat penulisan ulang.
+     */
+    private const OBSOLETE = ['Abd. Aziz'];
+
     /** [npk, name] sesuai urutan baris FL.KSS-101 s/d FL.KSS-110. */
     private const ROSTER = [
         ['2025.K.026', 'Muhammad Bakri'],
@@ -63,7 +69,16 @@ return new class extends Migration
         $byName = $existing->keyBy('name');
         $now = now();
 
-        DB::transaction(function () use ($byName, $now) {
+        // Anggota di luar daftar resmi TIDAK dibuang — bisa jadi personil yang
+        // ditambahkan admin lewat panel Data Master setelah sistem berjalan.
+        // Mereka ditempatkan setelah roster resmi. Hanya nama usang yang memang
+        // sudah digantikan (lihat OBSOLETE) yang benar-benar dihapus.
+        $extras = $existing
+            ->reject(fn ($row) => in_array($row->name, $desiredNames, true))
+            ->reject(fn ($row) => in_array($row->name, self::OBSOLETE, true))
+            ->values();
+
+        DB::transaction(function () use ($byName, $extras, $now) {
             // Simpan referensi absensi pemeliharaan (jika ada) supaya bisa
             // dipetakan ulang ke id baru setelah baris ditulis ulang.
             $attendanceRefs = $this->maintenanceReferences($byName->pluck('id')->all());
@@ -82,6 +97,20 @@ return new class extends Migration
                     'work_time' => $previous->work_time ?? 'Shift',
                     'status' => $previous->status ?? 'active',
                     'created_at' => $previous->created_at ?? $now,
+                    'updated_at' => $now,
+                ]);
+            }
+
+            foreach ($extras as $row) {
+                DB::table('master_employees')->insert([
+                    'npk' => $row->npk,
+                    'name' => $row->name,
+                    'group_name' => self::GROUP,
+                    'position' => $row->position,
+                    'division' => $row->division,
+                    'work_time' => $row->work_time,
+                    'status' => $row->status,
+                    'created_at' => $row->created_at ?? $now,
                     'updated_at' => $now,
                 ]);
             }

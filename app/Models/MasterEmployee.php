@@ -30,6 +30,7 @@ class MasterEmployee extends Model
         'npk',
         'name',
         'group_name',
+        'shift_group_name',
         'position',
         'division',
         'work_time',
