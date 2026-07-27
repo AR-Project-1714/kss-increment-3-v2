@@ -408,8 +408,10 @@
     $filterDivisionOptions = [
         '' => 'Semua Divisi', 'Operasional' => 'Operasional', 'Pemeliharaan' => 'Pemeliharaan', 'Safety' => 'Safety', 'Office' => 'Office',
     ];
-    $positionOptionList = ['Checker', 'Operator FL', 'Driver', 'Operator Exca/ WL', 'Operator WL/ Exca', 'Kasi Pemeliharaan & Peralatan', 'Karu Peralatan', 'Karu Pemeliharaan', 'Mekanik', 'Helper', 'Rigger', 'Operator OP.7', 'Manager', 'Kabag', 'Kasi', 'Staf Ahli', 'Staf', 'Kepala Seksi'];
-    $filterPositionOptions = array_merge(['' => 'Semua Jabatan'], array_combine($positionOptionList, $positionOptionList));
+    // Opsi Jabatan dibaca dari jabatan yang benar-benar dipakai karyawan
+    // (AdminV2Controller::employeePositionFilterOptions), bukan daftar tetap
+    // yang mudah ketinggalan begitu jabatan baru ditambahkan lewat modal.
+    $filterPositionOptions = array_merge(['' => 'Semua Jabatan'], $masterPositionOptions ?? []);
     $unitTypeOptionList = ['Trailer', 'Tronton', 'Dump Truck', 'Minibus', 'Bus', 'Pickup', 'Forklift', 'Wheel Loader', 'Excavator'];
     $filterTypeOptions = array_merge(['' => 'Semua Tipe'], array_combine($unitTypeOptionList, $unitTypeOptionList));
     $filterCategoryOptions = [

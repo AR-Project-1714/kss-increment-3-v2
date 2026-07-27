@@ -137,6 +137,97 @@ class AdminDataMasterTest extends BlackBoxTestCase
             ->assertDontSee('Tidak Relevan', false);
     }
 
+    public function test_tc_amst_07b_filter_group_ikut_menghitung_penugasan_sementara(): void
+    {
+        $admin = $this->admin();
+
+        MasterEmployee::create([
+            'name' => 'Anggota Asli Regu A',
+            'group_name' => 'Group A',
+            'division' => MasterEmployee::DIVISION_OPERATIONAL,
+            'status' => 'active',
+        ]);
+        MasterEmployee::create([
+            'name' => 'Personil Relief Tugas A',
+            'group_name' => 'Relief 1',
+            'shift_group_name' => 'Group A',
+            'division' => MasterEmployee::DIVISION_OPERATIONAL,
+            'status' => 'active',
+        ]);
+        MasterEmployee::create([
+            'name' => 'Anggota Regu B',
+            'group_name' => 'Group B',
+            'division' => MasterEmployee::DIVISION_OPERATIONAL,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.datamaster', ['pane' => 'karyawan', 'f_group' => 'A']))
+            ->assertOk()
+            ->assertSee('Anggota Asli Regu A', false)
+            ->assertSee('Personil Relief Tugas A', false)
+            ->assertDontSee('Anggota Regu B', false);
+    }
+
+    public function test_tc_amst_07c_opsi_filter_jabatan_mengikuti_data(): void
+    {
+        $admin = $this->admin();
+
+        MasterEmployee::create([
+            'name' => 'Karu Regu A',
+            'position' => 'Kepala Regu ( KARU )',
+            'division' => MasterEmployee::DIVISION_OPERATIONAL,
+            'status' => 'active',
+        ]);
+        MasterEmployee::create([
+            'name' => 'Karyawan Tanpa Jabatan',
+            'division' => MasterEmployee::DIVISION_OPERATIONAL,
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.datamaster', ['pane' => 'karyawan']));
+
+        $response->assertOk();
+
+        // Isi dropdown = persis jabatan yang dipakai karyawan (plus 'Semua
+        // Jabatan' dan 'Tanpa Jabatan'): tidak ada jabatan terpakai yang luput,
+        // tidak ada opsi yang tak pernah membuahkan hasil.
+        $used = MasterEmployee::query()
+            ->whereNotNull('position')
+            ->where('position', '!=', '')
+            ->distinct()
+            ->orderBy('position')
+            ->pluck('position')
+            ->all();
+
+        $this->assertContains('Kepala Regu ( KARU )', $used);
+        $this->assertSame(
+            array_merge([''], $used, ['-']),
+            $this->positionFilterOptions($response->getContent())
+        );
+
+        $this->actingAs($admin)
+            ->get(route('admin.datamaster', ['pane' => 'karyawan', 'f_position' => '-']))
+            ->assertOk()
+            ->assertSee('Karyawan Tanpa Jabatan', false)
+            ->assertDontSee('Karu Regu A', false);
+    }
+
+    /**
+     * Nilai <option> pada dropdown filter Jabatan, urut sesuai yang dirender.
+     *
+     * @return list<string>
+     */
+    private function positionFilterOptions(string $html): array
+    {
+        $this->assertMatchesRegularExpression('/<select name="f_position".*?<\/select>/s', $html);
+
+        preg_match('/<select name="f_position".*?<\/select>/s', $html, $select);
+        preg_match_all('/<option value="([^"]*)"/', $select[0], $options);
+
+        return array_map(fn (string $value): string => html_entity_decode($value, ENT_QUOTES), $options[1]);
+    }
+
     public function test_tc_amst_08_status_aktif_master_k3_mempengaruhi_form_safety(): void
     {
         $safetyUser = $this->safety();

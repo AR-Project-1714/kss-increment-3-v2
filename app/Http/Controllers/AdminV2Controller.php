@@ -322,7 +322,9 @@ class AdminV2Controller extends Controller
             })
             ->when($pane === 'karyawan' && $empGroup !== '', fn (Builder $query) => $this->applyEmployeeGroupFilter($query, $empGroup))
             ->when($pane === 'karyawan' && $empDivision !== '', fn (Builder $query) => $query->whereIn('division', $this->divisionFilterValues($empDivision)))
-            ->when($pane === 'karyawan' && $empPosition !== '', fn (Builder $query) => $query->where('position', $empPosition))
+            ->when($pane === 'karyawan' && $empPosition !== '', fn (Builder $query) => $empPosition === '-'
+                ? $query->where(fn (Builder $builder) => $builder->whereNull('position')->orWhere('position', ''))
+                : $query->where('position', $empPosition))
             ->orderBy('name')
             ->paginate(10, ['*'], 'employees_page')
             ->appends($paginationQuery('karyawan'));
@@ -499,6 +501,7 @@ class AdminV2Controller extends Controller
                 'type' => $unitType,
                 'category' => $unitCategory,
             ],
+            'masterPositionOptions' => $this->employeePositionFilterOptions(),
             'employees' => $employees,
             'units' => $units,
             'trucks' => $trucks,
@@ -1744,17 +1747,56 @@ class AdminV2Controller extends Controller
      * Terapkan filter group untuk master karyawan. Token berasal dari dropdown
      * filter dan dipetakan ke nilai group_name aktual di database (yang bisa
      * tersimpan sebagai 'Group A' maupun 'A', dsb).
+     *
+     * Selain asal karyawan (group_name), penugasan sementara (shift_group_name)
+     * ikut dicocokkan: menyaring "Regu A" harus memunculkan juga personil
+     * Relief/Bengkel yang bertugas di regu itu, persis seperti daftar karyawan
+     * di form laporan. OP.7 tidak pernah jadi tujuan penugasan, jadi tokennya
+     * cukup mencocokkan group_name saja.
      */
     private function applyEmployeeGroupFilter(Builder $query, string $token): Builder
     {
+        $matching = fn (array $values): Builder => $query->where(fn (Builder $builder) => $builder
+            ->whereIn('group_name', $values)
+            ->orWhereIn('shift_group_name', $values));
+
         return match ($token) {
             'kantor' => $query->whereNull('group_name'),
-            'bengkel' => $query->where('group_name', 'Bengkel'),
-            'Relief 1', 'Relief 2' => $query->where('group_name', $token),
-            'A', 'B', 'C', 'D' => $query->whereIn('group_name', ['Group '.$token, $token]),
+            'bengkel' => $matching(['Bengkel']),
+            'Relief 1', 'Relief 2' => $matching([$token]),
+            'A', 'B', 'C', 'D' => $matching(['Group '.$token, $token]),
             'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D' => $query->whereIn('group_name', ['OP.7 Group '.substr($token, -1), $token]),
             default => $query,
         };
+    }
+
+    /**
+     * Opsi dropdown "Jabatan" pada filter master karyawan, diambil dari jabatan
+     * yang benar-benar terpakai. Daftar tetap (hardcode) selalu ketinggalan
+     * setiap kali jabatan baru ditambahkan lewat modal -- akibatnya ada jabatan
+     * yang tak bisa disaring sekaligus opsi yang tak pernah membuahkan hasil.
+     *
+     * Karyawan tanpa jabatan diberi opsinya sendiri ('-') supaya data yang
+     * belum lengkap gampang ditemukan admin.
+     *
+     * @return array<string, string> nilai filter => label
+     */
+    private function employeePositionFilterOptions(): array
+    {
+        $options = MasterEmployee::query()
+            ->whereNotNull('position')
+            ->where('position', '!=', '')
+            ->distinct()
+            ->orderBy('position')
+            ->pluck('position')
+            ->mapWithKeys(fn (string $position): array => [$position => $position])
+            ->all();
+
+        $hasBlank = MasterEmployee::query()
+            ->where(fn (Builder $query) => $query->whereNull('position')->orWhere('position', ''))
+            ->exists();
+
+        return $hasBlank ? array_merge($options, ['-' => 'Tanpa Jabatan']) : $options;
     }
 
     /**

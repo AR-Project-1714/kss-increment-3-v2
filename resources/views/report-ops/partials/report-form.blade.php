@@ -710,6 +710,21 @@ document.addEventListener('DOMContentLoaded', function () {
         return employeesFromGroups(groupName => normalizeExactGroupName(groupName).startsWith('RELIEF'));
     }
 
+    // ----- Saran nama per tabel karyawan -----
+    // Tiap tabel punya kandidat yang berbeda, jadi daftarnya tidak lagi dipukul
+    // rata "seluruh karyawan". Datalist sifatnya saran, bukan pembatas: nama di
+    // luar daftar tetap boleh diketik petugas.
+    function employeeNames(...lists) {
+        return unique(lists.flat().map(employee => employee && employee.name));
+    }
+
+    // Regu shift & OP.7 dipakai apa adanya; kalau group belum dipilih (atau
+    // regu itu memang kosong di master) daftar penuh yang dipakai agar petugas
+    // tidak kehilangan saran sama sekali.
+    function groupNamesOrAll(employees) {
+        return employees.length ? employeeNames(employees) : employeeNames(allOperationalEmployees());
+    }
+
     function employeesByPosition(positionKeys, groupValue) {
         const wanted = positionKeys.map(p => p.toLowerCase());
         const matches = list => list.filter(e => e && e.position && wanted.includes(String(e.position).trim().toLowerCase()));
@@ -730,6 +745,27 @@ document.addEventListener('DOMContentLoaded', function () {
         createDatalist('master-checker-list', employeesByPosition(ROLE_POSITIONS.checker, group).map(e => e.name));
         createDatalist('master-forklift-operator-list', employeesByPosition(ROLE_POSITIONS.forkliftOperator, group).map(e => e.name));
         createDatalist('master-driver-list', employeesByPosition(ROLE_POSITIONS.driver, group).map(e => e.name));
+    }
+
+    /**
+     * Daftar saran tabel Karyawan, ikut berubah saat group diganti.
+     *
+     * Shift & OP.7 dipersempit ke anggota regu yang bersangkutan — itulah yang
+     * sah mengisi kedua tabel tsb. Pengganti, Lembur, dan Kegiatan Lain tetap
+     * memuat semua karyawan operasional karena pelakunya bisa dari mana saja,
+     * hanya urutannya yang didahulukan: Relief untuk pengganti, anggota regu
+     * sendiri untuk lembur/kegiatan lain.
+     */
+    function rebuildEmployeeDatalists(groupValue = null) {
+        const group = groupValue || document.querySelector('[name="group_name"]')?.value || '';
+        const shift = employeesForGroup(group);
+        const op7 = employeesForOp7Group(group);
+        const all = allOperationalEmployees();
+
+        createDatalist('master-shift-list', groupNamesOrAll(shift));
+        createDatalist('master-op7-list', groupNamesOrAll(op7));
+        createDatalist('master-replacement-list', employeeNames(reliefEmployees(), shift, op7, all));
+        createDatalist('master-group-employee-list', employeeNames(shift, op7, all));
     }
 
     function syncCustomSelectLabel(select) {
@@ -1061,10 +1097,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // berjabatan Operator FL / Operator OP.7 sesuai group, BUKAN nomor unit forklift.
     const FORKLIFT_OPERATOR_FIELDS = /^(operator_ship_\d+|operator_warehouse_\d+|opr_forklift(_\d+)?|turba_forklift_operator)$/i;
 
-    // Hanya kolom "nama karyawan" (subfield [name]) yang perlu disarankan dari daftar
-    // karyawan. Kolom lain seperti [description]/[work_area]/[time_in] pada log yang
-    // sama TIDAK boleh ikut ketiban list ini (mis. keterangan OP.7 punya datalist sendiri).
-    const EMPLOYEE_NAME_ARRAY_FIELDS = /(employee_shift_logs|overtime_logs|op7_logs|replacement_logs|other_activity_logs)\[[^\]]+\]\[name\]$/i;
+    // Tiap tabel log karyawan punya daftar sarannya sendiri (lihat
+    // rebuildEmployeeDatalists). Yang dicocokkan selalu kolom "nama karyawan"
+    // (subfield [name]) saja — kolom lain seperti [description]/[work_area]/
+    // [time_in] pada baris yang sama tidak boleh ikut ketiban daftar karyawan,
+    // mis. keterangan OP.7 yang punya datalist sendiri.
 
     function applyMasterDatalists(root = document) {
         root.querySelectorAll('input[type="text"], input:not([type])').forEach(input => {
@@ -1089,7 +1126,20 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (/relief_logs/i.test(name)) {
                 // Karyawan Relief: hanya sarankan personil group Relief 1 / Relief 2.
                 input.setAttribute('list', 'master-relief-list');
-            } else if (EMPLOYEE_NAME_ARRAY_FIELDS.test(name) || /(operator|foreman|stevedoring|petugas)/i.test(name)) {
+            } else if (/employee_shift_logs\[[^\]]+\]\[name\]$/i.test(name)) {
+                // Karyawan Shift: hanya anggota regu yang dipilih (termasuk
+                // personil Relief/Bengkel yang punya penugasan ke regu itu).
+                input.setAttribute('list', 'master-shift-list');
+            } else if (/op7_logs\[[^\]]+\]\[name\]$/i.test(name)) {
+                // Karyawan OP.7: hanya anggota OP.7 regu yang dipilih.
+                input.setAttribute('list', 'master-op7-list');
+            } else if (/replacement_logs\[[^\]]+\]\[name\]$/i.test(name)) {
+                // Pengganti: Relief lebih dulu, lalu anggota regu, lalu sisanya.
+                input.setAttribute('list', 'master-replacement-list');
+            } else if (/(overtime_logs|other_activity_logs)\[[^\]]+\]\[name\]$/i.test(name)) {
+                // Lembur & Kegiatan Lain: anggota regu sendiri lebih dulu.
+                input.setAttribute('list', 'master-group-employee-list');
+            } else if (/(operator|foreman|stevedoring|petugas)/i.test(name)) {
                 input.setAttribute('list', 'master-employee-list');
             }
 
@@ -3114,6 +3164,7 @@ document.addEventListener('DOMContentLoaded', function () {
     clearTemplateValues();
     applyDefaultGroup();
     rebuildRoleDatalists();
+    rebuildEmployeeDatalists();
     applyDefaultShiftByWita();
     if (!isEditMode || !document.querySelector('[name="time_range"]')?.value) {
         syncTimeRangeWithShift();
@@ -3142,6 +3193,7 @@ document.addEventListener('DOMContentLoaded', function () {
         renderEmployeeShiftRows(event.target.value);
         renderOp7Rows(event.target.value);
         rebuildRoleDatalists(event.target.value);
+        rebuildEmployeeDatalists(event.target.value);
     });
 
     document.querySelector('[name="shift"]')?.addEventListener('change', () => {
