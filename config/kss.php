@@ -4,11 +4,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Batas Awal Memori Susunan Karyawan
+    | Batas Awal Memori Susunan Karyawan OP.7
     |--------------------------------------------------------------------------
     |
-    | Form laporan mengingat susunan karyawan (urutan baris, no. forklift, area
-    | kerja) dari laporan terakhir tiap regu. Laporan yang DIBUAT sebelum
+    | Form laporan mengingat susunan karyawan OP.7 (urutan baris, no. forklift,
+    | area kerja) dari laporan terakhir tiap regu. Laporan yang DIBUAT sebelum
     | tanggal ini diabaikan sebagai sumber susunan.
     |
     | Default null: seluruh riwayat laporan dipertimbangkan. Ini pilihan yang
@@ -16,9 +16,9 @@ return [
     | kerja mereka langsung terpakai tanpa perlu menyusun ulang.
     |
     | Isi dengan tanggal (format Y-m-d) hanya bila riwayat laporan mengandung
-    | susunan lama/uji coba yang tidak ingin terbawa. Susunan yang tidak memuat
-    | satu pun anggota regu bersangkutan sudah tersaring otomatis, jadi setelan
-    | ini hanya diperlukan untuk data keliru yang masih terlihat wajar.
+    | susunan lama/uji coba yang tidak ingin terbawa. Nama di luar anggota OP.7
+    | regu bersangkutan sudah tersaring otomatis, jadi setelan ini hanya
+    | diperlukan untuk data keliru yang namanya justru anggota regu itu sendiri.
     |
     */
 

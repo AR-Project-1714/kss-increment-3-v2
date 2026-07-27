@@ -19,8 +19,8 @@ use Illuminate\Database\Seeder;
  *
  * Karyawan (shift & OP.7) diambil dari roster ASLI MasterEmployeeSeeder, bukan
  * nama karangan — seeder lama (DailyReportSeeder/PerformanceDemoSeeder) memakai
- * nama dummy yang mencemari fitur memori susunan karyawan, lihat
- * ReportOpsController::lastEmployeeRosters().
+ * nama dummy yang mencemari fitur memori susunan karyawan OP.7, lihat
+ * ReportOpsController::lastOp7Rosters().
  *
  * Idempotent: updateOrCreate berdasarkan report_date + shift + group_name.
  */

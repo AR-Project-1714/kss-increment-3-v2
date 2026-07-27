@@ -1925,7 +1925,7 @@ class ReportOpsController extends Controller
                 fn () => $this->employeesGrouped()
             ),
             'lastUnitHandoverConditions' => $this->lastUnitHandoverConditions($report),
-            'lastEmployeeRosters' => $this->lastEmployeeRosters($report),
+            'lastOp7Rosters' => $this->lastOp7Rosters($report),
             'previousReportPeek' => $this->previousReportPeek($report),
         ];
     }
@@ -1969,23 +1969,6 @@ class ReportOpsController extends Controller
     }
 
     /**
-     * Susunan karyawan terakhir yang disusun petugas per regu — dipakai form
-     * baru sebagai titik awal, menggantikan urutan master data.
-     *
-     * Sumbernya adalah SATU laporan non-draft terakhir milik regu tersebut
-     * (bukan gabungan lintas laporan) supaya urutan baris tetap utuh apa
-     * adanya. Yang diingat hanya susunannya — nama, no. forklift, dan area
-     * kerja. Jam masuk/pulang sengaja tidak dibawa karena sudah terisi
-     * otomatis dari shift, begitu pula keterangan absensi (Cuti/Izin) yang
-     * hanya berlaku untuk hari itu.
-     *
-     * Kategori 'replacement' tidak diikutkan: baris OP.7 tetap menyimpan nama
-     * operator aslinya walau hari itu digantikan, jadi petugas pengganti tidak
-     * pernah menggeser susunan tetap.
-     *
-     * @return array<string, array<string, list<array<string, string|null>>>>
-     */
-    /**
      * Samakan penamaan regu dengan normalizeGroupName() di form: 'Group C',
      * 'OP.7 Group C', dan 'C' semuanya jatuh ke kunci 'C'.
      */
@@ -1999,50 +1982,69 @@ class ReportOpsController extends Controller
     }
 
     /**
-     * Nama anggota master tiap regu (huruf kecil, siap dicocokkan), mencakup
-     * regu shift reguler, OP.7, dan personil Relief/Bengkel yang ikut bertugas.
+     * Nama anggota master tiap regu OP.7 (huruf kecil, siap dicocokkan),
+     * dikunci dengan huruf regunya saja: 'OP.7 Group C' => 'C'.
+     *
+     * Hanya kelompok OP.7 yang didaftar. Anggota regu shift biasa dan personil
+     * Relief/Bengkel sengaja tidak ikut, supaya operator pinjaman tidak pernah
+     * lolos jadi susunan tetap OP.7 regu ini.
      *
      * @return array<string, array<string, true>>
      */
-    private function masterNamesByGroup(): array
+    private function op7NamesByGroup(): array
     {
         $namesByGroup = [];
-        $columns = ['name', 'group_name'];
-
-        if (Schema::hasColumn('master_employees', 'shift_group_name')) {
-            $columns[] = 'shift_group_name';
-        }
 
         MasterEmployee::query()
             ->where('status', 'active')
-            ->get($columns)
+            ->whereNotNull('group_name')
+            ->get(['name', 'group_name'])
             ->each(function (MasterEmployee $employee) use (&$namesByGroup): void {
-                $name = mb_strtolower(trim((string) $employee->name));
-
-                if ($name === '') {
+                if (! preg_match('/^OP\.?7\s+(GROUP|GRUP)\s+/i', trim((string) $employee->group_name))) {
                     return;
                 }
 
-                foreach ([$employee->group_name, $employee->shift_group_name] as $group) {
-                    $key = $this->normalizeGroupKey($group);
+                $name = mb_strtolower(trim((string) $employee->name));
+                $key = $this->normalizeGroupKey($employee->group_name);
 
-                    if ($key !== '') {
-                        $namesByGroup[$key][$name] = true;
-                    }
+                if ($name !== '' && $key !== '') {
+                    $namesByGroup[$key][$name] = true;
                 }
             });
 
         return $namesByGroup;
     }
 
-    private function lastEmployeeRosters(?DailyReport $report = null): array
+    /**
+     * Susunan karyawan OP.7 terakhir yang disusun petugas per regu — dipakai
+     * form baru sebagai titik awal, menggantikan urutan master data.
+     *
+     * Sumbernya adalah SATU laporan non-draft terakhir milik regu tersebut
+     * (bukan gabungan lintas laporan) supaya urutan baris tetap utuh apa
+     * adanya. Yang diingat hanya susunannya — nama, no. forklift, dan area
+     * kerja. Jam masuk/pulang sengaja tidak dibawa karena sudah terisi
+     * otomatis dari shift, begitu pula keterangan absensi (Cuti/Izin) yang
+     * hanya berlaku untuk hari itu.
+     *
+     * Hanya OP.7 yang punya memori: di sanalah penempatan forklift/area kerja
+     * berpindah-pindah dan perlu diingat. Daftar karyawan shift selalu dimulai
+     * dari master data seperti sedia kala.
+     *
+     * Kategori 'replacement' tidak diikutkan: baris OP.7 tetap menyimpan nama
+     * operator aslinya walau hari itu digantikan, jadi petugas pengganti tidak
+     * pernah menggeser susunan tetap.
+     *
+     * Baris yang namanya bukan anggota OP.7 regu tersebut dibuang, jadi
+     * operator pinjaman dari regu lain — juga baris stasiun tetap 'Operator
+     * P.6' yang selalu dipasang ulang oleh form — tidak ikut mengendap.
+     *
+     * @return array<string, list<array<string, string|null>>>
+     */
+    private function lastOp7Rosters(?DailyReport $report = null): array
     {
-        // Sumber tiap kategori dicari terpisah: laporan terakhir yang benar-benar
-        // berisi baris kategori tsb. Kalau dipukul rata satu laporan terakhir,
-        // sekali saja petugas melewatkan tab OP.7 memorinya ikut hilang.
         $sources = EmployeeLog::query()
             ->join('daily_reports', 'daily_reports.id', '=', 'employee_logs.daily_report_id')
-            ->selectRaw('daily_reports.group_name as group_name, employee_logs.category as category, MAX(daily_reports.id) as report_id')
+            ->selectRaw('daily_reports.group_name as group_name, MAX(daily_reports.id) as report_id')
             ->whereIn('daily_reports.status', [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved])
             ->when(
                 config('kss.roster_memory_since'),
@@ -2050,9 +2052,9 @@ class ReportOpsController extends Controller
             )
             ->whereNotNull('daily_reports.group_name')
             ->where('daily_reports.group_name', '!=', '')
-            ->whereIn('employee_logs.category', ['op7', 'shift'])
+            ->where('employee_logs.category', 'op7')
             ->when($report, fn ($query) => $query->where('daily_reports.id', '!=', $report->id))
-            ->groupBy('daily_reports.group_name', 'employee_logs.category')
+            ->groupBy('daily_reports.group_name')
             ->get();
 
         if ($sources->isEmpty()) {
@@ -2060,35 +2062,29 @@ class ReportOpsController extends Controller
         }
 
         $logs = EmployeeLog::query()
-            ->select('daily_report_id', 'category', 'name', 'no_forklift_', 'work_area')
+            ->select('daily_report_id', 'name', 'no_forklift_', 'work_area')
             ->whereIn('daily_report_id', $sources->pluck('report_id')->unique())
-            ->whereIn('category', ['op7', 'shift'])
+            ->where('category', 'op7')
             ->orderBy('id')
             ->get();
 
-        // Pengaman terhadap laporan berisi data uji coba: susunan dipakai hanya
-        // bila memuat minimal satu anggota regu itu sendiri. Roster sungguhan
-        // selalu memenuhi syarat ini, sementara data acak/dummy — yang namanya
-        // milik regu lain atau tidak dikenal sama sekali — tersaring. Petugas
-        // tetap bebas menambah personil baru di luar master.
-        $namesByGroup = $this->masterNamesByGroup();
+        $namesByGroup = $this->op7NamesByGroup();
 
         $rosters = [];
 
         foreach ($sources as $source) {
             $groupKey = $this->normalizeGroupKey($source->group_name);
+            $groupNames = $namesByGroup[$groupKey] ?? [];
 
-            if ($groupKey === '') {
+            if ($groupNames === []) {
                 continue;
             }
 
-            $groupNames = $namesByGroup[$groupKey] ?? [];
-
             $roster = [];
-            $recognised = 0;
+            $seen = [];
 
             foreach ($logs as $log) {
-                if ($log->daily_report_id !== $source->report_id || $log->category !== $source->category) {
+                if ($log->daily_report_id !== $source->report_id) {
                     continue;
                 }
 
@@ -2098,9 +2094,15 @@ class ReportOpsController extends Controller
                     continue;
                 }
 
-                if (isset($groupNames[mb_strtolower($name)])) {
-                    $recognised++;
+                $key = mb_strtolower($name);
+
+                // Nama di luar OP.7 regu ini tersaring di sini; nama kembar —
+                // mis. operator yang sempat ditulis dua kali — cukup sekali.
+                if (! isset($groupNames[$key]) || isset($seen[$key])) {
+                    continue;
                 }
+
+                $seen[$key] = true;
 
                 $roster[] = [
                     'name' => $name,
@@ -2109,8 +2111,8 @@ class ReportOpsController extends Controller
                 ];
             }
 
-            if ($roster !== [] && $recognised > 0) {
-                $rosters[$groupKey][$source->category] = $roster;
+            if ($roster !== []) {
+                $rosters[$groupKey] = $roster;
             }
         }
 
