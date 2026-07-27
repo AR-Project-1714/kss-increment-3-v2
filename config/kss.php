@@ -9,14 +9,19 @@ return [
     |
     | Form laporan mengingat susunan karyawan (urutan baris, no. forklift, area
     | kerja) dari laporan terakhir tiap regu. Laporan yang DIBUAT sebelum
-    | tanggal ini diabaikan sebagai sumber susunan, supaya data lama atau data
-    | uji coba tidak ikut terbawa ke laporan baru.
+    | tanggal ini diabaikan sebagai sumber susunan.
     |
-    | Isi dengan tanggal saat roster resmi mulai berlaku (format Y-m-d). Set
-    | null untuk mempertimbangkan seluruh laporan tanpa batas.
+    | Default null: seluruh riwayat laporan dipertimbangkan. Ini pilihan yang
+    | tepat bila laporan yang sudah ada memang disusun petugas dengan benar --
+    | kerja mereka langsung terpakai tanpa perlu menyusun ulang.
+    |
+    | Isi dengan tanggal (format Y-m-d) hanya bila riwayat laporan mengandung
+    | susunan lama/uji coba yang tidak ingin terbawa. Susunan yang tidak memuat
+    | satu pun anggota regu bersangkutan sudah tersaring otomatis, jadi setelan
+    | ini hanya diperlukan untuk data keliru yang masih terlihat wajar.
     |
     */
 
-    'roster_memory_since' => env('ROSTER_MEMORY_SINCE', '2026-07-27'),
+    'roster_memory_since' => env('ROSTER_MEMORY_SINCE', null),
 
 ];
