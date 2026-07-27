@@ -633,10 +633,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function employeesFromGroups(predicate) {
+        // Satu karyawan bisa tercatat di dua kelompok sekaligus — mis. personil
+        // Relief/Bengkel yang punya penugasan regu shift, atau data lama yang
+        // regunya tersimpan 'A' sementara yang baru 'Group A'. Keduanya lolos
+        // predikat yang sama, jadi hasilnya disaring agar tampil sekali saja.
+        const seen = new Set();
+
         return Object.entries(masterEmployeesGrouped || {})
             .filter(([groupName]) => predicate(groupName))
             .flatMap(([, employees]) => Array.isArray(employees) ? employees : Object.values(employees || {}))
-            .filter(employee => employee && employee.name);
+            .filter(employee => {
+                if (!employee || !employee.name) return false;
+
+                const key = employee.id ?? String(employee.name).trim().toLowerCase();
+                if (seen.has(key)) return false;
+
+                seen.add(key);
+                return true;
+            });
     }
 
     function employeesForGroup(groupValue) {

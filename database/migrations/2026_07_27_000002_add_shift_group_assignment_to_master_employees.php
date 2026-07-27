@@ -33,11 +33,24 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    /**
+     * nama => [regu shift, grup asal, divisi, jam kerja].
+     *
+     * Grup asal ikut ditegaskan karena sebelum kolom `shift_group_name` ada,
+     * satu-satunya cara memunculkan mereka di daftar shift adalah memindahkan
+     * `group_name` lewat panel admin. Cara itu punya dua efek samping: tab
+     * Relief kehilangan personilnya, dan Supriadi Budianto keluar dari modul
+     * pemeliharaan karena divisinya ikut berubah jadi 'operasional'.
+     *
+     * Migrasi ini mengembalikan asal mereka lalu memakai penugasan regu, yaitu
+     * model yang benar: asal tetap, kehadiran di daftar shift lewat kolom baru.
+     * Membiarkan keduanya terisi juga membuat mereka tampil dua kali.
+     */
     private const SHIFT_ASSIGNMENTS = [
-        'Rahardian Efendi' => 'Group A',
-        'Hermanto Susanto' => 'Group B',
-        'Awaluddin Fitroh' => 'Group C',
-        'Supriadi Budianto' => 'Group D',
+        'Rahardian Efendi' => ['Group A', 'Relief 1', MasterEmployee::DIVISION_OPERATIONAL, 'Relief'],
+        'Hermanto Susanto' => ['Group B', 'Relief 1', MasterEmployee::DIVISION_OPERATIONAL, 'Relief'],
+        'Awaluddin Fitroh' => ['Group C', 'Relief 2', MasterEmployee::DIVISION_OPERATIONAL, 'Relief'],
+        'Supriadi Budianto' => ['Group D', 'Bengkel', MasterEmployee::DIVISION_BOTH, 'Non Shift'],
     ];
 
     /** Urutan resmi Regu B: [npk, nama, jabatan]. */
@@ -70,16 +83,17 @@ return new class extends Migration
 
         $now = now();
 
-        foreach (self::SHIFT_ASSIGNMENTS as $name => $group) {
+        foreach (self::SHIFT_ASSIGNMENTS as $name => [$shiftGroup, $homeGroup, $division, $workTime]) {
             DB::table('master_employees')
                 ->where('name', $name)
-                ->update(['shift_group_name' => $group, 'updated_at' => $now]);
+                ->update([
+                    'shift_group_name' => $shiftGroup,
+                    'group_name' => $homeGroup,
+                    'division' => $division,
+                    'work_time' => $workTime,
+                    'updated_at' => $now,
+                ]);
         }
-
-        // Dibaca modul operasional sekaligus pemeliharaan.
-        DB::table('master_employees')
-            ->where('name', 'Supriadi Budianto')
-            ->update(['division' => MasterEmployee::DIVISION_BOTH, 'updated_at' => $now]);
 
         $this->reorderGroupB($now);
 
