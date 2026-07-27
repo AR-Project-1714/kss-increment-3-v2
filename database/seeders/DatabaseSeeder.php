@@ -138,7 +138,9 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
-            DailyReportSeeder::class,
+            OperationalReportSeeder::class,
+            SafetyReportSeeder::class,
+            MaintenanceReportSeeder::class,
             ItKssUserSeeder::class,
         ]);
     }
