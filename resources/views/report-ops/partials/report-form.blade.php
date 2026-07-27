@@ -576,6 +576,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const masterShelters = @json($environments ?? []);
     const masterTrucks = @json($trucks ?? []);
     const lastUnitHandoverConditions = @json($lastUnitHandoverConditions ?? []);
+    const lastEmployeeRosters = @json($lastEmployeeRosters ?? []);
     const savedFormPayload = @json(old('form_payload') ? json_decode(old('form_payload'), true) : (isset($report) ? $report->payload : null));
     const currentReportId = @json(isset($report) ? $report->id : null);
     const shipOperationSuggestUrl = @json(route('report-ops.ship-operations.suggestions'));
@@ -650,6 +651,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
             return normalizeGroupName(groupName) === normalized;
         });
+    }
+
+    // ----- Memori susunan karyawan -----
+    // Susunan (urutan baris, no. forklift, area kerja) yang terakhir disimpan
+    // petugas untuk regu ini, dipakai sebagai titik awal form baru. Master data
+    // tetap jadi cadangan bila regu tersebut belum pernah punya laporan.
+    // Sengaja tidak dipakai saat mengedit laporan lama supaya isi laporan itu
+    // sendiri tidak pernah tertimpa.
+    function rememberedRoster(groupValue, category) {
+        if (isEditMode) return [];
+
+        const normalized = normalizeGroupName(groupValue);
+        if (!normalized) return [];
+
+        const roster = (lastEmployeeRosters || {})[normalized]?.[category];
+
+        return Array.isArray(roster) ? roster.filter(entry => entry && entry.name) : [];
+    }
+
+    function findEmployeeByName(employees, name) {
+        const target = String(name || '').trim().toLowerCase();
+        if (!target) return null;
+
+        return employees.find(employee => String(employee.name || '').trim().toLowerCase() === target) || null;
     }
 
     function employeesForOp7Group(groupValue) {
@@ -2172,7 +2197,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function op7RowHtml(employee, index) {
         const { timeIn, timeOut } = currentWorkTimes();
-        const mapping = OP7_FORKLIFT_DEFAULTS[index] || { no_forklift: '', work_area: '' };
+        const fallback = OP7_FORKLIFT_DEFAULTS[index] || { no_forklift: '', work_area: '' };
+        // Susunan dari laporan sebelumnya (bila ada) menang atas pemetaan
+        // default per posisi — inilah yang membuat pemindahan area kerja
+        // tercatat oleh petugas ikut terbawa ke laporan berikutnya.
+        const mapping = {
+            no_forklift: employee.no_forklift_ || fallback.no_forklift,
+            work_area: employee.work_area || fallback.work_area,
+        };
 
         return `
             <div class="body">
@@ -2222,18 +2254,33 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderEmployeeShiftRows(groupValue = null) {
         const employeeTable = document.querySelector('#section-shift .table-input');
         const group = groupValue || document.querySelector('[name="group_name"]')?.value || currentUserGroup;
+        const remembered = rememberedRoster(group, 'shift');
         const employees = employeesForGroup(group);
 
-        if (!employeeTable || employees.length === 0) return;
+        if (!employeeTable || (remembered.length === 0 && employees.length === 0)) return;
 
         // Baris 1 & 2 dikunci tetap: Kepala Regu (KARU) lalu Wakil Kepala Regu.
         const isWakaru = employee => /wakil/i.test(employee.position || '');
         const isKaru = employee => !isWakaru(employee) && /karu|kepala regu/i.test(employee.position || '');
-        const karu = employees.find(isKaru);
-        const wakaru = employees.find(isWakaru);
-        const leaders = [karu, wakaru].filter(Boolean);
-        const rest = employees.filter(employee => !leaders.includes(employee));
-        const ordered = [...leaders, ...rest];
+
+        let ordered;
+        let leaders;
+
+        if (remembered.length > 0) {
+            // Urutan sudah ditentukan petugas; jabatan tetap diambil dari master
+            // data agar baris pimpinan tetap terkunci seperti sebelumnya.
+            ordered = remembered.map(entry => ({
+                ...entry,
+                position: findEmployeeByName(employees, entry.name)?.position || '',
+            }));
+            leaders = ordered.filter(employee => isKaru(employee) || isWakaru(employee));
+        } else {
+            const karu = employees.find(isKaru);
+            const wakaru = employees.find(isWakaru);
+            leaders = [karu, wakaru].filter(Boolean);
+            const rest = employees.filter(employee => !leaders.includes(employee));
+            ordered = [...leaders, ...rest];
+        }
 
         insertRows(employeeTable, ordered.map((employee, index) =>
             employeeShiftRowHtml(employee, index, leaders.includes(employee))));
@@ -2245,14 +2292,18 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderOp7Rows(groupValue = null) {
         const op7Table = document.querySelector('#section-op7 .table-wrapper:not(.red) .table-input');
         const group = groupValue || document.querySelector('[name="group_name"]')?.value || currentUserGroup;
+        const remembered = rememberedRoster(group, 'op7');
         const employees = employeesForOp7Group(group);
 
-        if (!op7Table || employees.length === 0) return;
+        if (!op7Table || (remembered.length === 0 && employees.length === 0)) return;
 
         // Baris 1 (FL.KSS-100 / P.6) adalah stasiun tetap "Operator P.6", bukan
         // karyawan bernama dari master data — karyawan OP.7 mengisi baris 2 dst.
         // Lihat OP7_FORKLIFT_DEFAULTS: 1 slot tetap + 10 karyawan = 11 baris.
-        const rows = [{ name: 'Operator P.6' }, ...employees];
+        // Susunan yang diingat sudah menyimpan baris stasiun itu apa adanya.
+        const rows = remembered.length > 0
+            ? remembered
+            : [{ name: 'Operator P.6' }, ...employees];
 
         insertRows(op7Table, rows.map((employee, index) => op7RowHtml(employee, index)));
         applyMasterDatalists(op7Table);

@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\AutosavesDraftReports;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
 use App\Http\Controllers\Concerns\SearchesReports;
 use App\Models\DailyReport;
+use App\Models\EmployeeLog;
 use App\Models\MasterEmployee;
 use App\Models\MasterEnvironmentItem;
 use App\Models\MasterInventoryItem;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -1920,16 +1922,199 @@ class ReportOpsController extends Controller
             'employeesGrouped' => Cache::remember(
                 MasterEmployee::MASTER_DATA_CACHE_KEY,
                 self::MASTER_DATA_CACHE_TTL,
-                fn () => MasterEmployee::forOperational()
-                    ->where('status', 'active')
-                    ->orderBy('id')
-                    ->get()
-                    ->groupBy('group_name')
-                    ->toArray()
+                fn () => $this->employeesGrouped()
             ),
             'lastUnitHandoverConditions' => $this->lastUnitHandoverConditions($report),
+            'lastEmployeeRosters' => $this->lastEmployeeRosters($report),
             'previousReportPeek' => $this->previousReportPeek($report),
         ];
+    }
+
+    /**
+     * Master karyawan operasional dikelompokkan per regu.
+     *
+     * Karyawan ber-`shift_group_name` (personil Relief/Bengkel yang ikut
+     * bertugas di regu tertentu) sengaja muncul di DUA kelompok: kelompok
+     * asalnya — supaya tab Relief tetap utuh — dan regu shift tempatnya
+     * bertugas. Kelompok yang kemasukan personil begini diurutkan ulang
+     * menurut id agar mereka tetap jatuh tepat di bawah KARU/Wakil KARU.
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function employeesGrouped(): array
+    {
+        $employees = MasterEmployee::forOperational()
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->get();
+
+        $grouped = $employees->groupBy('group_name');
+
+        if (! Schema::hasColumn('master_employees', 'shift_group_name')) {
+            return $grouped->toArray();
+        }
+
+        $employees
+            ->filter(fn (MasterEmployee $employee) => filled($employee->shift_group_name))
+            ->groupBy('shift_group_name')
+            ->each(function ($assigned, $shiftGroup) use (&$grouped): void {
+                $grouped[$shiftGroup] = $grouped->get($shiftGroup, collect())
+                    ->concat($assigned)
+                    ->unique('id')
+                    ->sortBy('id')
+                    ->values();
+            });
+
+        return $grouped->toArray();
+    }
+
+    /**
+     * Susunan karyawan terakhir yang disusun petugas per regu — dipakai form
+     * baru sebagai titik awal, menggantikan urutan master data.
+     *
+     * Sumbernya adalah SATU laporan non-draft terakhir milik regu tersebut
+     * (bukan gabungan lintas laporan) supaya urutan baris tetap utuh apa
+     * adanya. Yang diingat hanya susunannya — nama, no. forklift, dan area
+     * kerja. Jam masuk/pulang sengaja tidak dibawa karena sudah terisi
+     * otomatis dari shift, begitu pula keterangan absensi (Cuti/Izin) yang
+     * hanya berlaku untuk hari itu.
+     *
+     * Kategori 'replacement' tidak diikutkan: baris OP.7 tetap menyimpan nama
+     * operator aslinya walau hari itu digantikan, jadi petugas pengganti tidak
+     * pernah menggeser susunan tetap.
+     *
+     * @return array<string, array<string, list<array<string, string|null>>>>
+     */
+    /**
+     * Samakan penamaan regu dengan normalizeGroupName() di form: 'Group C',
+     * 'OP.7 Group C', dan 'C' semuanya jatuh ke kunci 'C'.
+     */
+    private function normalizeGroupKey(?string $groupName): string
+    {
+        return trim(preg_replace(
+            '/^(OP\.?7\s+)?(GROUP|GRUP)\s+/',
+            '',
+            mb_strtoupper(trim((string) $groupName))
+        ));
+    }
+
+    /**
+     * Nama anggota master tiap regu (huruf kecil, siap dicocokkan), mencakup
+     * regu shift reguler, OP.7, dan personil Relief/Bengkel yang ikut bertugas.
+     *
+     * @return array<string, array<string, true>>
+     */
+    private function masterNamesByGroup(): array
+    {
+        $namesByGroup = [];
+        $columns = ['name', 'group_name'];
+
+        if (Schema::hasColumn('master_employees', 'shift_group_name')) {
+            $columns[] = 'shift_group_name';
+        }
+
+        MasterEmployee::query()
+            ->where('status', 'active')
+            ->get($columns)
+            ->each(function (MasterEmployee $employee) use (&$namesByGroup): void {
+                $name = mb_strtolower(trim((string) $employee->name));
+
+                if ($name === '') {
+                    return;
+                }
+
+                foreach ([$employee->group_name, $employee->shift_group_name] as $group) {
+                    $key = $this->normalizeGroupKey($group);
+
+                    if ($key !== '') {
+                        $namesByGroup[$key][$name] = true;
+                    }
+                }
+            });
+
+        return $namesByGroup;
+    }
+
+    private function lastEmployeeRosters(?DailyReport $report = null): array
+    {
+        // Sumber tiap kategori dicari terpisah: laporan terakhir yang benar-benar
+        // berisi baris kategori tsb. Kalau dipukul rata satu laporan terakhir,
+        // sekali saja petugas melewatkan tab OP.7 memorinya ikut hilang.
+        $sources = EmployeeLog::query()
+            ->join('daily_reports', 'daily_reports.id', '=', 'employee_logs.daily_report_id')
+            ->selectRaw('daily_reports.group_name as group_name, employee_logs.category as category, MAX(daily_reports.id) as report_id')
+            ->whereIn('daily_reports.status', [ReportStatus::Submitted, ReportStatus::Acknowledged, ReportStatus::Approved])
+            ->when(
+                config('kss.roster_memory_since'),
+                fn ($query, $since) => $query->whereDate('daily_reports.created_at', '>=', $since)
+            )
+            ->whereNotNull('daily_reports.group_name')
+            ->where('daily_reports.group_name', '!=', '')
+            ->whereIn('employee_logs.category', ['op7', 'shift'])
+            ->when($report, fn ($query) => $query->where('daily_reports.id', '!=', $report->id))
+            ->groupBy('daily_reports.group_name', 'employee_logs.category')
+            ->get();
+
+        if ($sources->isEmpty()) {
+            return [];
+        }
+
+        $logs = EmployeeLog::query()
+            ->select('daily_report_id', 'category', 'name', 'no_forklift_', 'work_area')
+            ->whereIn('daily_report_id', $sources->pluck('report_id')->unique())
+            ->whereIn('category', ['op7', 'shift'])
+            ->orderBy('id')
+            ->get();
+
+        // Pengaman terhadap laporan berisi data uji coba: susunan dipakai hanya
+        // bila memuat minimal satu anggota regu itu sendiri. Roster sungguhan
+        // selalu memenuhi syarat ini, sementara data acak/dummy — yang namanya
+        // milik regu lain atau tidak dikenal sama sekali — tersaring. Petugas
+        // tetap bebas menambah personil baru di luar master.
+        $namesByGroup = $this->masterNamesByGroup();
+
+        $rosters = [];
+
+        foreach ($sources as $source) {
+            $groupKey = $this->normalizeGroupKey($source->group_name);
+
+            if ($groupKey === '') {
+                continue;
+            }
+
+            $groupNames = $namesByGroup[$groupKey] ?? [];
+
+            $roster = [];
+            $recognised = 0;
+
+            foreach ($logs as $log) {
+                if ($log->daily_report_id !== $source->report_id || $log->category !== $source->category) {
+                    continue;
+                }
+
+                $name = $this->string($log->name);
+
+                if ($name === null) {
+                    continue;
+                }
+
+                if (isset($groupNames[mb_strtolower($name)])) {
+                    $recognised++;
+                }
+
+                $roster[] = [
+                    'name' => $name,
+                    'no_forklift_' => $this->string($log->no_forklift_),
+                    'work_area' => $this->string($log->work_area),
+                ];
+            }
+
+            if ($roster !== [] && $recognised > 0) {
+                $rosters[$groupKey][$source->category] = $roster;
+            }
+        }
+
+        return $rosters;
     }
 
     /**
