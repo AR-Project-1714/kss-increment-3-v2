@@ -1881,7 +1881,7 @@ class AdminV2Controller extends Controller
     {
         return match ($division) {
             MasterEmployee::DIVISION_MAINTENANCE => 'Pemeliharaan',
-            MasterEmployee::DIVISION_SAFETY => 'Safety (Coming Soon)',
+            MasterEmployee::DIVISION_SAFETY => 'Safety',
             MasterEmployee::DIVISION_OFFICE => 'Office',
             MasterEmployee::DIVISION_BOTH => 'Keduanya',
             default => 'Operasional',

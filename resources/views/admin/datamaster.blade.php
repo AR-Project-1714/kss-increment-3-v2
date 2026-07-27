@@ -406,7 +406,7 @@
         'OP7 A' => 'OP7 A', 'OP7 B' => 'OP7 B', 'OP7 C' => 'OP7 C', 'OP7 D' => 'OP7 D',
     ];
     $filterDivisionOptions = [
-        '' => 'Semua Divisi', 'Operasional' => 'Operasional', 'Pemeliharaan' => 'Pemeliharaan', 'Safety (Coming Soon)' => 'Safety', 'Office' => 'Office',
+        '' => 'Semua Divisi', 'Operasional' => 'Operasional', 'Pemeliharaan' => 'Pemeliharaan', 'Safety' => 'Safety', 'Office' => 'Office',
     ];
     $positionOptionList = ['Checker', 'Operator FL', 'Driver', 'Operator Exca/ WL', 'Operator WL/ Exca', 'Kasi Pemeliharaan & Peralatan', 'Karu Peralatan', 'Karu Pemeliharaan', 'Mekanik', 'Helper', 'Rigger', 'Operator OP.7', 'Manager', 'Kabag', 'Kasi', 'Staf Ahli', 'Staf', 'Kepala Seksi'];
     $filterPositionOptions = array_merge(['' => 'Semua Jabatan'], array_combine($positionOptionList, $positionOptionList));
@@ -891,8 +891,33 @@
             'Kepala Seksi',
             'Kepala Regu',
         ];
-        const employeeDivisionOptions = ['Operasional', 'Pemeliharaan', 'Safety (Coming Soon)', 'Office'];
+        const employeeDivisionOptions = ['Operasional', 'Pemeliharaan', 'Safety', 'Office'];
         const employeeWorkTimeOptions = ['Non Shift', 'Shift', 'Relief'];
+
+        // Regu hanya relevan untuk divisi Operasional (A-D, Relief 1/2, OP7 A-D)
+        // dan Pemeliharaan (satu-satunya opsi: Bengkel). Kantor & Safety tidak
+        // punya Regu sama sekali.
+        const employeeGroupOptionsByDivision = {
+            'Operasional': ['-', 'A', 'B', 'C', 'D', 'Relief 1', 'Relief 2', 'OP7 A', 'OP7 B', 'OP7 C', 'OP7 D'],
+            'Pemeliharaan': ['Bengkel'],
+        };
+
+        function employeeGroupOptionsForDivision(division) {
+            return employeeGroupOptionsByDivision[division] || ['-'];
+        }
+
+        function employeeGroupIsEditable(division) {
+            return division === 'Operasional' || division === 'Pemeliharaan';
+        }
+
+        // Jam Kerja mengikuti Divisi, kecuali karyawan Operasional yang
+        // Regu-nya Relief 1/2 (jam kerjanya tetap Relief).
+        function employeeWorkTimeForDivisionAndGroup(division, group) {
+            if (division === 'Operasional') {
+                return /^Relief\s*[12]$/i.test(group || '') ? 'Relief' : 'Shift';
+            }
+            return 'Non Shift';
+        }
 
         const masterSchemas = {
             karyawan: {
@@ -901,11 +926,11 @@
                 fields: [
                     { key: 'npk', label: 'NPK', placeholder: 'cth, 2000.1.010' },
                     { key: 'name', label: 'Nama Karyawan', placeholder: 'cth, Budi Santoso' },
-                    { key: 'group', label: 'Group', type: 'select', options: employeeGroupOptions },
-                    { key: 'shift_group', label: 'Penugasan Sementara (opsional)', type: 'select', options: employeeShiftGroupOptions },
-                    { key: 'position', label: 'Jabatan', type: 'select', options: employeePositionOptions },
                     { key: 'division', label: 'Divisi', type: 'select', options: employeeDivisionOptions },
+                    { key: 'group', label: 'Regu', type: 'select', options: employeeGroupOptions },
                     { key: 'work_time', label: 'Jam Kerja', type: 'select', options: employeeWorkTimeOptions },
+                    { key: 'position', label: 'Jabatan', type: 'select', options: employeePositionOptions },
+                    { key: 'shift_group', label: 'Penugasan Sementara (opsional)', type: 'select', options: employeeShiftGroupOptions },
                 ],
             },
             unit: {
@@ -1184,6 +1209,74 @@
             masterFormFields.appendChild(wrapper);
         }
 
+        function rebuildSelectOptions(select, options, selectedValue) {
+            select.replaceChildren();
+            options.forEach(optionText => {
+                const option = document.createElement('option');
+                option.textContent = optionText;
+                option.value = optionText;
+                select.appendChild(option);
+            });
+            if (selectedValue && options.includes(selectedValue)) {
+                select.value = selectedValue;
+            } else {
+                select.selectedIndex = 0;
+            }
+        }
+
+        // Dropdown kustom (kss-modal__select-*) dibangun sekali dari opsi
+        // <select> lalu ditandai `selectReady`. Karena Regu diisi ulang dgn
+        // opsi berbeda-beda, tandanya perlu dilepas supaya initSelects()
+        // membangun ulang panel opsinya, bukan cuma menyinkronkan label.
+        function resetCustomSelectWidget(select) {
+            const wrapper = select.closest('.kss-modal__select-wrapper');
+            if (!wrapper) return;
+            wrapper.querySelectorAll('.kss-modal__select-trigger, .kss-modal__select-options').forEach(el => el.remove());
+            delete wrapper.dataset.selectReady;
+        }
+
+        function applyEmployeeDivisionRules(divisionSelect, groupSelect, preferredGroupValue) {
+            const division = divisionSelect.value;
+            const options = employeeGroupOptionsForDivision(division);
+            const editable = employeeGroupIsEditable(division);
+
+            // Karyawan lama dengan Regu di luar daftar (mis. data legacy) tetap
+            // ditampilkan supaya tidak hilang diam-diam saat form dibuka.
+            const finalOptions = (preferredGroupValue && preferredGroupValue !== '-' && !options.includes(preferredGroupValue))
+                ? [...options, preferredGroupValue]
+                : options;
+
+            rebuildSelectOptions(groupSelect, finalOptions, preferredGroupValue);
+            groupSelect.disabled = !editable;
+            if (!editable) groupSelect.value = finalOptions.includes('-') ? '-' : finalOptions[0];
+            resetCustomSelectWidget(groupSelect);
+        }
+
+        function applyEmployeeWorkTimeRule(divisionSelect, groupSelect, workTimeSelect) {
+            workTimeSelect.value = employeeWorkTimeForDivisionAndGroup(divisionSelect.value, groupSelect.value);
+        }
+
+        function setupKaryawanDivisionLogic(rowValues) {
+            const divisionSelect = document.getElementById('masterField_division');
+            const groupSelect = document.getElementById('masterField_group');
+            const workTimeSelect = document.getElementById('masterField_work_time');
+            if (!divisionSelect || !groupSelect || !workTimeSelect) return;
+
+            applyEmployeeDivisionRules(divisionSelect, groupSelect, rowValues && rowValues.group);
+            applyEmployeeWorkTimeRule(divisionSelect, groupSelect, workTimeSelect);
+
+            divisionSelect.addEventListener('change', function () {
+                applyEmployeeDivisionRules(divisionSelect, groupSelect, null);
+                applyEmployeeWorkTimeRule(divisionSelect, groupSelect, workTimeSelect);
+                window.KssAdminModal.initSelects(masterFormModal);
+            });
+
+            groupSelect.addEventListener('change', function () {
+                applyEmployeeWorkTimeRule(divisionSelect, groupSelect, workTimeSelect);
+                window.KssAdminModal.syncSelects(masterFormModal);
+            });
+        }
+
         function openMasterForm(mode, pane, values = {}) {
             const schema = masterSchemas[pane];
             if (!schema) return;
@@ -1199,6 +1292,7 @@
 
             masterFormFields.replaceChildren();
             schema.fields.forEach((field, index) => addField(field, values[field.key], index));
+            if (pane === 'karyawan') setupKaryawanDivisionLogic(values);
             window.KssAdminModal.initSelects(masterFormModal);
             window.KssAdminModal.syncSelects(masterFormModal);
             window.KssAdminModal.open(masterFormModal);
