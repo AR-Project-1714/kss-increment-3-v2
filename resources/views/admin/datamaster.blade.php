@@ -302,7 +302,7 @@
     .thead th.col-number,   .tbody td.col-number   { min-width: 110px; }
     .thead th.col-npk,      .tbody td.col-npk      { min-width: 110px; }
     .thead th.col-group,    .tbody td.col-group    { min-width: 100px; }
-    .thead th.col-shiftgroup, .tbody td.col-shiftgroup { min-width: 110px; }
+    .thead th.col-shiftgroup, .tbody td.col-shiftgroup { min-width: 165px; }
     .thead th.col-position, .tbody td.col-position { min-width: 100px; }
     .thead th.col-division, .tbody td.col-division { min-width: 120px; }
     .thead th.col-worktime, .tbody td.col-worktime { min-width: 110px; }
@@ -551,10 +551,10 @@
                     <th class="col-npk">NPK</th>
                     <th class="col-name">Nama</th>
                     <th class="col-group">Group</th>
-                    <th class="col-shiftgroup">Regu Shift</th>
                     <th class="col-position">Posisi</th>
                     <th class="col-division">Divisi</th>
                     <th class="col-worktime">Jam Kerja</th>
+                    <th class="col-shiftgroup">Penugasan Sementara</th>
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @forelse ($employees as $e)
@@ -563,10 +563,10 @@
                         <td class="col-npk">{{ $e['npk'] }}</td>
                         <td class="col-name">{{ $e['name'] }}</td>
                         <td class="col-group">{{ $e['group'] }}</td>
-                        <td class="col-shiftgroup">{{ $e['shift_group'] ?? '-' }}</td>
                         <td class="col-position">{{ $e['position'] }}</td>
                         <td class="col-division">{{ $e['division'] ?? 'Operasional' }}</td>
                         <td class="col-worktime">{{ $e['work_time'] ?? '-' }}</td>
+                        <td class="col-shiftgroup">{{ $e['shift_group'] ?? '-' }}</td>
                         <td class="col-aksi">
                             <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
                             <form method="POST" action="{{ $e['destroy_url'] ?? '#' }}">
