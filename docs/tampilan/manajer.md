@@ -16,17 +16,30 @@ Subjudul: "Ringkasan performa dan aktivitas pelaporan dari ketiga divisi." Panel
 
 Ini adalah alur kerja inti manajer: menyetujui laporan dari ketiga divisi melalui satu dashboard.
 
-### Performa Operasi
-`manajer.performa` — `resources/views/manajer/performa.blade.php`
-Analisis produktivitas divisi operasi dengan filter periode (preset Bulan Ini / Bulan Lalu / 3 Bulan atau rentang tanggal bebas), regu, dan shift. Seluruh angkanya diturunkan dari laporan harian yang sudah masuk — tidak ada tabel data tersendiri.
+### Kinerja Operasi
+`manajer.performa` — `resources/views/manajer/performa.blade.php` (URL tetap `/manajer/performa`)
+Ringkasan produktivitas divisi operasi dengan filter periode (preset Bulan Ini / Bulan Lalu / 3 Bulan atau rentang tanggal bebas), regu, dan shift. Seluruh angkanya diturunkan dari laporan harian yang sudah masuk — tidak ada tabel data tersendiri.
 
 Isi halaman:
 - **Empat kartu KPI** — tonase ditangani, kapal dilayani, tonase per shift, rasio kerusakan, masing-masing dengan perbandingan periode setara dan sparkline 6 bulan.
-- **Performa per Kegiatan** — lima kartu ringkas (pemuatan pupuk kantong, pemuatan urea curah, bongkar bahan baku, bongkar/muat container, trucking pengiriman pupuk kantong) beserta tab rinciannya. Isi tab diambil lewat `manajer.performa.kegiatan` saat dibuka, bukan ikut dirender bersama halaman.
 - **Grafik** — tren tonase 6 bulan, komposisi kegiatan, tonase per shift, rasio kerusakan, perbandingan regu, beban kerja, peringkat lembur, dan daftar kapal dilayani.
 - **Ekspor** — `manajer.performa.export` menghasilkan Excel enam sheet mengikuti filter yang sedang aktif.
 
+Rincian per jenis kegiatan tidak ada di sini melainkan di menu **Rincian Kegiatan**, supaya satu halaman tidak menampung ringkasan divisi sekaligus bedah lima kegiatan.
+
+### Rincian Kegiatan
+`manajer.kegiatan` — `resources/views/manajer/kegiatan.blade.php`
+Rincian lima jenis kegiatan operasi: pemuatan pupuk kantong, pemuatan urea curah, bongkar bahan baku, bongkar/muat container, dan trucking pengiriman pupuk kantong. Toolbar filternya sama persis dengan Kinerja Operasi (`manajer.partials.performance-toolbar`), dan filter aktif ikut terbawa lewat query string saat berpindah antar kedua menu itu.
+
+Isi halaman:
+- **Lima kartu kegiatan** — capaian periode berjalan, perubahan terhadap periode setara, dan sparkline 6 bulan. Angkanya diambil dari matriks agregat yang sama dengan kartu KPI, jadi tidak menambah query.
+- **Tab rincian** — satu panel per kegiatan berisi metrik khas kegiatan, tren 6 bulan, peringkat regu, komposisi tambahan (jenis bahan baku / tujuan trucking), dan tabel rincian. Isi panel diambil lewat `manajer.kegiatan.panel` saat tabnya dibuka, bukan ikut dirender bersama halaman.
+
+Panel rincian menyembunyikan apa yang kosong: kolom tabel yang tak pernah terisi dibuang, metrik tanpa nilai dilewati, dan blok tren/peringkat yang nol tidak dirender. Trucking dibatasi 10 rit terbaru karena barisnya per rit, kegiatan lain 50 baris.
+
 **Satuan tidak seragam:** container dicatat dalam **Teus**, kegiatan lain dalam **Ton**. Karena itu container tidak ikut dijumlahkan ke Total Tonase maupun ke donut Komposisi Kegiatan — angkanya berdiri sendiri di kartu kegiatan dan panel rinciannya. Penandanya ada di `OperationalPerformanceService::activityCatalog()` lewat `countsToTonnage`.
+
+> Asal setiap angka pada kedua menu di atas — tabel dan kolom sumbernya, rumusnya, mekanisme cache, serta jebakan yang sering ditanyakan — dibahas terpisah di [Kinerja Operasi & Rincian Kegiatan](kinerja-dan-rincian-kegiatan.md).
 
 ### Arsip Laporan
 `manajer.archive` — `resources/views/manajer/archive.blade.php`

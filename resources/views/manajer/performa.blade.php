@@ -1,5 +1,7 @@
 @extends('manajer.layouts.app')
 
+@section('title', 'Kinerja Operasi - Manajer')
+
 @section('content')
     @php
         $formatValue = fn ($value, int $decimals = 0) => number_format((float) $value, $decimals, ',', '.');
@@ -30,125 +32,13 @@
 
     <main class="page-content">
         <div class="page-header">
-            <span class="page-title">Performa Operasional</span>
-            <span class="page-subtitle">Analisis produktivitas divisi operasi berdasarkan laporan harian yang masuk.</span>
+            <span class="page-title">Kinerja Operasi</span>
+            <span class="page-subtitle">Ringkasan produktivitas, beban kerja, dan perbandingan regu divisi operasi — dari laporan harian yang masuk.</span>
         </div>
 
-        {{-- Toolbar periode & filter --}}
-        <div class="section-card">
-            <div class="section-card__body">
-                <form method="GET" action="{{ route('manajer.performa') }}" id="perf-filter-form" autocomplete="off">
-                    <div class="perf-toolbar">
-                        <div class="filter-field">
-                            <label>Periode</label>
-                            <div class="perf-toolbar__presets">
-                                @foreach ($presets as $value => $label)
-                                    <a href="{{ route('manajer.performa', ['periode' => $value, 'regu' => $selectedGroup, 'shift' => $selectedShift]) }}"
-                                       class="btn-tool {{ $selectedPreset === $value ? 'btn-tool--active' : '' }}">{{ $label }}</a>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <div class="filter-field">
-                            <label>Dari Tanggal</label>
-                            <input type="hidden" name="dari" value="{{ $selectedStart }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Tanggal mulai" data-autosubmit-filter>
-                        </div>
-
-                        <div class="filter-field">
-                            <label>Sampai Tanggal</label>
-                            <input type="hidden" name="sampai" value="{{ $selectedEnd }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Tanggal akhir" data-autosubmit-filter>
-                        </div>
-
-                        <div class="filter-field">
-                            <label>Regu</label>
-                            <div class="filter-select-wrapper">
-                                <select class="native-select" name="regu" data-autosubmit-filter>
-                                    <option value="all" @selected($selectedGroup === 'all')>Semua Regu</option>
-                                    @foreach ($filterOptions['groups'] as $group)
-                                        <option value="{{ $group }}" @selected($selectedGroup === $group)>Regu {{ $group }}</option>
-                                    @endforeach
-                                </select>
-                                <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                            </div>
-                        </div>
-
-                        <div class="filter-field">
-                            <label>Shift</label>
-                            <div class="filter-select-wrapper">
-                                <select class="native-select" name="shift" data-autosubmit-filter>
-                                    <option value="all" @selected($selectedShift === 'all')>Semua Shift</option>
-                                    @foreach ($filterOptions['shifts'] as $shift)
-                                        <option value="{{ $shift }}" @selected($selectedShift === $shift)>{{ $shiftLabel($shift) }}</option>
-                                    @endforeach
-                                </select>
-                                <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                            </div>
-                        </div>
-
-                        <div class="perf-toolbar__spacer"></div>
-
-                        <div class="filter-field">
-                            <label>&nbsp;</label>
-                            <div class="archive-toolbar__actions">
-                                @if ($hasActiveFilter)
-                                    <a href="{{ route('manajer.performa') }}" class="btn-reset">Reset</a>
-                                @endif
-                                {{-- Filter aktif ikut terbawa lewat query string, jadi berkas
-                                     yang diunduh selalu sama dengan yang tampil di layar. --}}
-                                <a href="{{ route('manajer.performa.export', request()->query()) }}"
-                                   class="btn-tool btn-tool--primary"
-                                   title="Unduh rekap performa sesuai filter aktif (Excel)">
-                                    <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+        @include('manajer.partials.performance-toolbar', ['formRoute' => 'manajer.performa'])
 
         @include('manajer.layouts.card-kpi', ['kpi' => $kpi])
-
-        {{-- Performa per kegiatan: strip kartu ringkas selalu tampil, panel
-             rinciannya baru diambil saat tabnya dibuka. --}}
-        <div class="section-card">
-            <div class="section-card__header">
-                <div class="section-card__heading">
-                    <span class="section-card__title">Performa per Kegiatan</span>
-                    <span class="section-card__subtitle">
-                        {{ $report['periodLabel'] }} · container bersatuan Teus sehingga tidak ikut dijumlahkan ke Total Tonase.
-                    </span>
-                </div>
-            </div>
-            <div class="section-card__body">
-                @include('manajer.partials.activity-strip', [
-                    'cards' => $activityCards,
-                    'comparisonLabel' => $report['comparisonLabel'],
-                ])
-
-                <div class="act-tabs" role="tablist" aria-label="Rincian per kegiatan">
-                    @foreach ($activityCards as $index => $card)
-                        <button type="button"
-                                class="act-tab {{ $index === 0 ? 'is-active' : '' }}"
-                                role="tab"
-                                aria-selected="{{ $index === 0 ? 'true' : 'false' }}"
-                                data-activity-tab="{{ $card['key'] }}"
-                                data-activity-url="{{ route('manajer.performa.kegiatan', array_merge(['key' => $card['key']], request()->query())) }}">
-                            <i class="{{ $card['icon'] }}" aria-hidden="true"></i>
-                            <span>{{ $card['short'] }}</span>
-                        </button>
-                    @endforeach
-                </div>
-
-                {{-- Diisi lewat permintaan terpisah saat panel masuk layar. --}}
-                <div class="act-panel" id="activity-panel" role="tabpanel" aria-live="polite">
-                    <div class="act-panel__loading">
-                        <span class="act-skeleton act-skeleton--metrics"></span>
-                        <span class="act-skeleton act-skeleton--block"></span>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         {{-- Baris analitik: grafik tren sebagai kartu utama, komposisi
              kegiatan sebagai panel ringkasan di sampingnya. --}}
@@ -381,13 +271,4 @@
 
 @push('scripts')
     <script src="{{ asset('js/components/charts.js') }}?v={{ @filemtime(public_path('js/components/charts.js')) }}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const form = document.getElementById('perf-filter-form');
-
-            document.querySelectorAll('[data-autosubmit-filter]').forEach(control => {
-                control.addEventListener('change', () => form?.submit());
-            });
-        });
-    </script>
 @endpush

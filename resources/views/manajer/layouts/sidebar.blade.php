@@ -1,3 +1,12 @@
+    @php
+        // Kinerja Operasi dan Rincian Kegiatan memakai filter periode yang
+        // sama, jadi filter aktif ikut dibawa saat berpindah di antara
+        // keduanya — pindah menu tidak berarti menyaring ulang dari awal.
+        $performanceQuery = request()->routeIs('manajer.performa', 'manajer.kegiatan')
+            ? request()->only(['periode', 'dari', 'sampai', 'regu', 'shift'])
+            : [];
+    @endphp
+
     <aside class="sidebar" id="sidebar">
 
         <!-- Logo -->
@@ -19,9 +28,14 @@
                         <span class="nav-label">Dashboard</span>
                     </a>
 
-                    <a href="{{ route('manajer.performa') }}" class="sidebar__nav-item {{ request()->routeIs('manajer.performa') ? 'active' : '' }}" data-tooltip="Performa Operasional">
+                    <a href="{{ route('manajer.performa', $performanceQuery) }}" class="sidebar__nav-item {{ request()->routeIs('manajer.performa') ? 'active' : '' }}" data-tooltip="Kinerja Divisi Operasi">
                         <span class="nav-icon"><i class="fi fi-sr-chart-histogram"></i></span>
-                        <span class="nav-label">Performa Operasi</span>
+                        <span class="nav-label">Kinerja Operasi</span>
+                    </a>
+
+                    <a href="{{ route('manajer.kegiatan', $performanceQuery) }}" class="sidebar__nav-item {{ request()->routeIs('manajer.kegiatan*') ? 'active' : '' }}" data-tooltip="Rincian per Jenis Kegiatan">
+                        <span class="nav-icon"><i class="fi fi-sr-boxes"></i></span>
+                        <span class="nav-label">Rincian Kegiatan</span>
                     </a>
 
                     <a href="{{ route('manajer.archive') }}" class="sidebar__nav-item {{ request()->routeIs('manajer.archive') ? 'active' : '' }}" data-tooltip="Arsip Laporan">

@@ -252,11 +252,54 @@ class ManajerController extends Controller
 
         return view('manajer.performa', [
             'report' => $report,
-            'activityCards' => $report['activityCards'] ?? [],
             'kpi' => array_merge($report['summary'], [
                 'comparisonLabel' => $report['comparisonLabel'],
                 'sparklines' => $report['sparklines'],
             ]),
+            'presets' => $presets,
+            'selectedPreset' => $preset,
+            'selectedStart' => $start->toDateString(),
+            'selectedEnd' => $end->toDateString(),
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+            'filterOptions' => $performance->filterOptions(),
+            'hasActiveFilter' => $preset !== 'bulan-ini' || $selectedGroup !== 'all' || $selectedShift !== 'all',
+        ]);
+    }
+
+    /**
+     * Halaman rincian per jenis kegiatan operasi. Dipisah dari Performa karena
+     * keduanya menjawab pertanyaan berbeda: Performa merangkum divisi secara
+     * keseluruhan, halaman ini membedah satu jenis kegiatan.
+     *
+     * Filter periodenya sengaja identik dan ikut terbawa lewat query string,
+     * sehingga berpindah menu tidak berarti menyaring ulang dari awal.
+     */
+    public function kegiatan(Request $request, OperationalPerformanceService $performance)
+    {
+        $this->authorizeManagementAccess($request);
+
+        [
+            'presets' => $presets,
+            'preset' => $preset,
+            'filters' => $filters,
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+            'start' => $start,
+            'end' => $end,
+        ] = $this->performanceFiltersFromRequest($request);
+
+        // Kunci cache-nya sama dengan halaman Performa: keduanya memakai
+        // laporan agregat yang sama, jadi cukup dihitung sekali per filter.
+        $report = Cache::remember(
+            $this->performanceCacheKey($filters),
+            now()->addMinutes(10),
+            fn (): array => $performance->performanceReport($filters)
+        );
+
+        return view('manajer.kegiatan', [
+            'report' => $report,
+            'activityCards' => $report['activityCards'] ?? [],
             'presets' => $presets,
             'selectedPreset' => $preset,
             'selectedStart' => $start->toDateString(),
@@ -276,7 +319,7 @@ class ManajerController extends Controller
      * hanya dibaca satu. Tiap panel punya kunci cache sendiri supaya baris
      * cache-nya tetap kecil — penyimpanan cache aplikasi ini ada di database.
      */
-    public function performaKegiatan(Request $request, OperationalPerformanceService $performance, string $key)
+    public function kegiatanPanel(Request $request, OperationalPerformanceService $performance, string $key)
     {
         $this->authorizeManagementAccess($request);
 

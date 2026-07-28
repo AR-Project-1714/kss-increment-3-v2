@@ -193,4 +193,65 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->get(route('manajer.performa.export'))
             ->assertRedirect(route('report-ops.index'));
     }
+
+    public function test_tc_mgr_10_menu_kegiatan_operasi_memuat_lima_kartu_dan_tabnya(): void
+    {
+        $manager = $this->manager();
+
+        $this->actingAs($manager)
+            ->get(route('manajer.kegiatan'))
+            ->assertOk()
+            ->assertSee('Pemuatan Pupuk Kantong', false)
+            ->assertSee('Pemuatan Urea Curah', false)
+            ->assertSee('Bongkar Bahan Baku', false)
+            ->assertSee('Bongkar/Muat Container', false)
+            ->assertSee('Trucking Pengiriman Pupuk Kantong', false)
+            ->assertSee('data-activity-tab="trucking_turba"', false)
+            ->assertSee(route('manajer.kegiatan.panel', ['key' => 'muat_kantong']), false);
+    }
+
+    public function test_tc_mgr_11_halaman_performa_tidak_lagi_memuat_rincian_kegiatan(): void
+    {
+        // Rincian per kegiatan sudah pindah ke menunya sendiri; halaman
+        // Performa harus tinggal ringkasan divisi saja.
+        $manager = $this->manager();
+
+        $this->actingAs($manager)
+            ->get(route('manajer.performa'))
+            ->assertOk()
+            ->assertSee('Tren Tonase', false)
+            ->assertSee('Kapal Dilayani', false)
+            ->assertDontSee('data-activity-tab', false)
+            ->assertDontSee('id="activity-panel"', false);
+    }
+
+    public function test_tc_mgr_12_filter_aktif_ikut_terbawa_ke_panel_kegiatan(): void
+    {
+        $manager = $this->manager();
+        $operator = $this->operator('A');
+        $this->acknowledgedOpsReport($operator);
+
+        // Filter yang sedang aktif menempel pada URL panel dan pada tautan
+        // sidebar ke Performa, sehingga berpindah menu tidak menyaring ulang.
+        $this->actingAs($manager)
+            ->get(route('manajer.kegiatan', ['periode' => '3-bulan', 'regu' => 'A']))
+            ->assertOk()
+            ->assertSee(route('manajer.kegiatan.panel', ['key' => 'muat_kantong', 'periode' => '3-bulan', 'regu' => 'A']))
+            ->assertSee(route('manajer.performa', ['periode' => '3-bulan', 'regu' => 'A']))
+            ->assertSee(route('manajer.performa.export', ['periode' => '3-bulan', 'regu' => 'A']));
+
+        $this->actingAs($manager)
+            ->get(route('manajer.kegiatan.panel', ['key' => 'muat_kantong', 'periode' => '3-bulan']))
+            ->assertOk()
+            ->assertSee('Rincian Pemuatan Pupuk Kantong', false);
+    }
+
+    public function test_tc_mgr_13_menu_kegiatan_ditolak_untuk_selain_manajer(): void
+    {
+        $operator = $this->operator('A');
+
+        $this->actingAs($operator)
+            ->get(route('manajer.kegiatan'))
+            ->assertRedirect(route('report-ops.index'));
+    }
 }
