@@ -45,8 +45,15 @@ class OperationalPerformanceService
     /** Panjang deret tren bulanan untuk grafik dan sparkline. */
     private const TREND_MONTHS = 6;
 
-    /** Batas baris tabel rincian pada panel kegiatan; sisanya lewat Ekspor. */
+    /** Batas baris tabel rincian pada panel kegiatan. */
     private const DETAIL_ROW_LIMIT = 50;
+
+    /**
+     * Trucking dicatat satu baris per rit — bukan per kunjungan kapal seperti
+     * kegiatan lain — sehingga daftarnya paling cepat memanjang. Panelnya cukup
+     * menampilkan rit terbaru saja.
+     */
+    private const TURBA_ROW_LIMIT = 10;
 
     // ============================================================
     // Katalog kegiatan — satu-satunya sumber kebenaran
@@ -768,6 +775,7 @@ class OperationalPerformanceService
             'periodLabel' => $this->periodLabel($filters['start'], $filters['end']),
             'breakdown' => null,
             'breakdownTitle' => null,
+            'tableCaption' => null,
             'note' => null,
         ], $detail, [
             'trend' => $trend,
@@ -875,20 +883,95 @@ class OperationalPerformanceService
     }
 
     /**
-     * Potong daftar baris ke batas tampilan dan tandai bila masih ada sisanya.
+     * Rakit tabel rincian: buang kolom yang tidak terisi sama sekali, potong
+     * daftarnya ke batas tampilan, lalu tandai bila masih ada sisanya.
      *
+     * Kolom yang tidak dipakai di lapangan — mis. No DO/SO dan Kapasitas pada
+     * trucking — hanya menghasilkan deretan tanda hubung yang membuat tabel
+     * melebar tanpa menambah informasi. Kolom identitas selalu dipertahankan
+     * supaya tabel tetap punya penanda baris meski sisanya kosong.
+     *
+     * Bila yang tersisa hanya kolom identitas, barisnya tidak menyimpan angka
+     * apa pun untuk dibaca — tabelnya ditandai `blank` supaya tampilan cukup
+     * menyebut jumlah barisnya, bukan mencetak deretan nama tanpa nilai.
+     *
+     * @param  array<int, array<string, mixed>>  $columns
      * @param  array<int, array<int, mixed>>  $rows
-     * @return array{rows: array<int, array<int, mixed>>, limited: bool, total: int}
+     * @return array{columns: array<int, array<string, mixed>>, rows: array<int, array<int, mixed>>, limited: bool, total: int, blank: bool}
      */
-    private function limitRows(array $rows): array
+    private function detailTable(array $columns, array $rows, int $limit = self::DETAIL_ROW_LIMIT): array
     {
+        $keep = [];
+
+        foreach ($columns as $index => $column) {
+            $keep[$index] = $this->isIdentityColumn($column) || $this->columnHasValue($rows, $index);
+        }
+
+        $columns = array_values(array_filter(
+            $columns,
+            fn (array $column, int $index): bool => $keep[$index],
+            ARRAY_FILTER_USE_BOTH
+        ));
+
+        $rows = array_map(
+            fn (array $row): array => array_values(array_filter(
+                $row,
+                fn (mixed $value, int $index): bool => $keep[$index] ?? true,
+                ARRAY_FILTER_USE_BOTH
+            )),
+            $rows
+        );
+
         $total = count($rows);
+        $blank = $total > 0 && array_filter(
+            $columns,
+            fn (array $column): bool => ! $this->isIdentityColumn($column)
+        ) === [];
 
         return [
-            'rows' => array_slice($rows, 0, self::DETAIL_ROW_LIMIT),
-            'limited' => $total > self::DETAIL_ROW_LIMIT,
+            'columns' => $columns,
+            'rows' => $blank ? [] : array_slice($rows, 0, $limit),
+            'limited' => ! $blank && $total > $limit,
             'total' => $total,
+            'blank' => $blank,
         ];
+    }
+
+    /**
+     * Kolom penanda baris — nama dan tanggal. Kolom ini tidak pernah dipangkas
+     * karena tanpanya baris kehilangan konteks, tapi juga tidak dihitung
+     * sebagai isi: tabel yang hanya menyisakannya berarti tabel tanpa angka.
+     *
+     * @param  array<string, mixed>  $column
+     */
+    private function isIdentityColumn(array $column): bool
+    {
+        return ($column['identity'] ?? false) || ($column['type'] ?? '') === 'name';
+    }
+
+    /**
+     * Satu kolom dianggap terisi bila ada minimal satu baris yang nilainya
+     * bukan kosong: null, teks kosong, tanda hubung pengganti, atau angka nol.
+     *
+     * @param  array<int, array<int, mixed>>  $rows
+     */
+    private function columnHasValue(array $rows, int $index): bool
+    {
+        foreach ($rows as $row) {
+            $value = $row[$index] ?? null;
+
+            if ($value === null || $value === '' || $value === '-') {
+                continue;
+            }
+
+            if (is_numeric($value) && (float) $value === 0.0) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -949,7 +1032,7 @@ class OperationalPerformanceService
                 ['label' => 'Rasio kerusakan', 'value' => $loaded > 0 ? ($damage / $loaded) * 100 : 0.0, 'unit' => '%', 'decimals' => 2],
                 ['label' => 'Rata-rata TKBM per kegiatan', 'value' => (float) ($totals->tkbm ?? 0), 'unit' => 'orang', 'decimals' => 1],
             ],
-            'columns' => [
+            'table' => $this->detailTable([
                 ['label' => 'Kapal', 'type' => 'name'],
                 ['label' => 'Agen', 'type' => 'muted'],
                 ['label' => 'Dermaga', 'type' => 'muted'],
@@ -960,8 +1043,7 @@ class OperationalPerformanceService
                 ['label' => 'Kerusakan', 'type' => 'number', 'decimals' => 2, 'unit' => 'Ton'],
                 ['label' => 'TKBM', 'type' => 'number', 'decimals' => 0],
                 ['label' => 'Waktu Tiba', 'type' => 'muted'],
-            ],
-            'table' => $this->limitRows($rows),
+            ], $rows),
             'note' => 'Termuat memakai akumulasi tertinggi (shift ini + shift sebelumnya), '
                 .'sedangkan angka utama panel hanya menghitung tonase pada periode terpilih.',
         ];
@@ -1032,7 +1114,7 @@ class OperationalPerformanceService
                 ['label' => 'Rata-rata COB per entri', 'value' => ($totals->log_count ?? 0) > 0 ? (float) $totals->loaded / (int) $totals->log_count : 0.0, 'unit' => 'Ton', 'decimals' => 1],
                 ['label' => 'Rata-rata jeda sandar → mulai muat', 'value' => $waits === [] ? null : array_sum($waits) / count($waits), 'unit' => 'jam', 'decimals' => 1],
             ],
-            'columns' => [
+            'table' => $this->detailTable([
                 ['label' => 'Kapal', 'type' => 'name'],
                 ['label' => 'Agen', 'type' => 'muted'],
                 ['label' => 'Stevedoring', 'type' => 'muted'],
@@ -1044,8 +1126,7 @@ class OperationalPerformanceService
                 ['label' => 'Sandar', 'type' => 'muted'],
                 ['label' => 'Mulai Muat', 'type' => 'muted'],
                 ['label' => 'Jeda', 'type' => 'number', 'decimals' => 1, 'unit' => 'jam'],
-            ],
-            'table' => $this->limitRows($tableRows),
+            ], $tableRows),
         ];
     }
 
@@ -1114,7 +1195,7 @@ class OperationalPerformanceService
                 ['label' => 'Kegiatan tercatat', 'value' => array_sum(array_column($rows, 6)), 'unit' => 'kegiatan', 'decimals' => 0],
                 ['label' => 'Rata-rata per kapal', 'value' => $rows === [] ? 0.0 : $total / count($rows), 'unit' => 'Ton', 'decimals' => 1],
             ],
-            'columns' => [
+            'table' => $this->detailTable([
                 ['label' => 'Kapal', 'type' => 'name'],
                 ['label' => 'Agen', 'type' => 'muted'],
                 ['label' => 'Dermaga', 'type' => 'muted'],
@@ -1123,8 +1204,7 @@ class OperationalPerformanceService
                 ['label' => 'Realisasi', 'type' => 'ratio'],
                 ['label' => 'Kegiatan', 'type' => 'number', 'decimals' => 0],
                 ['label' => 'Jam Kerja', 'type' => 'muted'],
-            ],
-            'table' => $this->limitRows($rows),
+            ], $rows),
             'breakdown' => $breakdown,
             'breakdownTitle' => 'Komposisi menurut Jenis Bahan Baku',
         ];
@@ -1186,7 +1266,7 @@ class OperationalPerformanceService
                 ['label' => 'Kapasitas Full', 'value' => (float) ($capacities->capacity_full ?? 0), 'unit' => 'Teus', 'decimals' => 0],
                 ['label' => 'Baris kegiatan tercatat', 'value' => (int) ($totals->item_count ?? 0), 'unit' => 'baris', 'decimals' => 0],
             ],
-            'columns' => [
+            'table' => $this->detailTable([
                 ['label' => 'Kapal', 'type' => 'name'],
                 ['label' => 'Agen', 'type' => 'muted'],
                 ['label' => 'Dermaga', 'type' => 'muted'],
@@ -1195,8 +1275,7 @@ class OperationalPerformanceService
                 ['label' => 'Lalu', 'type' => 'number', 'decimals' => 0, 'unit' => 'Teus'],
                 ['label' => 'Total', 'type' => 'number', 'decimals' => 0, 'unit' => 'Teus'],
                 ['label' => 'Ket', 'type' => 'muted'],
-            ],
-            'table' => $this->limitRows($rows),
+            ], $rows),
             'note' => 'Seluruh angka pada panel ini bersatuan Teus, sehingga tidak ikut '
                 .'dijumlahkan ke Total Tonase. Bongkar dan muat masih tercatat menyatu '
                 .'karena form laporan memakai satu bagian untuk keduanya.',
@@ -1231,7 +1310,8 @@ class OperationalPerformanceService
 
         $rows = $this->scopedSourceQuery($activity, $filters)
             ->orderByDesc('daily_reports.report_date')
-            ->orderBy('turba_deliveries.id')
+            ->orderByDesc('turba_deliveries.id')
+            ->selectRaw('daily_reports.report_date as report_date')
             ->selectRaw('turba_deliveries.truck_name as destination')
             ->selectRaw('turba_deliveries.do_so_number as do_so_number')
             ->selectRaw('turba_deliveries.marking_type as marking_type')
@@ -1241,6 +1321,7 @@ class OperationalPerformanceService
             ->get()
             ->map(fn (object $row): array => [
                 $row->destination ?: 'Tujuan belum diisi',
+                $this->dateText($row->report_date),
                 $row->do_so_number ?: '-',
                 $row->marking_type ?: '-',
                 (float) $row->capacity,
@@ -1267,16 +1348,17 @@ class OperationalPerformanceService
                 ['label' => 'Rata-rata muatan per rit', 'value' => $trips > 0 ? $total / $trips : 0.0, 'unit' => 'Ton', 'decimals' => 1],
                 ['label' => 'Tujuan terbesar', 'value' => $breakdown === [] ? null : $breakdown[0]['value'], 'unit' => 'Ton', 'decimals' => 1, 'caption' => $breakdown[0]['name'] ?? null],
             ],
-            'columns' => [
+            'table' => $this->detailTable([
                 ['label' => 'Tujuan', 'type' => 'name'],
+                ['label' => 'Tanggal', 'type' => 'muted', 'identity' => true],
                 ['label' => 'No DO/SO', 'type' => 'muted'],
                 ['label' => 'Marking', 'type' => 'muted'],
                 ['label' => 'Kapasitas', 'type' => 'number', 'decimals' => 0, 'unit' => 'Ton'],
                 ['label' => 'Terkirim', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
                 ['label' => 'Realisasi', 'type' => 'ratio'],
                 ['label' => 'Akumulasi', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
-            ],
-            'table' => $this->limitRows($rows),
+            ], $rows, self::TURBA_ROW_LIMIT),
+            'tableCaption' => 'Diurutkan dari rit terbaru.',
             'breakdown' => $breakdown,
             'breakdownTitle' => 'Peringkat Tujuan Pengiriman',
         ];
@@ -1313,6 +1395,14 @@ class OperationalPerformanceService
     {
         return $moment
             ? Carbon::parse($moment)->locale('id')->translatedFormat('d M · H:i')
+            : '-';
+    }
+
+    /** Tanggal laporan siap tampil, dengan alasan yang sama seperti momentText(). */
+    private function dateText(mixed $date): string
+    {
+        return $date
+            ? Carbon::parse($date)->locale('id')->translatedFormat('d M Y')
             : '-';
     }
 

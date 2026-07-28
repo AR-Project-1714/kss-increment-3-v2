@@ -957,6 +957,13 @@
             gap: 12px;
         }
 
+        /* Metrik tanpa nilai tidak dirender, jadi jumlah kolomnya mengikuti
+           metrik yang benar-benar ada supaya tidak menyisakan sel kosong.
+           Ditaruh sebelum media query di bawah agar tetap bisa ditimpa. */
+        .act-metrics--1 { grid-template-columns: minmax(0, 1fr); }
+        .act-metrics--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .act-metrics--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
         .act-metric {
             display: flex;
             flex-direction: column;

@@ -1,11 +1,15 @@
 {{-- Isi satu panel kegiatan.
 
-     Dikirim sebagai potongan HTML lewat route manajer.performa.kegiatan dan
+     Dikirim sebagai potongan HTML lewat route manajer.kegiatan.panel dan
      disisipkan ke halaman saat tabnya dibuka — bukan dirender bersama halaman
      utama, supaya beban query-nya hanya dibayar oleh kegiatan yang dilihat.
 
      Susunan kolom tabel datang dari service (label + tipe), sehingga satu
      template ini melayani kelima kegiatan tanpa percabangan per kegiatan.
+
+     Blok yang tidak punya data sama sekali tidak dirender: panel pada periode
+     sepi jadi ringkas, bukan berisi deretan kotak "belum ada data". Tabel
+     rincian selalu dirender supaya panel tetap punya keterangan penutup.
 
      Parameter:
        $detail  hasil OperationalPerformanceService::activityDetail()
@@ -16,78 +20,95 @@
     $trend = $detail['trend'] ?? [];
     $trendMax = (float) ($detail['trendMax'] ?? 1);
     $trendTotal = array_sum(array_column($trend, 'value'));
-    $table = $detail['table'] ?? ['rows' => [], 'limited' => false, 'total' => 0];
-    $columns = $detail['columns'] ?? [];
+    $groups = $detail['groups'] ?? [];
+
+    $hasTrend = $trendTotal > 0;
+    $hasGroups = $groups !== [];
+
+    // Metrik tanpa nilai dilewati, bukan ditampilkan sebagai "Belum ada data".
+    $metrics = array_values(array_filter(
+        $detail['metrics'] ?? [],
+        fn (array $metric): bool => ($metric['value'] ?? null) !== null
+    ));
+
+    $table = $detail['table'] ?? [];
+    $rows = $table['rows'] ?? [];
+    // Kolom ikut di dalam $table sejak kolom kosong dipangkas di service.
+    // Bentuk lama dipakai sebagai cadangan supaya panel yang masih tersimpan
+    // di cache tetap tampil sampai cache-nya kedaluwarsa.
+    $columns = $table['columns'] ?? $detail['columns'] ?? [];
 @endphp
 
 <div class="act-panel__inner">
     {{-- Metrik sekunder khas kegiatan --}}
-    <div class="act-metrics">
-        @foreach ($detail['metrics'] ?? [] as $metric)
-            <div class="act-metric">
-                <span class="act-metric__label">{{ $metric['label'] }}</span>
-                <span class="act-metric__value">
-                    @if ($metric['value'] === null)
-                        <span class="perf-table__muted">Belum ada data</span>
-                    @else
+    @if ($metrics !== [])
+        <div @class(['act-metrics', 'act-metrics--'.count($metrics) => count($metrics) < 4])>
+            @foreach ($metrics as $metric)
+                <div class="act-metric">
+                    <span class="act-metric__label">{{ $metric['label'] }}</span>
+                    <span class="act-metric__value">
                         {{ $fmt($metric['value'], $metric['decimals'] ?? 0) }}
                         <span class="act-metric__unit">{{ $metric['unit'] ?? '' }}</span>
+                    </span>
+                    @if (! empty($metric['caption']))
+                        <span class="act-metric__caption">{{ $metric['caption'] }}</span>
                     @endif
-                </span>
-                @if (! empty($metric['caption']))
-                    <span class="act-metric__caption">{{ $metric['caption'] }}</span>
-                @endif
-            </div>
-        @endforeach
-    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
 
     @if (! empty($detail['note']))
         <p class="act-panel__note">{{ $detail['note'] }}</p>
     @endif
 
-    <div class="perf-layout">
-        {{-- Tren enam bulan untuk kegiatan ini saja --}}
-        <div class="act-block">
-            <span class="act-block__title">Tren 6 Bulan — {{ $detail['label'] }}</span>
+    {{-- Dua kolom hanya kalau keduanya ada isinya; kalau tunggal, biarkan
+         selebar panel supaya tidak menyisakan kolom kosong. --}}
+    @if ($hasTrend || $hasGroups)
+        <div @class(['perf-layout' => $hasTrend && $hasGroups])>
+            {{-- Tren enam bulan untuk kegiatan ini saja --}}
+            @if ($hasTrend)
+                <div class="act-block">
+                    <span class="act-block__title">Tren 6 Bulan — {{ $detail['label'] }}</span>
 
-            @if ($trendTotal <= 0)
-                <div class="perf-empty">Belum ada catatan pada enam bulan terakhir.</div>
-            @else
-                <div class="act-trend">
-                    @foreach ($trend as $bucket)
-                        @php
-                            $height = $trendMax > 0 ? ((float) $bucket['value'] / $trendMax) * 100 : 0;
-                        @endphp
+                    <div class="act-trend">
+                        @foreach ($trend as $bucket)
+                            @php
+                                $height = $trendMax > 0 ? ((float) $bucket['value'] / $trendMax) * 100 : 0;
+                            @endphp
 
-                        <div class="act-trend__col"
-                             data-chart-tip
-                             data-tip-title="{{ $bucket['label'] }}"
-                             data-tip-rows="{{ json_encode([
-                                ['label' => $detail['label'], 'value' => $fmt($bucket['value'], 1).' '.$detail['unit'], 'color' => 'var(--chart-1)'],
-                             ]) }}">
-                            <div class="act-trend__slot">
-                                <span class="act-trend__bar" style="height: {{ max(round($height, 2), $bucket['value'] > 0 ? 2 : 0) }}%;"></span>
+                            <div class="act-trend__col"
+                                 data-chart-tip
+                                 data-tip-title="{{ $bucket['label'] }}"
+                                 data-tip-rows="{{ json_encode([
+                                    ['label' => $detail['label'], 'value' => $fmt($bucket['value'], 1).' '.$detail['unit'], 'color' => 'var(--chart-1)'],
+                                 ]) }}">
+                                <div class="act-trend__slot">
+                                    <span class="act-trend__bar" style="height: {{ max(round($height, 2), $bucket['value'] > 0 ? 2 : 0) }}%;"></span>
+                                </div>
+                                <span class="act-trend__label">{{ $bucket['label'] }}</span>
                             </div>
-                            <span class="act-trend__label">{{ $bucket['label'] }}</span>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{-- Peringkat regu untuk kegiatan ini --}}
+            @if ($hasGroups)
+                <div class="act-block">
+                    <span class="act-block__title">Peringkat Regu</span>
+                    <span class="act-block__subtitle">Seluruh regu ikut ditampilkan meski filter regu sedang aktif.</span>
+
+                    @include('manajer.charts.bar-simple', [
+                        'rows' => $groups,
+                        'unit' => $detail['unit'],
+                        'prefix' => 'Regu',
+                        'emptyText' => 'Belum ada catatan kegiatan ini pada periode terpilih.',
+                    ])
                 </div>
             @endif
         </div>
-
-        {{-- Peringkat regu untuk kegiatan ini --}}
-        <div class="act-block">
-            <span class="act-block__title">Peringkat Regu</span>
-            <span class="act-block__subtitle">Seluruh regu ikut ditampilkan meski filter regu sedang aktif.</span>
-
-            @include('manajer.charts.bar-simple', [
-                'rows' => $detail['groups'] ?? [],
-                'unit' => $detail['unit'],
-                'prefix' => 'Regu',
-                'emptyText' => 'Belum ada catatan kegiatan ini pada periode terpilih.',
-            ])
-        </div>
-    </div>
+    @endif
 
     {{-- Rincian tambahan khas kegiatan: jenis bahan baku / tujuan trucking --}}
     @if (! empty($detail['breakdown']))
@@ -107,11 +128,20 @@
     <div class="act-block">
         <span class="act-block__title">Rincian {{ $detail['label'] }}</span>
 
-        @if (empty($table['rows']))
+        @if (! empty($rows) && ! empty($detail['tableCaption']))
+            <span class="act-block__subtitle">{{ $detail['tableCaption'] }}</span>
+        @endif
+
+        @if ($table['blank'] ?? false)
+            <div class="perf-empty">
+                {{ $fmt($table['total'] ?? 0) }} baris tercatat pada periode ini, tetapi seluruh
+                angkanya masih kosong — belum ada yang bisa dirinci.
+            </div>
+        @elseif (empty($rows))
             <div class="perf-empty">Belum ada kegiatan ini pada periode terpilih.</div>
         @else
             <div class="table-responsive-wrapper">
-                <table class="perf-table" style="min-width: {{ max(720, count($columns) * 105) }}px;">
+                <table class="perf-table" style="min-width: {{ max(480, count($columns) * 105) }}px;">
                     <thead>
                         <tr>
                             @foreach ($columns as $column)
@@ -120,7 +150,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($table['rows'] as $row)
+                        @foreach ($rows as $row)
                             <tr>
                                 @foreach ($columns as $index => $column)
                                     @php $value = $row[$index] ?? null; @endphp
@@ -162,10 +192,10 @@
                 </table>
             </div>
 
-            @if ($table['limited'])
+            @if ($table['limited'] ?? false)
                 <p class="act-panel__note">
-                    Menampilkan {{ count($table['rows']) }} dari {{ $fmt($table['total']) }} baris.
-                    Gunakan tombol Ekspor di atas untuk rincian lengkapnya.
+                    Menampilkan {{ count($rows) }} dari {{ $fmt($table['total'] ?? 0) }} baris
+                    yang tercatat pada periode ini.
                 </p>
             @endif
         @endif
