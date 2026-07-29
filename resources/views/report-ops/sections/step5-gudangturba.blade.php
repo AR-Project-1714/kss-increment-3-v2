@@ -3,7 +3,7 @@
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-warehouse-alt"></i></span><span class="fw-600">Form Tracking</span>
             </div>
-            <div class="counter-form">Form 5 dari 7</div>
+            <div class="counter-form">Form 6 dari 8</div>
         </div>
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
             <div class="step-info-note">

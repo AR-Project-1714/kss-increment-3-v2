@@ -91,19 +91,27 @@
             z-index: 6;
             flex-shrink: 0;
             display: flex;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
             align-items: center;
             align-content: center;
-            gap: 5px 10px;
-            padding: 5px;
+            gap: 12px;
+            padding: 10px 12px 8px;
             overflow-x: auto;
             overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-inline: contain;
+            scroll-behavior: smooth;
+            scroll-padding-inline: 12px;
             background-color: rgba(255, 255, 255, 0.72);
             backdrop-filter: blur(18px) saturate(180%);
             -webkit-backdrop-filter: blur(18px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.5);
             border-radius: 10px;
             box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-            scrollbar-width: none;
+            scrollbar-width: thin;
+            scrollbar-color: var(--blue-main-25) transparent;
         }
 
         body.dark-mode .help-tabs {
@@ -112,18 +120,39 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
 
-        .help-tabs::-webkit-scrollbar { display: none; }
+        .help-tabs::-webkit-scrollbar {
+            display: block;
+            height: 6px;
+        }
+
+        .help-tabs::-webkit-scrollbar-track {
+            background: transparent;
+            margin-inline: 6px;
+        }
+
+        .help-tabs::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background-color: var(--blue-main-25);
+        }
+
+        .help-tabs::-webkit-scrollbar-thumb:hover {
+            background-color: var(--blue-main-40);
+        }
 
         .help-tab {
             position: relative;
             z-index: 1;
             display: flex;
             min-width: 112px;
-            flex: 1 1 112px;
+            min-height: 40px;
+            /* Label panjang seperti "Analitik Operasi" tidak boleh menyusut
+               dan bertumpuk dengan tab berikutnya. Saat ruang habis, wadah
+               yang bergulir horizontal mengambil alih. */
+            flex: 1 0 auto;
             justify-content: center;
             align-items: center;
             gap: 8px;
-            padding: 6px 12px;
+            padding: 9px 16px;
             border: none;
             background: transparent;
             border-radius: 8px;
@@ -145,9 +174,9 @@
         .help-tab-indicator {
             position: absolute;
             left: 0;
-            top: 5px;
-            bottom: 5px;
-            height: auto;
+            top: 10px;
+            bottom: auto;
+            height: 40px;
             width: 0;
             border-radius: 8px;
             background: var(--blue-main);

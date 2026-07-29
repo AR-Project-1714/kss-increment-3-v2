@@ -1144,12 +1144,18 @@
                dan indikator aktif tidak lagi punya ruang untuk digambar. */
             flex-shrink: 0;
             display: flex;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
             align-items: center;
             align-content: center;
             gap: 5px 10px;
             padding: 5px;
             overflow-x: auto;
             overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-inline: contain;
+            scroll-behavior: smooth;
             background-color: rgba(255, 255, 255, 0.72);
             /* Prefiks ditulis lebih dahulu agar minifier Vite mempertahankan
                deklarasi standar yang dipakai Chromium. */
@@ -1158,7 +1164,8 @@
             border: 1px solid rgba(255, 255, 255, 0.5);
             border-radius: 10px;
             box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-            scrollbar-width: none;
+            scrollbar-width: thin;
+            scrollbar-color: var(--blue-main-25) transparent;
         }
 
         body.dark-mode .act-tabs {
@@ -1167,7 +1174,24 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
 
-        .act-tabs::-webkit-scrollbar { display: none; }
+        .act-tabs::-webkit-scrollbar {
+            display: block;
+            height: 6px;
+        }
+
+        .act-tabs::-webkit-scrollbar-track {
+            background: transparent;
+            margin-inline: 6px;
+        }
+
+        .act-tabs::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background-color: var(--blue-main-25);
+        }
+
+        .act-tabs::-webkit-scrollbar-thumb:hover {
+            background-color: var(--blue-main-40);
+        }
 
         .act-tab {
             position: relative;

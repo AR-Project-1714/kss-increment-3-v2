@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ReportStatus;
 use App\Http\Controllers\Concerns\BuildsDivisionArchive;
 use App\Http\Controllers\Concerns\ResolvesMaintenanceMeta;
 use App\Http\Controllers\Concerns\ResolvesReportMeta;
@@ -26,9 +25,10 @@ use App\Services\SystemBackupService;
 use App\Services\SystemMetricsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -281,6 +281,7 @@ class AdminV2Controller extends Controller
             'users' => $users,
             'roles' => Role::orderBy('name')->get(),
             'userSearch' => $search,
+            'issuedCredentials' => $this->pullIssuedCredentials($request),
         ]));
     }
 
@@ -626,10 +627,10 @@ class AdminV2Controller extends Controller
         abort_unless(in_array($report->status, $this->maintenanceArchiveStatuses(), true), 404);
 
         return view('pemeliharaan.viewpdf', [
-            'report'  => $this->loadMaintenanceReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadMaintenanceReport($report),
+            'isPdf' => false,
             'backUrl' => route('admin.archive'),
-            'pdfUrl'  => route('admin.maintenance-reports.download', $report),
+            'pdfUrl' => route('admin.maintenance-reports.download', $report),
         ]);
     }
 
@@ -646,7 +647,7 @@ class AdminV2Controller extends Controller
         if (class_exists(Pdf::class)) {
             $pdf = Pdf::loadView('pemeliharaan.pdf', [
                 'report' => $this->loadMaintenanceReport($report),
-                'isPdf'  => true,
+                'isPdf' => true,
             ]);
             $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
@@ -655,10 +656,10 @@ class AdminV2Controller extends Controller
         }
 
         return view('pemeliharaan.viewpdf', [
-            'report'  => $this->loadMaintenanceReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadMaintenanceReport($report),
+            'isPdf' => false,
             'backUrl' => route('admin.archive'),
-            'pdfUrl'  => null,
+            'pdfUrl' => null,
         ]);
     }
 
@@ -684,10 +685,10 @@ class AdminV2Controller extends Controller
         abort_unless(in_array($report->status, $this->safetyArchiveStatuses(), true), 404);
 
         return view('report-safety.viewpdf', [
-            'report'  => $this->loadSafetyReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadSafetyReport($report),
+            'isPdf' => false,
             'backUrl' => route('admin.archive'),
-            'pdfUrl'  => route('admin.safety-reports.download', $report),
+            'pdfUrl' => route('admin.safety-reports.download', $report),
         ]);
     }
 
@@ -704,7 +705,7 @@ class AdminV2Controller extends Controller
         if (class_exists(Pdf::class)) {
             $pdf = Pdf::loadView('report-safety.pdf', [
                 'report' => $this->loadSafetyReport($report),
-                'isPdf'  => true,
+                'isPdf' => true,
             ]);
             $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
@@ -713,10 +714,10 @@ class AdminV2Controller extends Controller
         }
 
         return view('report-safety.viewpdf', [
-            'report'  => $this->loadSafetyReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadSafetyReport($report),
+            'isPdf' => false,
             'backUrl' => route('admin.archive'),
-            'pdfUrl'  => null,
+            'pdfUrl' => null,
         ]);
     }
 
@@ -751,7 +752,12 @@ class AdminV2Controller extends Controller
         $user = User::create($payload);
         $this->recordActivity($request, 'update', 'Menambahkan pengguna '.$user->name, ['username' => $user->username]);
 
-        return back()->with('success', 'Pengguna berhasil ditambahkan.');
+        return back()
+            ->with('success', 'Pengguna berhasil ditambahkan.')
+            ->with('user_credentials', [
+                'username' => $user->username,
+                'password_ciphertext' => Crypt::encryptString($data['password']),
+            ]);
     }
 
     public function updateUser(Request $request, User $user)
@@ -781,7 +787,16 @@ class AdminV2Controller extends Controller
         $user->update($payload);
         $this->recordActivity($request, 'update', 'Memperbarui pengguna '.$user->name, ['username' => $user->username]);
 
-        return back()->with('success', 'Data pengguna berhasil diperbarui.');
+        $response = back()->with('success', 'Data pengguna berhasil diperbarui.');
+
+        if (! empty($data['password'])) {
+            $response->with('user_credentials', [
+                'username' => $user->username,
+                'password_ciphertext' => Crypt::encryptString($data['password']),
+            ]);
+        }
+
+        return $response;
     }
 
     public function toggleUserStatus(Request $request, User $user)
@@ -1374,6 +1389,35 @@ class AdminV2Controller extends Controller
     }
 
     /**
+     * Ambil kredensial satu kali dan hapus ciphertext-nya dari session pada
+     * request yang sama. Password plaintext hanya hidup di memori proses dan
+     * respons admin, tidak pernah diserialisasi ke tabel sessions.
+     *
+     * @return array{username: string, password: string}|null
+     */
+    private function pullIssuedCredentials(Request $request): ?array
+    {
+        $credentials = $request->session()->pull('user_credentials');
+
+        if (! is_array($credentials)
+            || ! is_string($credentials['username'] ?? null)
+            || ! is_string($credentials['password_ciphertext'] ?? null)) {
+            return null;
+        }
+
+        try {
+            return [
+                'username' => $credentials['username'],
+                'password' => Crypt::decryptString($credentials['password_ciphertext']),
+            ];
+        } catch (DecryptException $exception) {
+            report($exception);
+
+            return null;
+        }
+    }
+
+    /**
      * Apakah $user adalah admin aktif terakhir? Dipakai untuk mencegah sistem
      * kehilangan seluruh admin aktif (mis. admin menonaktifkan dirinya sendiri).
      */
@@ -1393,12 +1437,17 @@ class AdminV2Controller extends Controller
 
     private function userPayload(array $data, bool $isCreate): array
     {
+        $roleName = Role::query()
+            ->whereKey($data['role_id'])
+            ->value('name');
+        $isOperational = Role::normalize($roleName) === Role::OPERATIONAL;
+
         $payload = [
             'name' => $data['name'],
             'username' => $data['username'],
             'email' => $data['email'] ?? $this->generatedEmail($data['username']),
             'role_id' => $data['role_id'],
-            'group' => $this->normalizeGroup($data['group'] ?? null),
+            'group' => $isOperational ? $this->normalizeGroup($data['group'] ?? null) : null,
             'status' => $data['status'] ?? 'aktif',
         ];
 

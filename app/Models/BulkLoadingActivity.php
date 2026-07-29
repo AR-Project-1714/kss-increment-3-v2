@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class BulkLoadingActivity extends Model
 {
+    public const TYPE_BULK_LOADING = 'muat_curah';
+
+    public const TYPE_AMMONIA_LOADING = 'muat_amoniak';
+
     protected $guarded = ['id'];
 
     public function dailyReport()

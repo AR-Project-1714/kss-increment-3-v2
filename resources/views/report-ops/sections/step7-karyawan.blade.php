@@ -3,7 +3,7 @@
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-employee-man"></i></span><span class="fw-600">Form Karyawan</span>
             </div>
-            <div class="counter-form">Form 7 dari 7</div>
+            <div class="counter-form">Form 8 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">

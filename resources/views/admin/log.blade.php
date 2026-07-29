@@ -22,6 +22,188 @@
        ============================================= */
     .archive-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 
+    .performance-page-header {
+        position: relative;
+        z-index: 20;
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .performance-page-header__heading {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .performance-filter {
+        position: relative;
+        flex: 0 0 auto;
+    }
+
+    .performance-filter--with-export {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .performance-export-button {
+        min-height: 38px;
+        color: var(--success);
+        border-color: var(--success);
+        background-color: var(--success-10);
+        text-decoration: none;
+    }
+
+    .performance-export-button:hover {
+        color: var(--success);
+        border-color: var(--success);
+        background-color: var(--success-10);
+    }
+
+    .performance-filter__trigger {
+        min-height: 38px;
+        padding-inline: 14px;
+        color: #fff;
+        background-color: var(--blue-main);
+        border-color: var(--blue-main);
+        box-shadow: 0 5px 14px rgba(37, 99, 235, .18);
+    }
+
+    .performance-filter__trigger:hover {
+        color: #fff;
+        background-color: var(--blue-hover);
+        border-color: var(--blue-hover);
+    }
+
+    .performance-filter__trigger[aria-expanded="true"] {
+        box-shadow: 0 0 0 3px var(--blue-main-10), 0 5px 14px rgba(37, 99, 235, .18);
+    }
+
+    .performance-filter__status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 18px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        color: var(--blue-main);
+        background-color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+    }
+
+    .performance-filter__popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 40;
+        width: min(620px, calc(100vw - 112px));
+        padding: 16px;
+        background-color: rgba(255, 255, 255, .92);
+        -webkit-backdrop-filter: blur(22px) saturate(180%);
+        backdrop-filter: blur(22px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, .62);
+        border-radius: 12px;
+        box-shadow: 0 20px 52px rgba(15, 23, 42, .18), inset 0 1px 0 rgba(255, 255, 255, .76);
+    }
+
+    body.dark-mode .performance-filter__popover {
+        background-color: rgba(15, 23, 42, .92);
+        border-color: rgba(255, 255, 255, .14);
+        box-shadow: 0 20px 52px rgba(0, 0, 0, .52), inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+
+    .performance-filter__popover[hidden] { display: none; }
+
+    .performance-filter__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--smooth-border);
+    }
+
+    .performance-filter__title {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--black);
+    }
+
+    .performance-filter__subtitle {
+        display: block;
+        margin-top: 2px;
+        font-size: 10px;
+        color: var(--muted);
+    }
+
+    .performance-filter__close {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        color: var(--black-secondary);
+        background-color: transparent;
+        cursor: pointer;
+    }
+
+    .performance-filter__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    .log-filter-fields {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: end;
+        gap: 12px;
+    }
+
+    .log-filter-fields .filter-field {
+        min-width: 0;
+        max-width: none;
+    }
+
+    .log-filter-fields .filter-select-wrapper {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .log-filter-fields .filter-input,
+    .log-filter-fields .filter-select-trigger {
+        width: 100%;
+        min-width: 0;
+        height: 36px;
+    }
+
+    .log-filter-fields .kss-date-trigger.filter-input {
+        min-height: 36px;
+        padding: 0 12px;
+        justify-content: flex-start;
+        border-radius: 8px;
+        font-size: 12px;
+    }
+
+    .log-filter-fields .kss-date-trigger__main { width: 100%; }
+
+    .log-filter-fields .kss-date-trigger__main i {
+        top: 0;
+        color: var(--blue-main);
+        font-size: 13px;
+    }
+
     .archive-toolbar {
         display: flex;
         align-items: center;
@@ -99,22 +281,6 @@
 
     .btn-tool--active { background-color: var(--blue-main-10); border-color: var(--blue-main); color: var(--blue-main); }
 
-    .archive-filters {
-        display: flex;
-        align-items: flex-end;
-        justify-content: flex-end;
-        gap: 12px;
-        flex-wrap: wrap;
-        animation: filterSlideDown 0.3s ease;
-    }
-
-    .archive-filters.collapsed { display: none; }
-
-    @keyframes filterSlideDown {
-        from { opacity: 0; transform: translateY(-12px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-
     .filter-field { display: flex; flex-direction: column; gap: 4px; }
     .filter-field label { font-size: 10px; font-weight: 500; color: var(--black-secondary); }
     .filter-field .filter-input { min-width: 150px; }
@@ -186,6 +352,59 @@
     }
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 920px) {
+        .performance-page-header { align-items: stretch; }
+        .archive-toolbar { align-items: stretch; }
+
+        .search-box {
+            flex-basis: 100%;
+            max-width: none;
+            width: 100%;
+        }
+
+        .archive-toolbar__actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .archive-toolbar__actions .filter-select-wrapper,
+        .archive-toolbar__actions .toolbar-sort-wrapper {
+            min-width: 140px;
+            flex: 1 1 140px;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .performance-page-header { flex-direction: column; }
+
+        .performance-filter--with-export,
+        .performance-filter__actions {
+            width: 100%;
+        }
+
+        .performance-filter--with-export > *,
+        .performance-filter__actions > * {
+            flex: 1 1 0;
+            justify-content: center;
+        }
+
+        .performance-filter__popover {
+            right: auto;
+            left: 0;
+            width: calc(100vw - 48px);
+        }
+
+        .log-filter-fields { grid-template-columns: 1fr; }
+
+        .btn-tool,
+        .btn-reset,
+        .filter-input,
+        .filter-select-trigger {
+            width: 100%;
+            justify-content: center;
+        }
+    }
 
     /* =============================================
        TABLE
@@ -284,11 +503,130 @@
         ['user' => 'Mustari, S.H',         'sub' => 'Role: Manajer',           'unknown' => false, 'time' => '10 Mei 2026, 23:11', 'type' => 'login',  'type_label' => 'Login',  'desc' => '<strong>"Pak Mustari"</strong> login ke dalam sistem', 'ip' => '192.168.1.104'],
         ['user' => 'Unknown',              'sub' => 'Username: mgr_mustari',    'unknown' => true,  'time' => '10 Mei 2026, 23:08', 'type' => 'error',  'type_label' => 'Error',  'desc' => 'Gagal Login: Percobaan password salah 3x oleh <strong>"Pak Mustari"</strong>', 'ip' => '192.168.1.104'],
     ];
+
+    $hasPanelFilter = filled($selectedDate ?? '')
+        || ! in_array($selectedRole ?? 'all', ['all', ''], true)
+        || ! in_array($selectedType ?? 'all', ['all', ''], true);
+    $hasActiveFilter = filled($activitySearch ?? '')
+        || $hasPanelFilter
+        || ($sort ?? 'newest') !== 'newest';
 @endphp
 
-<div class="page-header">
-    <span class="page-title">Log Aktivitas Sistem</span>
-    <span class="page-subtitle">Pantau rekam jejak aktivitas seluruh pengguna untuk keperluan audit dan keamanan.</span>
+<div class="page-header performance-page-header">
+    <div class="performance-page-header__heading">
+        <span class="page-title">Log Aktivitas Sistem</span>
+        <span class="page-subtitle">Pantau rekam jejak aktivitas seluruh pengguna untuk keperluan audit dan keamanan.</span>
+    </div>
+
+    <div class="performance-filter performance-filter--with-export" data-log-filter>
+        <a href="{{ route('admin.log.export', request()->except('page')) }}"
+                class="btn-tool performance-export-button"
+                data-confirm
+                data-confirm-redirect="{{ route('admin.log.export', request()->except('page')) }}"
+                data-confirm-tone="success"
+                data-confirm-title="Ekspor log aktivitas?"
+                data-confirm-subtitle="Berkas Excel akan diunduh sesuai filter yang sedang aktif."
+                data-confirm-message="Ekspor mengambil {{ $activityTotal }} aktivitas sesuai pencarian, tanggal, role, dan tipe yang sedang diterapkan pada tabel."
+                data-confirm-summary="Format: Excel (.xlsx), {{ $activityTotal }} aktivitas"
+                data-confirm-label="Ekspor Log"
+                data-confirm-icon="fi fi-rr-cloud-upload-alt">
+            <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
+            <span>Ekspor Excel</span>
+        </a>
+
+        <button type="button"
+                class="btn-tool btn-tool--primary performance-filter__trigger {{ $hasActiveFilter ? 'performance-filter__trigger--active' : '' }}"
+                data-log-filter-trigger
+                aria-expanded="false"
+                aria-controls="log-filter-popover">
+            <i class="fi fi-rr-settings-sliders" aria-hidden="true"></i>
+            <span>Filter</span>
+            @if ($hasActiveFilter)
+                <span class="performance-filter__status" aria-label="Filter aktif">Aktif</span>
+            @endif
+        </button>
+
+        <div class="performance-filter__popover"
+             id="log-filter-popover"
+             data-log-filter-popover
+             hidden>
+            <div class="performance-filter__head">
+                <div>
+                    <span class="performance-filter__title">Filter Log Aktivitas</span>
+                    <span class="performance-filter__subtitle">Atur tanggal, role, dan tipe aktivitas yang ingin ditampilkan.</span>
+                </div>
+                <button type="button"
+                        class="performance-filter__close"
+                        data-log-filter-close
+                        aria-label="Tutup filter">
+                    <i class="fi fi-rr-cross-small" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <form method="GET" action="{{ route('admin.log') }}" id="log-filter-form" autocomplete="off">
+                <input type="hidden" name="q" value="{{ $activitySearch ?? '' }}">
+                <input type="hidden" name="sort" value="{{ $sort ?? 'newest' }}">
+
+                <div class="log-filter-fields">
+                    <div class="filter-field">
+                        <label>Tanggal</label>
+                        <input type="hidden" name="tanggal" value="{{ $selectedDate ?? '' }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Pilih tanggal">
+                    </div>
+                    <div class="filter-field">
+                        <label>Role</label>
+                        <div class="filter-select-wrapper">
+                            <select class="native-select" name="role">
+                                <option value="all" @selected(($selectedRole ?? 'all') === 'all')>Semua Role</option>
+                                <option value="admin" @selected(($selectedRole ?? 'all') === 'admin')>Admin</option>
+                                <option value="manajer" @selected(($selectedRole ?? 'all') === 'manajer')>Manajer</option>
+                                <option value="operasional" @selected(($selectedRole ?? 'all') === 'operasional')>Operasional</option>
+                                <option value="pemeliharaan" @selected(($selectedRole ?? 'all') === 'pemeliharaan')>Pemeliharaan</option>
+                                <option value="safety" @selected(($selectedRole ?? 'all') === 'safety')>Safety</option>
+                            </select>
+                            <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                        </div>
+                    </div>
+                    <div class="filter-field">
+                        <label>Tipe Aktivitas</label>
+                        <div class="filter-select-wrapper">
+                            <select class="native-select" name="type">
+                                <option value="all" @selected(($selectedType ?? 'all') === 'all')>Semua Tipe</option>
+                                <option value="update" @selected(($selectedType ?? 'all') === 'update')>Update</option>
+                                <option value="delete" @selected(($selectedType ?? 'all') === 'delete')>Hapus</option>
+                                <option value="backup" @selected(($selectedType ?? 'all') === 'backup')>Backup</option>
+                                <option value="export" @selected(($selectedType ?? 'all') === 'export')>Ekspor</option>
+                                <option value="support" @selected(($selectedType ?? 'all') === 'support')>Bantuan</option>
+                                <option value="login" @selected(($selectedType ?? 'all') === 'login')>Login</option>
+                                <option value="security" @selected(($selectedType ?? 'all') === 'security')>Keamanan</option>
+                                <option value="error" @selected(($selectedType ?? 'all') === 'error')>Error</option>
+                            </select>
+                            <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="performance-filter__actions">
+                    @if ($hasActiveFilter)
+                        <a href="{{ route('admin.log') }}"
+                                class="btn-reset"
+                                data-confirm
+                                data-confirm-redirect="{{ route('admin.log') }}"
+                                data-confirm-tone="warning"
+                                data-confirm-title="Reset filter log?"
+                                data-confirm-subtitle="Pilihan filter log akan dikembalikan ke kondisi awal."
+                                data-confirm-message="Pencarian dan filter tanggal, role, serta tipe aktivitas akan dikosongkan."
+                                data-confirm-label="Reset Filter"
+                                data-confirm-icon="fi fi-rr-refresh">
+                            Reset
+                        </a>
+                    @endif
+                    <button type="submit" class="btn-tool btn-tool--primary">
+                        <i class="fi fi-rr-check" aria-hidden="true"></i> Terapkan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 {{-- Kartu yang sama dengan Dashboard Sistem, lengkap dengan angka pembanding. --}}
@@ -296,89 +634,27 @@
 
 <!-- Riwayat Aktivitas Sistem -->
 @component('admin.layouts.card', ['title' => 'Riwayat Aktivitas Sistem'])
-    <form method="GET" action="{{ route('admin.log') }}" id="logFilterForm">
+    <form method="GET" action="{{ route('admin.log') }}" id="log-search-form" autocomplete="off">
     <!-- Toolbar -->
     <div class="archive-toolbar">
         <div class="search-box">
             <span><i class="fi fi-rr-search"></i></span>
-            <input type="text" name="q" value="{{ $activitySearch ?? '' }}" placeholder="Pencarian aktivitas">
+            <input type="search" name="q" value="{{ $activitySearch ?? '' }}" placeholder="Pencarian aktivitas">
         </div>
         <div class="archive-toolbar__actions">
             <div class="filter-select-wrapper toolbar-sort-wrapper">
-                <select class="native-select" name="sort">
+                <select class="native-select" name="sort" data-autosubmit-filter>
                     <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
                     <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
                 </select>
                 <i class="fi fi-rr-angle-small-down select-arrow"></i>
             </div>
-            <button type="button" class="btn-tool" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
-            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Terapkan</button>
-            <a href="{{ route('admin.log.export', request()->except('page')) }}"
-                    class="btn-tool btn-tool--primary"
-                    data-confirm
-                    data-confirm-redirect="{{ route('admin.log.export', request()->except('page')) }}"
-                    data-confirm-tone="success"
-                    data-confirm-title="Ekspor log aktivitas?"
-                    data-confirm-subtitle="Berkas Excel akan diunduh sesuai filter yang sedang aktif."
-                    data-confirm-message="Ekspor mengambil {{ $activityTotal }} aktivitas sesuai pencarian, tanggal, role, dan tipe yang sedang diterapkan pada tabel."
-                    data-confirm-summary="Format: Excel (.xlsx), {{ $activityTotal }} aktivitas"
-                    data-confirm-label="Ekspor Log"
-                    data-confirm-icon="fi fi-rr-cloud-upload-alt">
-                <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
-            </a>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="archive-filters collapsed" id="archiveFilters">
-        <div class="filter-field">
-            <label>Tanggal</label>
-            <input type="hidden" name="tanggal" value="{{ $selectedDate ?? '' }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Pilih tanggal">
-        </div>
-        <div class="filter-field">
-            <label>Role</label>
-            <div class="filter-select-wrapper">
-                <select class="native-select" name="role">
-                    <option value="all" @selected(($selectedRole ?? 'all') === 'all')>Semua Role</option>
-                    <option value="admin" @selected(($selectedRole ?? 'all') === 'admin')>Admin</option>
-                    <option value="manajer" @selected(($selectedRole ?? 'all') === 'manajer')>Manajer</option>
-                    <option value="operasional" @selected(($selectedRole ?? 'all') === 'operasional')>Operasional</option>
-                    <option value="pemeliharaan" @selected(($selectedRole ?? 'all') === 'pemeliharaan')>Pemeliharaan</option>
-                    <option value="safety" @selected(($selectedRole ?? 'all') === 'safety')>Safety</option>
-                </select>
-                <i class="fi fi-rr-angle-small-down select-arrow"></i>
-            </div>
-        </div>
-        <div class="filter-field">
-            <label>Tipe Aktivitas</label>
-            <div class="filter-select-wrapper">
-                <select class="native-select" name="type">
-                    <option value="all" @selected(($selectedType ?? 'all') === 'all')>Semua Tipe</option>
-                    <option value="update" @selected(($selectedType ?? 'all') === 'update')>Update</option>
-                    <option value="delete" @selected(($selectedType ?? 'all') === 'delete')>Hapus</option>
-                    <option value="backup" @selected(($selectedType ?? 'all') === 'backup')>Backup</option>
-                    <option value="export" @selected(($selectedType ?? 'all') === 'export')>Ekspor</option>
-                    <option value="support" @selected(($selectedType ?? 'all') === 'support')>Bantuan</option>
-                    <option value="login" @selected(($selectedType ?? 'all') === 'login')>Login</option>
-                    <option value="security" @selected(($selectedType ?? 'all') === 'security')>Keamanan</option>
-                    <option value="error" @selected(($selectedType ?? 'all') === 'error')>Error</option>
-                </select>
-                <i class="fi fi-rr-angle-small-down select-arrow"></i>
-            </div>
-        </div>
-        <a href="{{ route('admin.log') }}"
-                class="btn-reset"
-                data-confirm
-                data-confirm-redirect="{{ route('admin.log') }}"
-                data-confirm-tone="warning"
-                data-confirm-title="Reset filter log?"
-                data-confirm-subtitle="Pilihan filter log akan dikembalikan ke kondisi awal."
-                data-confirm-message="Pencarian dan filter tanggal, role, serta tipe aktivitas akan dikosongkan."
-                data-confirm-label="Reset Filter"
-                data-confirm-icon="fi fi-rr-refresh">
-            Reset
-        </a>
-    </div>
+    <input type="hidden" name="tanggal" value="{{ $selectedDate ?? '' }}">
+    <input type="hidden" name="role" value="{{ $selectedRole ?? 'all' }}">
+    <input type="hidden" name="type" value="{{ $selectedType ?? 'all' }}">
     </form>
 
     <!-- Table -->
@@ -416,15 +692,37 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // FILTER TOGGLE
-        const btnFilter = document.getElementById('btnFilter');
-        const archiveFilters = document.getElementById('archiveFilters');
-        if (btnFilter && archiveFilters) {
-            btnFilter.addEventListener('click', function () {
-                const isOpen = !archiveFilters.classList.toggle('collapsed');
-                btnFilter.classList.toggle('btn-tool--active', isOpen);
-            });
-        }
+        const logFilter = document.querySelector('[data-log-filter]');
+        const filterTrigger = logFilter?.querySelector('[data-log-filter-trigger]');
+        const filterPopover = logFilter?.querySelector('[data-log-filter-popover]');
+        const filterClose = logFilter?.querySelector('[data-log-filter-close]');
+
+        const setFilterOpen = (open) => {
+            if (!logFilter || !filterTrigger || !filterPopover) return;
+            filterPopover.hidden = !open;
+            filterTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            logFilter.classList.toggle('is-open', open);
+        };
+
+        filterTrigger?.addEventListener('click', () => setFilterOpen(filterPopover?.hidden ?? true));
+        filterClose?.addEventListener('click', () => {
+            setFilterOpen(false);
+            filterTrigger?.focus();
+        });
+
+        document.addEventListener('click', event => {
+            const isDatePickerClick = event.target.closest?.('.kss-date-popover');
+
+            if (filterPopover && !filterPopover.hidden && !logFilter.contains(event.target) && !isDatePickerClick) {
+                setFilterOpen(false);
+            }
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Escape' || !filterPopover || filterPopover.hidden) return;
+            setFilterOpen(false);
+            filterTrigger?.focus();
+        });
 
         // CUSTOM DROPDOWN
         document.querySelectorAll('.filter-select-wrapper').forEach(function (wrapper) {
@@ -477,6 +775,12 @@
         document.addEventListener('click', function () {
             document.querySelectorAll('.filter-select-options.open').forEach(c => c.classList.remove('open'));
             document.querySelectorAll('.filter-select-trigger.focus-active').forEach(t => t.classList.remove('focus-active'));
+        });
+
+        document.querySelectorAll('[data-autosubmit-filter]').forEach(function (control) {
+            control.addEventListener('change', function () {
+                control.closest('form')?.submit();
+            });
         });
     });
 </script>

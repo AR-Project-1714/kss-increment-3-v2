@@ -3,7 +3,9 @@
 namespace Tests\Feature\BlackBox;
 
 use App\Enums\ReportStatus;
+use App\Models\BulkLoadingActivity;
 use App\Models\DailyReport;
+use App\Models\ShipOperation;
 use Carbon\Carbon;
 
 /**
@@ -106,6 +108,93 @@ class OperationalReportTest extends BlackBoxTestCase
         $this->assertDatabaseHas('unit_check_logs', ['item_name' => 'Forklift Cek']);
     }
 
+    public function test_tc_ops_05b_muat_curah_dan_amoniak_disimpan_dan_dicetak_terpisah(): void
+    {
+        $operator = $this->operator('A');
+
+        $this->actingAs($operator)
+            ->get(route('report-ops.create'))
+            ->assertOk()
+            ->assertSee('data-target="step-muat-curah"', false)
+            ->assertSee('data-target="step-muat-amoniak"', false)
+            ->assertSee('name="bulk_logs[1][0][cob]"', false)
+            ->assertSee('name="ammonia_logs[1][0][cob]"', false)
+            ->assertSee('Form 8 dari 8', false);
+
+        $this->actingAs($operator)
+            ->post(route('report-ops.store'), $this->validSubmitPayload([
+                'ship_name_urea_1' => 'MV Curah Mandiri',
+                'commodity_urea_1' => 'Urea Curah',
+                'capacity_urea_1' => '1000',
+                'ship_operation_urea_status_1' => ShipOperation::STATUS_ACTIVE,
+                'bulk_logs' => [
+                    1 => [
+                        ['time' => '08:00', 'activity' => 'Muat urea curah', 'cob' => '120'],
+                    ],
+                ],
+                'ship_name_ammonia_1' => 'MT Amoniak Mandiri',
+                'commodity_ammonia_1' => 'Amoniak Cair',
+                'capacity_ammonia_1' => '800',
+                'ship_operation_ammonia_status_1' => ShipOperation::STATUS_ACTIVE,
+                'ammonia_logs' => [
+                    1 => [
+                        ['time' => '09:00', 'activity' => 'Muat amoniak', 'cob' => '80'],
+                    ],
+                ],
+            ]))
+            ->assertRedirect(route('report-ops.index'));
+
+        $report = DailyReport::query()
+            ->where('created_by', $operator->id)
+            ->where('status', ReportStatus::Submitted)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertDatabaseHas('bulk_loading_activities', [
+            'daily_report_id' => $report->id,
+            'activity_type' => BulkLoadingActivity::TYPE_BULK_LOADING,
+            'ship_name' => 'MV Curah Mandiri',
+        ]);
+        $this->assertDatabaseHas('bulk_loading_activities', [
+            'daily_report_id' => $report->id,
+            'activity_type' => BulkLoadingActivity::TYPE_AMMONIA_LOADING,
+            'ship_name' => 'MT Amoniak Mandiri',
+        ]);
+        $this->assertDatabaseHas('ship_operations', [
+            'type' => ShipOperation::TYPE_BULK_LOADING,
+            'ship_name' => 'MV Curah Mandiri',
+        ]);
+        $this->assertDatabaseHas('ship_operations', [
+            'type' => ShipOperation::TYPE_AMMONIA_LOADING,
+            'ship_name' => 'MT Amoniak Mandiri',
+        ]);
+
+        $this->actingAs($operator)
+            ->getJson(route('report-ops.ship-operations.suggestions', [
+                'type' => ShipOperation::TYPE_AMMONIA_LOADING,
+                'q' => 'Amoniak Mandiri',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('items.0.ship_name', 'MT Amoniak Mandiri')
+            ->assertJsonPath('items.0.type', ShipOperation::TYPE_AMMONIA_LOADING);
+
+        $preview = $this->actingAs($operator)
+            ->get(route('report-ops.show', $report))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'II. Pemuatan Urea Curah',
+                'MV Curah Mandiri',
+                'III. Pemuatan Amoniak',
+                'MT Amoniak Mandiri',
+                'IV. Bongkar Bahan Baku',
+                'V. Tracking Pengiriman Pupuk Kantong',
+                'VI. Keadaan Peralatan dan Kendaraan Operasional',
+                'VII. Karyawan',
+            ], false);
+
+        $this->assertStringNotContainsString('Pemuatan Urea Curah / Amoniak', $preview->getContent());
+    }
+
     public function test_tc_ops_06_simpan_sebagai_draft(): void
     {
         $operator = $this->operator('A');
@@ -120,6 +209,26 @@ class OperationalReportTest extends BlackBoxTestCase
         $this->assertDatabaseHas('daily_reports', [
             'created_by' => $operator->id,
             'status' => ReportStatus::Draft->value,
+        ]);
+    }
+
+    public function test_tc_ops_06b_laporan_masa_depan_tidak_dapat_dikirim(): void
+    {
+        $this->travelTo('2026-07-29 10:00:00');
+        $operator = $this->operator('A');
+
+        $this->actingAs($operator)
+            ->from(route('report-ops.create'))
+            ->post(route('report-ops.store'), $this->validSubmitPayload([
+                'report_date' => '2026-07-30',
+            ]))
+            ->assertRedirect(route('report-ops.create'))
+            ->assertSessionHasErrors('report_date');
+
+        $this->assertDatabaseMissing('daily_reports', [
+            'created_by' => $operator->id,
+            'report_date' => '2026-07-30',
+            'status' => ReportStatus::Submitted->value,
         ]);
     }
 

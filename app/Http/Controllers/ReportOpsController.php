@@ -234,7 +234,11 @@ class ReportOpsController extends Controller
     public function shipOperationSuggestions(Request $request)
     {
         $validated = $request->validate([
-            'type' => ['required', Rule::in([ShipOperation::TYPE_BAG_LOADING, ShipOperation::TYPE_BULK_LOADING])],
+            'type' => ['required', Rule::in([
+                ShipOperation::TYPE_BAG_LOADING,
+                ShipOperation::TYPE_BULK_LOADING,
+                ShipOperation::TYPE_AMMONIA_LOADING,
+            ])],
             'q' => ['nullable', 'string', 'max:255'],
             'exclude_report_id' => ['nullable', 'integer'],
         ]);
@@ -327,9 +331,9 @@ class ReportOpsController extends Controller
         // seluruh penyimpanan berikutnya menimpa baris ini, bukan bikin duplikat.
         $userId = auth()->id();
         $reservedReport = $this->reserveDraftReport(DailyReport::class, [
-            'user_id'    => $userId,
+            'user_id' => $userId,
             'created_by' => $userId,
-            'status'     => ReportStatus::Draft->value,
+            'status' => ReportStatus::Draft->value,
         ]);
 
         return view('report-ops.create', array_merge($this->masterData(), [
@@ -1185,6 +1189,7 @@ class ReportOpsController extends Controller
             'report_date' => [
                 $requiredWhenSubmit,
                 'date',
+                ...($isDraft ? [] : ['before_or_equal:today']),
                 function (string $attribute, mixed $value, callable $fail) use ($isDraft, $request): void {
                     if ($isDraft || ! $request || blank($value)) {
                         return;
@@ -1243,6 +1248,7 @@ class ReportOpsController extends Controller
             'time_range' => [$requiredWhenSubmit, 'string', 'max:50'],
             'timesheets' => ['nullable', 'array'],
             'bulk_logs' => ['nullable', 'array'],
+            'ammonia_logs' => ['nullable', 'array'],
             'unloading_materials' => ['nullable', 'array'],
             'unloading_containers' => ['nullable', 'array'],
             'turba_deliveries' => ['nullable', 'array'],
@@ -1349,47 +1355,24 @@ class ReportOpsController extends Controller
             }
         }
 
-        for ($i = 1; $i <= 20; $i++) {
-            if (! $this->hasAny($request, [
-                "ship_name_urea_{$i}",
-                "jetty_urea_{$i}",
-                "destination_urea_{$i}",
-                "agent_urea_{$i}",
-                "bulk_logs.{$i}",
-            ])) {
-                continue;
-            }
-
-            $bulkData = [
-                'sequence' => $i,
-                'ship_name' => $this->string($request->input("ship_name_urea_{$i}")),
-                'jetty' => $this->string($request->input("jetty_urea_{$i}")),
-                'destination' => $this->string($request->input("destination_urea_{$i}")),
-                'agent' => $this->string($request->input("agent_urea_{$i}")),
-                'stevedoring' => $this->string($request->input("stevedoring_urea_{$i}")),
-                'commodity' => $this->string($request->input("commodity_urea_{$i}")),
-                'capacity' => $this->decimal($request->input("capacity_urea_{$i}")),
-                'berthing_time' => $this->dateTime($request->input("berthing_time_urea_{$i}"), $reportDate),
-                'start_loading_time' => $this->dateTime($request->input("start_loading_time_urea_{$i}"), $reportDate),
-            ];
-
-            $shipOperation = $isDraft
-                ? null
-                : $this->resolveShipOperation($report, $request, ShipOperation::TYPE_BULK_LOADING, $i, $bulkData);
-            $bulkData['ship_operation_id'] = $shipOperation?->id;
-
-            $bulkActivity = $report->bulkLoadingActivities()->create($bulkData);
-
-            foreach ($this->rows($request->input("bulk_logs.{$i}", [])) as $log) {
-                if ($this->rowHasAny($log, ['time', 'activity', 'cob'])) {
-                    $bulkActivity->logs()->create([
-                        'datetime' => $this->dateTime($log['time'] ?? null, $reportDate),
-                        'activity' => $this->string($log['activity'] ?? null),
-                        'cob' => $this->integer($log['cob'] ?? null) ?: null,
-                    ]);
-                }
-            }
-        }
+        $this->storeBulkLoadingActivities(
+            $report,
+            $request,
+            $reportDate,
+            $isDraft,
+            ShipOperation::TYPE_BULK_LOADING,
+            'urea',
+            'bulk_logs',
+        );
+        $this->storeBulkLoadingActivities(
+            $report,
+            $request,
+            $reportDate,
+            $isDraft,
+            ShipOperation::TYPE_AMMONIA_LOADING,
+            'ammonia',
+            'ammonia_logs',
+        );
 
         for ($i = 1; $i <= 20; $i++) {
             if (! $this->hasAny($request, [
@@ -1500,6 +1483,66 @@ class ReportOpsController extends Controller
 
         $this->storeUnitChecks($report, $request);
         $this->storeEmployeeLogs($report, $request);
+    }
+
+    private function storeBulkLoadingActivities(
+        DailyReport $report,
+        Request $request,
+        mixed $reportDate,
+        bool $isDraft,
+        string $activityType,
+        string $fieldSuffix,
+        string $logInput,
+    ): void {
+        for ($i = 1; $i <= 20; $i++) {
+            $field = fn (string $name): string => "{$name}_{$fieldSuffix}_{$i}";
+
+            if (! $this->hasAny($request, [
+                $field('ship_name'),
+                $field('jetty'),
+                $field('destination'),
+                $field('agent'),
+                $field('stevedoring'),
+                $field('commodity'),
+                $field('capacity'),
+                $field('berthing_time'),
+                $field('start_loading_time'),
+                "{$logInput}.{$i}",
+            ])) {
+                continue;
+            }
+
+            $bulkData = [
+                'activity_type' => $activityType,
+                'sequence' => $i,
+                'ship_name' => $this->string($request->input($field('ship_name'))),
+                'jetty' => $this->string($request->input($field('jetty'))),
+                'destination' => $this->string($request->input($field('destination'))),
+                'agent' => $this->string($request->input($field('agent'))),
+                'stevedoring' => $this->string($request->input($field('stevedoring'))),
+                'commodity' => $this->string($request->input($field('commodity'))),
+                'capacity' => $this->decimal($request->input($field('capacity'))),
+                'berthing_time' => $this->dateTime($request->input($field('berthing_time')), $reportDate),
+                'start_loading_time' => $this->dateTime($request->input($field('start_loading_time')), $reportDate),
+            ];
+
+            $shipOperation = $isDraft
+                ? null
+                : $this->resolveShipOperation($report, $request, $activityType, $i, $bulkData);
+            $bulkData['ship_operation_id'] = $shipOperation?->id;
+
+            $bulkActivity = $report->bulkLoadingActivities()->create($bulkData);
+
+            foreach ($this->rows($request->input("{$logInput}.{$i}", [])) as $log) {
+                if ($this->rowHasAny($log, ['time', 'activity', 'cob'])) {
+                    $bulkActivity->logs()->create([
+                        'datetime' => $this->dateTime($log['time'] ?? null, $reportDate),
+                        'activity' => $this->string($log['activity'] ?? null),
+                        'cob' => $this->integer($log['cob'] ?? null) ?: null,
+                    ]);
+                }
+            }
+        }
     }
 
     private function storeUnitChecks(DailyReport $report, Request $request): void
@@ -1798,12 +1841,20 @@ class ReportOpsController extends Controller
             return null;
         }
 
-        $idKey = $type === ShipOperation::TYPE_BAG_LOADING
-            ? "ship_operation_id_{$sequence}"
-            : "ship_operation_urea_id_{$sequence}";
-        $statusKey = $type === ShipOperation::TYPE_BAG_LOADING
-            ? "ship_operation_status_{$sequence}"
-            : "ship_operation_urea_status_{$sequence}";
+        [$idKey, $statusKey] = match ($type) {
+            ShipOperation::TYPE_BAG_LOADING => [
+                "ship_operation_id_{$sequence}",
+                "ship_operation_status_{$sequence}",
+            ],
+            ShipOperation::TYPE_AMMONIA_LOADING => [
+                "ship_operation_ammonia_id_{$sequence}",
+                "ship_operation_ammonia_status_{$sequence}",
+            ],
+            default => [
+                "ship_operation_urea_id_{$sequence}",
+                "ship_operation_urea_status_{$sequence}",
+            ],
+        };
         $requestedStatus = $request->input($statusKey) === ShipOperation::STATUS_COMPLETED
             ? ShipOperation::STATUS_COMPLETED
             : ShipOperation::STATUS_ACTIVE;
@@ -1826,7 +1877,7 @@ class ReportOpsController extends Controller
                 $query->where('wo_number', $this->string($data['wo_number']));
             }
 
-            if ($type === ShipOperation::TYPE_BULK_LOADING && $this->string($data['commodity'] ?? null) !== null) {
+            if ($type !== ShipOperation::TYPE_BAG_LOADING && $this->string($data['commodity'] ?? null) !== null) {
                 $query->where('commodity', $this->string($data['commodity']));
             }
 

@@ -1,110 +1,139 @@
-{{-- Papan peringkat lembur personil.
+{{-- Tabel peringkat lembur personil.
 
-     Ditampilkan dalam dua ukuran karena keduanya menjawab hal berbeda: jam
-     lembur menunjukkan beban waktu, frekuensi menunjukkan seberapa sering
-     seseorang diminta. Sebagian entri lembur diisi tanpa jam, sehingga orang
-     yang muncul di daftar frekuensi belum tentu ada di daftar jam.
-
-     Daftar dipotong di sepuluh nama pertama, sisanya ada di DOM tetapi
-     disembunyikan CSS dan dibuka lewat tombol di bawah tiap kolom. Dengan
-     begitu kartunya tetap ringkas untuk pembacaan sekilas, sementara daftar
-     penuh tetap satu klik jauhnya — dan tetap terbaca mesin pencari maupun
-     pembaca layar tanpa permintaan tambahan ke server.
+     Urutan utama mengikuti total jam lembur. Perubahan posisi membandingkan
+     urutan tersebut dengan periode pembanding yang setara, bukan dengan data
+     sesaat di browser. Sepuluh nama pertama ditampilkan lebih dulu; sisanya
+     tetap tersedia melalui tombol "lihat semua".
 
      Parameter:
-       $leaders  ['hours' => [...], 'count' => [...]] dari OperationalPerformanceService
+       $leaders  ['ranking' => [...]] dari OperationalPerformanceService
        $visible  jumlah baris yang tampil sebelum daftar dibuka (bawaan 10)
 --}}
 @php
-    $leaders = $leaders ?? ['hours' => [], 'count' => []];
-    $visible = (int) ($visible ?? 10);
+    $rows = array_values($leaders['ranking'] ?? []);
+    $visible = max(1, (int) ($visible ?? 10));
+    $hidden = max(count($rows) - $visible, 0);
     $fmt = fn ($value, int $decimals = 0) => number_format((float) $value, $decimals, ',', '.');
-
-    $panels = [
-        [
-            'key' => 'hours',
-            'title' => 'Jam Lembur Terbanyak',
-            'color' => 'var(--chart-3)',
-            'unit' => 'jam',
-            'decimals' => 1,
-        ],
-        [
-            'key' => 'count',
-            'title' => 'Paling Sering Lembur',
-            'color' => 'var(--chart-5)',
-            'unit' => 'kali',
-            'decimals' => 0,
-        ],
-    ];
-
-    $hasAny = ($leaders['hours'] ?? []) !== [] || ($leaders['count'] ?? []) !== [];
+    $tableId = 'overtime-ranking-'.substr(md5(implode('|', array_column($rows, 'name'))), 0, 8);
 @endphp
 
-@if (! $hasAny)
+@if ($rows === [])
     <div class="perf-empty">Belum ada lembur tercatat pada periode ini.</div>
 @else
-    <div class="leader-board">
-        @foreach ($panels as $panel)
-            @php
-                $rows = array_values($leaders[$panel['key']] ?? []);
-                $total = count($rows);
-                $hidden = max($total - $visible, 0);
+    <div class="overtime-ranking" data-overtime-ranking>
+        <div class="overtime-ranking__scroll">
+            <table class="overtime-ranking__table">
+                <caption class="overtime-ranking__caption">
+                    Peringkat personil berdasarkan total jam lembur
+                </caption>
+                <thead>
+                    <tr>
+                        <th scope="col" aria-sort="ascending">
+                            <span class="overtime-ranking__heading">Posisi</span>
+                            <span class="overtime-ranking__sort-controls" role="group" aria-label="Urutkan posisi">
+                                <button type="button"
+                                        class="overtime-ranking__sort is-active"
+                                        data-overtime-sort="asc"
+                                        aria-label="Urutkan posisi dari terkecil ke terbesar"
+                                        aria-pressed="true"
+                                        title="Urutkan posisi dari terkecil ke terbesar">
+                                    <i class="fi fi-rr-caret-up" aria-hidden="true"></i>
+                                </button>
+                                <button type="button"
+                                        class="overtime-ranking__sort"
+                                        data-overtime-sort="desc"
+                                        aria-label="Urutkan posisi dari terbesar ke terkecil"
+                                        aria-pressed="false"
+                                        title="Urutkan posisi dari terbesar ke terkecil">
+                                    <i class="fi fi-rr-caret-down" aria-hidden="true"></i>
+                                </button>
+                            </span>
+                        </th>
+                        <th scope="col">Nama Petugas</th>
+                        <th scope="col" class="overtime-ranking__number">Jumlah Lembur</th>
+                        <th scope="col" class="overtime-ranking__number">Total Jam Lembur</th>
+                        <th scope="col" class="overtime-ranking__number">Rata-rata Jam Lembur</th>
+                    </tr>
+                </thead>
+                <tbody id="{{ $tableId }}"
+                       class="overtime-ranking__body {{ $hidden > 0 ? 'is-collapsed' : '' }}"
+                       data-visible-count="{{ $visible }}">
+                    @foreach ($rows as $index => $person)
+                        @php
+                            $group = strtoupper(trim((string) ($person['group'] ?? '-')));
+                            $groupInitial = $group === '' || $group === '-' ? '?' : mb_substr($group, 0, 1);
+                            $groupKey = in_array($groupInitial, ['A', 'B', 'C', 'D'], true)
+                                ? strtolower($groupInitial)
+                                : 'other';
+                            $movement = $person['movement'] ?? 'new';
+                            $movementValue = (int) ($person['movementValue'] ?? 0);
+                            $movementLabel = match ($movement) {
+                                'up' => 'Naik '.$movementValue.' posisi',
+                                'down' => 'Turun '.$movementValue.' posisi',
+                                'same' => 'Posisi tetap',
+                                default => 'Baru pada periode ini',
+                            };
+                        @endphp
+                        <tr class="{{ $index >= $visible ? 'overtime-ranking__row--extra' : '' }}"
+                            data-overtime-position="{{ $person['position'] ?? $index + 1 }}">
+                            <td>
+                                <div class="overtime-ranking__position">
+                                    <span class="overtime-ranking__rank">{{ $person['position'] ?? $index + 1 }}</span>
 
-                // Id daftar diturunkan dari isinya, bukan dari nomor acak,
-                // supaya keluaran halaman tetap sama bila datanya sama.
-                $listId = 'leader-'.$panel['key'].'-'.substr(md5($panel['key'].'|'.implode('|', array_column($rows, 'name'))), 0, 6);
-            @endphp
-
-            <div class="leader-board__panel">
-                <span class="leader-board__title">{{ $panel['title'] }}</span>
-
-                @if ($rows === [])
-                    <span class="leader-board__empty">Belum ada data dengan jam tercatat.</span>
-                @else
-                    <ol id="{{ $listId }}" class="leader-board__list {{ $hidden > 0 ? 'is-collapsed' : '' }}">
-                        @foreach ($rows as $index => $person)
-                            <li class="leader-board__item {{ $index >= $visible ? 'leader-board__item--extra' : '' }}">
-                                <span class="leader-board__rank">{{ $index + 1 }}</span>
-
-                                <div class="leader-board__body">
-                                    <div class="leader-board__head">
-                                        <span class="leader-board__name">{{ $person['name'] }}</span>
-                                        <span class="leader-board__value">
-                                            {{ $fmt($person[$panel['key']], $panel['decimals']) }} {{ $panel['unit'] }}
-                                        </span>
-                                    </div>
-
-                                    <div class="leader-board__track"
-                                         data-chart-tip
-                                         data-tip-title="{{ $person['name'] }}"
-                                         data-tip-rows="{{ json_encode([
-                                            ['label' => 'Jam lembur', 'value' => $fmt($person['hours'], 1).' jam', 'color' => 'var(--chart-3)'],
-                                            ['label' => 'Frekuensi', 'value' => $fmt($person['count']).' kali', 'color' => 'var(--chart-5)'],
-                                         ]) }}">
-                                        <span class="leader-board__fill"
-                                              style="width: {{ round($person['share'], 2) }}%; background-color: {{ $panel['color'] }};"></span>
-                                    </div>
+                                    <span class="overtime-ranking__movement overtime-ranking__movement--{{ $movement }}"
+                                          title="{{ $movementLabel }}"
+                                          aria-label="{{ $movementLabel }}">
+                                        @if ($movement === 'up')
+                                            <i class="fi fi-rr-arrow-trend-up" aria-hidden="true"></i> {{ $movementValue }}
+                                        @elseif ($movement === 'down')
+                                            <i class="fi fi-rr-arrow-trend-down" aria-hidden="true"></i> {{ $movementValue }}
+                                        @elseif ($movement === 'same')
+                                            <span aria-hidden="true">—</span>
+                                        @else
+                                            Baru
+                                        @endif
+                                    </span>
                                 </div>
-                            </li>
-                        @endforeach
-                    </ol>
+                            </td>
+                            <td>
+                                <div class="overtime-ranking__person">
+                                    <span class="overtime-ranking__team"
+                                          aria-label="{{ $groupInitial === '?' ? 'Regu belum tercatat' : 'Regu '.$group }}">
+                                        <span class="overtime-ranking__group overtime-ranking__group--{{ $groupKey }}"
+                                              aria-hidden="true">{{ $groupInitial }}</span>
+                                    </span>
+                                    <span class="overtime-ranking__name">{{ $person['name'] }}</span>
+                                </div>
+                            </td>
+                            <td class="overtime-ranking__number">
+                                <strong>{{ $fmt($person['count'] ?? 0) }}</strong>
+                                <span>kali</span>
+                            </td>
+                            <td class="overtime-ranking__number">
+                                <strong>{{ $fmt($person['hours'] ?? 0, 1) }}</strong>
+                                <span>jam</span>
+                            </td>
+                            <td class="overtime-ranking__number">
+                                <strong>{{ $fmt($person['averageHours'] ?? 0, 1) }}</strong>
+                                <span>jam</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
 
-                    @if ($hidden > 0)
-                        {{-- Jumlahnya disebut di label supaya pembaca tahu seberapa
-                             panjang daftar sebelum memutuskan membukanya. --}}
-                        <button type="button"
-                                class="leader-board__more"
-                                data-leader-toggle
-                                aria-controls="{{ $listId }}"
-                                aria-expanded="false"
-                                data-label-more="Lihat semua {{ $fmt($total) }} personil"
-                                data-label-less="Tampilkan {{ $visible }} teratas">
-                            <span data-leader-toggle-label>Lihat semua {{ $fmt($total) }} personil</span>
-                            <i class="fi fi-rr-angle-small-down" aria-hidden="true"></i>
-                        </button>
-                    @endif
-                @endif
-            </div>
-        @endforeach
+        @if ($hidden > 0)
+            <button type="button"
+                    class="overtime-ranking__more"
+                    data-leader-toggle
+                    aria-controls="{{ $tableId }}"
+                    aria-expanded="false"
+                    data-label-more="Lihat semua {{ $fmt(count($rows)) }} personil"
+                    data-label-less="Tampilkan {{ $visible }} teratas">
+                <span data-leader-toggle-label>Lihat semua {{ $fmt(count($rows)) }} personil</span>
+                <i class="fi fi-rr-angle-small-down" aria-hidden="true"></i>
+            </button>
+        @endif
     </div>
 @endif

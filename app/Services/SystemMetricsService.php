@@ -117,7 +117,7 @@ class SystemMetricsService
                 'label' => 'Kejadian Keamanan',
                 'value' => number_format($securityToday, 0, ',', '.'),
                 'icon' => 'fi fi-sr-shield-exclamation',
-                'tint' => $securityToday > 0 ? 'orange' : 'green',
+                'tint' => 'orange',
                 'unit' => 'kejadian',
                 'delta' => $this->countDelta($securityToday, $securityYesterday, downIsGood: true),
                 'note' => 'vs kemarin',
@@ -415,5 +415,4 @@ class SystemMetricsService
 
         return ['value' => $parts[0] ?? '0', 'unit' => $parts[1] ?? 'B'];
     }
-
 }

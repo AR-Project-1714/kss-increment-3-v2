@@ -13,7 +13,7 @@ use Database\Seeders\Concerns\GuardsSampleData;
 use Illuminate\Database\Seeder;
 
 /**
- * Data contoh laporan operasi untuk periode Juni-Juli 2026.
+ * Data contoh laporan operasi untuk periode Mei-Juli 2026.
  *
  * Setiap hari berisi tiga shift dengan rotasi Regu A-D. Seluruh sumber data
  * yang dipakai menu Kinerja Operasi dan Rincian Kegiatan ikut diisi supaya
@@ -34,7 +34,7 @@ class OperationalReportSeeder extends Seeder
 
     private const SOURCE = 'OperationalReportSeeder';
 
-    private const PERIOD_START = '2026-06-01';
+    private const PERIOD_START = '2026-05-01';
 
     private const PERIOD_END = '2026-07-31';
 
@@ -136,7 +136,7 @@ class OperationalReportSeeder extends Seeder
         $end = Carbon::today()->lessThan($configuredEnd) ? Carbon::today() : $configuredEnd;
 
         if ($end->lessThan($start)) {
-            $this->command?->warn('OperationalReportSeeder belum dijalankan karena periode Juni 2026 belum dimulai.');
+            $this->command?->warn('OperationalReportSeeder belum dijalankan karena periode Mei 2026 belum dimulai.');
 
             return;
         }
@@ -218,7 +218,7 @@ class OperationalReportSeeder extends Seeder
                 'approved_at' => $approvedAt,
                 'payload' => [
                     'source' => self::SOURCE,
-                    'period' => 'Juni-Juli 2026',
+                    'period' => 'Mei-Juli 2026',
                     'scenario' => 'Perbandingan kegiatan dan kinerja operasional',
                 ],
                 'created_at' => $submittedAt,
@@ -229,7 +229,11 @@ class OperationalReportSeeder extends Seeder
         $this->resetDetails($report);
 
         $factor = $this->productivityFactor($day, $group, $shiftName, $slot);
-        $dayIndex = $day->diffInDays(Carbon::parse(self::PERIOD_START));
+        // Carbon 3 mengembalikan selisih bertanda secara bawaan. Menghitung
+        // dari tanggal laporan ke awal periode membuat hari setelah 1 Mei
+        // bernilai negatif, sehingga pola modulo kegiatan menjadi timpang
+        // (hampir semua shift mendapat bulk, container nyaris tidak pernah).
+        $dayIndex = (int) Carbon::parse(self::PERIOD_START)->diffInDays($day, true);
         $shiftIndex = array_search($shiftName, array_keys(self::SHIFTS), true);
 
         $this->seedBagged($report, $slot, $day, $shiftName, $factor);
@@ -349,15 +353,17 @@ class OperationalReportSeeder extends Seeder
         $secondLog = $loaded - $firstLog;
         $berthing = $this->slotMoment($voyageStartSlot, -180);
         $startLoading = $berthing->copy()->addHours(4 + ($voyageIndex % 3));
+        $activityType = $voyageIndex % 2 === 0 ? 'muat_curah' : 'muat_amoniak';
 
         $activity = $report->bulkLoadingActivities()->create([
+            'activity_type' => $activityType,
             'sequence' => 1,
             'ship_name' => $name,
             'agent' => $agent,
             'jetty' => $jetty,
             'destination' => $destination,
             'stevedoring' => 'PBM KSS',
-            'commodity' => 'Urea Curah Granul',
+            'commodity' => $activityType === 'muat_amoniak' ? 'Amoniak Cair' : 'Urea Curah Granul',
             'capacity' => $capacity,
             'berthing_time' => $berthing,
             'start_loading_time' => $startLoading,

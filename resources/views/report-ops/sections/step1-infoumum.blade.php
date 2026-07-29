@@ -18,7 +18,7 @@
                 <span class="icon-title-form"><i class="fi fi-sr-document"></i></span>
                 <span class="fw-600">Form Info Umum</span>
             </div>
-            <div class="counter-form">Form 1 dari 7</div>
+            <div class="counter-form">Form 1 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
@@ -34,7 +34,7 @@
                         <span class="text-red">*</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="date" id="tanggal" name="report_date" value="{{ $reportDateValue }}" class="custom-input" onclick="if (this.showPicker) this.showPicker()" data-validation-message="Tanggal laporan wajib diisi." required>
+                        <input type="date" id="tanggal" name="report_date" value="{{ $reportDateValue }}" max="{{ \Carbon\Carbon::now('Asia/Makassar')->toDateString() }}" class="custom-input" onclick="if (this.showPicker) this.showPicker()" data-validation-message="Tanggal laporan wajib diisi dan tidak boleh melewati hari ini." required>
                         <i class="fi fi-rr-calendar input-icon"></i>
                     </div>
                 </div>

@@ -4,7 +4,7 @@
                 <span class="icon-title-form"><i class="fi fi-sr-box-open"></i></span>
                 <span class="fw-600">Form Bongkar</span>
             </div>
-            <div class="counter-form">Form 4 dari 7</div>
+            <div class="counter-form">Form 5 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">

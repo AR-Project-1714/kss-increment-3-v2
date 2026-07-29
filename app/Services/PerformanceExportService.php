@@ -21,7 +21,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  *   Per Kegiatan     — lima kegiatan operasi beserta satuan dan analisisnya
  *   Tren Bulanan     — tabel 6 bulan (tonase, laporan, per shift)
  *   Regu & Kegiatan  — perbandingan regu + komposisi jenis kegiatan
- *   Peringkat Lembur — jam terbanyak & paling sering, berdampingan
+ *   Peringkat Lembur — posisi, regu, frekuensi, total, dan rata-rata jam
  *
  * Sheet "Kapal Dilayani" sudah tidak ada: blok kapal dihapus dari halaman
  * Kinerja Operasi, dan ekspor memang harus menggambarkan halamannya. Data kapal
@@ -40,7 +40,9 @@ class PerformanceExportService
     private const HEADER_FILL = 'E5F1FF';
 
     private const FORMAT_INT = '#,##0';
+
     private const FORMAT_ONE_DECIMAL = '#,##0.0';
+
     private const FORMAT_PERCENT_TEXT = '0.00"%"';
 
     /**
@@ -49,7 +51,7 @@ class PerformanceExportService
      */
     public function build(array $report, array $contextLines): Spreadsheet
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $spreadsheet->removeSheetByIndex(0);
 
         $this->recapSheet($spreadsheet->createSheet(), $report, $contextLines);
@@ -76,8 +78,7 @@ class PerformanceExportService
         Spreadsheet $spreadsheet,
         array $report,
         array $contextLines
-    ): Worksheet
-    {
+    ): Worksheet {
         $sheet = $spreadsheet->createSheet();
         $this->recapSheet($sheet, $report, $contextLines, true, 'Gambaran Besar');
 
@@ -105,8 +106,7 @@ class PerformanceExportService
         array $contextLines,
         bool $includeEmpty = false,
         string $sheetTitle = 'Kinerja Operasional'
-    ): void
-    {
+    ): void {
         $sheet->setTitle($sheetTitle);
 
         $recap = $report['activityRecap'] ?? [];
@@ -124,7 +124,7 @@ class PerformanceExportService
         // halaman — rekap kosong tidak menambah informasi apa pun.
         $rows = $recap['rows'] ?? [];
 
-        if (!$includeEmpty) {
+        if (! $includeEmpty) {
             $rows = array_values(array_filter(
                 $rows,
                 static fn (array $row): bool => $row['total']['count'] > 0 || $row['total']['value'] > 0
@@ -558,41 +558,36 @@ class PerformanceExportService
         $sheet->setTitle('Peringkat Lembur');
 
         $row = $this->writeHeading($sheet, 'Peringkat Lembur Personil', [
-            'Dua ukuran dipakai karena sebagian entri lembur diisi tanpa jam — '
-            .'personil yang sering diminta belum tentu muncul pada daftar jam.',
+            'Diurutkan menurut total jam lembur; perubahan posisi dibandingkan '
+            .'dengan periode pembanding yang setara.',
         ]);
 
-        $leaders = $report['overtimeLeaders'] ?? ['hours' => [], 'count' => []];
+        $leaders = $report['overtimeLeaders']['ranking'] ?? [];
+        $rankingRows = [];
 
-        $hourRows = [];
-        foreach ($leaders['hours'] ?? [] as $index => $person) {
-            $hourRows[] = [
-                $index + 1,
-                $person['name'] ?? '-',
-                $this->num($person['hours'] ?? 0, 1),
+        foreach ($leaders as $index => $person) {
+            $movement = match ($person['movement'] ?? 'new') {
+                'up' => 'naik '.($person['movementValue'] ?? 0),
+                'down' => 'turun '.($person['movementValue'] ?? 0),
+                'same' => 'tetap',
+                default => 'baru',
+            };
+            $group = strtoupper(trim((string) ($person['group'] ?? '-')));
+
+            $rankingRows[] = [
+                ($person['position'] ?? $index + 1).' ('.$movement.')',
+                'Regu '.$group.' — '.($person['name'] ?? '-'),
                 $this->num($person['count'] ?? 0),
+                $this->num($person['hours'] ?? 0, 1),
+                $this->num($person['averageHours'] ?? 0, 1),
             ];
         }
 
-        $row = $this->writeTable($sheet, $row, 'Jam Lembur Terbanyak', [
-            'Peringkat', 'Nama', 'Total Jam', 'Frekuensi (kali)',
-        ], $hourRows, 'Belum ada lembur dengan jam tercatat.');
+        $this->writeTable($sheet, $row, 'Peringkat Berdasarkan Total Jam', [
+            'Posisi', 'Nama Petugas', 'Jumlah Lembur', 'Total Jam Lembur', 'Rata-rata Jam Lembur',
+        ], $rankingRows, 'Belum ada lembur tercatat pada periode ini.');
 
-        $countRows = [];
-        foreach ($leaders['count'] ?? [] as $index => $person) {
-            $countRows[] = [
-                $index + 1,
-                $person['name'] ?? '-',
-                $this->num($person['count'] ?? 0),
-                $this->num($person['hours'] ?? 0, 1),
-            ];
-        }
-
-        $this->writeTable($sheet, $row, 'Paling Sering Lembur', [
-            'Peringkat', 'Nama', 'Frekuensi (kali)', 'Total Jam',
-        ], $countRows, 'Belum ada lembur tercatat pada periode ini.');
-
-        $this->autoSize($sheet, 4);
+        $this->autoSize($sheet, 5);
     }
 
     // ============================================================

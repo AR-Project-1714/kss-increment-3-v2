@@ -210,13 +210,12 @@
                     </div>
                 </div>
 
-                {{-- Peringkat lembur: selebar halaman supaya kedua daftarnya
-                     (jam dan frekuensi) muat bersebelahan. --}}
+                {{-- Peringkat lembur lintas kegiatan, diurutkan menurut total jam. --}}
                 <div class="section-card">
                     <div class="section-card__header">
                         <div class="section-card__heading">
                             <span class="section-card__title">Peringkat Lembur</span>
-                            <span class="section-card__subtitle">Sepuluh personil teratas, {{ $report['periodLabel'] }}. Daftar penuh dibuka lewat tautan di bawah tiap kolom.</span>
+                            <span class="section-card__subtitle">Diurutkan menurut total jam, {{ $report['periodLabel'] }}. Perubahan posisi {{ $report['comparisonLabel'] }}.</span>
                         </div>
                     </div>
                     <div class="section-card__body">

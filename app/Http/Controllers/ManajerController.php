@@ -275,7 +275,7 @@ class ManajerController extends Controller
         return view('manajer.performa', [
             'report' => $report,
             'kpi' => array_merge($report['summary'], [
-                'comparisonLabel' => $report['comparisonLabel'],
+                'comparisonLabel' => $report['kpiComparisonLabel'] ?? $report['comparisonLabel'],
                 'sparklines' => $report['sparklines'],
             ]),
             'presets' => $presets,
@@ -600,7 +600,7 @@ class ManajerController extends Controller
     private function performanceCacheKey(array $filters, string $section = 'ringkasan'): string
     {
         return sprintf(
-            'manajer.performa.v2.%s.%s.%s.%s.%s.%s',
+            'manajer.performa.v5.%s.%s.%s.%s.%s.%s',
             $section,
             $this->performanceStamp(),
             $filters['start']->toDateString(),
@@ -638,10 +638,10 @@ class ManajerController extends Controller
         $canSign = $report->status === MaintenanceStatus::Submitted;
 
         return view('pemeliharaan.viewpdf', [
-            'report'  => $this->loadMaintenanceReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadMaintenanceReport($report),
+            'isPdf' => false,
             'backUrl' => route('manajer.index'),
-            'pdfUrl'  => route('manajer.pemeliharaan.download', $report),
+            'pdfUrl' => route('manajer.pemeliharaan.download', $report),
             'signAction' => $canSign ? route('manajer.pemeliharaan.approve', $report) : null,
             'signMessage' => 'Setujui & tanda tangani laporan pemeliharaan ini? Laporan akan masuk ke arsip setelah ditandatangani.',
         ]);
@@ -657,7 +657,7 @@ class ManajerController extends Controller
 
         try {
             $report->update([
-                'status'      => MaintenanceStatus::Approved,
+                'status' => MaintenanceStatus::Approved,
                 'approved_by' => $request->user()->id,
                 'approved_at' => now(),
             ]);
@@ -667,8 +667,8 @@ class ManajerController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal menyetujui laporan pemeliharaan.', [
                 'report_id' => $report->id,
-                'user_id'   => $request->user()?->id,
-                'message'   => $exception->getMessage(),
+                'user_id' => $request->user()?->id,
+                'message' => $exception->getMessage(),
             ]);
 
             return back()->with('error', 'Laporan pemeliharaan belum bisa ditandatangani. Silakan coba lagi.');
@@ -691,7 +691,7 @@ class ManajerController extends Controller
         if (class_exists(Pdf::class)) {
             $pdf = Pdf::loadView('pemeliharaan.pdf', [
                 'report' => $this->loadMaintenanceReport($report),
-                'isPdf'  => true,
+                'isPdf' => true,
             ]);
             $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
@@ -700,10 +700,10 @@ class ManajerController extends Controller
         }
 
         return view('pemeliharaan.viewpdf', [
-            'report'  => $this->loadMaintenanceReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadMaintenanceReport($report),
+            'isPdf' => false,
             'backUrl' => route('manajer.index'),
-            'pdfUrl'  => null,
+            'pdfUrl' => null,
         ]);
     }
 
@@ -739,10 +739,10 @@ class ManajerController extends Controller
         $canSign = $report->status === SafetyStatus::Submitted;
 
         return view('report-safety.viewpdf', [
-            'report'  => $this->loadSafetyReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadSafetyReport($report),
+            'isPdf' => false,
             'backUrl' => route('manajer.index'),
-            'pdfUrl'  => route('manajer.safety.download', $report),
+            'pdfUrl' => route('manajer.safety.download', $report),
             'signAction' => $canSign ? route('manajer.safety.approve', $report) : null,
             'signMessage' => 'Setujui & tanda tangani laporan K3 ini? Laporan akan masuk ke arsip setelah ditandatangani.',
         ]);
@@ -758,9 +758,9 @@ class ManajerController extends Controller
 
         try {
             $report->update([
-                'status'                  => SafetyStatus::Approved,
-                'approved_by'             => $request->user()->id,
-                'approved_at'             => now(),
+                'status' => SafetyStatus::Approved,
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
                 'approver_signature_path' => $request->user()->signature_path,
             ]);
 
@@ -769,8 +769,8 @@ class ManajerController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal menyetujui laporan K3.', [
                 'report_id' => $report->id,
-                'user_id'   => $request->user()?->id,
-                'message'   => $exception->getMessage(),
+                'user_id' => $request->user()?->id,
+                'message' => $exception->getMessage(),
             ]);
 
             return back()->with('error', 'Laporan K3 belum bisa ditandatangani. Silakan coba lagi.');
@@ -793,7 +793,7 @@ class ManajerController extends Controller
         if (class_exists(Pdf::class)) {
             $pdf = Pdf::loadView('report-safety.pdf', [
                 'report' => $this->loadSafetyReport($report),
-                'isPdf'  => true,
+                'isPdf' => true,
             ]);
             $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
@@ -802,10 +802,10 @@ class ManajerController extends Controller
         }
 
         return view('report-safety.viewpdf', [
-            'report'  => $this->loadSafetyReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadSafetyReport($report),
+            'isPdf' => false,
             'backUrl' => route('manajer.index'),
-            'pdfUrl'  => null,
+            'pdfUrl' => null,
         ]);
     }
 
@@ -948,7 +948,7 @@ class ManajerController extends Controller
 
             $pdf = Pdf::loadView('pemeliharaan.pdf', [
                 'report' => $this->loadMaintenanceReport($report),
-                'isPdf'  => true,
+                'isPdf' => true,
             ]);
             $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
@@ -956,7 +956,7 @@ class ManajerController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal menyimpan PDF arsip laporan pemeliharaan.', [
                 'report_id' => $report->id,
-                'message'   => $exception->getMessage(),
+                'message' => $exception->getMessage(),
             ]);
         }
     }
@@ -976,7 +976,7 @@ class ManajerController extends Controller
 
             $pdf = Pdf::loadView('report-safety.pdf', [
                 'report' => $this->loadSafetyReport($report),
-                'isPdf'  => true,
+                'isPdf' => true,
             ]);
             $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
             $pdf->setOption('isRemoteEnabled', true);
@@ -984,7 +984,7 @@ class ManajerController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal menyimpan PDF arsip laporan K3.', [
                 'report_id' => $report->id,
-                'message'   => $exception->getMessage(),
+                'message' => $exception->getMessage(),
             ]);
         }
     }

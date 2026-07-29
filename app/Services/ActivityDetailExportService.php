@@ -60,6 +60,7 @@ class ActivityDetailExportService
     private const SHEET_NAMES = [
         'muat_kantong' => 'Muat Kantong',
         'muat_curah' => 'Muat Curah',
+        'muat_amoniak' => 'Muat Amoniak',
         'bongkar_bahan_baku' => 'Bongkar Bahan Baku',
         'bongkar_container' => 'Bongkar Container',
         'muat_container' => 'Muat Container',

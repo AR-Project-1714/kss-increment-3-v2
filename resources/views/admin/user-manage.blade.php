@@ -299,13 +299,146 @@
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 7px;
+    }
+
+    .signature-upload__picker {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 5px 7px;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        background-color: var(--white);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .signature-upload__picker:focus-within {
+        border-color: var(--blue-main);
+        box-shadow: 0 0 0 3px var(--blue-main-10);
+    }
+
+    .signature-upload__native {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .signature-upload__button {
+        min-height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 6px 11px;
+        border: 1px solid var(--blue-main-25);
+        border-radius: 7px;
+        background-color: var(--blue-main-5);
+        color: var(--blue-main);
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: 0.2s ease;
+    }
+
+    .signature-upload__button:hover,
+    .signature-upload__button:focus-visible {
+        background-color: var(--blue-main);
+        border-color: var(--blue-main);
+        color: #fff;
+        outline: none;
+    }
+
+    .signature-upload__filename {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--black-secondary);
+        font-size: 11px;
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .signature-upload__picker.is-disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    .signature-upload__picker.is-disabled .signature-upload__button {
+        pointer-events: none;
+        cursor: not-allowed;
     }
 
     .signature-upload__hint {
         font-size: 10px;
         color: var(--muted);
         font-weight: 400;
+    }
+
+    .user-field-hint {
+        font-size: 10px;
+        line-height: 1.45;
+        color: var(--muted);
+    }
+
+    .credential-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding: 10px 12px;
+        border: 1px solid var(--orange-main-25, rgba(255, 138, 0, 0.25));
+        border-radius: 8px;
+        background-color: var(--orange-main-5, rgba(255, 138, 0, 0.05));
+        color: var(--black-secondary);
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .credential-notice i {
+        position: relative;
+        top: 2px;
+        flex-shrink: 0;
+        color: var(--orange-main);
+    }
+
+    .credential-card {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--smooth-border);
+        border-radius: 10px;
+        background-color: var(--main-bg);
+    }
+
+    .credential-card__row {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+    }
+
+    .credential-card__label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    .credential-card__value {
+        min-width: 0;
+        padding: 7px 9px;
+        overflow-wrap: anywhere;
+        border: 1px solid var(--smooth-border);
+        border-radius: 7px;
+        background-color: var(--white);
+        color: var(--black);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        font-weight: 600;
     }
 
     .kss-password-wrap {
@@ -345,6 +478,32 @@
         font-size: 15px;
         line-height: 1;
     }
+
+    @media (max-width: 640px) {
+        .signature-upload {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .signature-upload__preview {
+            width: 100%;
+            height: 76px;
+        }
+
+        .signature-upload__picker {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .signature-upload__filename {
+            padding: 2px 4px;
+        }
+
+        .credential-card__row {
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+    }
 </style>
 @endpush
 
@@ -359,6 +518,7 @@
     ]);
 
     $roles = $roles ?? collect();
+    $issuedCredentials = $issuedCredentials ?? null;
 @endphp
 
 <div class="page-header">
@@ -505,13 +665,16 @@
                         <div class="kss-modal__select-wrapper">
                             <select class="kss-modal__native-select" id="userRoleInput" name="role_id" required>
                                 @foreach ($roles as $roleOption)
-                                    <option value="{{ $roleOption->id }}" @selected($roleOption->name === \App\Models\Role::OPERATIONAL)>
+                                    <option value="{{ $roleOption->id }}"
+                                            data-role-name="{{ \App\Models\Role::normalize($roleOption->name) }}"
+                                            @selected(\App\Models\Role::normalize($roleOption->name) === \App\Models\Role::OPERATIONAL)>
                                         {{ \App\Models\Role::displayName($roleOption->name) }}
                                     </option>
                                 @endforeach
                             </select>
                             <i class="fi fi-rr-angle-small-down kss-modal__select-icon"></i>
                         </div>
+                        <span class="user-field-hint" id="userReguHint">Role Operasional dapat memilih regu kerja.</span>
                     </div>
                     <div class="kss-modal__field">
                         <label for="userReguInput">Regu</label>
@@ -536,20 +699,28 @@
                         </label>
                     </div>
                     <div class="kss-modal__field">
-                        <label for="userPasswordInput">Password Awal</label>
+                        <label for="userPasswordInput" id="userPasswordLabel">Password Awal</label>
                         <div class="kss-password-wrap">
                             <input class="kss-modal__input" id="userPasswordInput" name="password" type="password" minlength="5" placeholder="Min. 5 karakter">
                             <button type="button" class="kss-password-toggle" id="userPasswordToggle" aria-label="Tampilkan password" title="Tampilkan password">
                                 <i class="fi fi-rr-eye"></i>
                             </button>
                         </div>
+                        <span class="user-field-hint" id="userPasswordHint">Kredensial dapat disalin setelah pengguna berhasil dibuat.</span>
                     </div>
                     <div class="kss-modal__field kss-modal__field--full">
                         <label for="userSignatureInput">Tanda Tangan PNG</label>
                         <div class="signature-upload">
                             <div class="signature-upload__preview" id="userSignaturePreview">Belum ada tanda tangan</div>
                             <div class="signature-upload__control">
-                                <input class="kss-modal__input" id="userSignatureInput" name="signature" type="file" accept="image/png">
+                                <div class="signature-upload__picker" id="userSignaturePicker">
+                                    <input class="signature-upload__native" id="userSignatureInput" name="signature" type="file" accept="image/png">
+                                    <label class="signature-upload__button" for="userSignatureInput" id="userSignatureButton" tabindex="0">
+                                        <i class="fi fi-rr-cloud-upload-alt"></i>
+                                        <span>Pilih File PNG</span>
+                                    </label>
+                                    <span class="signature-upload__filename" id="userSignatureFileName">Belum ada file dipilih</span>
+                                </div>
                                 <span class="signature-upload__hint">Gunakan file PNG, maksimal 2 MB. Saat edit, kosongkan jika tidak ingin mengganti tanda tangan.</span>
                             </div>
                         </div>
@@ -566,6 +737,48 @@
         </form>
     </div>
 </div>
+
+@if (is_array($issuedCredentials) && isset($issuedCredentials['username'], $issuedCredentials['password']))
+    <div class="modal-overlay" id="userCredentialsModal" aria-hidden="true">
+        <div class="modal-box modal-box--sm" role="dialog" aria-modal="true" aria-labelledby="userCredentialsTitle">
+            <div class="kss-modal__header">
+                <div class="kss-modal__icon kss-modal__icon--success">
+                    <i class="fi fi-rr-key"></i>
+                </div>
+                <div class="kss-modal__heading">
+                    <div class="kss-modal__title" id="userCredentialsTitle">Kredensial Siap Disalin</div>
+                    <div class="kss-modal__subtitle">Password hanya ditampilkan setelah dibuat atau di-reset.</div>
+                </div>
+                <button type="button" class="kss-modal__close" data-modal-close aria-label="Tutup modal">
+                    <i class="fi fi-rr-cross-small"></i>
+                </button>
+            </div>
+            <div class="kss-modal__body">
+                <div class="credential-notice">
+                    <i class="fi fi-rr-shield-check"></i>
+                    <span>Simpan dan kirimkan kredensial ini melalui saluran yang aman. Setelah modal ditutup, password lama tidak dapat ditampilkan kembali.</span>
+                </div>
+                <div class="credential-card">
+                    <div class="credential-card__row">
+                        <span class="credential-card__label">Username</span>
+                        <span class="credential-card__value">{{ $issuedCredentials['username'] }}</span>
+                    </div>
+                    <div class="credential-card__row">
+                        <span class="credential-card__label">Password</span>
+                        <span class="credential-card__value">{{ $issuedCredentials['password'] }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="kss-modal__footer">
+                <button type="button" class="kss-modal__button" data-modal-close>Tutup</button>
+                <button type="button" class="kss-modal__button kss-modal__button--primary" id="copyUserCredentials">
+                    <i class="fi fi-rr-copy-alt"></i>
+                    <span>Salin Username &amp; Password</span>
+                </button>
+            </div>
+        </div>
+    </div>
+@endif
 @endsection
 
 @push('scripts')
@@ -581,6 +794,9 @@
         const userStoreUrl = @json(route('admin.users.store'));
         const userStatusWrap = document.getElementById('userStatusInputWrap');
         const userStatusLabel = document.getElementById('userStatusInputLabel');
+        const userReguHint = document.getElementById('userReguHint');
+        const userPasswordLabel = document.getElementById('userPasswordLabel');
+        const userPasswordHint = document.getElementById('userPasswordHint');
         const fields = {
             name: document.getElementById('userNameInput'),
             username: document.getElementById('userUsernameInput'),
@@ -591,8 +807,17 @@
             signature: document.getElementById('userSignatureInput'),
         };
         const signaturePreview = document.getElementById('userSignaturePreview');
+        const signaturePicker = document.getElementById('userSignaturePicker');
+        const signatureButton = document.getElementById('userSignatureButton');
+        const signatureFileName = document.getElementById('userSignatureFileName');
         const passwordToggle = document.getElementById('userPasswordToggle');
+        const credentialsModal = document.getElementById('userCredentialsModal');
+        const copyCredentialsButton = document.getElementById('copyUserCredentials');
+        const issuedCredentials = @json($issuedCredentials);
+        const defaultRoleId = fields.role?.value || '';
         let editingIsSelf = false;
+        let currentUserMode = 'add';
+        let currentSignatureUrl = '';
 
         function setPasswordVisible(visible) {
             if (!passwordToggle) return;
@@ -612,7 +837,32 @@
 
         function setFieldsDisabled(disabled) {
             Object.values(fields).forEach(field => field.disabled = disabled);
+            signaturePicker?.classList.toggle('is-disabled', disabled);
+            signatureButton?.setAttribute('tabindex', disabled ? '-1' : '0');
             if (userSubmit) userSubmit.hidden = disabled;
+            syncReguForRole();
+            window.KssAdminModal.syncSelects(userModal);
+        }
+
+        function selectedRoleName() {
+            return fields.role?.options[fields.role.selectedIndex]?.dataset.roleName || '';
+        }
+
+        function syncReguForRole() {
+            const isOperational = selectedRoleName() === 'operasional';
+
+            if (!isOperational) {
+                fields.regu.value = 'Kantor';
+            }
+
+            fields.regu.disabled = currentUserMode === 'view' || !isOperational;
+
+            if (userReguHint) {
+                userReguHint.textContent = isOperational
+                    ? 'Role Operasional dapat memilih regu kerja.'
+                    : 'Regu otomatis ditetapkan sebagai Kantor untuk role ini.';
+            }
+
             window.KssAdminModal.syncSelects(userModal);
         }
 
@@ -625,15 +875,26 @@
         function fillUserForm(data = {}) {
             fields.name.value = data.name || '';
             fields.username.value = data.username || '';
-            fields.role.value = data.roleId || fields.role.options[0]?.value || '';
+            fields.role.value = data.roleId || defaultRoleId;
             fields.regu.value = data.group || 'A';
             setUserStatus((data.status || 'aktif').toLowerCase() === 'aktif');
             fields.password.value = '';
             setPasswordVisible(false);
             fields.password.placeholder = data.mode === 'edit' ? 'Kosongkan jika tidak diubah' : 'Min. 5 karakter';
             fields.password.required = data.mode !== 'edit' && data.mode !== 'view';
+            if (userPasswordLabel) {
+                userPasswordLabel.textContent = data.mode === 'edit' ? 'Password Baru' : 'Password Awal';
+            }
+            if (userPasswordHint) {
+                userPasswordHint.textContent = data.mode === 'edit'
+                    ? 'Isi hanya jika ingin reset. Kredensial baru dapat disalin setelah disimpan.'
+                    : 'Kredensial dapat disalin setelah pengguna berhasil dibuat.';
+            }
             fields.signature.value = '';
-            setSignaturePreview(data.signatureUrl || '');
+            currentSignatureUrl = data.signatureUrl || '';
+            setSignaturePreview(currentSignatureUrl);
+            setSignatureFileName('', Boolean(currentSignatureUrl));
+            syncReguForRole();
             window.KssAdminModal.syncSelects(userModal);
         }
 
@@ -647,7 +908,17 @@
             }
         }
 
+        function setSignatureFileName(name = '', hasExistingSignature = false) {
+            if (!signatureFileName) return;
+
+            signatureFileName.textContent = name || (hasExistingSignature
+                ? 'Tanda tangan tersimpan'
+                : 'Belum ada file dipilih');
+            signatureFileName.title = name || '';
+        }
+
         function openUserModal(mode, row) {
+            currentUserMode = mode;
             editingIsSelf = row?.dataset.userSelf === '1';
             const data = row ? {
                 name: row.dataset.userName,
@@ -684,6 +955,14 @@
         }
 
         document.getElementById('btnAddUser')?.addEventListener('click', () => openUserModal('add'));
+        fields.role?.addEventListener('change', syncReguForRole);
+
+        signatureButton?.addEventListener('keydown', function (event) {
+            if ((event.key === 'Enter' || event.key === ' ') && !fields.signature.disabled) {
+                event.preventDefault();
+                fields.signature.click();
+            }
+        });
 
         fields.status?.addEventListener('change', () => {
             if (editingIsSelf && !fields.status.checked) {
@@ -698,18 +977,57 @@
             const file = fields.signature.files?.[0];
 
             if (!file) {
-                setSignaturePreview('');
+                setSignaturePreview(currentSignatureUrl);
+                setSignatureFileName('', Boolean(currentSignatureUrl));
                 return;
             }
 
             if (file.type !== 'image/png') {
                 fields.signature.value = '';
-                setSignaturePreview('');
+                setSignaturePreview(currentSignatureUrl);
+                setSignatureFileName('', Boolean(currentSignatureUrl));
                 window.showAdminToast?.('error', 'File tidak valid', 'File tanda tangan harus berformat PNG.');
                 return;
             }
 
+            setSignatureFileName(file.name);
             setSignaturePreview(URL.createObjectURL(file));
+        });
+
+        async function copyText(text) {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                return;
+            }
+
+            const fallback = document.createElement('textarea');
+            fallback.value = text;
+            fallback.setAttribute('readonly', '');
+            fallback.style.position = 'fixed';
+            fallback.style.opacity = '0';
+            document.body.appendChild(fallback);
+            fallback.select();
+
+            const copied = document.execCommand('copy');
+            fallback.remove();
+
+            if (!copied) {
+                throw new Error('Clipboard tidak tersedia.');
+            }
+        }
+
+        copyCredentialsButton?.addEventListener('click', async function () {
+            if (!issuedCredentials?.username || !issuedCredentials?.password) return;
+
+            const credentialText = `Username: ${issuedCredentials.username}\nPassword: ${issuedCredentials.password}`;
+
+            try {
+                await copyText(credentialText);
+                copyCredentialsButton.innerHTML = '<i class="fi fi-rr-check"></i><span>Berhasil Disalin</span>';
+                window.showAdminToast?.('success', 'Kredensial disalin', 'Username dan password sudah tersalin ke clipboard.');
+            } catch (error) {
+                window.showAdminToast?.('error', 'Gagal menyalin', 'Browser tidak mengizinkan akses clipboard. Salin kredensial secara manual.');
+            }
         });
 
         document.querySelectorAll('.js-user-status-toggle').forEach(function (toggle) {
@@ -744,6 +1062,10 @@
         document.querySelectorAll('.js-user-view').forEach(button => {
             button.addEventListener('click', () => openUserModal('view', button.closest('tr')));
         });
+
+        if (credentialsModal && issuedCredentials?.username && issuedCredentials?.password) {
+            window.KssAdminModal.open(credentialsModal);
+        }
     });
 </script>
 @endpush

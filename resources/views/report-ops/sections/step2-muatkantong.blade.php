@@ -4,7 +4,7 @@
                 <span class="icon-title-form"><i class="fi fi-sr-bag-seedling"></i></span>
                 <span class="fw-600">Form Muat Kantong</span>
             </div>
-            <div class="counter-form">Form 2 dari 7</div>
+            <div class="counter-form">Form 2 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">

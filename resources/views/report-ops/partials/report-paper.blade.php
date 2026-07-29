@@ -52,7 +52,28 @@
         : null;
 
     $loadingActivities = $report->loadingActivities->sortBy('sequence')->values();
-    $bulkActivities = $report->bulkLoadingActivities->sortBy('sequence')->values();
+    $bulkActivities = $report->bulkLoadingActivities
+        ->where('activity_type', \App\Models\BulkLoadingActivity::TYPE_BULK_LOADING)
+        ->sortBy('sequence')
+        ->values();
+    $ammoniaActivities = $report->bulkLoadingActivities
+        ->where('activity_type', \App\Models\BulkLoadingActivity::TYPE_AMMONIA_LOADING)
+        ->sortBy('sequence')
+        ->values();
+    $bulkSections = [
+        [
+            'number' => 'II',
+            'title' => 'Pemuatan Urea Curah',
+            'activities' => $bulkActivities,
+            'empty' => 'Tidak ada data pemuatan urea curah.',
+        ],
+        [
+            'number' => 'III',
+            'title' => 'Pemuatan Amoniak',
+            'activities' => $ammoniaActivities,
+            'empty' => 'Tidak ada data pemuatan amoniak.',
+        ],
+    ];
     $materialActivities = $report->materialActivity->sortBy('sequence')->values();
     $containerActivities = $report->containerActivity->sortBy('sequence')->values();
     $turba = $report->turbaActivity;
@@ -374,58 +395,60 @@
         <table class="grid"><tr><td class="empty-note">Tidak ada data pemuatan pupuk kantong.</td></tr></table>
     @endforelse
 
-    <div class="sec">II. Pemuatan Urea Curah / Amoniak</div>
-    @forelse ($bulkActivities as $bulk)
-        @php
-            $bLogs = $bulk->logs->sortBy('datetime')->values();
-        @endphp
-        <div class="panel">
-            <div class="panel-title">{{ $bulk->sequence ?? $loop->iteration }}. {{ $bulk->ship_name ?: 'Nama kapal belum diisi' }}</div>
-            <table class="grid">
-                <tr>
-                    <td style="width:50%">
-                        <table class="info">
-                            <tr><td class="label">Nama Kapal</td><td class="colon">:</td><td class="line-cell">{{ $bulk->ship_name }}</td></tr>
-                            <tr><td class="label">Agent</td><td class="colon">:</td><td class="line-cell">{{ $bulk->agent }}</td></tr>
-                            <tr><td class="label">Dermaga</td><td class="colon">:</td><td class="line-cell">{{ $bulk->jetty }}</td></tr>
-                            <tr><td class="label">Jenis Muatan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->commodity }}</td></tr>
-                            <tr><td class="label">Kapasitas</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->capacity, 'MT') }}</td></tr>
-                        </table>
-                    </td>
-                    <td style="width:50%">
-                        <table class="info">
-                            <tr><td class="label">Sandar</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->berthing_time) }}</td></tr>
-                            <tr><td class="label">Mulai Muat</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->start_loading_time) }}</td></tr>
-                            <tr><td class="label">Tujuan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->destination }}</td></tr>
-                            <tr><td class="label">Petugas PBM</td><td class="colon">:</td><td class="line-cell">{{ $bulk->stevedoring }}</td></tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-            <table class="grid">
-                <thead><tr><th style="width:15%">TANGGAL</th><th style="width:10%">JAM</th><th>URAIAN KEGIATAN</th><th style="width:10%">COB</th></tr></thead>
-                <tbody>
-                    @forelse ($bLogs as $log)
-                        <tr>
-                            <td class="c">{{ $fmtShortDate($log->datetime) }}</td>
-                            <td class="c">{{ $fmtTime($log->datetime) }}</td>
-                            <td>{{ $log->activity }}</td>
-                            <td class="c">{{ $log->cob }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="4" class="empty-note">Tidak ada log kegiatan.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    @empty
-        <table class="grid"><tr><td class="empty-note">Tidak ada data pemuatan urea curah.</td></tr></table>
-    @endforelse
+    @foreach ($bulkSections as $bulkSection)
+        <div class="sec">{{ $bulkSection['number'] }}. {{ $bulkSection['title'] }}</div>
+        @forelse ($bulkSection['activities'] as $bulk)
+            @php
+                $bLogs = $bulk->logs->sortBy('datetime')->values();
+            @endphp
+            <div class="panel">
+                <div class="panel-title">{{ $bulk->sequence ?? $loop->iteration }}. {{ $bulk->ship_name ?: 'Nama kapal belum diisi' }}</div>
+                <table class="grid">
+                    <tr>
+                        <td style="width:50%">
+                            <table class="info">
+                                <tr><td class="label">Nama Kapal</td><td class="colon">:</td><td class="line-cell">{{ $bulk->ship_name }}</td></tr>
+                                <tr><td class="label">Agent</td><td class="colon">:</td><td class="line-cell">{{ $bulk->agent }}</td></tr>
+                                <tr><td class="label">Dermaga</td><td class="colon">:</td><td class="line-cell">{{ $bulk->jetty }}</td></tr>
+                                <tr><td class="label">Jenis Muatan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->commodity }}</td></tr>
+                                <tr><td class="label">Kapasitas</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->capacity, 'MT') }}</td></tr>
+                            </table>
+                        </td>
+                        <td style="width:50%">
+                            <table class="info">
+                                <tr><td class="label">Sandar</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->berthing_time) }}</td></tr>
+                                <tr><td class="label">Mulai Muat</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->start_loading_time) }}</td></tr>
+                                <tr><td class="label">Tujuan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->destination }}</td></tr>
+                                <tr><td class="label">Petugas PBM</td><td class="colon">:</td><td class="line-cell">{{ $bulk->stevedoring }}</td></tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+                <table class="grid">
+                    <thead><tr><th style="width:15%">TANGGAL</th><th style="width:10%">JAM</th><th>URAIAN KEGIATAN</th><th style="width:10%">COB</th></tr></thead>
+                    <tbody>
+                        @forelse ($bLogs as $log)
+                            <tr>
+                                <td class="c">{{ $fmtShortDate($log->datetime) }}</td>
+                                <td class="c">{{ $fmtTime($log->datetime) }}</td>
+                                <td>{{ $log->activity }}</td>
+                                <td class="c">{{ $log->cob }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="empty-note">Tidak ada log kegiatan.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @empty
+            <table class="grid"><tr><td class="empty-note">{{ $bulkSection['empty'] }}</td></tr></table>
+        @endforelse
+    @endforeach
 
     <table class="pair">
         <tr>
             <td class="pair-left">
-                <div class="sec">III. Bongkar Bahan Baku</div>
+                <div class="sec">IV. Bongkar Bahan Baku</div>
                 @forelse ($materialActivities as $material)
                     <div class="panel">
                         <div class="panel-title">{{ $material->sequence ?? $loop->iteration }}. {{ $material->ship_name ?: 'Nama kapal belum diisi' }}</div>
@@ -529,7 +552,7 @@
         </tr>
     </table>
 
-    <div class="sec">IV. Tracking Pengiriman Pupuk Kantong</div>
+    <div class="sec">V. Tracking Pengiriman Pupuk Kantong</div>
     <table class="grid">
         <thead>
             <tr>
@@ -578,7 +601,7 @@
         </tr>
     </table>
 
-    <div class="sec">V. Keadaan Peralatan dan Kendaraan Operasional</div>
+    <div class="sec">VI. Keadaan Peralatan dan Kendaraan Operasional</div>
     <table class="grid compact roomy">
         <thead>
             <tr><th colspan="10">TRAILLER / FORKLIFT DAN SARANA JEMPUTAN</th></tr>
@@ -706,7 +729,7 @@
         </tr>
     </table>
 
-    <div class="sec">VI. Karyawan</div>
+    <div class="sec">VII. Karyawan</div>
     <table class="pair">
         <tr>
             <td class="pair-left">

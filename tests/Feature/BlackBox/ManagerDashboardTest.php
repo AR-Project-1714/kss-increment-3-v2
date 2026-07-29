@@ -4,17 +4,20 @@ namespace Tests\Feature\BlackBox;
 
 use App\Enums\ReportStatus;
 use App\Enums\SafetyStatus;
+use App\Models\BulkLoadingActivity;
 use App\Models\ContainerActivity;
 use App\Models\ContainerItem;
 use App\Models\DailyReport;
 use App\Models\EmployeeLog;
 use App\Models\LoadingActivity;
-use App\Models\SafetyReport;
 use App\Models\TurbaActivity;
 use App\Models\TurbaDelivery;
 use App\Models\User;
+use App\Services\OperationalPerformanceService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * Modul I — Manajer / Dashboard & Tanda Tangan (PENGUJIAN_BLACKBOX.md §4.I).
@@ -60,6 +63,31 @@ class ManagerDashboardTest extends BlackBoxTestCase
             'qty_loading_current' => $values['kantong'] ?? 100,
             'qty_damage_current' => $values['kerusakan'] ?? 2,
         ]);
+
+        foreach ([
+            'curah' => BulkLoadingActivity::TYPE_BULK_LOADING,
+            'amoniak' => BulkLoadingActivity::TYPE_AMMONIA_LOADING,
+        ] as $valueKey => $activityType) {
+            if (! array_key_exists($valueKey, $values)) {
+                continue;
+            }
+
+            $bulk = BulkLoadingActivity::create([
+                'daily_report_id' => $report->id,
+                'activity_type' => $activityType,
+                'ship_name' => $activityType === BulkLoadingActivity::TYPE_AMMONIA_LOADING ? 'MT Amoniak Uji' : 'MV Curah Uji',
+                'commodity' => $activityType === BulkLoadingActivity::TYPE_AMMONIA_LOADING ? 'Amoniak Cair' : 'Urea Curah',
+                'berthing_time' => ($overrides['report_date'] ?? '2026-05-21').' 06:00:00',
+                'start_loading_time' => ($overrides['report_date'] ?? '2026-05-21').' 08:00:00',
+                'capacity' => 5000,
+            ]);
+
+            $bulk->logs()->create([
+                'datetime' => ($overrides['report_date'] ?? '2026-05-21').' 09:00:00',
+                'activity' => 'Pemuatan pengujian',
+                'cob' => $values[$valueKey],
+            ]);
+        }
 
         $container = ContainerActivity::create([
             'daily_report_id' => $report->id,
@@ -339,7 +367,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
         file_put_contents($path, $response->streamedContent());
 
         try {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
+            $spreadsheet = IOFactory::load($path);
 
             // Sheet Kapal Dilayani ikut dihapus bersama bloknya di halaman;
             // sheet rekap kegiatan jadi sheet pertama.
@@ -385,7 +413,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
         file_put_contents($path, $response->streamedContent());
 
         try {
-            $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getSheetByName('Kinerja Operasional');
+            $sheet = IOFactory::load($path)->getSheetByName('Kinerja Operasional');
 
             $this->assertSame('KINERJA OPERASIONAL TAHUN 2026', $sheet->getCell('A1')->getValue());
 
@@ -469,7 +497,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
         file_put_contents($path, $response->streamedContent());
 
         try {
-            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader('Xlsx');
+            $reader = IOFactory::createReader('Xlsx');
             $reader->setIncludeCharts(true);
             $spreadsheet = $reader->load($path);
 
@@ -477,6 +505,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
                 'Gambaran Besar',
                 'Muat Kantong',
                 'Muat Curah',
+                'Muat Amoniak',
                 'Bongkar Bahan Baku',
                 'Bongkar Container',
                 'Muat Container',
@@ -568,12 +597,12 @@ class ManagerDashboardTest extends BlackBoxTestCase
         }
 
         $filters = [
-            'start' => \Carbon\Carbon::parse('2026-01-01'),
-            'end' => \Carbon\Carbon::parse(self::TODAY),
+            'start' => Carbon::parse('2026-01-01'),
+            'end' => Carbon::parse(self::TODAY),
             'group' => null,
             'shift' => null,
         ];
-        $service = app(\App\Services\OperationalPerformanceService::class);
+        $service = app(OperationalPerformanceService::class);
 
         $panel = $service->activityDetail('trucking_turba', $filters);
         $export = $service->activityDetailForExport('trucking_turba', $filters);
@@ -599,7 +628,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertRedirect(route('report-ops.index'));
     }
 
-    public function test_tc_mgr_10_menu_kegiatan_memuat_enam_tab_kegiatan(): void
+    public function test_tc_mgr_10_menu_kegiatan_memuat_tujuh_tab_kegiatan(): void
     {
         $manager = $this->manager();
 
@@ -610,6 +639,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertOk()
             ->assertSee('data-activity-tab="muat_kantong"', false)
             ->assertSee('data-activity-tab="muat_curah"', false)
+            ->assertSee('data-activity-tab="muat_amoniak"', false)
             ->assertSee('data-activity-tab="bongkar_bahan_baku"', false)
             ->assertSee('data-activity-tab="bongkar_container"', false)
             ->assertSee('data-activity-tab="muat_container"', false)
@@ -697,6 +727,94 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertSee('1 Jan - 15 Jul 2026', false);
     }
 
+    public function test_tc_mgr_14b_kartu_ytd_memakai_delta_bulan_berjalan_vs_bulan_lalu(): void
+    {
+        $this->freezeToday();
+
+        $manager = $this->manager();
+        $operator = $this->operator('A');
+
+        // Juni: 150 Ton dari dua laporan. Juli: 200 Ton dari satu laporan.
+        // Angka utama tetap menjumlahkan 350 Ton, tetapi indikator membandingkan
+        // Juli dengan Juni: tonase naik (hijau), laporan turun (merah).
+        $this->opsReportWithActivities(
+            $operator,
+            ['report_date' => '2026-06-10'],
+            ['kantong' => 100, 'kerusakan' => 3, 'trucking' => 0]
+        );
+        $this->opsReportWithActivities(
+            $operator,
+            ['report_date' => '2026-06-11'],
+            ['kantong' => 50, 'kerusakan' => 3, 'trucking' => 0]
+        );
+        $this->opsReportWithActivities(
+            $operator,
+            ['report_date' => '2026-07-10'],
+            ['kantong' => 200, 'kerusakan' => 2, 'trucking' => 0]
+        );
+
+        $report = app(OperationalPerformanceService::class)->performanceReport([
+            'start' => Carbon::parse('2026-01-01'),
+            'end' => Carbon::parse(self::TODAY),
+            'group' => null,
+            'shift' => null,
+        ]);
+
+        $this->assertSame(350.0, (float) $report['summary']['tonnage']['value']);
+        $this->assertSame('vs Jun 2026', $report['kpiComparisonLabel']);
+
+        $this->assertTrue($report['summary']['tonnage']['delta']['available']);
+        $this->assertSame('up', $report['summary']['tonnage']['delta']['tone']);
+        $this->assertSame('33,3%', $report['summary']['tonnage']['delta']['text']);
+
+        $this->assertTrue($report['summary']['reports']['delta']['available']);
+        $this->assertSame('down', $report['summary']['reports']['delta']['tone']);
+        $this->assertSame('50,0%', $report['summary']['reports']['delta']['text']);
+
+        // Rasio kerusakan turun dari 4% menjadi 1%, sehingga tetap hijau.
+        $this->assertSame('down', $report['summary']['damageRatio']['delta']['direction']);
+        $this->assertSame('up', $report['summary']['damageRatio']['delta']['tone']);
+
+        $this->actingAs($manager)
+            ->get(route('manajer.performa'))
+            ->assertOk()
+            ->assertSee('vs Jun 2026', false)
+            ->assertSee('spark spark--up kpi-card__spark', false)
+            ->assertSee('spark spark--down kpi-card__spark', false);
+    }
+
+    public function test_tc_mgr_14c_analitik_ytd_memakai_periode_setara_tahun_lalu(): void
+    {
+        $this->freezeToday();
+
+        $operator = $this->operator('A');
+
+        $this->opsReportWithActivities(
+            $operator,
+            ['report_date' => '2025-07-10'],
+            ['kantong' => 100, 'trucking' => 0]
+        );
+        $this->opsReportWithActivities(
+            $operator,
+            ['report_date' => '2026-07-10'],
+            ['kantong' => 200, 'trucking' => 0]
+        );
+
+        $report = app(OperationalPerformanceService::class)->performanceReport([
+            'start' => Carbon::parse('2026-01-01'),
+            'end' => Carbon::parse(self::TODAY),
+            'group' => null,
+            'shift' => null,
+        ]);
+
+        $this->assertSame('vs 1 Jan - 15 Jul 2025', $report['comparisonLabel']);
+
+        $panels = collect($report['activityPanels'])->keyBy('key');
+        $this->assertTrue($panels['muat_kantong']['delta']['available']);
+        $this->assertSame('up', $panels['muat_kantong']['delta']['tone']);
+        $this->assertSame('100,0%', $panels['muat_kantong']['delta']['text']);
+    }
+
     public function test_tc_mgr_15_rincian_kegiatan_bawaan_januari_sampai_hari_ini(): void
     {
         $this->freezeToday();
@@ -733,7 +851,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $manager = $this->manager();
 
         // Kegiatan yang ditandai tampil pada menu ini bisa dibuka…
-        foreach (array_keys(app(\App\Services\OperationalPerformanceService::class)->activitiesFor('activityDetail')) as $key) {
+        foreach (array_keys(app(OperationalPerformanceService::class)->activitiesFor('activityDetail')) as $key) {
             $this->actingAs($manager)
                 ->get(route('manajer.kegiatan.panel', ['key' => $key]))
                 ->assertOk();
@@ -757,9 +875,9 @@ class ManagerDashboardTest extends BlackBoxTestCase
             'trucking' => 20,
         ]);
 
-        $report = app(\App\Services\OperationalPerformanceService::class)->performanceReport([
-            'start' => \Carbon\Carbon::parse('2026-01-01'),
-            'end' => \Carbon\Carbon::parse(self::TODAY),
+        $report = app(OperationalPerformanceService::class)->performanceReport([
+            'start' => Carbon::parse('2026-01-01'),
+            'end' => Carbon::parse(self::TODAY),
             'group' => null,
             'shift' => null,
         ]);
@@ -774,6 +892,66 @@ class ManagerDashboardTest extends BlackBoxTestCase
 
         $panels = collect($report['activityPanels'])->keyBy('key');
         $this->assertTrue($panels->has('muat_kantong'));
+    }
+
+    public function test_tc_mgr_18b_curah_dan_amoniak_terpisah_pada_komposisi_dan_rincian(): void
+    {
+        $this->freezeToday();
+
+        $manager = $this->manager();
+        $this->opsReportWithActivities(
+            $this->operator('A'),
+            ['report_date' => '2026-07-10'],
+            ['kantong' => 100, 'trucking' => 0, 'curah' => 40, 'amoniak' => 25]
+        );
+
+        $response = $this->actingAs($manager)
+            ->get(route('manajer.performa'))
+            ->assertOk()
+            ->assertSee('Muat Curah', false)
+            ->assertSee('Muat Amoniak', false);
+
+        $this->assertStringNotContainsString('Muat Curah / Amoniak', $response->getContent());
+
+        $service = app(OperationalPerformanceService::class);
+        $report = $service->performanceReport([
+            'start' => Carbon::parse('2026-01-01'),
+            'end' => Carbon::parse(self::TODAY),
+            'group' => null,
+            'shift' => null,
+        ]);
+        $cards = collect($report['activityCards'])->keyBy('key');
+
+        $this->assertSame(40.0, (float) $cards['muat_curah']['value']);
+        $this->assertSame(25.0, (float) $cards['muat_amoniak']['value']);
+
+        $this->actingAs($manager)
+            ->get(route('manajer.kegiatan.panel', ['key' => 'muat_amoniak']))
+            ->assertOk()
+            ->assertSee('Pemuatan Amoniak', false)
+            ->assertSee('25,00', false);
+    }
+
+    public function test_tc_mgr_18c_tren_amoniak_tidak_menghitung_laporan_setelah_hari_ini(): void
+    {
+        $this->freezeToday('2026-07-29');
+
+        $this->opsReportWithActivities(
+            $this->operator('A'),
+            ['report_date' => '2026-07-30'],
+            ['amoniak' => 600]
+        );
+
+        $detail = app(OperationalPerformanceService::class)->activityDetail('muat_amoniak', [
+            'start' => Carbon::parse('2026-01-01'),
+            'end' => Carbon::parse('2026-07-29'),
+            'group' => null,
+            'shift' => null,
+        ]);
+
+        $this->assertSame(0.0, (float) $detail['value']);
+        $this->assertSame(0.0, (float) collect($detail['trend'])->last()['value']);
+        $this->assertSame(0.0, (float) $detail['recap']['row']['total']['value']);
     }
 
     public function test_tc_mgr_19_container_memakai_teus_dan_di_luar_total_tonase(): void
@@ -833,11 +1011,11 @@ class ManagerDashboardTest extends BlackBoxTestCase
             'shift' => 'Malam',
         ], ['kantong' => 60]);
 
-        $service = app(\App\Services\OperationalPerformanceService::class);
+        $service = app(OperationalPerformanceService::class);
 
         $filters = [
-            'start' => \Carbon\Carbon::parse('2026-07-01'),
-            'end' => \Carbon\Carbon::parse(self::TODAY),
+            'start' => Carbon::parse('2026-07-01'),
+            'end' => Carbon::parse(self::TODAY),
             'group' => 'A',
             'shift' => 'Pagi',
         ];
@@ -923,9 +1101,9 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertSee('Sebelumnya', false)
             ->assertSee('Akumulasi', false);
 
-        $recap = app(\App\Services\OperationalPerformanceService::class)->activityRecap([
-            'start' => \Carbon\Carbon::parse('2026-01-01'),
-            'end' => \Carbon\Carbon::parse(self::TODAY),
+        $recap = app(OperationalPerformanceService::class)->activityRecap([
+            'start' => Carbon::parse('2026-01-01'),
+            'end' => Carbon::parse(self::TODAY),
             'group' => null,
             'shift' => null,
         ]);
@@ -945,6 +1123,90 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->assertSame('Teus', $rows['bongkar_container']['unit']);
         $this->assertSame(50.0, $rows['bongkar_container']['total']['value']);
         $this->assertSame(20.0, $rows['muat_container']['total']['value']);
+    }
+
+    public function test_tc_mgr_25_peringkat_lembur_memuat_regu_rata_rata_dan_perubahan_posisi(): void
+    {
+        $this->freezeToday();
+
+        $manager = $this->manager();
+        $operatorA = $this->operator('A');
+        $operatorB = $this->operator('B');
+
+        // Juni adalah periode pembanding 1-15 Juni. Petugas A awalnya posisi
+        // pertama dengan dua entri, Petugas B posisi kedua dengan satu entri.
+        foreach (['2026-06-02', '2026-06-03'] as $date) {
+            $this->opsReportWithActivities(
+                $operatorA,
+                ['report_date' => $date, 'group_name' => 'A'],
+                ['lembur' => 'Petugas A']
+            );
+        }
+
+        $this->opsReportWithActivities(
+            $operatorB,
+            ['report_date' => '2026-06-04', 'group_name' => 'B'],
+            ['lembur' => 'Petugas B']
+        );
+
+        // Pada Juli, tambahan tiga entri Petugas B membuatnya naik satu
+        // posisi. Setiap entri berdurasi empat jam dari helper di atas.
+        $this->opsReportWithActivities(
+            $operatorA,
+            ['report_date' => '2026-07-02', 'group_name' => 'A'],
+            ['lembur' => 'Petugas A']
+        );
+
+        foreach (['2026-07-03', '2026-07-04', '2026-07-05'] as $date) {
+            $this->opsReportWithActivities(
+                $operatorB,
+                ['report_date' => $date, 'group_name' => 'B'],
+                ['lembur' => 'Petugas B']
+            );
+        }
+
+        $report = app(OperationalPerformanceService::class)->performanceReport([
+            'start' => Carbon::parse('2026-07-01'),
+            'end' => Carbon::parse(self::TODAY),
+            'group' => null,
+            'shift' => null,
+        ]);
+
+        $ranking = collect($report['overtimeLeaders']['ranking'])->keyBy('name');
+
+        $this->assertSame(1, $ranking['Petugas B']['position']);
+        $this->assertSame(2, $ranking['Petugas B']['previousPosition']);
+        $this->assertSame('up', $ranking['Petugas B']['movement']);
+        $this->assertSame(1, $ranking['Petugas B']['movementValue']);
+        $this->assertSame('B', $ranking['Petugas B']['group']);
+        $this->assertSame(3, $ranking['Petugas B']['count']);
+        $this->assertSame(12.0, $ranking['Petugas B']['hours']);
+        $this->assertSame(4.0, $ranking['Petugas B']['averageHours']);
+
+        $this->assertSame(2, $ranking['Petugas A']['position']);
+        $this->assertSame(1, $ranking['Petugas A']['previousPosition']);
+        $this->assertSame('down', $ranking['Petugas A']['movement']);
+        $this->assertSame(1, $ranking['Petugas A']['movementValue']);
+        $this->assertSame('A', $ranking['Petugas A']['group']);
+
+        Cache::flush();
+
+        $this->actingAs($manager)
+            ->get(route('manajer.performa', ['periode' => 'bulan-ini']))
+            ->assertOk()
+            ->assertSee('overtime-ranking__table', false)
+            ->assertSee('data-overtime-sort', false)
+            ->assertSee('fi fi-rr-caret-up', false)
+            ->assertSee('fi fi-rr-caret-down', false)
+            ->assertSee('aria-sort="ascending"', false)
+            ->assertDontSee('overtime-ranking__team-label', false)
+            ->assertSee('Jumlah Lembur', false)
+            ->assertSee('Total Jam Lembur', false)
+            ->assertSee('Rata-rata Jam Lembur', false)
+            ->assertSee('overtime-ranking__group--a', false)
+            ->assertSee('overtime-ranking__group--b', false)
+            ->assertSee('Naik 1 posisi', false)
+            ->assertSee('Turun 1 posisi', false);
     }
 
     public function test_tc_mgr_23_jumlah_query_tidak_tumbuh_mengikuti_regu_dan_shift(): void

@@ -10,6 +10,8 @@ class ShipOperation extends Model
 
     public const TYPE_BULK_LOADING = 'muat_curah';
 
+    public const TYPE_AMMONIA_LOADING = 'muat_amoniak';
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_INACTIVE = 'inactive';
@@ -32,7 +34,11 @@ class ShipOperation extends Model
         $cutoff = now()->subDays(self::ACTIVE_SUGGESTION_TTL_DAYS);
 
         return static::query()
-            ->whereIn('type', [self::TYPE_BAG_LOADING, self::TYPE_BULK_LOADING])
+            ->whereIn('type', [
+                self::TYPE_BAG_LOADING,
+                self::TYPE_BULK_LOADING,
+                self::TYPE_AMMONIA_LOADING,
+            ])
             ->where('status', self::STATUS_ACTIVE)
             ->where(function ($query) use ($cutoff): void {
                 $query->where('updated_at', '<', $cutoff)

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ReportStatus;
+use App\Models\BulkLoadingActivity;
 use App\Models\DailyReport;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -109,8 +110,8 @@ class OperationalPerformanceService
                 ],
             ],
             'muat_curah' => [
-                'label' => 'Pemuatan Urea Curah / Amoniak',
-                'short' => 'Muat Curah / Amoniak',
+                'label' => 'Pemuatan Urea Curah',
+                'short' => 'Muat Curah',
                 'unit' => 'Ton',
                 'icon' => 'fi fi-sr-ship',
                 'tint' => 'cyan',
@@ -122,10 +123,38 @@ class OperationalPerformanceService
                 'joins' => [
                     ['bulk_loading_activities', 'bulk_loading_logs.bulk_loading_activity_id', 'bulk_loading_activities.id'],
                 ],
+                'conditions' => [
+                    ['bulk_loading_activities.activity_type', BulkLoadingActivity::TYPE_BULK_LOADING],
+                ],
                 'reportKey' => 'bulk_loading_activities.daily_report_id',
                 'extra' => [],
                 'recap' => [
-                    'label' => 'Pemuatan Urea Curah / Amoniak',
+                    'label' => 'Pemuatan Urea Curah',
+                    'countLabel' => 'Kapal',
+                    'count' => $this->visitIdentity('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time'),
+                ],
+            ],
+            'muat_amoniak' => [
+                'label' => 'Pemuatan Amoniak',
+                'short' => 'Muat Amoniak',
+                'unit' => 'Ton',
+                'icon' => 'fi fi-rr-flask',
+                'tint' => 'cyan',
+                'countsToTonnage' => true,
+                'showOnPerformance' => true,
+                'showOnActivityDetail' => true,
+                'from' => 'bulk_loading_logs',
+                'column' => 'bulk_loading_logs.cob',
+                'joins' => [
+                    ['bulk_loading_activities', 'bulk_loading_logs.bulk_loading_activity_id', 'bulk_loading_activities.id'],
+                ],
+                'conditions' => [
+                    ['bulk_loading_activities.activity_type', BulkLoadingActivity::TYPE_AMMONIA_LOADING],
+                ],
+                'reportKey' => 'bulk_loading_activities.daily_report_id',
+                'extra' => [],
+                'recap' => [
+                    'label' => 'Pemuatan Amoniak',
                     'countLabel' => 'Kapal',
                     'count' => $this->visitIdentity('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time'),
                 ],
@@ -351,12 +380,40 @@ class OperationalPerformanceService
         $summary = $this->summaryFrom($matrix, 'ini', $filters);
         $previous = $this->summaryFrom($matrix, 'lalu', $filters);
         $trend = $this->trendSeries($monthly, $filters);
+        $kpiComparisonLabel = 'vs '.$this->periodLabel($prevStart, $prevEnd);
+        $kpiCurrent = $summary;
+        $kpiPrevious = $previous;
+
+        // Nilai utama periode bawaan tetap merupakan capaian tahun berjalan.
+        // Untuk badge warna pada kartu, perbandingan YTD tidak dipakai karena
+        // rentangnya bertumpang tindih dengan pergeseran satu bulan. Gunakan
+        // bulan berjalan melawan bulan sebelumnya dari seri bulanan yang sama.
+        if ($this->isCurrentYearToDatePeriod($start, $end) && count($trend) >= 2) {
+            $kpiCurrent = $this->summaryFromTrendBucket($trend[array_key_last($trend)]);
+            $kpiPrevious = $this->summaryFromTrendBucket($trend[array_key_last($trend) - 1]);
+
+            $previousMonth = Carbon::createFromFormat('Y-m-d', $trend[array_key_last($trend) - 1]['key'].'-01')
+                ->locale('id');
+            $kpiComparisonLabel = 'vs '.$previousMonth->translatedFormat('M Y');
+        }
+
         $overtimeRows = $this->overtimeRows($filters);
+        $previousOvertimeRows = $this->overtimeRows(array_merge($filters, [
+            'start' => $prevStart,
+            'end' => $prevEnd,
+        ]));
 
         return [
             'periodLabel' => $this->periodLabel($start, $end),
             'comparisonLabel' => 'vs '.$this->periodLabel($prevStart, $prevEnd),
-            'summary' => $this->summaryCards($summary, $previous, withShips: false),
+            'kpiComparisonLabel' => $kpiComparisonLabel,
+            'summary' => $this->summaryCards(
+                $summary,
+                $previous,
+                withShips: false,
+                deltaCurrent: $kpiCurrent,
+                deltaPrevious: $kpiPrevious,
+            ),
             'reportCount' => $summary['reports'],
             'trend' => $trend,
             'sparklines' => $this->sparklinesFor($trend, withShips: false),
@@ -366,12 +423,22 @@ class OperationalPerformanceService
             'activities' => $this->activityBreakdown($matrix, $filters),
             'activityCards' => $this->activityCards($matrix, $monthly, $filters),
             'activityRecap' => $this->activityRecap($filters),
-            'activityPanels' => $this->activityPerformancePanels($matrix, $monthly, $filters, $overtimeRows),
+            'activityPanels' => $this->activityPerformancePanels(
+                $matrix,
+                $monthly,
+                $filters,
+                $overtimeRows,
+                $previousOvertimeRows
+            ),
             'shifts' => $this->shiftBreakdown($matrix, $filters),
             'workload' => $this->workload($matrix, $filters),
             // Tanpa batas: halaman menampilkan sepuluh teratas dan menyimpan
             // sisanya di balik tombol "lihat semua".
-            'overtimeLeaders' => $this->overtimeLeadersFrom($overtimeRows, limit: null),
+            'overtimeLeaders' => $this->overtimeLeadersFrom(
+                $overtimeRows,
+                limit: null,
+                previousRows: $previousOvertimeRows
+            ),
         ];
     }
 
@@ -614,7 +681,11 @@ class OperationalPerformanceService
      */
     private function monthlyMatrix(array $filters, bool $withVisits = true): array
     {
-        $end = Carbon::today()->endOfMonth();
+        // Bulan berjalan hanya boleh dihitung sampai hari ini. Sebelumnya
+        // endOfMonth() ikut menarik laporan bertanggal masa depan pada bulan
+        // yang sama, sehingga grafik tren bisa berisi angka yang belum masuk
+        // rentang KPI/rekap.
+        $end = Carbon::today();
         $start = Carbon::today()->startOfMonth()->subMonthsNoOverflow(self::TREND_MONTHS - 1);
         $range = ['start' => $start, 'end' => $end];
         $bucket = $this->monthBucket('daily_reports.report_date');
@@ -788,37 +859,64 @@ class OperationalPerformanceService
      * @param  array<string, mixed>  $previous
      * @return array<string, mixed>
      */
-    private function summaryCards(array $summary, array $previous, bool $withShips = true): array
-    {
+    private function summaryCards(
+        array $summary,
+        array $previous,
+        bool $withShips = true,
+        ?array $deltaCurrent = null,
+        ?array $deltaPrevious = null
+    ): array {
+        $deltaCurrent ??= $summary;
+        $deltaPrevious ??= $previous;
+
         return [
             'tonnage' => [
                 'value' => $summary['tonnage'],
-                'delta' => $this->delta($summary['tonnage'], $previous['tonnage']),
+                'delta' => $this->delta($deltaCurrent['tonnage'], $deltaPrevious['tonnage']),
             ],
             ...($withShips ? [
                 'ships' => [
                     'value' => $summary['ships'],
-                    'delta' => $this->delta($summary['ships'], $previous['ships']),
+                    'delta' => $this->delta($deltaCurrent['ships'], $deltaPrevious['ships']),
                 ],
             ] : [
                 'reports' => [
                     'value' => $summary['reports'],
-                    'delta' => $this->delta($summary['reports'], $previous['reports']),
+                    'delta' => $this->delta($deltaCurrent['reports'], $deltaPrevious['reports']),
                 ],
             ]),
             'tonnagePerShift' => [
                 'value' => $summary['tonnagePerShift'],
-                'delta' => $this->delta($summary['tonnagePerShift'], $previous['tonnagePerShift']),
+                'delta' => $this->delta($deltaCurrent['tonnagePerShift'], $deltaPrevious['tonnagePerShift']),
             ],
             'damageRatio' => [
                 'value' => $summary['damageRatio'],
                 'hasBase' => $summary['hasDamageBase'],
                 'delta' => $this->deltaPoint(
-                    $summary['damageRatio'],
-                    $previous['damageRatio'],
-                    $summary['hasDamageBase'] && $previous['hasDamageBase']
+                    $deltaCurrent['damageRatio'],
+                    $deltaPrevious['damageRatio'],
+                    $deltaCurrent['hasDamageBase'] && $deltaPrevious['hasDamageBase']
                 ),
             ],
+        ];
+    }
+
+    /**
+     * Bentuk ringkasan minimal dari satu titik tren bulanan agar rumus delta
+     * kartu sama persis dengan ringkasan periode utama.
+     *
+     * @param  array<string, mixed>  $bucket
+     * @return array<string, float|int|bool>
+     */
+    private function summaryFromTrendBucket(array $bucket): array
+    {
+        return [
+            'tonnage' => (float) ($bucket['tonnage'] ?? 0),
+            'ships' => (int) ($bucket['ships'] ?? 0),
+            'reports' => (int) ($bucket['reports'] ?? 0),
+            'tonnagePerShift' => (float) ($bucket['tonnagePerShift'] ?? 0),
+            'damageRatio' => (float) ($bucket['damageRatio'] ?? 0),
+            'hasDamageBase' => (float) ($bucket['loading'] ?? 0) > 0,
         ];
     }
 
@@ -1127,8 +1225,13 @@ class OperationalPerformanceService
      * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    private function activityPerformancePanels(array $matrix, array $monthly, array $filters, Collection $overtimeRows): array
-    {
+    private function activityPerformancePanels(
+        array $matrix,
+        array $monthly,
+        array $filters,
+        Collection $overtimeRows,
+        Collection $previousOvertimeRows
+    ): array {
         $current = $this->summaryFrom($matrix, 'ini', $filters);
         $previous = $this->summaryFrom($matrix, 'lalu', $filters);
         $catalog = $this->activityCatalog();
@@ -1179,7 +1282,12 @@ class OperationalPerformanceService
                 'damage' => $this->activityDamage($activity, $rows, $filters),
                 'groups' => $this->activityGroupValues($rows, $filters),
                 'workload' => $this->activityWorkloadFrom($matrix, $scoped),
-                'overtime' => $this->overtimeLeadersFrom($overtimeRows, $reportSet),
+                'overtime' => $this->overtimeLeadersFrom(
+                    $overtimeRows,
+                    $reportSet,
+                    previousRows: $previousOvertimeRows,
+                    previousOnlyReports: $reportSet
+                ),
             ];
         }
 
@@ -1388,7 +1496,7 @@ class OperationalPerformanceService
 
         $detail = match ($key) {
             'muat_kantong' => $this->baggedDetail($activity, $filters, $detailLimit),
-            'muat_curah' => $this->bulkDetail($activity, $filters, $detailLimit),
+            'muat_curah', 'muat_amoniak' => $this->bulkDetail($activity, $filters, $detailLimit),
             'bongkar_bahan_baku' => $this->materialDetail($activity, $filters, $detailLimit),
             'bongkar_container', 'muat_container' => $this->containerDetail($activity, $filters, $detailLimit),
             'trucking_turba' => $this->turbaDetail($activity, $filters, $detailLimit),
@@ -1546,26 +1654,37 @@ class OperationalPerformanceService
      *
      * @param  array<string, mixed>  $activity
      * @param  array<string, mixed>  $filters
-     * @return array{hours: array<int, array<string, mixed>>, count: array<int, array<string, mixed>>}
+     * @return array{ranking: array<int, array<string, mixed>>, hours: array<int, array<string, mixed>>, count: array<int, array<string, mixed>>}
      */
     private function activityPanelOvertime(array $activity, array $filters): array
     {
-        $rows = $this->applyReportFilters(
-            DB::table('employee_logs')->join('daily_reports', 'daily_reports.id', '=', 'employee_logs.daily_report_id'),
-            $filters
-        )
-            ->whereIn('employee_logs.daily_report_id', $this->activityReportScope($activity, $filters))
-            ->where('employee_logs.category', 'operasi')
-            ->where('employee_logs.description', 'Lembur')
-            ->whereNotNull('employee_logs.name')
-            ->where('employee_logs.name', '!=', '')
-            ->selectRaw('employee_logs.name as name')
-            ->selectRaw('employee_logs.daily_report_id as report_id')
-            ->selectRaw('employee_logs.time_in as time_in')
-            ->selectRaw('employee_logs.time_out as time_out')
-            ->get();
+        $rowsFor = function (array $rangeFilters) use ($activity): Collection {
+            return $this->applyReportFilters(
+                DB::table('employee_logs')->join('daily_reports', 'daily_reports.id', '=', 'employee_logs.daily_report_id'),
+                $rangeFilters
+            )
+                ->whereIn('employee_logs.daily_report_id', $this->activityReportScope($activity, $rangeFilters))
+                ->where('employee_logs.category', 'operasi')
+                ->where('employee_logs.description', 'Lembur')
+                ->whereNotNull('employee_logs.name')
+                ->where('employee_logs.name', '!=', '')
+                ->selectRaw('employee_logs.name as name')
+                ->selectRaw('employee_logs.daily_report_id as report_id')
+                ->selectRaw('daily_reports.group_name as group_name')
+                ->selectRaw('employee_logs.time_in as time_in')
+                ->selectRaw('employee_logs.time_out as time_out')
+                ->get();
+        };
 
-        return $this->overtimeLeadersFrom($rows);
+        [$prevStart, $prevEnd] = $this->equivalentPreviousPeriod($filters['start'], $filters['end']);
+
+        return $this->overtimeLeadersFrom(
+            $rowsFor($filters),
+            previousRows: $rowsFor(array_merge($filters, [
+                'start' => $prevStart,
+                'end' => $prevEnd,
+            ]))
+        );
     }
 
     /**
@@ -1577,7 +1696,10 @@ class OperationalPerformanceService
      */
     private function activityTrend(array $activity, array $filters): array
     {
-        $end = Carbon::today()->endOfMonth();
+        // Jangan membaca sisa tanggal pada bulan berjalan. Nilai grafik harus
+        // konsisten dengan angka periode aktif yang paling jauh berakhir hari
+        // ini, terutama bila ada data lama yang telanjur bertanggal masa depan.
+        $end = Carbon::today();
         $start = Carbon::today()->startOfMonth()->subMonthsNoOverflow(self::TREND_MONTHS - 1);
         $bucket = $this->monthBucket('daily_reports.report_date');
 
@@ -1850,10 +1972,14 @@ class OperationalPerformanceService
             ->selectRaw('COUNT(bulk_loading_logs.id) as log_count')
             ->first();
 
-        $rows = $this->parentQuery('bulk_loading_activities', $filters)
+        $rowsQuery = $this->parentQuery('bulk_loading_activities', $filters)
             ->leftJoin('bulk_loading_logs', 'bulk_loading_logs.bulk_loading_activity_id', '=', 'bulk_loading_activities.id')
             ->whereNotNull('bulk_loading_activities.ship_name')
-            ->where('bulk_loading_activities.ship_name', '!=', '')
+            ->where('bulk_loading_activities.ship_name', '!=', '');
+
+        $this->applyActivityConditions($rowsQuery, $activity);
+
+        $rows = $rowsQuery
             ->groupBy('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time')
             ->selectRaw('bulk_loading_activities.ship_name as ship_name')
             ->selectRaw('bulk_loading_activities.berthing_time as berthing')
@@ -2289,15 +2415,9 @@ class OperationalPerformanceService
     }
 
     /**
-     * Peringkat personil menurut lembur, diurutkan menurut dua ukuran
-     * berbeda karena keduanya menjawab pertanyaan yang berbeda: jam lembur
-     * menunjukkan beban waktu, sedangkan frekuensi menunjukkan seberapa sering
-     * seseorang diminta. Keduanya perlu ditampilkan karena sebagian entri
-     * lembur diisi tanpa jam masuk/pulang, sehingga hanya terhitung di frekuensi.
-     *
-     * Nama dirapikan menjadi huruf kecil saat pengelompokan supaya "Zein" dan
-     * "zein" tidak menjadi dua orang, lalu ditampilkan dengan kapitalisasi
-     * dari entri yang paling sering muncul.
+     * Baris lembur personil beserta regu asal laporan. Agregasi dan pengurutan
+     * dilakukan setelah query supaya satu kumpulan data dapat dipakai ulang
+     * untuk peringkat keseluruhan maupun tiap kegiatan.
      *
      * @param  array<string, mixed>  $filters
      */
@@ -2313,6 +2433,7 @@ class OperationalPerformanceService
             ->where('employee_logs.name', '!=', '')
             ->selectRaw('employee_logs.name as name')
             ->selectRaw('employee_logs.daily_report_id as report_id')
+            ->selectRaw('daily_reports.group_name as group_name')
             ->selectRaw('employee_logs.time_in as time_in')
             ->selectRaw('employee_logs.time_out as time_out')
             ->get();
@@ -2331,10 +2452,93 @@ class OperationalPerformanceService
      * membuka sisanya lewat tombol. Panel per kegiatan tetap dipangkas karena
      * ruangnya sempit.
      *
+     * Posisi utama diurutkan dari total jam, lalu frekuensi dan nama. Perubahan
+     * posisi dibandingkan dengan rentang pembanding yang setara. Regu dipilih
+     * dari regu yang paling sering menaungi personil pada periode berjalan.
+     *
      * @param  array<int, bool>|null  $onlyReports
-     * @return array{hours: array<int, array<string, mixed>>, count: array<int, array<string, mixed>>}
+     * @param  array<int, bool>|null  $previousOnlyReports
+     * @return array{ranking: array<int, array<string, mixed>>, hours: array<int, array<string, mixed>>, count: array<int, array<string, mixed>>}
      */
-    private function overtimeLeadersFrom(Collection $rows, ?array $onlyReports = null, ?int $limit = 5): array
+    private function overtimeLeadersFrom(
+        Collection $rows,
+        ?array $onlyReports = null,
+        ?int $limit = 5,
+        ?Collection $previousRows = null,
+        ?array $previousOnlyReports = null
+    ): array {
+        $people = $this->aggregateOvertimePeople($rows, $onlyReports);
+        $previousPeople = $this->sortOvertimePeople(
+            $this->aggregateOvertimePeople($previousRows ?? collect(), $previousOnlyReports)
+        );
+
+        $previousPositions = [];
+
+        foreach ($previousPeople as $index => $person) {
+            $previousPositions[$person['_key']] = $index + 1;
+        }
+
+        $ranking = $this->sortOvertimePeople($people);
+
+        foreach ($ranking as $index => $person) {
+            $position = $index + 1;
+            $previousPosition = $previousPositions[$person['_key']] ?? null;
+            $difference = $previousPosition === null ? null : $previousPosition - $position;
+
+            $ranking[$index]['position'] = $position;
+            $ranking[$index]['previousPosition'] = $previousPosition;
+            $ranking[$index]['movement'] = match (true) {
+                $difference === null => 'new',
+                $difference > 0 => 'up',
+                $difference < 0 => 'down',
+                default => 'same',
+            };
+            $ranking[$index]['movementValue'] = abs((int) ($difference ?? 0));
+            unset($ranking[$index]['_key']);
+        }
+
+        if ($limit !== null) {
+            $ranking = array_slice($ranking, 0, $limit);
+        }
+
+        $take = static function (array $people, string $field, ?int $limit): array {
+            $people = array_values(array_filter($people, fn (array $person) => $person[$field] > 0));
+
+            usort($people, static function (array $a, array $b) use ($field): int {
+                return ($b[$field] <=> $a[$field])
+                    ?: ($b['hours'] <=> $a['hours'])
+                    ?: ($b['count'] <=> $a['count'])
+                    ?: strnatcasecmp($a['name'], $b['name']);
+            });
+
+            if ($limit !== null) {
+                $people = array_slice($people, 0, $limit);
+            }
+
+            $peak = $people === [] ? 0.0 : (float) $people[0][$field];
+
+            foreach ($people as $index => $person) {
+                $people[$index]['share'] = $peak > 0 ? ($person[$field] / $peak) * 100 : 0.0;
+                unset($people[$index]['_key']);
+            }
+
+            return $people;
+        };
+
+        return [
+            'ranking' => $ranking,
+            // Dipertahankan untuk kompatibilitas ekspor rincian kegiatan yang
+            // masih memakai daftar jam dan frekuensi secara terpisah.
+            'hours' => $take($people, 'hours', $limit),
+            'count' => $take($people, 'count', $limit),
+        ];
+    }
+
+    /**
+     * @param  array<int, bool>|null  $onlyReports
+     * @return array<int, array<string, mixed>>
+     */
+    private function aggregateOvertimePeople(Collection $rows, ?array $onlyReports = null): array
     {
         $people = [];
 
@@ -2349,36 +2553,57 @@ class OperationalPerformanceService
                 continue;
             }
 
-            $people[$key] ??= ['name' => trim((string) $row->name), 'hours' => 0.0, 'count' => 0];
+            $people[$key] ??= [
+                '_key' => $key,
+                'name' => trim((string) $row->name),
+                'hours' => 0.0,
+                'count' => 0,
+                'groups' => [],
+            ];
             $people[$key]['count']++;
+
+            $group = strtoupper(trim((string) ($row->group_name ?? '')));
+
+            if ($group !== '') {
+                $people[$key]['groups'][$group] = ($people[$key]['groups'][$group] ?? 0) + 1;
+            }
 
             if ($row->time_in && $row->time_out) {
                 $people[$key]['hours'] += $this->durationInHours((string) $row->time_in, (string) $row->time_out);
             }
         }
 
-        $take = static function (array $people, string $field, ?int $limit): array {
-            $people = array_values(array_filter($people, fn (array $person) => $person[$field] > 0));
+        foreach ($people as $key => $person) {
+            $groups = [];
 
-            usort($people, fn (array $a, array $b) => $b[$field] <=> $a[$field]);
-
-            if ($limit !== null) {
-                $people = array_slice($people, 0, $limit);
+            foreach ($person['groups'] as $group => $count) {
+                $groups[] = ['name' => $group, 'count' => $count];
             }
 
-            $peak = $people === [] ? 0.0 : (float) $people[0][$field];
+            usort($groups, static fn (array $a, array $b): int => ($b['count'] <=> $a['count'])
+                ?: strnatcasecmp($a['name'], $b['name']));
 
-            foreach ($people as $index => $person) {
-                $people[$index]['share'] = $peak > 0 ? ($person[$field] / $peak) * 100 : 0.0;
-            }
+            $people[$key]['group'] = $groups[0]['name'] ?? '-';
+            $people[$key]['averageHours'] = $person['count'] > 0
+                ? $person['hours'] / $person['count']
+                : 0.0;
+            unset($people[$key]['groups']);
+        }
 
-            return $people;
-        };
+        return array_values($people);
+    }
 
-        return [
-            'hours' => $take($people, 'hours', $limit),
-            'count' => $take($people, 'count', $limit),
-        ];
+    /**
+     * @param  array<int, array<string, mixed>>  $people
+     * @return array<int, array<string, mixed>>
+     */
+    private function sortOvertimePeople(array $people): array
+    {
+        usort($people, static fn (array $a, array $b): int => ($b['hours'] <=> $a['hours'])
+            ?: ($b['count'] <=> $a['count'])
+            ?: strnatcasecmp($a['name'], $b['name']));
+
+        return $people;
     }
 
     /**
@@ -2649,17 +2874,31 @@ class OperationalPerformanceService
     {
         $query->whereIn('daily_reports.status', self::COUNTED_STATUSES);
 
-        $current = [$range['start']->toDateString(), $range['end']->toDateString()];
+        $currentStart = $range['start']->toDateString();
+        $currentEndExclusive = $range['end']->copy()->addDay()->toDateString();
 
         if (empty($range['prevStart'])) {
-            return $query->whereBetween('daily_reports.report_date', $current);
+            return $query
+                ->where('daily_reports.report_date', '>=', $currentStart)
+                ->where('daily_reports.report_date', '<', $currentEndExclusive);
         }
 
-        $previous = [$range['prevStart']->toDateString(), $range['prevEnd']->toDateString()];
+        $previousStart = $range['prevStart']->toDateString();
+        $previousEndExclusive = $range['prevEnd']->copy()->addDay()->toDateString();
 
-        return $query->where(function (QueryBuilder $inner) use ($current, $previous): void {
-            $inner->whereBetween('daily_reports.report_date', $current)
-                ->orWhereBetween('daily_reports.report_date', $previous);
+        return $query->where(function (QueryBuilder $inner) use (
+            $currentStart,
+            $currentEndExclusive,
+            $previousStart,
+            $previousEndExclusive
+        ): void {
+            $inner->where(function (QueryBuilder $period) use ($currentStart, $currentEndExclusive): void {
+                $period->where('daily_reports.report_date', '>=', $currentStart)
+                    ->where('daily_reports.report_date', '<', $currentEndExclusive);
+            })->orWhere(function (QueryBuilder $period) use ($previousStart, $previousEndExclusive): void {
+                $period->where('daily_reports.report_date', '>=', $previousStart)
+                    ->where('daily_reports.report_date', '<', $previousEndExclusive);
+            });
         });
     }
 
@@ -2673,10 +2912,8 @@ class OperationalPerformanceService
     private function applyReportFilters(QueryBuilder $query, array $filters): QueryBuilder
     {
         $query->whereIn('daily_reports.status', self::COUNTED_STATUSES)
-            ->whereBetween('daily_reports.report_date', [
-                $filters['start']->toDateString(),
-                $filters['end']->toDateString(),
-            ]);
+            ->where('daily_reports.report_date', '>=', $filters['start']->toDateString())
+            ->where('daily_reports.report_date', '<', $filters['end']->copy()->addDay()->toDateString());
 
         if (! empty($filters['group'])) {
             $query->where('daily_reports.group_name', $filters['group']);
@@ -2728,7 +2965,7 @@ class OperationalPerformanceService
     private function sameDayExpression(): string
     {
         return $this->isSqlite()
-            ? "date(daily_reports.created_at) = date(daily_reports.report_date)"
+            ? 'date(daily_reports.created_at) = date(daily_reports.report_date)'
             : 'DATE(daily_reports.created_at) = daily_reports.report_date';
     }
 
@@ -2776,19 +3013,29 @@ class OperationalPerformanceService
     // ============================================================
 
     /**
-     * Periode pembanding yang setara. Untuk rentang yang dimulai pada tanggal 1,
-     * pembandingnya adalah rentang yang sama di bulan sebelumnya (1–25 Juli
-     * dibanding 1–25 Juni) supaya bulan berjalan tidak terlihat anjlok. Untuk
-     * rentang bebas, dipakai periode sepanjang durasi yang sama tepat sebelumnya.
+     * Periode pembanding yang setara dan tidak bertumpang tindih. Rentang YTD
+     * memakai tanggal yang sama pada tahun sebelumnya. Rentang yang dimulai pada
+     * tanggal 1 digeser sebanyak jumlah bulan yang dicakup; rentang bebas memakai
+     * durasi yang sama tepat sebelum periode berjalan.
      *
      * @return array{0: CarbonInterface, 1: CarbonInterface}
      */
     private function equivalentPreviousPeriod(CarbonInterface $start, CarbonInterface $end): array
     {
-        if ((int) $start->day === 1) {
+        if ($this->isCurrentYearToDatePeriod($start, $end)) {
             return [
-                $start->copy()->subMonthNoOverflow()->startOfMonth(),
-                $end->copy()->subMonthNoOverflow(),
+                $start->copy()->subYear(),
+                $end->copy()->subYear(),
+            ];
+        }
+
+        if ((int) $start->day === 1) {
+            $monthSpan = (int) $start->copy()->startOfMonth()
+                ->diffInMonths($end->copy()->startOfMonth(), true) + 1;
+
+            return [
+                $start->copy()->subMonthsNoOverflow($monthSpan)->startOfMonth(),
+                $end->copy()->subMonthsNoOverflow($monthSpan),
             ];
         }
 
@@ -2796,6 +3043,17 @@ class OperationalPerformanceService
         $prevEnd = $start->copy()->subDay();
 
         return [$prevEnd->copy()->subDays($length), $prevEnd];
+    }
+
+    /**
+     * Apakah rentang merupakan filter bawaan 1 Januari sampai hari ini.
+     */
+    private function isCurrentYearToDatePeriod(CarbonInterface $start, CarbonInterface $end): bool
+    {
+        $today = Carbon::today();
+
+        return $start->toDateString() === $today->copy()->startOfYear()->toDateString()
+            && $end->toDateString() === $today->toDateString();
     }
 
     /**

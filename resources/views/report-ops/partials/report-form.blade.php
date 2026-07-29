@@ -1067,6 +1067,28 @@ document.addEventListener('DOMContentLoaded', function () {
             };
         }
 
+        match = name.match(/^ship_name_ammonia_(\d+)$/);
+
+        if (match) {
+            return {
+                type: 'muat_amoniak',
+                sequence: Number(match[1]),
+                idName: `ship_operation_ammonia_id_${match[1]}`,
+                statusName: `ship_operation_ammonia_status_${match[1]}`,
+                fields: {
+                    ship_name: `ship_name_ammonia_${match[1]}`,
+                    agent: `agent_ammonia_${match[1]}`,
+                    jetty: `jetty_ammonia_${match[1]}`,
+                    destination: `destination_ammonia_${match[1]}`,
+                    capacity: `capacity_ammonia_${match[1]}`,
+                    stevedoring: `stevedoring_ammonia_${match[1]}`,
+                    commodity: `commodity_ammonia_${match[1]}`,
+                    berthing_time: `berthing_time_ammonia_${match[1]}`,
+                    start_loading_time: `start_loading_time_ammonia_${match[1]}`,
+                },
+            };
+        }
+
         return null;
     }
 
@@ -1604,6 +1626,12 @@ document.addEventListener('DOMContentLoaded', function () {
             'commodity_urea', 'capacity_urea', 'berthing_time_urea', 'start_loading_time_urea',
             'ship_operation_urea_id', 'ship_operation_urea_status',
         ];
+        const ammoniaPrefixes = [
+            'ship_name_ammonia', 'jetty_ammonia', 'destination_ammonia', 'agent_ammonia',
+            'stevedoring_ammonia', 'commodity_ammonia', 'capacity_ammonia',
+            'berthing_time_ammonia', 'start_loading_time_ammonia',
+            'ship_operation_ammonia_id', 'ship_operation_ammonia_status',
+        ];
         const materialPrefixes = [
             'ship_name_material', 'agent_material', 'jetty_material', 'capacity_material',
             'tally_kapal', 'opr_forklift', 'no_forklift_bb', 'tally_pengiriman', 'driver_petugas_bb', 'truck_petugas_bb',
@@ -1626,6 +1654,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 match = name.match(new RegExp(`^(${curahPrefixes.join('|')})_(\\d+)$`)) || name.match(/^bulk_logs\[(\d+)]/);
             }
 
+            if (sectionId === 'step-muat-amoniak') {
+                match = name.match(new RegExp(`^(${ammoniaPrefixes.join('|')})_(\\d+)$`)) || name.match(/^ammonia_logs\[(\d+)]/);
+            }
+
             if (sectionId === 'section-bahan-baku') {
                 match = name.match(new RegExp(`^(${materialPrefixes.join('|')})_(\\d+)$`)) || name.match(/^unloading_materials_(\d+)\[/);
             }
@@ -1639,7 +1671,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function ensureActivityPanes(fields) {
-        ['step-muat-kantong', 'step-muat-curah', 'section-bahan-baku', 'section-container'].forEach(sectionId => {
+        ['step-muat-kantong', 'step-muat-curah', 'step-muat-amoniak', 'section-bahan-baku', 'section-container'].forEach(sectionId => {
             const section = document.getElementById(sectionId);
             const targetCount = maxSequenceForSection(fields, sectionId);
             const addButton = section?.querySelector('.plus-minus-tab .btn.add');
@@ -1653,7 +1685,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function ensureTableRowsForName(name) {
-        if (/^(timesheets|bulk_logs)\[/.test(name)) return;
+        if (/^(timesheets|bulk_logs|ammonia_logs)\[/.test(name)) return;
 
         const match = name.match(/^([^\[]+)\[(\d+)]/);
         if (!match || controlsByName(name).length > 0) return;
@@ -1674,16 +1706,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function ensureTimesheetRowsForName(name) {
         const timesheetMatch = name.match(/^timesheets\[(\d+)]\[([^\]]+)]\[(\d+)]/);
-        const bulkMatch = name.match(/^bulk_logs\[(\d+)]\[(\d+)]/);
+        const bulkMatch = name.match(/^(bulk_logs|ammonia_logs)\[(\d+)]\[(\d+)]/);
         if (!timesheetMatch && !bulkMatch) return;
         if (controlsByName(name).length > 0) return;
 
-        const sequence = Number(timesheetMatch?.[1] || bulkMatch?.[1] || 1);
+        const sequence = Number(timesheetMatch?.[1] || bulkMatch?.[2] || 1);
         const category = timesheetMatch?.[2] || null;
-        const targetIndex = Number(timesheetMatch?.[3] || bulkMatch?.[2] || 0);
+        const targetIndex = Number(timesheetMatch?.[3] || bulkMatch?.[3] || 0);
         const prefix = timesheetMatch
             ? `timesheets[${sequence}][${category}]`
-            : `bulk_logs[${sequence}]`;
+            : `${bulkMatch[1]}[${sequence}]`;
         const seedControl = Array.from(form.querySelectorAll('[name]')).find(control => control.name.startsWith(`${prefix}[`));
         const timesheetContent = seedControl?.closest('.timesheet-content');
         const addButton = timesheetContent?.querySelector('.btn-add-activity');
@@ -3233,6 +3265,7 @@ document.addEventListener('DOMContentLoaded', function () {
             input.name = input.name
                 .replace(/timesheets\[\d+\]/g, `timesheets[${sequence}]`)
                 .replace(/bulk_logs\[\d+\]/g, `bulk_logs[${sequence}]`)
+                .replace(/ammonia_logs\[\d+\]/g, `ammonia_logs[${sequence}]`)
                 .replace(/unloading_materials_\d+(?=\[)/g, `unloading_materials_${sequence}`)
                 .replace(/unloading_containers_\d+(?=\[)/g, `unloading_containers_${sequence}`)
                 .replace(/_urea_\d+$/g, `_urea_${sequence}`)
@@ -3402,6 +3435,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initJamKerjaMask();
     initActivitySection('step-muat-kantong');
     initActivitySection('step-muat-curah');
+    initActivitySection('step-muat-amoniak');
     initActivitySection(document.getElementById('section-bahan-baku'));
     initActivitySection(document.getElementById('section-container'));
     restoreSavedPayload();
@@ -3693,7 +3727,11 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
             <div class="list-form-tab" data-target="step-muat-curah">
                 <span class="icon-tab"><i class="fi fi-rr-truck-loading"></i></span>
-                <span>Muat Curah / Amoniak</span>
+                <span>Muat Curah</span>
+            </div>
+            <div class="list-form-tab" data-target="step-muat-amoniak">
+                <span class="icon-tab"><i class="fi fi-rr-flask"></i></span>
+                <span>Muat Amoniak</span>
             </div>
             <div class="list-form-tab" data-target="step-bongkar">
                 <span class="icon-tab"><i class="fi fi-rr-box-open"></i></span>
@@ -3729,22 +3767,27 @@ document.addEventListener('DOMContentLoaded', function () {
     @include('report-ops.sections.step3-muatcurah')
 
     <!-- ========================================== -->
-    <!-- STEP 4: BONGKAR                            -->
+    <!-- STEP 4: MUAT AMONIAK                       -->
+    <!-- ========================================== -->
+    @include('report-ops.sections.step4-muatamoniak')
+
+    <!-- ========================================== -->
+    <!-- STEP 5: BONGKAR                            -->
     <!-- ========================================== -->
     @include('report-ops.sections.step4-bongkar')
 
     <!-- ========================================== -->
-    <!-- STEP 5: TRACKING                           -->
+    <!-- STEP 6: TRACKING                           -->
     <!-- ========================================== -->
     @include('report-ops.sections.step5-gudangturba')
 
     <!-- ========================================== -->
-    <!-- STEP 6: CEK UNIT                           -->
+    <!-- STEP 7: CEK UNIT                           -->
     <!-- ========================================== -->
     @include('report-ops.sections.step6-cekunit')
 
     <!-- ========================================== -->
-    <!-- STEP 7: KARYAWAN                           -->
+    <!-- STEP 8: KARYAWAN                           -->
     <!-- ========================================== -->
     @include('report-ops.sections.step7-karyawan')
 

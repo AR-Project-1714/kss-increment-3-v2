@@ -17,6 +17,7 @@
  *   [data-leader-toggle]    tombol pembuka daftar penuh papan peringkat;
  *                           aria-controls menunjuk daftarnya, data-label-more
  *                           dan data-label-less berisi teks kedua keadaan
+ *   [data-overtime-sort]     tombol pengurut posisi pada tabel lembur
  */
 (function () {
     'use strict';
@@ -421,6 +422,63 @@
     }
 
     // ============================================================
+    // Tabel peringkat lembur: urut posisi naik/turun melalui panah masing-masing
+    // ============================================================
+
+    function sortOvertimeRows(button) {
+        var ranking = button.closest('[data-overtime-ranking]');
+        if (!ranking) return;
+
+        var body = ranking.querySelector('.overtime-ranking__body');
+        if (!body) return;
+
+        var rows = Array.prototype.slice.call(body.querySelectorAll('[data-overtime-position]'));
+        var nextDirection = button.getAttribute('data-overtime-sort') === 'desc' ? 'desc' : 'asc';
+        var visibleCount = parseInt(body.getAttribute('data-visible-count'), 10);
+
+        if (!Number.isFinite(visibleCount) || visibleCount < 1) {
+            visibleCount = rows.length;
+        }
+
+        rows.sort(function (left, right) {
+            var leftPosition = parseInt(left.getAttribute('data-overtime-position'), 10) || 0;
+            var rightPosition = parseInt(right.getAttribute('data-overtime-position'), 10) || 0;
+
+            return nextDirection === 'asc'
+                ? leftPosition - rightPosition
+                : rightPosition - leftPosition;
+        });
+
+        rows.forEach(function (row, index) {
+            row.classList.toggle('overtime-ranking__row--extra', index >= visibleCount);
+            body.appendChild(row);
+        });
+
+        var sortButtons = ranking.querySelectorAll('[data-overtime-sort]');
+        sortButtons.forEach(function (sortButton) {
+            var isActive = sortButton.getAttribute('data-overtime-sort') === nextDirection;
+            sortButton.classList.toggle('is-active', isActive);
+            sortButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+
+        var heading = button.closest('th');
+        if (heading) {
+            heading.setAttribute('aria-sort', nextDirection === 'asc' ? 'ascending' : 'descending');
+        }
+
+    }
+
+    function bindOvertimeSort() {
+        // Delegasi juga mencakup tabel pada panel kegiatan yang dimuat via AJAX.
+        document.addEventListener('click', function (event) {
+            var button = event.target.closest('[data-overtime-sort]');
+            if (!button) return;
+
+            sortOvertimeRows(button);
+        });
+    }
+
+    // ============================================================
     // Pemasangan
     // ============================================================
 
@@ -472,6 +530,7 @@
         initStacks();
         bindTooltips();
         bindLeaderToggles();
+        bindOvertimeSort();
         initActivityPanel();
     }
 

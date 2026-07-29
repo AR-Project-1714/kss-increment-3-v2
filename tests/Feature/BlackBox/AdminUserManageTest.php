@@ -4,6 +4,8 @@ namespace Tests\Feature\BlackBox;
 
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 
 /**
  * Modul F — Admin / Kelola Pengguna (PENGUJIAN_BLACKBOX.md §4.F).
@@ -134,7 +136,8 @@ class AdminUserManageTest extends BlackBoxTestCase
                 'role_id' => $user->role_id,
                 'group' => $user->group,
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionMissing('user_credentials');
 
         $fresh = $user->fresh();
         $this->assertSame('Nama Diperbarui', $fresh->name);
@@ -204,5 +207,82 @@ class AdminUserManageTest extends BlackBoxTestCase
             ->assertOk()
             ->assertSee('cari-saya-unik', false)
             ->assertDontSee('jangan-muncul', false);
+    }
+
+    public function test_tc_ausr_12_role_non_operasional_otomatis_menggunakan_kantor(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.store'), [
+                'name' => 'Petugas Safety Kantor',
+                'username' => 'safety-kantor',
+                'password' => 'password-baru',
+                'role_id' => $this->role('safety')->id,
+                'group' => 'D',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('user_credentials', fn (array $credentials): bool => $credentials['username'] === 'safety-kantor'
+                && ! array_key_exists('password', $credentials)
+                && Crypt::decryptString($credentials['password_ciphertext']) === 'password-baru');
+
+        $sessionPayload = session('user_credentials');
+        $this->assertIsArray($sessionPayload);
+        $this->assertStringNotContainsString('password-baru', serialize($sessionPayload));
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'safety-kantor',
+            'group' => null,
+        ]);
+
+        $this->get(route('admin.user-manage'))
+            ->assertOk()
+            ->assertSee('password-baru', false)
+            ->assertSessionMissing('user_credentials');
+    }
+
+    public function test_tc_ausr_13_role_operasional_tetap_menyimpan_regu_pilihan(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.users.store'), [
+                'name' => 'Operator Regu D',
+                'username' => 'operator-regu-d',
+                'password' => 'password',
+                'role_id' => $this->role('operasional')->id,
+                'group' => 'D',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'operator-regu-d',
+            'group' => 'D',
+        ]);
+    }
+
+    public function test_tc_ausr_14_reset_password_menampilkan_kredensial_baru_satu_kali(): void
+    {
+        $admin = $this->admin();
+        $user = $this->operator('B', false, ['password' => 'password-lama']);
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $user), [
+                'name' => $user->name,
+                'username' => $user->username,
+                'role_id' => $user->role_id,
+                'group' => 'B',
+                'password' => 'password-baru',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('user_credentials', fn (array $credentials): bool => $credentials['username'] === $user->username
+                && ! array_key_exists('password', $credentials)
+                && Crypt::decryptString($credentials['password_ciphertext']) === 'password-baru');
+
+        $sessionPayload = session('user_credentials');
+        $this->assertIsArray($sessionPayload);
+        $this->assertStringNotContainsString('password-baru', serialize($sessionPayload));
+
+        $this->assertTrue(Hash::check('password-baru', $user->fresh()->password));
     }
 }

@@ -268,6 +268,7 @@
     .table-responsive-wrapper::-webkit-scrollbar-thumb:hover { background-color: var(--blue-main-40); }
 
     .table-responsive-wrapper table { min-width: 900px; width: 100%; }
+    .table-responsive-wrapper .employee-table { min-width: 1260px; }
 
     .thead { background-color: var(--blue-main-5); border-radius: 6px; }
 
@@ -318,6 +319,111 @@
     .thead th.col-status,   .tbody td.col-status   { min-width: 110px; }
     .thead th.col-qtyflag,  .tbody td.col-qtyflag  { min-width: 120px; }
     .thead th.col-aksi,     .tbody td.col-aksi     { min-width: 180px; gap: 8px; flex-wrap: nowrap; }
+
+    /* Employee table: hierarchy and scan-friendly metadata */
+    .employee-table .tbody td {
+        min-height: 56px;
+    }
+
+    .employee-table .col-name {
+        font-weight: 600;
+    }
+
+    .employee-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .employee-npk {
+        color: var(--black-secondary);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: .015em;
+        white-space: nowrap;
+    }
+
+    .employee-npk--empty {
+        color: var(--muted);
+        font-family: inherit;
+        font-weight: 400;
+        letter-spacing: 0;
+        opacity: .72;
+    }
+
+    .division-badge,
+    .position-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+    .division-badge i,
+    .position-badge i {
+        position: relative;
+        top: 1px;
+        flex: 0 0 auto;
+        font-size: 11px;
+    }
+
+    .division-badge.operasional {
+        color: var(--blue-main);
+        background-color: var(--blue-main-10);
+    }
+
+    .division-badge.pemeliharaan {
+        color: var(--orange-main);
+        background-color: var(--orange-main-10);
+    }
+
+    .division-badge.safety {
+        color: var(--success);
+        background-color: var(--success-10);
+    }
+
+    .division-badge.office {
+        color: var(--cyan-main);
+        background-color: var(--cyan-main-10);
+    }
+
+    .division-badge.keduanya {
+        color: var(--blue-main);
+        background: linear-gradient(135deg, var(--blue-main-10), var(--success-10));
+    }
+
+    .position-badge {
+        max-width: 100%;
+        color: var(--blue-main);
+        background-color: var(--blue-main-10);
+    }
+
+    .position-badge.position-badge--lead {
+        color: var(--orange-main);
+        background-color: var(--orange-main-10);
+    }
+
+    .position-badge span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .employee-muted-value {
+        color: var(--muted);
+        font-weight: 400;
+        opacity: .72;
+    }
+
+    .employee-table td.col-aksi form { margin: 0; }
 
     /* Action buttons */
     td.col-aksi .btn-act {
@@ -547,7 +653,7 @@
     <!-- PANE: Master Employees -->
     <div class="master-pane {{ $activePane === 'karyawan' ? 'active' : '' }}" data-pane="karyawan">
         <div class="table-responsive-wrapper">
-            <table>
+            <table class="employee-table">
                 <tr class="thead d-flex justify-content-between align-items-center">
                     <th class="col-no">No</th>
                     <th class="col-npk">NPK</th>
@@ -560,21 +666,86 @@
                     <th class="col-aksi">Aksi</th>
                 </tr>
                 @forelse ($employees as $e)
+                    @php
+                        $employeeName = $e['name'] ?? '-';
+                        $divisionLabel = $e['division'] ?? 'Operasional';
+                        $divisionKey = match (\Illuminate\Support\Str::lower($divisionLabel)) {
+                            'pemeliharaan' => 'pemeliharaan',
+                            'safety' => 'safety',
+                            'office' => 'office',
+                            'keduanya' => 'keduanya',
+                            default => 'operasional',
+                        };
+                        $divisionIcon = match ($divisionKey) {
+                            'pemeliharaan' => 'fi fi-rr-tools',
+                            'safety' => 'fi fi-rr-shield-check',
+                            'office' => 'fi fi-rr-briefcase',
+                            'keduanya' => 'fi fi-rr-users-alt',
+                            default => 'fi fi-rr-ship',
+                        };
+                        $positionLabel = $e['position'] ?? '-';
+                        $normalizedPosition = \Illuminate\Support\Str::lower($positionLabel);
+                        $positionIsLead = \Illuminate\Support\Str::contains(
+                            $normalizedPosition,
+                            ['kepala', 'karu', 'wakil', 'manager', 'kabag', 'kasi', 'koordinator', 'foreman']
+                        );
+                        $positionIcon = match (true) {
+                            \Illuminate\Support\Str::contains($normalizedPosition, 'driver') => 'fi fi-sr-truck-side',
+                            \Illuminate\Support\Str::contains($normalizedPosition, ['operator fl', 'forklift']) => 'fi fi-sr-forklift',
+                            \Illuminate\Support\Str::contains($normalizedPosition, ['operator wl', 'exca', 'excavator']) => 'fi fi-sr-excavator',
+                            \Illuminate\Support\Str::contains($normalizedPosition, 'checker') => 'fi fi-sr-search',
+                            $positionIsLead => 'fi fi-sr-user-helmet-safety',
+                            \Illuminate\Support\Str::contains($normalizedPosition, ['mekanik', 'pemeliharaan', 'peralatan']) => 'fi fi-sr-tools',
+                            \Illuminate\Support\Str::contains($normalizedPosition, ['rigger', 'helper', 'operator']) => 'fi fi-sr-user-hard-work',
+                            \Illuminate\Support\Str::contains($normalizedPosition, ['admin', 'staf', 'staff']) => 'fi fi-sr-briefcase',
+                            default => 'fi fi-sr-id-badge',
+                        };
+                        $groupLabel = $e['group'] ?? '-';
+                        $workTimeLabel = $e['work_time'] ?? '-';
+                        $shiftGroupLabel = $e['shift_group'] ?? '-';
+                        $hasShiftAssignment = filled($shiftGroupLabel) && $shiftGroupLabel !== '-';
+                    @endphp
                     <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $e['update_url'] ?? '' }}">
                         <td class="col-no">{{ $e['no'] }}</td>
-                        <td class="col-npk">{{ $e['npk'] }}</td>
-                        <td class="col-name">{{ $e['name'] }}</td>
-                        <td class="col-group">{{ $e['group'] }}</td>
-                        <td class="col-position">{{ $e['position'] }}</td>
-                        <td class="col-division">{{ $e['division'] ?? 'Operasional' }}</td>
-                        <td class="col-worktime">{{ $e['work_time'] ?? '-' }}</td>
-                        <td class="col-shiftgroup">{{ $e['shift_group'] ?? '-' }}</td>
+                        <td class="col-npk" data-value="{{ $e['npk'] }}">
+                            <span class="employee-npk {{ $e['npk'] === '-' ? 'employee-npk--empty' : '' }}">
+                                {{ $e['npk'] === '-' ? 'Belum ada' : $e['npk'] }}
+                            </span>
+                        </td>
+                        <td class="col-name" data-value="{{ $employeeName }}">
+                            <span class="employee-name" title="{{ $employeeName }}">{{ $employeeName }}</span>
+                        </td>
+                        <td class="col-group" data-value="{{ $groupLabel }}">{{ $groupLabel }}</td>
+                        <td class="col-position" data-value="{{ $positionLabel }}">
+                            @if ($positionLabel !== '-')
+                                <span class="position-badge {{ $positionIsLead ? 'position-badge--lead' : '' }}" title="{{ $positionLabel }}">
+                                    <i class="{{ $positionIcon }}" aria-hidden="true"></i>
+                                    <span>{{ $positionLabel }}</span>
+                                </span>
+                            @else
+                                <span class="employee-muted-value">Belum diisi</span>
+                            @endif
+                        </td>
+                        <td class="col-division" data-value="{{ $divisionLabel }}">
+                            <span class="division-badge {{ $divisionKey }}" title="Divisi {{ $divisionLabel }}">
+                                <i class="{{ $divisionIcon }}" aria-hidden="true"></i>
+                                <span>{{ $divisionLabel }}</span>
+                            </span>
+                        </td>
+                        <td class="col-worktime" data-value="{{ $workTimeLabel }}">{{ $workTimeLabel }}</td>
+                        <td class="col-shiftgroup" data-value="{{ $shiftGroupLabel }}">
+                            @if ($hasShiftAssignment)
+                                <span>{{ $shiftGroupLabel }}</span>
+                            @else
+                                <span class="employee-muted-value">Tidak ada</span>
+                            @endif
+                        </td>
                         <td class="col-aksi">
-                            <button type="button" class="btn-act edit js-master-edit"><i class="fi fi-rr-pencil"></i> Edit</button>
+                            <button type="button" class="btn-act edit js-master-edit" aria-label="Edit {{ $employeeName }}" title="Edit {{ $employeeName }}"><i class="fi fi-rr-pencil"></i> Edit</button>
                             <form method="POST" action="{{ $e['destroy_url'] ?? '#' }}">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn-act delete js-master-delete"><i class="fi fi-rr-trash"></i> Hapus</button>
+                                <button type="submit" class="btn-act delete js-master-delete" aria-label="Hapus {{ $employeeName }}" title="Hapus {{ $employeeName }}"><i class="fi fi-rr-trash"></i> Hapus</button>
                             </form>
                         </td>
                     </tr>
@@ -1092,19 +1263,20 @@
 
         function readMasterRow(row, pane) {
             const text = selector => row.querySelector(selector)?.textContent.trim() || '';
+            const value = selector => row.querySelector(selector)?.dataset.value ?? text(selector);
             if (pane === 'karyawan') {
-                const group = text('.col-group');
+                const group = value('.col-group');
 
-                const shiftGroup = text('.col-shiftgroup');
+                const shiftGroup = value('.col-shiftgroup');
 
                 return {
-                    npk: text('.col-npk') === '-' ? '' : text('.col-npk'),
-                    name: text('.col-name'),
+                    npk: value('.col-npk') === '-' ? '' : value('.col-npk'),
+                    name: value('.col-name'),
                     group: group === 'Kantor' || group === '-' ? '-' : group.replace(/^Regu\s+/i, ''),
                     shift_group: shiftGroup === '' || shiftGroup === '-' ? '-' : shiftGroup.replace(/^Regu\s+/i, ''),
-                    position: text('.col-position') === '-' ? '' : text('.col-position'),
-                    division: text('.col-division') || 'Operasional',
-                    work_time: text('.col-worktime') === '-' ? 'Non Shift' : text('.col-worktime'),
+                    position: value('.col-position') === '-' ? '' : value('.col-position'),
+                    division: value('.col-division') || 'Operasional',
+                    work_time: value('.col-worktime') === '-' ? 'Non Shift' : value('.col-worktime'),
                 };
             }
             if (pane === 'unit') {
