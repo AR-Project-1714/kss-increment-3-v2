@@ -2,27 +2,55 @@
 
 @push('styles')
     <style>
-        /* ---- Toolbar pencarian ---- */
-        .help-toolbar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+        /* ---- Header & pencarian ---- */
+        .help-page-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+            align-items: start;
+            gap: 24px;
         }
 
-        .help-search { position: relative; flex: 1 1 320px; max-width: 540px; }
+        .help-page-header__heading {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .help-toolbar {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 5px;
+            width: 100%;
+            min-width: 0;
+            margin-left: auto;
+        }
+
+        .help-search {
+            position: relative;
+            width: 100%;
+            min-width: 0;
+        }
 
         .help-searchbox {
             display: flex;
             align-items: center;
             gap: 8px;
             padding: 9px 16px;
-            border: 1px solid var(--smooth-border);
+            border: 1px solid rgba(148, 163, 184, 0.32);
             border-radius: 50px;
-            background-color: var(--main-bg);
+            background-color: var(--white-pure);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .help-searchbox i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
+        .help-searchbox:focus-within {
+            border-color: var(--blue-main-40);
+            box-shadow: 0 0 0 3px var(--blue-main-10), 0 5px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .help-searchbox i { color: #7890ad; font-size: 13px; position: relative; top: 1px; }
 
         .help-searchbox input {
             border: none;
@@ -30,12 +58,12 @@
             outline: none;
             font-family: inherit;
             font-size: 12px;
-            color: var(--black);
+            color: #0f172a;
             width: 100%;
             padding-right: 22px;
         }
 
-        .help-searchbox input::placeholder { color: var(--muted); }
+        .help-searchbox input::placeholder { color: #8ca0b8; }
 
         .help-search__clear {
             position: absolute;
@@ -56,8 +84,6 @@
         }
 
         .help-search__clear i { position: relative; top: 1px; }
-        .help-toolbar__hint { font-size: 11px; color: var(--muted); }
-
         /* ---- Tab navigasi (gaya report-tab project, sticky) ---- */
         .help-tabs {
             position: sticky;
@@ -92,8 +118,8 @@
             position: relative;
             z-index: 1;
             display: flex;
-            min-width: 130px;
-            flex: 1 0 auto;
+            min-width: 112px;
+            flex: 1 1 112px;
             justify-content: center;
             align-items: center;
             gap: 8px;
@@ -360,6 +386,11 @@
         .is-hidden { display: none !important; }
 
         @media (max-width: 900px) {
+            .help-page-header {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
             .help-grid,
             .help-flow,
             .help-flow.cols-3 {
@@ -381,6 +412,7 @@
         @php
             $nav = [
                 ['id' => 'ringkasan', 'label' => 'Ringkasan',      'icon' => 'fi fi-rr-dashboard'],
+                ['id' => 'analitik',   'label' => 'Analitik Operasi','icon' => 'fi fi-rr-chart-histogram'],
                 ['id' => 'alur',      'label' => 'Alur Laporan',   'icon' => 'fi fi-rr-route'],
                 ['id' => 'ttd',       'label' => 'Tanda Tangan',   'icon' => 'fi fi-rr-file-signature'],
                 ['id' => 'status',    'label' => 'Status Laporan', 'icon' => 'fi fi-rr-time-check'],
@@ -389,25 +421,22 @@
             ];
         @endphp
 
-        <div class="page-header">
-            <span class="page-title">Pusat Bantuan</span>
-            <span class="page-subtitle">Panduan menggunakan akun manajer: meninjau laporan masuk, menandatangani, dan mengelola arsip dari tiga divisi.</span>
-        </div>
+        <div class="page-header help-page-header">
+            <div class="help-page-header__heading">
+                <span class="page-title">Pusat Bantuan</span>
+                <span class="page-subtitle">Panduan menggunakan akun manajer: meninjau laporan masuk, membaca analitik operasi, menandatangani, dan mengelola arsip dari tiga divisi.</span>
+            </div>
 
-        {{-- Pencarian --}}
-        <div class="section-card">
-            <div class="section-card__body">
-                <div class="help-toolbar">
-                    <div class="help-search">
-                        <div class="help-searchbox">
-                            <i class="fi fi-rr-search"></i>
-                            <input type="text" id="helpSearch" placeholder="Cari bantuan, mis. tanda tangan, status, filter arsip" autocomplete="off">
-                        </div>
-                        <button type="button" class="help-search__clear is-hidden" id="helpSearchClear" aria-label="Bersihkan pencarian">
-                            <i class="fi fi-rr-cross-small"></i>
-                        </button>
+            {{-- Pencarian ditempatkan di ujung kanan header agar selalu mudah dijangkau. --}}
+            <div class="help-toolbar" data-help-search-toolbar>
+                <div class="help-search">
+                    <div class="help-searchbox">
+                        <i class="fi fi-rr-search"></i>
+                        <input type="text" id="helpSearch" placeholder="Cari bantuan, mis. kinerja, rincian, tanda tangan" autocomplete="off">
                     </div>
-                    <span class="help-toolbar__hint">Mengetik akan menyaring topik di bawah secara langsung.</span>
+                    <button type="button" class="help-search__clear is-hidden" id="helpSearchClear" aria-label="Bersihkan pencarian">
+                        <i class="fi fi-rr-cross-small"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -426,7 +455,7 @@
         <div class="help-empty is-hidden" id="helpEmpty">
             <div class="help-empty__icon"><i class="fi fi-rr-search"></i></div>
             <div class="help-empty__title">Topik tidak ditemukan</div>
-            <div class="help-empty__text">Coba kata kunci lain, mis. "arsip", "diterima", atau "unduh".</div>
+            <div class="help-empty__text">Coba kata kunci lain, mis. "kinerja", "rincian", "arsip", atau "unduh".</div>
         </div>
 
         {{-- RINGKASAN --}}
@@ -465,6 +494,71 @@
                             <span class="help-card__text">Akun manajer hanya diarahkan ke halaman manajer. Halaman petugas operasional, pemeliharaan, dan safety tidak dapat diakses oleh manajer.</span>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ANALITIK OPERASI --}}
+        <div class="section-card help-section" id="analitik">
+            <div class="section-card__header d-flex flex-column align-items-start">
+                <span class="section-card__title">Menu Analitik Operasi</span>
+                <span class="section-card__subtitle">Kategori ini membantu manajer membaca capaian Operasional dari tingkat ringkasan hingga rincian setiap kegiatan.</span>
+            </div>
+            <div class="section-card__body">
+                <div class="help-grid">
+                    <div class="help-card" data-help-item>
+                        <span class="help-card__icon"><i class="fi fi-rr-chart-histogram"></i></span>
+                        <div class="help-card__content">
+                            <span class="help-card__title">Kinerja Operasi</span>
+                            <ul class="help-list">
+                                <li>Gunakan menu ini untuk membaca gambaran menyeluruh: total tonase, jumlah laporan, rata-rata tonase per shift, dan rasio kerusakan.</li>
+                                <li>Grafik menampilkan tren tonase, komposisi kegiatan, tonase per shift, perbandingan regu, beban kerja, dan peringkat lembur.</li>
+                                <li>Pilih menu ini saat ingin membandingkan hasil keseluruhan tanpa membuka setiap kegiatan satu per satu.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="help-card" data-help-item>
+                        <span class="help-card__icon green"><i class="fi fi-rr-boxes"></i></span>
+                        <div class="help-card__content">
+                            <span class="help-card__title">Rincian Kegiatan</span>
+                            <ul class="help-list">
+                                <li>Pilih tab kegiatan untuk membedah pemuatan pupuk kantong, urea curah, bongkar bahan baku, bongkar container, muat container, atau trucking.</li>
+                                <li>Setiap tab memuat rekap bulan berjalan, periode sebelumnya, dan akumulasi; dilengkapi peringkat regu, sebaran shift, beban kerja, lembur, serta daftar kegiatan.</li>
+                                <li>Pilih menu ini saat ingin mengetahui kegiatan atau regu yang membentuk angka pada Kinerja Operasi.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="help-card" data-help-item>
+                        <span class="help-card__icon orange"><i class="fi fi-rr-settings-sliders"></i></span>
+                        <div class="help-card__content">
+                            <span class="help-card__title">Filter Data Bersama</span>
+                            <ul class="help-list">
+                                <li>Tekan tombol Filter di pojok kanan atas halaman analitik untuk memilih periode cepat, rentang tanggal, regu, dan shift.</li>
+                                <li>Filter aktif tetap dibawa saat berpindah antara Kinerja Operasi dan Rincian Kegiatan melalui sidebar.</li>
+                                <li>Gunakan Reset untuk kembali ke periode bawaan Januari sampai hari ini.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="help-card" data-help-item>
+                        <span class="help-card__icon"><i class="fi fi-rr-cloud-upload-alt"></i></span>
+                        <div class="help-card__content">
+                            <span class="help-card__title">Satuan dan Ekspor</span>
+                            <ul class="help-list">
+                                <li>Kegiatan bongkar dan muat container dihitung dalam Teus, sehingga tidak digabungkan ke total kegiatan bersatuan Ton.</li>
+                                <li>Di Rincian Kegiatan, tombol Ekspor Excel pada kepala halaman mengunduh gambaran besar lalu satu sheet per kegiatan, lengkap dengan chart dan tabel rinci.</li>
+                                <li>Periode, regu, dan shift yang sedang dipilih selalu ikut diterapkan pada file ekspor.</li>
+                                <li>Halaman analitik bersifat baca-saja; koreksi angka dilakukan pada laporan Operasional sumbernya.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-note" data-help-item>
+                    <i class="fi fi-rr-info"></i>
+                    <span><strong>Alur membaca yang disarankan:</strong> mulai dari Kinerja Operasi untuk melihat perubahan dan perbandingan, lalu buka Rincian Kegiatan untuk menelusuri penyebab angkanya.</span>
                 </div>
             </div>
         </div>

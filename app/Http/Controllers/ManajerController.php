@@ -15,6 +15,7 @@ use App\Models\DailyReport;
 use App\Models\MaintenanceReport;
 use App\Models\Role;
 use App\Models\SafetyReport;
+use App\Services\ActivityDetailExportService;
 use App\Services\ArchiveMetricsService;
 use App\Services\OperationalPerformanceService;
 use App\Services\PerformanceExportService;
@@ -33,6 +34,24 @@ class ManajerController extends Controller
     use ResolvesReportMeta;
     use ResolvesSafetyMeta;
     use SearchesReports;
+
+    /**
+     * Preset periode pada toolbar Kinerja Operasi & Rincian Kegiatan.
+     * Urutannya menentukan urutan tombol.
+     */
+    private const PERIOD_PRESETS = [
+        'tahun-berjalan' => 'Januari–Sekarang',
+        'tahun-lalu' => 'Tahun Lalu',
+        'bulan-ini' => 'Bulan Ini',
+        'bulan-lalu' => 'Bulan Lalu',
+        '3-bulan' => '3 Bulan',
+    ];
+
+    /** Kinerja Operasi dibuka pada capaian tahun berjalan sejak Januari. */
+    private const PERFORMANCE_DEFAULT_PRESET = 'tahun-berjalan';
+
+    /** Rincian Kegiatan juga dibuka pada capaian tahun berjalan sejak Januari. */
+    private const ACTIVITY_DEFAULT_PRESET = 'tahun-berjalan';
 
     public function index(Request $request)
     {
@@ -229,6 +248,9 @@ class ManajerController extends Controller
     /**
      * Halaman analisis performa divisi operasi. Semua angkanya diturunkan dari
      * laporan harian yang sudah ada lewat OperationalPerformanceService.
+     *
+     * Periode bawaannya 1 Januari sampai hari berjalan: halaman ini dipakai
+     * untuk membaca capaian tahun berjalan, bukan sekadar bulan terakhir.
      */
     public function performa(Request $request, OperationalPerformanceService $performance)
     {
@@ -242,7 +264,7 @@ class ManajerController extends Controller
             'selectedShift' => $selectedShift,
             'start' => $start,
             'end' => $end,
-        ] = $this->performanceFiltersFromRequest($request);
+        ] = $this->performanceFiltersFromRequest($request, self::PERFORMANCE_DEFAULT_PRESET);
 
         $report = Cache::remember(
             $this->performanceCacheKey($filters),
@@ -263,7 +285,7 @@ class ManajerController extends Controller
             'selectedGroup' => $selectedGroup,
             'selectedShift' => $selectedShift,
             'filterOptions' => $performance->filterOptions(),
-            'hasActiveFilter' => $preset !== 'bulan-ini' || $selectedGroup !== 'all' || $selectedShift !== 'all',
+            'hasActiveFilter' => $preset !== self::PERFORMANCE_DEFAULT_PRESET || $selectedGroup !== 'all' || $selectedShift !== 'all',
         ]);
     }
 
@@ -273,7 +295,8 @@ class ManajerController extends Controller
      * keseluruhan, halaman ini membedah satu jenis kegiatan.
      *
      * Filter periodenya sengaja identik dan ikut terbawa lewat query string,
-     * sehingga berpindah menu tidak berarti menyaring ulang dari awal.
+     * sehingga berpindah menu tidak berarti menyaring ulang dari awal. Kedua
+     * menu dibuka pada 1 Januari sampai hari berjalan.
      */
     public function kegiatan(Request $request, OperationalPerformanceService $performance)
     {
@@ -287,7 +310,7 @@ class ManajerController extends Controller
             'selectedShift' => $selectedShift,
             'start' => $start,
             'end' => $end,
-        ] = $this->performanceFiltersFromRequest($request);
+        ] = $this->performanceFiltersFromRequest($request, self::ACTIVITY_DEFAULT_PRESET);
 
         // Kunci cache-nya sama dengan halaman Performa: keduanya memakai
         // laporan agregat yang sama, jadi cukup dihitung sekali per filter.
@@ -297,9 +320,17 @@ class ManajerController extends Controller
             fn (): array => $performance->performanceReport($filters)
         );
 
+        // Daftar tab diturunkan dari katalog, bukan disalin ulang di view.
+        // Menambah atau menyembunyikan kegiatan cukup lewat penandanya.
+        $activities = [];
+
+        foreach ($performance->activitiesFor('activityDetail') as $key => $activity) {
+            $activities[] = $activity + ['key' => $key];
+        }
+
         return view('manajer.kegiatan', [
             'report' => $report,
-            'activityCards' => $report['activityCards'] ?? [],
+            'activities' => $activities,
             'presets' => $presets,
             'selectedPreset' => $preset,
             'selectedStart' => $start->toDateString(),
@@ -307,7 +338,7 @@ class ManajerController extends Controller
             'selectedGroup' => $selectedGroup,
             'selectedShift' => $selectedShift,
             'filterOptions' => $performance->filterOptions(),
-            'hasActiveFilter' => $preset !== 'bulan-ini' || $selectedGroup !== 'all' || $selectedShift !== 'all',
+            'hasActiveFilter' => $preset !== self::ACTIVITY_DEFAULT_PRESET || $selectedGroup !== 'all' || $selectedShift !== 'all',
         ]);
     }
 
@@ -323,11 +354,14 @@ class ManajerController extends Controller
     {
         $this->authorizeManagementAccess($request);
 
-        if (! array_key_exists($key, $performance->activityCatalog())) {
+        // Kegiatan yang tidak ditandai tampil pada menu ini — Pemuatan Pupuk
+        // Kantong — ditolak juga ketika endpoint-nya dibuka langsung, bukan
+        // hanya disembunyikan dari tab.
+        if (! $performance->activityVisibleOn($key, 'activityDetail')) {
             abort(404);
         }
 
-        ['filters' => $filters] = $this->performanceFiltersFromRequest($request);
+        ['filters' => $filters] = $this->performanceFiltersFromRequest($request, self::ACTIVITY_DEFAULT_PRESET);
 
         $detail = Cache::remember(
             $this->performanceCacheKey($filters, 'kegiatan.'.$key),
@@ -336,6 +370,85 @@ class ManajerController extends Controller
         );
 
         return view('manajer.partials.activity-detail', ['detail' => $detail]);
+    }
+
+    /**
+     * Workbook khusus menu Rincian Kegiatan: sheet pertama merangkum seluruh
+     * kegiatan, lalu setiap kegiatan mendapat sheet sendiri beserta tabel
+     * operasional dan dua chart yang dapat dianalisis langsung di Excel.
+     */
+    public function kegiatanExport(
+        Request $request,
+        OperationalPerformanceService $performance,
+        ActivityDetailExportService $exporter
+    ) {
+        $this->authorizeManagementAccess($request);
+
+        [
+            'filters' => $filters,
+            'selectedGroup' => $selectedGroup,
+            'selectedShift' => $selectedShift,
+        ] = $this->performanceFiltersFromRequest($request, self::ACTIVITY_DEFAULT_PRESET);
+
+        // Workbook harus memakai satu pembacaan aktual: overview tidak boleh
+        // berasal dari cache lama sementara sheet rinci baru dihitung ulang.
+        $report = $performance->performanceReport($filters);
+
+        $details = [];
+        foreach (array_keys($performance->activitiesFor('activityDetail')) as $key) {
+            $details[$key] = $performance->activityDetailForExport($key, $filters);
+        }
+
+        $containerTeus = 0.0;
+        foreach ($report['activityCards'] ?? [] as $card) {
+            if (($card['unit'] ?? null) === 'Teus') {
+                $containerTeus += (float) ($card['value'] ?? 0);
+            }
+        }
+
+        $damage = $report['summary']['damageRatio'] ?? [];
+        $damageText = ($damage['hasBase'] ?? false)
+            ? number_format((float) ($damage['value'] ?? 0), 2, ',', '.').'%'
+            : 'belum tersedia';
+
+        $contextLines = [
+            'Periode: '.$report['periodLabel'].' · pembanding '.$report['comparisonLabel'],
+            'Filter: Regu '.($selectedGroup === 'all' ? 'Semua' : strtoupper($selectedGroup))
+                .' · Shift '.($selectedShift === 'all' ? 'Semua' : ucfirst($selectedShift)),
+            'Sorotan: '.number_format((float) ($report['summary']['tonnage']['value'] ?? 0), 1, ',', '.')
+                .' Ton · '.number_format($containerTeus, 0, ',', '.').' Teus · '
+                .(int) ($report['reportCount'] ?? 0).' laporan · rasio kerusakan '.$damageText,
+            'Container dicatat dalam Teus dan tidak dijumlahkan ke total Ton. '
+                .'Tren pada sheet kegiatan selalu memakai enam bulan kalender terakhir.',
+            'Diekspor: '.now()->locale('id')->translatedFormat('d F Y, H:i').' oleh '.($request->user()->name ?? '-'),
+        ];
+
+        $spreadsheet = $exporter->build($report, $details, $contextLines);
+
+        $auditData = [
+            'user_id' => $request->user()?->id,
+            'type' => 'export',
+            'description' => 'Mengekspor rincian kegiatan operasional ('.$report['periodLabel'].')',
+            'ip_address' => $request->ip(),
+        ];
+
+        $fileName = 'Rincian-Kegiatan-Operasional_'.now()->format('Y-m-d_Hi').'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet, $auditData): void {
+            try {
+                $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+                $writer->setIncludeCharts(true);
+                $writer->save('php://output');
+
+                // Catat sesudah serialisasi berhasil agar kegagalan writer
+                // tidak terlihat sebagai ekspor sukses di audit trail.
+                AdminActivityLog::create($auditData);
+            } finally {
+                $spreadsheet->disconnectWorksheets();
+            }
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     /**
@@ -354,7 +467,7 @@ class ManajerController extends Controller
             'filters' => $filters,
             'selectedGroup' => $selectedGroup,
             'selectedShift' => $selectedShift,
-        ] = $this->performanceFiltersFromRequest($request);
+        ] = $this->performanceFiltersFromRequest($request, self::PERFORMANCE_DEFAULT_PRESET);
 
         $report = Cache::remember(
             $this->performanceCacheKey($filters),
@@ -392,19 +505,18 @@ class ManajerController extends Controller
      * Dipakai halaman performa maupun ekspornya — satu sumber supaya keduanya
      * tidak pernah membaca filter dengan cara berbeda.
      *
+     * Kedua menu membuka tahun berjalan sejak Januari. Parameter bawaan tetap
+     * diterima agar satu resolver ini juga aman dipakai konteks lain.
+     *
      * @return array{presets: array<string, string>, preset: string, filters: array<string, mixed>, selectedGroup: string, selectedShift: string, start: Carbon, end: Carbon}
      */
-    private function performanceFiltersFromRequest(Request $request): array
+    private function performanceFiltersFromRequest(Request $request, string $defaultPreset = self::PERFORMANCE_DEFAULT_PRESET): array
     {
-        $presets = [
-            'bulan-ini' => 'Bulan Ini',
-            'bulan-lalu' => 'Bulan Lalu',
-            '3-bulan' => '3 Bulan',
-        ];
+        $presets = self::PERIOD_PRESETS;
 
         $selectedGroup = (string) $request->input('regu', 'all');
         $selectedShift = (string) $request->input('shift', 'all');
-        [$start, $end, $preset] = $this->resolvePerformancePeriod($request, array_keys($presets));
+        [$start, $end, $preset] = $this->resolvePerformancePeriod($request, array_keys($presets), $defaultPreset);
 
         return [
             'presets' => $presets,
@@ -429,7 +541,7 @@ class ManajerController extends Controller
      * @param  array<int, string>  $allowedPresets
      * @return array{0: Carbon, 1: Carbon, 2: string}
      */
-    private function resolvePerformancePeriod(Request $request, array $allowedPresets): array
+    private function resolvePerformancePeriod(Request $request, array $allowedPresets, string $defaultPreset): array
     {
         $rawStart = $request->input('dari');
         $rawEnd = $request->input('sampai');
@@ -445,17 +557,23 @@ class ManajerController extends Controller
 
                 return [$start, $end, 'custom'];
             } catch (Throwable) {
-                // Tanggal tidak terbaca — jatuh kembali ke preset bulan berjalan.
+                // Tanggal tidak terbaca — jatuh kembali ke preset bawaan menu.
             }
         }
 
-        $preset = (string) $request->input('periode', 'bulan-ini');
+        $preset = (string) $request->input('periode', $defaultPreset);
 
         if (! in_array($preset, $allowedPresets, true)) {
-            $preset = 'bulan-ini';
+            $preset = $defaultPreset;
         }
 
+        $performance = app(OperationalPerformanceService::class);
+
         return match ($preset) {
+            // Tahun berjalan: 1 Januari sampai hari ini.
+            'tahun-berjalan' => [...$performance->yearToDateRange(), $preset],
+            // Tahun sebelumnya utuh, 1 Januari sampai 31 Desember.
+            'tahun-lalu' => [...$performance->yearToDateRange((int) Carbon::today()->year - 1), $preset],
             'bulan-lalu' => [
                 Carbon::today()->subMonthNoOverflow()->startOfMonth(),
                 Carbon::today()->subMonthNoOverflow()->endOfMonth()->startOfDay(),
@@ -466,7 +584,7 @@ class ManajerController extends Controller
                 Carbon::today(),
                 $preset,
             ],
-            default => [Carbon::today()->startOfMonth(), Carbon::today(), 'bulan-ini'],
+            default => [...$performance->currentMonthRange(), 'bulan-ini'],
         };
     }
 

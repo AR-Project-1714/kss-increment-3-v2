@@ -127,27 +127,30 @@ Route::middleware('auth')->group(function () {
         Route::get('/manajer/performa', [ManajerController::class, 'performa'])->name('manajer.performa');
         Route::get('/manajer/performa/export', [ManajerController::class, 'performaExport'])->name('manajer.performa.export');
         // Rincian per jenis kegiatan berdiri sebagai menu sendiri; panelnya
-        // tetap diambil terpisah, jadi rutenya dua: halaman dan potongan panel.
+        // diambil terpisah dan ekspornya memakai workbook analisis khusus.
         Route::get('/manajer/kegiatan', [ManajerController::class, 'kegiatan'])->name('manajer.kegiatan');
+        Route::get('/manajer/kegiatan/export', [ManajerController::class, 'kegiatanExport'])->name('manajer.kegiatan.export');
         Route::get('/manajer/kegiatan/panel/{key}', [ManajerController::class, 'kegiatanPanel'])->name('manajer.kegiatan.panel');
         Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
         Route::get('/manajer/archive/export', [ManajerController::class, 'archiveExport'])->name('manajer.archive.export');
         Route::get('/manajer/archive/suggestions', [ManajerController::class, 'archiveSuggestions'])->name('manajer.archive.suggestions');
         Route::get('/manajer/bantuan', [ManajerController::class, 'bantuan'])->name('manajer.bantuan');
         Route::get('/manajer/reports/{report}', [ManajerController::class, 'show'])->name('manajer.reports.show');
-        Route::post('/manajer/reports/{report}/approve', [ManajerController::class, 'approve'])->name('manajer.reports.approve');
+        // `redirect-json`: overlay progres PDF submit lewat fetch, jadi balasannya
+        // perlu berupa URL tujuan — bukan redirect yang langsung diikuti fetch.
+        Route::post('/manajer/reports/{report}/approve', [ManajerController::class, 'approve'])->middleware('redirect-json')->name('manajer.reports.approve');
         Route::get('/manajer/reports/{report}/download', [ManajerController::class, 'download'])->name('manajer.reports.download');
         Route::delete('/manajer/reports/{report}', [ManajerController::class, 'destroy'])->name('manajer.reports.destroy');
 
         // Persetujuan laporan pemeliharaan (alur submitted -> approved).
         Route::get('/manajer/pemeliharaan/{report}', [ManajerController::class, 'showMaintenance'])->name('manajer.pemeliharaan.show');
-        Route::post('/manajer/pemeliharaan/{report}/approve', [ManajerController::class, 'approveMaintenance'])->name('manajer.pemeliharaan.approve');
+        Route::post('/manajer/pemeliharaan/{report}/approve', [ManajerController::class, 'approveMaintenance'])->middleware('redirect-json')->name('manajer.pemeliharaan.approve');
         Route::get('/manajer/pemeliharaan/{report}/download', [ManajerController::class, 'downloadMaintenance'])->name('manajer.pemeliharaan.download');
         Route::delete('/manajer/pemeliharaan/{report}', [ManajerController::class, 'destroyMaintenance'])->name('manajer.pemeliharaan.destroy');
 
         // Persetujuan laporan K3/Safety (alur submitted -> approved).
         Route::get('/manajer/safety/{report}', [ManajerController::class, 'showSafety'])->name('manajer.safety.show');
-        Route::post('/manajer/safety/{report}/approve', [ManajerController::class, 'approveSafety'])->name('manajer.safety.approve');
+        Route::post('/manajer/safety/{report}/approve', [ManajerController::class, 'approveSafety'])->middleware('redirect-json')->name('manajer.safety.approve');
         Route::get('/manajer/safety/{report}/download', [ManajerController::class, 'downloadSafety'])->name('manajer.safety.download');
         Route::delete('/manajer/safety/{report}', [ManajerController::class, 'destroySafety'])->name('manajer.safety.destroy');
     });

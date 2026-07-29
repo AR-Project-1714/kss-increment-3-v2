@@ -2,9 +2,10 @@
  * Interaksi grafik, dipakai bersama dashboard manajer dan admin.
  *
  * Seluruh grafik sudah digambar sebagai SVG oleh Blade, jadi berkas ini hanya
- * mengurus dua hal: tooltip saat kursor berada di atas data, dan pergantian
- * bentuk grafik tren antara garis dan batang. Tidak ada penggambaran ulang —
- * kedua bentuk sudah ada di DOM sejak awal dan hanya ditukar lewat kelas.
+ * mengurus tiga hal: tooltip saat kursor berada di atas data, pergantian bentuk
+ * grafik tren antara garis dan batang, dan pembuka daftar papan peringkat.
+ * Tidak ada penggambaran ulang maupun permintaan ke server — seluruh isinya
+ * sudah ada di DOM sejak awal dan hanya ditukar lewat kelas.
  *
  * Kontrak markup:
  *   [data-chart-tip]        elemen yang memicu tooltip
@@ -13,6 +14,9 @@
  *   [data-chart-stack]      pembungkus grafik yang punya dua bentuk
  *   [data-chart-view]       "line" atau "bar" pada pembungkus tersebut
  *   [data-chart-switch]     tombol pengubah bentuk, nilainya "line"/"bar"
+ *   [data-leader-toggle]    tombol pembuka daftar penuh papan peringkat;
+ *                           aria-controls menunjuk daftarnya, data-label-more
+ *                           dan data-label-less berisi teks kedua keadaan
  */
 (function () {
     'use strict';
@@ -193,22 +197,85 @@
     }
 
     // ============================================================
-    // Panel kegiatan (halaman Performa Operasional)
+    // Panel kegiatan (halaman Rincian Kegiatan)
     //
-    // Kelima panel tidak ikut dirender bersama halaman: isinya diambil lewat
-    // permintaan terpisah saat tabnya dibuka, dan panel pertama baru diambil
-    // ketika stripnya benar-benar masuk layar. Hasil yang sudah diambil
-    // disimpan di memori supaya berpindah tab tidak memanggil server lagi.
+    // Panel tidak ikut dirender bersama halaman: isinya diambil lewat permintaan
+    // terpisah saat tabnya dibuka, dan panel pertama baru diambil setelah
+    // halaman selesai digambar. Hasil yang sudah diambil disimpan di memori
+    // supaya berpindah tab tidak memanggil server lagi.
+    //
+    // Daftar tabnya datang dari halaman, yang menurunkannya dari katalog
+    // kegiatan — jadi kegiatan yang ditandai tidak tampil di menu ini (Pemuatan
+    // Pupuk Kantong) tidak pernah diminta dari sini.
     // ============================================================
 
     function initActivityPanel() {
         var panel = document.getElementById('activity-panel');
         var tabs = Array.prototype.slice.call(document.querySelectorAll('[data-activity-tab]'));
+        var tabsWrap = document.getElementById('activityTabs');
+        var indicator = document.getElementById('activityTabIndicator');
 
         if (!panel || tabs.length === 0) return;
 
         var cache = {};
-        var pending = null;
+        // Menunjukkan tab yang saat ini dipilih, bukan sekadar request terakhir.
+        // Ini mencegah respons lama menimpa panel tab cached yang baru dipilih.
+        var selectedKey = null;
+        var indicatorFrame = null;
+
+        function moveIndicator(tab) {
+            if (!indicator || !tab) return;
+
+            var isInitialPlacement = tabsWrap && !tabsWrap.classList.contains('is-indicator-ready');
+
+            // Posisi pertama tidak dianimasikan dari lebar nol. Tanpa ini,
+            // background fallback dilepas ketika indikator masih setengah jalan
+            // sehingga tab aktif tampak terbelah sesaat.
+            if (isInitialPlacement) indicator.style.transition = 'none';
+            indicator.style.width = tab.offsetWidth + 'px';
+            indicator.style.transform = 'translateX(' + tab.offsetLeft + 'px)';
+
+            if (tabsWrap) {
+                tabsWrap.classList.add('is-indicator-ready');
+
+                if (isInitialPlacement) {
+                    window.requestAnimationFrame(function () {
+                        indicator.style.transition = '';
+                    });
+                }
+            }
+        }
+
+        function keepTabVisible(tab) {
+            if (!tabsWrap || !tab) return;
+
+            var left = tab.offsetLeft;
+            var right = left + tab.offsetWidth;
+
+            if (left < tabsWrap.scrollLeft) {
+                tabsWrap.scrollTo({ left: left - 16, behavior: 'smooth' });
+            } else if (right > tabsWrap.scrollLeft + tabsWrap.clientWidth) {
+                tabsWrap.scrollTo({
+                    left: right - tabsWrap.clientWidth + 16,
+                    behavior: 'smooth',
+                });
+            }
+        }
+
+        function activeTab() {
+            return tabs.filter(function (tab) {
+                return tab.classList.contains('is-active');
+            })[0] || tabs[0];
+        }
+
+        function scheduleIndicatorSync() {
+            if (indicatorFrame !== null) window.cancelAnimationFrame(indicatorFrame);
+
+            indicatorFrame = window.requestAnimationFrame(function () {
+                indicatorFrame = null;
+                moveIndicator(activeTab());
+            });
+        }
 
         function markActive(active) {
             tabs.forEach(function (tab) {
@@ -216,6 +283,9 @@
                 tab.classList.toggle('is-active', isActive);
                 tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
             });
+
+            moveIndicator(active);
+            keepTabVisible(active);
         }
 
         function showSkeleton() {
@@ -229,6 +299,7 @@
         function load(tab) {
             var key = tab.getAttribute('data-activity-tab');
 
+            selectedKey = key;
             markActive(tab);
             hideTooltip();
 
@@ -238,7 +309,6 @@
             }
 
             showSkeleton();
-            pending = key;
 
             fetch(tab.getAttribute('data-activity-url'), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -253,10 +323,10 @@
 
                     // Pengguna bisa sudah pindah tab sebelum jawabannya tiba —
                     // jangan timpa panel dengan isi kegiatan yang sudah lewat.
-                    if (pending === key) panel.innerHTML = html;
+                    if (selectedKey === key) panel.innerHTML = html;
                 })
                 .catch(function () {
-                    if (pending !== key) return;
+                    if (selectedKey !== key) return;
 
                     panel.innerHTML =
                         '<div class="perf-empty">Rincian kegiatan gagal dimuat. ' +
@@ -270,6 +340,24 @@
             });
         });
 
+        markActive(tabs[0]);
+        window.addEventListener('resize', scheduleIndicatorSync);
+
+        // Lebar tab dapat berubah tanpa resize window: font selesai dimuat,
+        // scrollbar panel muncul, atau sidebar bertransisi. Sinkronkan ulang
+        // indikator terhadap ukuran tombol yang benar-benar terlihat.
+        if (typeof window.ResizeObserver === 'function' && tabsWrap) {
+            var tabsResizeObserver = new window.ResizeObserver(scheduleIndicatorSync);
+            tabsResizeObserver.observe(tabsWrap);
+            tabs.forEach(function (tab) {
+                tabsResizeObserver.observe(tab);
+            });
+        }
+
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(scheduleIndicatorSync);
+        }
+
         // Panel pertama diambil setelah halaman selesai digambar, empat sisanya
         // menunggu tabnya diklik. Penundaannya sengaja memakai timer, bukan
         // IntersectionObserver atau perhitungan posisi: isi halaman berada di
@@ -278,13 +366,58 @@
         // tidak pernah termuat jauh lebih buruk daripada satu permintaan kecil.
         if (typeof window.requestIdleCallback === 'function') {
             window.requestIdleCallback(function () {
-                load(tabs[0]);
+                // Klik pengguna selalu menang atas pekerjaan idle. Tanpa guard
+                // ini pilihan yang dibuat cepat dapat dipaksa kembali ke tab 1.
+                if (selectedKey === null) load(tabs[0]);
             }, { timeout: 1200 });
         } else {
             window.setTimeout(function () {
-                load(tabs[0]);
+                if (selectedKey === null) load(tabs[0]);
             }, 200);
         }
+    }
+
+    // ============================================================
+    // Papan peringkat: buka/tutup daftar penuh
+    //
+    // Seluruh baris sudah ada di DOM; yang di luar sepuluh teratas hanya
+    // disembunyikan CSS. Jadi membuka daftar tidak memanggil server dan tidak
+    // pernah gagal di tengah jalan.
+    // ============================================================
+
+    function toggleLeaderList(button) {
+        var list = document.getElementById(button.getAttribute('aria-controls'));
+        if (!list) return;
+
+        var expanded = list.classList.contains('is-collapsed');
+
+        list.classList.toggle('is-collapsed', !expanded);
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+
+        var label = button.querySelector('[data-leader-toggle-label]');
+        if (label) {
+            label.textContent = button.getAttribute(expanded ? 'data-label-less' : 'data-label-more') || label.textContent;
+        }
+
+        // Saat ditutup, daftar bisa jadi jauh lebih pendek daripada gulir yang
+        // sedang berlaku — tombolnya ditarik kembali ke layar agar pembaca
+        // tidak mendadak berada di bagian halaman yang lain.
+        if (!expanded) {
+            var rect = button.getBoundingClientRect();
+            if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                button.scrollIntoView({ block: 'nearest' });
+            }
+        }
+    }
+
+    function bindLeaderToggles() {
+        // Delegasi: panel kegiatan memuat papan peringkatnya belakangan.
+        document.addEventListener('click', function (event) {
+            var button = event.target.closest('[data-leader-toggle]');
+            if (!button) return;
+
+            toggleLeaderList(button);
+        });
     }
 
     // ============================================================
@@ -338,6 +471,7 @@
     function init() {
         initStacks();
         bindTooltips();
+        bindLeaderToggles();
         initActivityPanel();
     }
 

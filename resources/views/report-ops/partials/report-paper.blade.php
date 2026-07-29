@@ -374,7 +374,7 @@
         <table class="grid"><tr><td class="empty-note">Tidak ada data pemuatan pupuk kantong.</td></tr></table>
     @endforelse
 
-    <div class="sec">II. Pemuatan Urea Curah</div>
+    <div class="sec">II. Pemuatan Urea Curah / Amoniak</div>
     @forelse ($bulkActivities as $bulk)
         @php
             $bLogs = $bulk->logs->sortBy('datetime')->values();
@@ -388,7 +388,7 @@
                             <tr><td class="label">Nama Kapal</td><td class="colon">:</td><td class="line-cell">{{ $bulk->ship_name }}</td></tr>
                             <tr><td class="label">Agent</td><td class="colon">:</td><td class="line-cell">{{ $bulk->agent }}</td></tr>
                             <tr><td class="label">Dermaga</td><td class="colon">:</td><td class="line-cell">{{ $bulk->jetty }}</td></tr>
-                            <tr><td class="label">Jenis Urea</td><td class="colon">:</td><td class="line-cell">{{ $bulk->commodity }}</td></tr>
+                            <tr><td class="label">Jenis Muatan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->commodity }}</td></tr>
                             <tr><td class="label">Kapasitas</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->capacity, 'MT') }}</td></tr>
                         </table>
                     </td>

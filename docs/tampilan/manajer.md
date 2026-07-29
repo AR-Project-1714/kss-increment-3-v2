@@ -25,15 +25,16 @@ Isi halaman:
 - **Grafik** — tren tonase 6 bulan, komposisi kegiatan, tonase per shift, rasio kerusakan, perbandingan regu, beban kerja, peringkat lembur, dan daftar kapal dilayani.
 - **Ekspor** — `manajer.performa.export` menghasilkan Excel enam sheet mengikuti filter yang sedang aktif.
 
-Rincian per jenis kegiatan tidak ada di sini melainkan di menu **Rincian Kegiatan**, supaya satu halaman tidak menampung ringkasan divisi sekaligus bedah lima kegiatan.
+Rincian per jenis kegiatan tidak ada di sini melainkan di menu **Rincian Kegiatan**, supaya satu halaman tidak menampung ringkasan divisi sekaligus bedah enam kegiatan.
 
 ### Rincian Kegiatan
 `manajer.kegiatan` — `resources/views/manajer/kegiatan.blade.php`
-Rincian lima jenis kegiatan operasi: pemuatan pupuk kantong, pemuatan urea curah, bongkar bahan baku, bongkar/muat container, dan trucking pengiriman pupuk kantong. Toolbar filternya sama persis dengan Kinerja Operasi (`manajer.partials.performance-toolbar`), dan filter aktif ikut terbawa lewat query string saat berpindah antar kedua menu itu.
+Rincian enam jenis kegiatan operasi: pemuatan pupuk kantong, pemuatan urea curah, bongkar bahan baku, bongkar container Empty, muat container Full, dan trucking pengiriman pupuk kantong. Toolbar filternya sama persis dengan Kinerja Operasi (`manajer.partials.performance-toolbar`), dan filter aktif ikut terbawa lewat query string saat berpindah antar kedua menu itu.
 
 Isi halaman:
 - **Lima kartu kegiatan** — capaian periode berjalan, perubahan terhadap periode setara, dan sparkline 6 bulan. Angkanya diambil dari matriks agregat yang sama dengan kartu KPI, jadi tidak menambah query.
 - **Tab rincian** — satu panel per kegiatan berisi metrik khas kegiatan, tren 6 bulan, peringkat regu, komposisi tambahan (jenis bahan baku / tujuan trucking), dan tabel rincian. Isi panel diambil lewat `manajer.kegiatan.panel` saat tabnya dibuka, bukan ikut dirender bersama halaman.
+- **Ekspor Excel** — `manajer.kegiatan.export` menghasilkan sheet gambaran besar lalu satu sheet per kegiatan, dengan tabel rinci hingga 5.000 baris dan dua chart native Excel per sheet kegiatan.
 
 Panel rincian menyembunyikan apa yang kosong: kolom tabel yang tak pernah terisi dibuang, metrik tanpa nilai dilewati, dan blok tren/peringkat yang nol tidak dirender. Trucking dibatasi 10 rit terbaru karena barisnya per rit, kegiatan lain 50 baris.
 

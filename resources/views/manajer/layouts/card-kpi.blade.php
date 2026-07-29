@@ -5,39 +5,49 @@
      tersendiri agar perubahan di dashboard tidak ikut mengubah tampilan arsip.
 
      Anatomi kartu: baris ikon + judul, angka besar dengan satuan, badge pill
-     perubahan di kanan angka, keterangan pembanding, lalu sparkline 6 bulan. --}}
+     perubahan di kanan angka, keterangan pembanding, lalu sparkline 6 bulan.
+
+     Parameter:
+       $kpi       nilai tiap indikator + sparkline + label pembanding
+       $cardKeys  indikator yang ditampilkan (opsional). Dashboard memakai
+                  susunan bawaan; halaman Kinerja Operasi mengganti kartu
+                  Kapal Dilayani dengan jumlah laporan masuk karena blok kapal
+                  sudah tidak ditampilkan di sana. --}}
 @php
     $kpi = $kpi ?? [];
     $comparisonLabel = $kpi['comparisonLabel'] ?? null;
     $formatValue = fn ($value, int $decimals = 0) => number_format((float) $value, $decimals, ',', '.');
 
-    $kpiCards = [
-        [
-            'key' => 'tonnage',
+    $cardCatalog = [
+        'tonnage' => [
             'label' => 'Tonase Ditangani',
             'icon' => 'fi fi-sr-box',
             'tint' => 'blue',
             'unit' => 'Ton',
             'decimals' => 0,
         ],
-        [
-            'key' => 'ships',
+        'ships' => [
             'label' => 'Kapal Dilayani',
             'icon' => 'fi fi-sr-ship',
             'tint' => 'cyan',
             'unit' => 'Kapal',
             'decimals' => 0,
         ],
-        [
-            'key' => 'tonnagePerShift',
+        'reports' => [
+            'label' => 'Laporan Masuk',
+            'icon' => 'fi fi-sr-document',
+            'tint' => 'cyan',
+            'unit' => 'Laporan',
+            'decimals' => 0,
+        ],
+        'tonnagePerShift' => [
             'label' => 'Tonase per Shift',
             'icon' => 'fi fi-sr-bolt',
             'tint' => 'green',
             'unit' => 'Ton',
             'decimals' => 1,
         ],
-        [
-            'key' => 'damageRatio',
+        'damageRatio' => [
             'label' => 'Rasio Kerusakan',
             'icon' => 'fi fi-sr-exclamation',
             'tint' => 'orange',
@@ -45,6 +55,14 @@
             'decimals' => 2,
         ],
     ];
+
+    $kpiCards = [];
+
+    foreach ($cardKeys ?? ['tonnage', 'ships', 'tonnagePerShift', 'damageRatio'] as $key) {
+        if (isset($cardCatalog[$key])) {
+            $kpiCards[] = $cardCatalog[$key] + ['key' => $key];
+        }
+    }
 @endphp
 
 <div class="kpi-row">
@@ -87,32 +105,15 @@
                 @endif
             </span>
 
-            @if ($sparkline !== '')
-                @php
-                    $tone = $delta['tone'] ?? 'flat';
-                    $gradientId = 'spark-'.$card['key'];
-                    // Titik pertama & terakhir dipakai untuk menutup bentuk isian
-                    // sampai ke dasar kanvas, sehingga garisnya punya area.
-                    $sparkPoints = explode(' ', $sparkline);
-                    $firstX = explode(',', $sparkPoints[0])[0] ?? '0';
-                    $lastX = explode(',', end($sparkPoints))[0] ?? '100';
-                    $sparkArea = $sparkline.' '.$lastX.',24 '.$firstX.',24';
-                @endphp
-
-                <svg class="kpi-card__spark kpi-card__spark--{{ $tone }}"
-                     viewBox="0 0 100 24"
-                     preserveAspectRatio="none"
-                     aria-hidden="true">
-                    <defs>
-                        <linearGradient id="{{ $gradientId }}" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="currentColor" stop-opacity="0.26"></stop>
-                            <stop offset="100%" stop-color="currentColor" stop-opacity="0"></stop>
-                        </linearGradient>
-                    </defs>
-                    <polygon class="kpi-card__spark-area" points="{{ $sparkArea }}" fill="url(#{{ $gradientId }})"></polygon>
-                    <polyline points="{{ $sparkline }}"></polyline>
-                </svg>
-            @endif
+            {{-- Badge delta di atas sudah menyebut arah dan besarnya, jadi
+                 sparkline-nya tidak perlu diumumkan lagi ke pembaca layar. --}}
+            @include('charts.sparkline', [
+                'points' => $sparkline,
+                'tone' => $delta['tone'] ?? 'flat',
+                'id' => 'spark-'.$card['key'],
+                'class' => 'kpi-card__spark',
+                'label' => null,
+            ])
         </div>
     @endforeach
 </div>

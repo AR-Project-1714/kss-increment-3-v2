@@ -488,9 +488,71 @@
         }
 
         .ship-operation-status-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             color: var(--dark-main);
             font-size: 12px;
             font-weight: 600;
+        }
+
+        .status-info-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+            font-size: 9px;
+            cursor: help;
+        }
+
+        .status-info-icon .status-info-tip {
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 8px);
+            width: max-content;
+            max-width: min(240px, calc(100vw - 32px));
+            padding: 8px 10px;
+            border-radius: 8px;
+            /* Warna tetap gelap di kedua tema — bukan var(--dark-main), yang
+               berbalik jadi terang pada dark mode dan membuat teks putih tak
+               terbaca di atasnya. */
+            background-color: var(--dark-table-head);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.4;
+            text-align: left;
+            white-space: normal;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateX(-50%) translateY(4px);
+            transition: opacity .16s ease-out, transform .16s ease-out;
+            z-index: 20;
+        }
+
+        .status-info-icon .status-info-tip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--dark-table-head);
+        }
+
+        .status-info-icon:hover .status-info-tip,
+        .status-info-icon:focus-visible .status-info-tip {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
         }
 
         .ship-operation-status-options {
@@ -799,6 +861,161 @@ document.addEventListener('DOMContentLoaded', function () {
         syncCustomSelectLabel(select);
 
         return true;
+    }
+
+    // Jam Kerja adalah input teks bebas (bukan select): nilainya tetap diisi
+    // otomatis mengikuti Shift, tapi petugas boleh menimpanya dengan jam
+    // custom bila kehadiran karyawan memang berbeda dari jam kerja standar.
+    function setTimeRangeValue(input, value) {
+        if (!input || !value || input.value === value) return false;
+
+        input.value = value;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+        return true;
+    }
+
+    // Mask Jam Kerja (#jam-kerja): template "__:__ - __:__" selalu utuh —
+    // ":" dan " - " tampil permanen di posisi tetapnya, termasuk saat kosong,
+    // dan tidak pernah bisa terhapus oleh petugas. Digit yang belum diisi
+    // ditampilkan sebagai "_"; mengetik menimpa slot digit di posisi kursor
+    // (gaya input tanggal/kadaluarsa kartu), Backspace/Delete hanya
+    // mengosongkan slot digit dan melompati simbol pemisah.
+    function initJamKerjaMask() {
+        const input = document.getElementById('jam-kerja');
+        if (!input) return;
+
+        const BLANK = '_';
+        const TEMPLATE = ['_', '_', ':', '_', '_', ' ', '-', ' ', '_', '_', ':', '_', '_'];
+        // Indeks karakter pada TEMPLATE yang menampung tiap slot digit ke-0..7
+        // (jam-mulai puluhan/satuan, menit-mulai puluhan/satuan, jam-akhir
+        // puluhan/satuan, menit-akhir puluhan/satuan).
+        const DIGIT_POS = [0, 1, 3, 4, 8, 9, 11, 12];
+
+        function slotsFromValue(value) {
+            const text = String(value || '');
+            return DIGIT_POS.map(pos => {
+                const ch = text[pos];
+                return ch && /\d/.test(ch) ? ch : null;
+            });
+        }
+
+        function slotIndexForCaret(caret) {
+            return DIGIT_POS.filter(pos => pos < caret).length;
+        }
+
+        function caretForSlotIndex(index) {
+            return index < DIGIT_POS.length ? DIGIT_POS[index] : TEMPLATE.length;
+        }
+
+        function render(slots) {
+            const next = slots.slice();
+
+            // Bungkus jam >23 hanya bila kedua digit jamnya sudah terisi.
+            [[0, 1], [4, 5]].forEach(([tens, ones]) => {
+                if (next[tens] !== null && next[ones] !== null) {
+                    const wrapped = wrapTimeHourDigits(next[tens] + next[ones]);
+                    next[tens] = wrapped[0];
+                    next[ones] = wrapped[1];
+                }
+            });
+
+            const out = TEMPLATE.slice();
+            DIGIT_POS.forEach((pos, i) => { out[pos] = next[i] ?? BLANK; });
+
+            return out.join('');
+        }
+
+        function apply(slots, caretSlotIndex) {
+            const previousValue = input.value;
+            input.value = render(slots);
+            const pos = caretForSlotIndex(caretSlotIndex);
+            input.setSelectionRange(pos, pos);
+            input.setCustomValidity(input.value.includes(BLANK) ? 'Jam kerja belum lengkap.' : '');
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+
+            // Karena nilainya diisi lewat skrip (bukan pengetikan native), browser
+            // tidak lagi otomatis memicu "change" saat field ini di-blur. Dipicu
+            // manual di sini supaya Masuk/Pulang karyawan tetap ikut ter-update
+            // begitu Jam Kerja lengkap — tak perlu menunggu pindah fokus dulu.
+            if (input.value !== previousValue && !input.value.includes(BLANK)) {
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        function snapCaretToSlot() {
+            const pos = input.selectionStart ?? 0;
+            const snapped = caretForSlotIndex(slotIndexForCaret(pos));
+            if (pos !== snapped) input.setSelectionRange(snapped, snapped);
+        }
+
+        input.addEventListener('beforeinput', event => {
+            const slots = slotsFromValue(input.value);
+            const start = input.selectionStart ?? 0;
+            const end = input.selectionEnd ?? 0;
+            const fromSlot = slotIndexForCaret(start);
+            const toSlot = slotIndexForCaret(end);
+
+            if (['insertText', 'insertFromPaste', 'insertFromDrop', 'insertReplacementText'].includes(event.inputType)) {
+                event.preventDefault();
+
+                const incoming = String(
+                    event.data ?? event.dataTransfer?.getData('text') ?? ''
+                ).replace(/\D/g, '');
+                if (!incoming) return;
+
+                const next = slots.slice();
+                for (let i = fromSlot; i < toSlot && i < next.length; i++) next[i] = null;
+
+                let cursor = fromSlot;
+                for (const digit of incoming) {
+                    if (cursor >= next.length) break;
+                    next[cursor] = digit;
+                    cursor++;
+                }
+
+                apply(next, cursor);
+                return;
+            }
+
+            if (event.inputType === 'deleteContentBackward') {
+                event.preventDefault();
+                const next = slots.slice();
+
+                if (start !== end) {
+                    for (let i = fromSlot; i < toSlot && i < next.length; i++) next[i] = null;
+                    apply(next, fromSlot);
+                } else if (fromSlot > 0) {
+                    next[fromSlot - 1] = null;
+                    apply(next, fromSlot - 1);
+                }
+                return;
+            }
+
+            if (event.inputType === 'deleteContentForward') {
+                event.preventDefault();
+                const next = slots.slice();
+
+                if (start !== end) {
+                    for (let i = fromSlot; i < toSlot && i < next.length; i++) next[i] = null;
+                    apply(next, fromSlot);
+                } else if (fromSlot < next.length) {
+                    next[fromSlot] = null;
+                    apply(next, fromSlot);
+                }
+            }
+        });
+
+        input.addEventListener('click', () => setTimeout(snapCaretToSlot, 0));
+        input.addEventListener('focus', () => setTimeout(snapCaretToSlot, 0));
+
+        // Jaring pengaman: field yang diisi lewat skrip tidak selalu memicu
+        // "change" bawaan browser saat blur, jadi dipicu manual di sini juga.
+        input.addEventListener('blur', () => input.dispatchEvent(new Event('change', { bubbles: true })));
+
+        // Render awal: pastikan template "__:__ - __:__" tampil sejak muat
+        // halaman, baik saat kosong maupun saat sudah ada nilai dari server.
+        apply(slotsFromValue(input.value), DIGIT_POS.length);
     }
 
     function shipOperationConfig(input) {
@@ -1584,6 +1801,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.dataset.wasRequired = 'true';
                 input.required = false;
             });
+
+            // Mask Jam Kerja menandai custom validity saat masih ada slot
+            // digit kosong ("_"); draft boleh disimpan walau belum lengkap.
+            document.getElementById('jam-kerja')?.setCustomValidity('');
         }
 
         window.normalizeReportNumberInputs?.();
@@ -2367,48 +2588,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function syncTimeRangeWithShift() {
         const shiftSelect = document.querySelector('[name="shift"]');
-        const timeRangeSelect = document.querySelector('[name="time_range"]');
+        const timeRangeInput = document.querySelector('[name="time_range"]');
         const normalizedShift = String(shiftSelect?.value || '').toLowerCase();
 
         const shiftTimes = {
-            '1': '07.00 - 15.00',
-            pagi: '07.00 - 15.00',
-            '2': '15.00 - 23.00',
-            siang: '15.00 - 23.00',
-            sore: '15.00 - 23.00',
-            '3': '23.00 - 07.00',
-            malam: '23.00 - 07.00',
+            '1': '07:00 - 15:00',
+            pagi: '07:00 - 15:00',
+            '2': '15:00 - 23:00',
+            siang: '15:00 - 23:00',
+            sore: '15:00 - 23:00',
+            '3': '23:00 - 07:00',
+            malam: '23:00 - 07:00',
         };
 
-        if (timeRangeSelect && shiftTimes[normalizedShift]) {
-            setSelectValue(timeRangeSelect, shiftTimes[normalizedShift]);
+        if (timeRangeInput && shiftTimes[normalizedShift]) {
+            setTimeRangeValue(timeRangeInput, shiftTimes[normalizedShift]);
         }
     }
 
     function currentWitaShiftDefaults() {
         if (currentWitaHour >= 7 && currentWitaHour < 15) {
-            return { shift: 'Pagi', timeRange: '07.00 - 15.00' };
+            return { shift: 'Pagi', timeRange: '07:00 - 15:00' };
         }
 
         if (currentWitaHour >= 15 && currentWitaHour < 23) {
-            return { shift: 'Sore', timeRange: '15.00 - 23.00' };
+            return { shift: 'Sore', timeRange: '15:00 - 23:00' };
         }
 
-        return { shift: 'Malam', timeRange: '23.00 - 07.00' };
+        return { shift: 'Malam', timeRange: '23:00 - 07:00' };
     }
 
     function applyDefaultShiftByWita() {
         if (isEditMode) return;
 
         const shiftSelect = document.querySelector('[name="shift"]');
-        const timeRangeSelect = document.querySelector('[name="time_range"]');
+        const timeRangeInput = document.querySelector('[name="time_range"]');
         if (!shiftSelect || shiftSelect.value) return;
 
         const defaults = currentWitaShiftDefaults();
         setSelectValue(shiftSelect, defaults.shift);
 
-        if (timeRangeSelect && !timeRangeSelect.value) {
-            setSelectValue(timeRangeSelect, defaults.timeRange);
+        if (timeRangeInput && !timeRangeInput.value) {
+            setTimeRangeValue(timeRangeInput, defaults.timeRange);
         }
     }
 
@@ -3178,6 +3399,7 @@ document.addEventListener('DOMContentLoaded', function () {
     applyMasterDatalists();
     prepareShipOperationFields();
     initPickers();
+    initJamKerjaMask();
     initActivitySection('step-muat-kantong');
     initActivitySection('step-muat-curah');
     initActivitySection(document.getElementById('section-bahan-baku'));
@@ -3471,7 +3693,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
             <div class="list-form-tab" data-target="step-muat-curah">
                 <span class="icon-tab"><i class="fi fi-rr-truck-loading"></i></span>
-                <span>Muat Curah</span>
+                <span>Muat Curah / Amoniak</span>
             </div>
             <div class="list-form-tab" data-target="step-bongkar">
                 <span class="icon-tab"><i class="fi fi-rr-box-open"></i></span>

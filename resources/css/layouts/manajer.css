@@ -719,15 +719,187 @@
         /* =============================================
            PERFORMA OPERASIONAL
            ============================================= */
-        .perf-toolbar {
-            display: flex;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            gap: 10px;
+        .performance-page-header {
+            position: relative;
+            z-index: 20;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
         }
 
-        .perf-toolbar__presets { display: flex; flex-wrap: wrap; gap: 6px; }
-        .perf-toolbar__spacer  { flex: 1 1 auto; }
+        .performance-page-header__heading {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .performance-filter {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .performance-filter--with-export {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .performance-export-button {
+            min-height: 38px;
+            color: var(--success);
+            border-color: var(--success);
+            background-color: var(--success-10);
+        }
+
+        .performance-export-button:hover {
+            color: var(--success);
+            border-color: var(--success);
+            background-color: var(--success-10);
+        }
+
+        .performance-filter__trigger {
+            min-height: 38px;
+            padding-inline: 14px;
+            color: var(--white-pure);
+            background-color: var(--blue-main);
+            border-color: var(--blue-main);
+            box-shadow: 0 5px 14px rgba(37, 99, 235, 0.18);
+        }
+
+        .performance-filter__trigger:hover {
+            color: var(--white-pure);
+            background-color: var(--blue-hover);
+            border-color: var(--blue-hover);
+        }
+
+        .performance-filter__trigger[aria-expanded="true"] {
+            box-shadow: 0 0 0 3px var(--blue-main-10), 0 5px 14px rgba(37, 99, 235, 0.18);
+        }
+
+        .performance-filter__trigger:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--blue-main-25), 0 5px 14px rgba(37, 99, 235, 0.18);
+        }
+
+        .performance-filter__status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 18px;
+            padding: 1px 6px;
+            border-radius: 999px;
+            color: var(--blue-main);
+            background-color: var(--white-pure);
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .performance-filter__popover {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            z-index: 40;
+            width: min(940px, calc(100vw - 112px));
+            padding: 16px;
+            /* Glassmorphism mengikuti tab Bantuan. Prefiks diletakkan lebih
+               dahulu agar hasil build tetap membawa properti standar. */
+            background-color: rgba(255, 255, 255, 0.78);
+            -webkit-backdrop-filter: blur(22px) saturate(180%);
+            backdrop-filter: blur(22px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.62);
+            border-radius: 12px;
+            box-shadow:
+                0 20px 52px rgba(15, 23, 42, 0.18),
+                inset 0 1px 0 rgba(255, 255, 255, 0.76);
+        }
+
+        body.dark-mode .performance-filter__popover {
+            background-color: rgba(15, 23, 42, 0.78);
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow:
+                0 20px 52px rgba(0, 0, 0, 0.52),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .performance-filter__popover[hidden] { display: none; }
+
+        .performance-filter__head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--smooth-border);
+        }
+
+        .performance-filter__title {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--black);
+        }
+
+        .performance-filter__subtitle {
+            display: block;
+            margin-top: 2px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .performance-filter__close {
+            width: 30px;
+            height: 30px;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 1px solid var(--smooth-border);
+            border-radius: 8px;
+            color: var(--black-secondary);
+            background-color: transparent;
+            cursor: pointer;
+            transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .performance-filter__close:hover {
+            color: var(--blue-main);
+            border-color: var(--blue-main-25);
+            background-color: var(--blue-main-10);
+        }
+
+        .perf-toolbar {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            align-items: end;
+            gap: 12px;
+        }
+
+        .perf-toolbar > .filter-field:first-child { grid-column: 1 / -1; }
+
+        .perf-toolbar__presets {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .perf-toolbar__presets .btn-tool {
+            justify-content: center;
+            text-align: center;
+        }
+
+        .perf-toolbar__spacer { display: none; }
+
+        .performance-filter__actions {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding-top: 2px;
+        }
 
         .perf-bar__track {
             height: 6px;
@@ -792,6 +964,62 @@
         .perf-table th:last-child, .perf-table td:last-child { padding-right: 0; text-align: right; }
         .perf-table__name { font-weight: 600; white-space: nowrap; }
         .perf-table__muted { color: var(--black-secondary); }
+
+        /* Angka dibaca dengan membandingkan digitnya, jadi rata kanan dan
+           lebar digit tetap. Tanpa ini kolom tonase terlihat bergerigi. */
+        .perf-table__num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .perf-table__unit {
+            font-size: 10px;
+            font-weight: 400;
+            color: var(--black-secondary);
+            margin-left: 4px;
+        }
+
+        /* Tabel berkelompok: tiga kelompok kolom yang masing-masing berisi
+           beberapa kolom. Garis tipis di batas kelompok menahan mata agar
+           tidak menyeberang ke kelompok sebelah saat membaca satu baris. */
+        .perf-table--grouped th { text-align: center; vertical-align: bottom; }
+        .perf-table--grouped th:first-child { text-align: left; }
+        .perf-table--grouped th:last-child,
+        .perf-table--grouped td:last-child { padding-right: 10px; text-align: right; }
+
+        .perf-table--grouped .is-group-start {
+            border-left: 1px solid var(--smooth-border);
+            padding-left: 12px;
+        }
+
+        .perf-table--grouped thead tr:first-child th { padding-bottom: 6px; }
+        .perf-table--grouped thead tr:last-child th {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding-bottom: 8px;
+        }
+
+        .perf-table--grouped th.is-group-head { color: var(--black); font-weight: 600; font-size: 11px; }
+        .perf-table--grouped .th-range {
+            display: block;
+            font-size: 9px;
+            font-weight: 400;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        /* Baris pendamping (mis. kirim & kerusakan pada muat kantong) menempel
+           pada baris kegiatan di atasnya, jadi garis pemisahnya dihilangkan. */
+        .perf-table__row--sub td {
+            border-bottom: none;
+            padding-top: 0;
+            font-size: 10px;
+            color: var(--black-secondary);
+        }
+
+        .perf-table__row--sub td:first-child { padding-left: 14px; }
 
         .perf-tag {
             display: inline-flex;
@@ -905,44 +1133,184 @@
         .act-card__spark--up   { color: var(--success); }
         .act-card__spark--down { color: var(--red-main); }
 
-        /* Tab kegiatan: bisa digeser mendatar pada layar sempit supaya kelima
-           kegiatan tetap terjangkau tanpa membungkus jadi dua baris. */
+        /* Tab kegiatan mengikuti tab pada halaman Bantuan: segmented glass
+           dengan indikator aktif yang bergeser. */
         .act-tabs {
+            position: sticky;
+            top: 0;
+            z-index: 6;
+            /* Wadah ini adalah flex-item di .page-content. Tanpa shrink guard,
+               respons AJAX yang panjang menekan tingginya menjadi strip tipis
+               dan indikator aktif tidak lagi punya ruang untuk digambar. */
+            flex-shrink: 0;
             display: flex;
-            gap: 6px;
-            margin-top: 16px;
-            padding-bottom: 10px;
+            align-items: center;
+            align-content: center;
+            gap: 5px 10px;
+            padding: 5px;
             overflow-x: auto;
-            border-bottom: 1px solid var(--smooth-border);
-            scrollbar-width: thin;
+            overflow-y: hidden;
+            background-color: rgba(255, 255, 255, 0.72);
+            /* Prefiks ditulis lebih dahulu agar minifier Vite mempertahankan
+               deklarasi standar yang dipakai Chromium. */
+            -webkit-backdrop-filter: blur(18px) saturate(180%);
+            backdrop-filter: blur(18px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            scrollbar-width: none;
         }
 
+        body.dark-mode .act-tabs {
+            background-color: rgba(15, 23, 42, 0.72);
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .act-tabs::-webkit-scrollbar { display: none; }
+
         .act-tab {
-            display: inline-flex;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            min-width: 140px;
+            flex: 1 0 auto;
+            justify-content: center;
             align-items: center;
-            gap: 6px;
-            padding: 7px 12px;
-            border: 1px solid var(--smooth-border);
-            border-radius: 50px;
-            background-color: transparent;
-            font-size: 11px;
+            gap: 8px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            font-family: inherit;
+            font-size: 12px;
             font-weight: 500;
             color: var(--black-secondary);
             white-space: nowrap;
             cursor: pointer;
-            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+            transition: color 0.2s ease-out, background-color 0.2s ease-out;
         }
 
-        .act-tab:hover { background-color: var(--blue-main-5); color: var(--blue-main); }
+        .act-tab i { position: relative; top: 1px; font-size: 12px; }
+        .act-tab:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
 
-        .act-tab.is-active {
+        .act-tab.is-active,
+        .act-tab.is-active:hover {
+            color: var(--white-pure);
             background-color: var(--blue-main);
-            border-color: var(--blue-main);
-            color: var(--white);
         }
 
-        .act-panel { padding-top: 16px; }
-        .act-panel__inner { display: flex; flex-direction: column; gap: 18px; }
+        /* Fallback SSR: tab aktif tetap terbaca sebelum JS menempatkan
+           indikator. Setelah posisi indikator valid, warna tombol dilepas agar
+           animasi indikator dari halaman Bantuan mengambil alih. */
+        .act-tabs.is-indicator-ready .act-tab.is-active,
+        .act-tabs.is-indicator-ready .act-tab.is-active:hover {
+            background-color: transparent;
+        }
+
+        .act-tab:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--blue-main-10);
+        }
+
+        .act-tab__unit {
+            font-size: 9px;
+            font-weight: 500;
+            padding: 1px 5px;
+            border-radius: 50px;
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+        }
+
+        .act-tab.is-active .act-tab__unit {
+            background-color: rgba(255, 255, 255, 0.22);
+            color: var(--white-pure);
+        }
+
+        .act-tab-indicator {
+            position: absolute;
+            left: 0;
+            top: 5px;
+            bottom: 5px;
+            width: 0;
+            border-radius: 8px;
+            background-color: var(--blue-main);
+            box-shadow: 0 0 4px var(--blue-main-40);
+            transform: translateX(0);
+            transition: transform 0.34s cubic-bezier(.22,1,.36,1), width 0.34s cubic-bezier(.22,1,.36,1);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .act-panel { padding-top: 0; }
+        .act-panel__inner { display: flex; flex-direction: column; gap: 14px; }
+
+        /* Kepala panel: menyebut kegiatan yang sedang dibaca beserta angka
+           utamanya, supaya isi panel tidak kehilangan konteks setelah tab
+           berpindah dan halaman digulir. */
+        .act-panel__head {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+                "title metric"
+                "caption metric";
+            align-items: center;
+            gap: 4px 12px;
+            padding: 16px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 12px;
+            background-color: var(--white);
+            box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+        }
+
+        .act-panel__title {
+            grid-area: title;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.35;
+            color: var(--black);
+        }
+
+        /* Angka utama beserta sparkline-nya: satu kolom rata kanan, sehingga
+           grafiknya persis di bawah satuan dan tidak menggeser judul. */
+        .act-panel__metric {
+            grid-area: metric;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+
+        .act-panel__figure {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--black);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .act-panel__figure span {
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--black-secondary);
+            margin-left: 3px;
+        }
+
+        /* Kecil saja — perannya menandai arah, bukan dibaca nilainya. Lebarnya
+           tetap dalam piksel supaya bentuk kurvanya sama di semua kegiatan,
+           tidak ikut melar mengikuti panjang nama kegiatan. */
+        .act-panel__spark {
+            width: 92px;
+            cursor: pointer;
+        }
+
+        .act-panel__spark-svg { width: 100%; height: 22px; }
+
+        .act-panel__caption {
+            grid-area: caption;
+            font-size: 10px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
 
         .act-panel__note {
             font-size: 10px;
@@ -973,15 +1341,32 @@
             background-color: var(--blue-main-3);
         }
 
+        /* Kolom akumulasi pada rekap: angka penutup yang paling sering dibaca,
+           jadi diberi latar sedikit lebih pekat daripada dua kolom lainnya. */
+        .act-metric--accent {
+            background-color: var(--blue-main-10);
+            border: 1px solid var(--blue-main-25);
+        }
+
         .act-metric__label { font-size: 10px; color: var(--black-secondary); }
         .act-metric__value { font-size: 15px; font-weight: 600; color: var(--black); }
         .act-metric__unit  { font-size: 10px; font-weight: 500; color: var(--black-secondary); }
         .act-metric__caption { font-size: 10px; color: var(--muted); }
 
-        .act-block { display: flex; flex-direction: column; gap: 4px; }
+        .act-block {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+            padding: 16px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 12px;
+            background-color: var(--white);
+            box-shadow: 0 1px 2px rgba(15,23,42,0.03);
+        }
 
         .act-block__title {
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 600;
             color: var(--black);
         }
@@ -992,32 +1377,64 @@
             margin-bottom: 6px;
         }
 
-        /* Kolom tren enam bulan. Tingginya tetap supaya panel tidak melonjak
-           saat data berpindah antar kegiatan. */
+        /* Kolom tren enam bulan. Tinggi bidang plotnya tetap supaya panel tidak
+           melonjak saat data berpindah antar kegiatan.
+
+           Selokan kiri menampung angka sumbu Y; lebarnya dikirim tiap panel
+           lewat --act-trend-gutter karena "150.000" jauh lebih panjang daripada
+           "40". Garis bantu dan angkanya diposisikan dari sisi bawah bidang
+           plot, sejajar dengan dasar batang. */
         .act-trend {
+            margin-left: var(--act-trend-gutter, 44px);
+            padding-top: 8px;
+        }
+
+        .act-trend__plot {
+            position: relative;
+            height: 150px;
+        }
+
+        .act-trend__rule {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 0;
+            border-top: 1px solid var(--chart-grid);
+            pointer-events: none;
+        }
+
+        .act-trend__rule--base { border-top-color: var(--smooth-border); }
+
+        .act-trend__axis {
+            position: absolute;
+            right: 100%;
+            padding-right: 8px;
+            transform: translateY(50%);
+            font-size: 10px;
+            line-height: 1;
+            color: var(--muted);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+            pointer-events: none;
+        }
+
+        /* Deret batang berada di atas garis bantu. */
+        .act-trend__cols {
+            position: relative;
+            z-index: 1;
             display: flex;
             align-items: flex-end;
             gap: 10px;
-            height: 150px;
-            padding-top: 8px;
+            height: 100%;
         }
 
         .act-trend__col {
             flex: 1 1 0;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            height: 100%;
-            cursor: default;
-        }
-
-        .act-trend__slot {
-            flex: 1 1 auto;
-            width: 100%;
-            display: flex;
             align-items: flex-end;
             justify-content: center;
+            height: 100%;
+            cursor: default;
         }
 
         .act-trend__bar {
@@ -1030,7 +1447,21 @@
         }
 
         .act-trend__col:hover .act-trend__bar { opacity: 0.78; }
-        .act-trend__label { font-size: 10px; color: var(--black-secondary); }
+
+        /* Label bulan memakai lebar kolom yang sama persis dengan batangnya,
+           jadi keduanya tetap sejajar tanpa perhitungan tambahan. */
+        .act-trend__labels {
+            display: flex;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .act-trend__label {
+            flex: 1 1 0;
+            text-align: center;
+            font-size: 10px;
+            color: var(--black-secondary);
+        }
 
         /* Rangka penantian saat panel sedang diambil. */
         .act-panel__loading { display: flex; flex-direction: column; gap: 12px; }
@@ -1066,7 +1497,9 @@
         @media (max-width: 640px) {
             .act-grid    { grid-template-columns: 1fr; }
             .act-metrics { grid-template-columns: 1fr; }
-            .act-trend   { height: 120px; gap: 6px; }
+            .act-trend__plot   { height: 120px; }
+            .act-trend__cols,
+            .act-trend__labels { gap: 6px; }
         }
 
         /* Lencana jumlah pada judul kartu — khusus dashboard manajer. */
@@ -1941,6 +2374,16 @@
                 font-size: 18px;
             }
 
+            .performance-filter__popover {
+                position: fixed;
+                top: 72px;
+                right: 16px;
+                left: 16px;
+                width: auto;
+                max-height: calc(100dvh - 88px);
+                overflow-y: auto;
+            }
+
             .stats-row {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2024,6 +2467,12 @@
 
             .page-content {
                 padding: 14px 12px 0;
+            }
+
+            .act-panel__head,
+            .act-block {
+                padding: 12px;
+                border-radius: 10px;
             }
 
             .stats-row {
@@ -2130,22 +2579,18 @@
                 width: 100%;
             }
 
-            /* Toolbar Performa: satu kolom penuh, bukan flex baris yang
-               membungkus. Pembungkusan menyisakan celah ganjil antar kendali dan
-               menggantung pada align-items:flex-end yang tak berarti saat tiap
-               field sudah selebar layar. */
             .perf-toolbar {
-                flex-direction: column;
-                align-items: stretch;
+                grid-template-columns: 1fr;
                 gap: 14px;
             }
 
-            .perf-toolbar__spacer { display: none; }
+            .perf-toolbar > .filter-field:first-child,
+            .performance-filter__actions {
+                grid-column: 1;
+            }
 
-            /* Tiga preode sejajar; lebih ringkas daripada tiga baris tombol. */
             .perf-toolbar__presets {
-                display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 6px;
             }
 
@@ -2163,20 +2608,54 @@
                 min-height: 44px;
             }
 
-            .perf-toolbar .archive-toolbar__actions {
+            .performance-filter__actions {
                 display: flex;
+                flex-wrap: wrap;
                 width: 100%;
                 gap: 8px;
             }
 
-            .perf-toolbar .archive-toolbar__actions > * {
+            .performance-filter__actions > * {
                 flex: 1 1 0;
                 justify-content: center;
             }
 
-            /* Label kosong hanya penyelaras di layar lebar; di mobile ia cuma
-               menyisakan baris kosong di atas tombol. */
-            .perf-toolbar .filter-field:has(.archive-toolbar__actions) > label {
+            .performance-page-header {
+                gap: 10px;
+            }
+
+            .performance-filter__trigger {
+                width: auto;
+                min-height: 36px;
+                padding-inline: 12px;
+            }
+
+            .performance-export-button {
+                width: auto;
+                min-width: 36px;
+                min-height: 36px;
+                padding-inline: 10px;
+            }
+
+            .performance-export-button span {
+                display: none;
+            }
+
+            .performance-filter__popover {
+                top: 66px;
+                right: 12px;
+                left: 12px;
+                padding: 14px;
+                max-height: calc(100dvh - 78px);
+            }
+
+            .act-tab {
+                min-width: 44px;
+                padding: 9px 10px;
+                gap: 0;
+            }
+
+            .act-tab > span {
                 display: none;
             }
         }

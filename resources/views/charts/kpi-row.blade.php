@@ -39,29 +39,15 @@
                 @endif
             </span>
 
-            @if (! empty($card['sparkline']))
-                @php
-                    $tone = $card['delta']['tone'] ?? 'flat';
-                    $gradientId = 'spark-'.($card['key'] ?? $loop->index);
-                    $points = explode(' ', $card['sparkline']);
-                    $firstX = explode(',', $points[0])[0] ?? '0';
-                    $lastX = explode(',', end($points))[0] ?? '100';
-                @endphp
-
-                <svg class="kpi-card__spark kpi-card__spark--{{ $tone }}"
-                     viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
-                    <defs>
-                        <linearGradient id="{{ $gradientId }}" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="currentColor" stop-opacity="0.26"></stop>
-                            <stop offset="100%" stop-color="currentColor" stop-opacity="0"></stop>
-                        </linearGradient>
-                    </defs>
-                    <polygon class="kpi-card__spark-area"
-                             points="{{ $card['sparkline'].' '.$lastX.',24 '.$firstX.',24' }}"
-                             fill="url(#{{ $gradientId }})"></polygon>
-                    <polyline points="{{ $card['sparkline'] }}"></polyline>
-                </svg>
-            @endif
+            {{-- Badge delta di atas sudah menyebut arah dan besarnya, jadi
+                 sparkline-nya tidak perlu diumumkan lagi ke pembaca layar. --}}
+            @include('charts.sparkline', [
+                'points' => $card['sparkline'] ?? '',
+                'tone' => $card['delta']['tone'] ?? 'flat',
+                'id' => 'spark-'.($card['key'] ?? $loop->index),
+                'class' => 'kpi-card__spark',
+                'label' => null,
+            ])
         </div>
     @endforeach
 </div>

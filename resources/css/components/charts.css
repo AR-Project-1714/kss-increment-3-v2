@@ -136,30 +136,35 @@ body.dark-mode {
             color: var(--muted);
         }
 
-        .kpi-card__spark {
+        /* Sparkline bersama — dipakai kartu KPI dan kepala panel kegiatan.
+           Bentuk dan warnanya diatur di sini, ukurannya di tempat pakainya. */
+        .spark {
             display: block;
-            width: 100%;
-            height: 26px;
             overflow: visible;
-            margin-top: auto;
         }
 
-        .kpi-card__spark polyline {
+        .spark__line {
             fill: none;
+            stroke: currentColor;
             stroke-width: 1.5;
             stroke-linecap: round;
             stroke-linejoin: round;
             vector-effect: non-scaling-stroke;
         }
 
+        .spark__area { stroke: none; }
+
         /* currentColor dipakai supaya isian gradien di dalam SVG ikut warna
            nada delta tanpa perlu mendefinisikan gradien per warna. */
-        .kpi-card__spark--up   { color: var(--success); }
-        .kpi-card__spark--down { color: var(--red-main); }
-        .kpi-card__spark--flat { color: var(--muted); }
+        .spark--up   { color: var(--success); }
+        .spark--down { color: var(--red-main); }
+        .spark--flat { color: var(--muted); }
 
-        .kpi-card__spark polyline { stroke: currentColor; }
-        .kpi-card__spark-area { stroke: none; }
+        .kpi-card__spark {
+            width: 100%;
+            height: 26px;
+            margin-top: auto;
+        }
 
         @media (max-width: 1100px) {
             .kpi-row {
@@ -204,6 +209,9 @@ body.dark-mode {
                grafik lewat --chart-gutter karena "100.000" jauh lebih panjang
                daripada "30". Selokan bawah menampung label sumbu X. */
             margin-left: var(--chart-gutter, 48px);
+            /* Selokan kanan hanya dipakai grafik bersumbu ganda (mis. tren Ton
+               + Teus); grafik bersumbu tunggal mengirim 0. */
+            margin-right: var(--chart-gutter-right, 0px);
             margin-bottom: 32px;
         }
 
@@ -255,6 +263,16 @@ body.dark-mode {
             transform: translateY(-50%);
         }
 
+        /* Sumbu kanan dipakai deret bersatuan lain (Teus). Angkanya diberi
+           warna deretnya supaya jelas milik siapa — tanpa itu pembaca harus
+           menebak angka mana yang cocok dengan batang mana. */
+        .chart-axis--y2 {
+            left: 100%;
+            padding-left: 9px;
+            color: var(--chart-5);
+            transform: translateY(-50%);
+        }
+
         /* Label sumbu X dikumpulkan dalam satu baris setinggi nol tepat di
            bawah plot, lalu tiap label dipusatkan di titik datanya. Dibungkus
            supaya penjarangan pada layar sempit bisa memakai nth-child. */
@@ -298,6 +316,13 @@ body.dark-mode {
             /* Tanpa ini, bagian garis yang menegak ikut menebal mengikuti
                regangan mendatar kanvas. */
             vector-effect: non-scaling-stroke;
+        }
+
+        /* Deret pendamping bersumbu kanan: putus-putus supaya tetap bisa
+           dibedakan dari deret utama tanpa mengandalkan warna saja. */
+        .chart__line--alt {
+            stroke-dasharray: 6 4;
+            stroke-width: 2;
         }
 
         .chart__dot {
@@ -397,6 +422,10 @@ body.dark-mode {
         /* Selokan label sumbu X sudah memberi jarak sendiri, jadi jarak dari
            induk flex dikurangi agar legend tidak terlepas jauh dari grafik. */
         .chart-frame + .chart-legend { margin-top: -14px; }
+
+        /* Kecuali pada grafik tren: selokan bawahnya sudah terisi label bulan,
+           jadi menarik legend ke atas membuat keduanya bertindih. */
+        .chart-stack > .chart-legend { margin-top: 4px; }
 
         .chart-legend {
             display: flex;
@@ -559,6 +588,8 @@ body.dark-mode {
         }
 
         .donut-legend__name {
+            flex: 1 1 auto;
+            min-width: 0;
             color: var(--black-secondary);
             overflow: hidden;
             text-overflow: ellipsis;
@@ -660,6 +691,12 @@ body.dark-mode {
             list-style: none;
         }
 
+        /* Daftar panjang dibuka utuh di tempatnya, tanpa kotak bergulir sendiri:
+           kotak setinggi beberapa baris di dalam halaman yang juga bergulir
+           justru membuat "lihat semua" nyaris tidak menambah apa pun. Kartunya
+           memang jadi panjang — tetapi itu yang diminta saat tombol ditekan. */
+        .leader-board__list.is-collapsed .leader-board__item--extra { display: none; }
+
         .leader-board__item { display: flex; align-items: center; gap: 10px; }
 
         /* Nomor urut ditulis eksplisit supaya peringkat terbaca tanpa harus
@@ -716,6 +753,42 @@ body.dark-mode {
             border-radius: 50px;
             transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
         }
+
+        /* Pembuka daftar penuh. Sengaja berupa tombol teks, bukan tombol
+           penuh: perannya menambah baris pada daftar yang sudah tampak,
+           bukan membuka tindakan baru. */
+        .leader-board__more {
+            align-self: flex-start;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+            padding: 4px 0;
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: color 0.15s ease;
+        }
+
+        .leader-board__more:hover { color: var(--blue-main); }
+
+        .leader-board__more:focus-visible {
+            outline: 2px solid var(--blue-main);
+            outline-offset: 2px;
+        }
+
+        .leader-board__more i {
+            font-size: 12px;
+            line-height: 0;
+            transition: transform 0.18s ease;
+        }
+
+        .leader-board__more[aria-expanded="true"] i { transform: rotate(180deg); }
 
         /* ---------- Gauge rasio kerusakan ---------- */
         /* Kartu gauge biasanya bersanding dengan kartu yang lebih tinggi, jadi

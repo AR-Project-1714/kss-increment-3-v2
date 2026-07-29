@@ -590,60 +590,89 @@
 
             if (!overlay || !bar) return;
 
-            // Progres disimulasikan: bar naik mulus 0→100% dalam DURATION detik.
-            // Form baru di-submit SETELAH bar penuh. Kalau di-submit duluan, redirect
-            // server bisa datang lebih cepat dan bar terpotong sebelum 100%.
-            // Konsekuensinya proses server berjalan setelah animasi, bukan berbarengan.
-            const DURATION = 2.8;   // detik, lama bar 0→100%
-            const HOLD_MS = 400;    // jeda singkat di 100% sebelum request berangkat
+            // Bar mengikuti proses asli di server: form dikirim lewat fetch, bar naik
+            // sampai HOLD_AT lalu merayap pelan selama menunggu balasan, dan baru
+            // ditutup ke 100% ketika PDF-nya benar-benar selesai diproses.
+            const RISE_MS = 1700;    // 0 → HOLD_AT
+            const HOLD_AT = 88;      // titik tunggu selama server memproses
+            const CREEP_TO = 96;     // batas rayapan kalau prosesnya lama
+            const CREEP_MS = 14000;  // HOLD_AT → CREEP_TO
+            const FINISH_MS = 420;   // sisa → 100% setelah server selesai
+            const HOLD_MS = 420;     // jeda di 100% sebelum pindah halaman
 
-            // Ambang tahapan pakai fraksi waktu, bukan persen — kurva easeOut membuat
-            // persen melonjak di awal sehingga teksnya akan terasa terburu-buru.
             const stages = [
                 [0, 'Menyiapkan dokumen…'],
-                [0.25, 'Membubuhkan tanda tangan digital…'],
-                [0.5, 'Menyusun berkas PDF…'],
-                [0.78, 'Menyimpan ke arsip…'],
+                [22, 'Membubuhkan tanda tangan digital…'],
+                [55, 'Menyusun berkas PDF…'],
+                [80, 'Menyimpan ke arsip…'],
+                [100, 'Selesai'],
             ];
 
             let startedAt = 0;
             let frame = null;
             let current = 0;
-            let onAnimationEnd = null;
+            let finishFrom = 0;
+            let finishAt = 0;
+            let onFinished = null;
 
-            function render(value, t) {
+            // Naik: smoothstep — pelan di ujung-ujungnya, jadi tiap tahapan sempat
+            // terbaca. easeOut dipakai untuk rayapan dan penutupan ke 100%.
+            const smooth = (t) => t * t * (3 - 2 * t);
+            const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+            function render(value) {
                 current = value;
                 bar.style.width = value.toFixed(1) + '%';
                 percentEl.textContent = Math.round(value) + '%';
 
                 let label = stages[0][1];
                 for (const [threshold, text] of stages) {
-                    if (t >= threshold) label = text;
+                    if (value >= threshold) label = text;
                 }
                 if (stageEl.textContent !== label) stageEl.textContent = label;
             }
 
             function tick(now) {
-                const t = Math.min((now - startedAt) / 1000 / DURATION, 1);
-                // easeOutCubic: cepat di awal, melambat menjelang 100%.
-                render(100 * (1 - Math.pow(1 - t, 3)), t);
+                if (onFinished) {
+                    const t = Math.min((now - finishAt) / FINISH_MS, 1);
+                    render(finishFrom + (100 - finishFrom) * easeOut(t));
 
-                if (t >= 1) {
-                    frame = null;
-                    if (onAnimationEnd) setTimeout(onAnimationEnd, HOLD_MS);
-                    return;
+                    if (t >= 1) {
+                        frame = null;
+                        const done = onFinished;
+                        setTimeout(done, HOLD_MS);
+                        return;
+                    }
+                } else {
+                    const elapsed = now - startedAt;
+
+                    if (elapsed < RISE_MS) {
+                        render(HOLD_AT * smooth(elapsed / RISE_MS));
+                    } else {
+                        // Rayapan pelan supaya bar tidak terlihat macet saat prosesnya lama.
+                        const t = Math.min((elapsed - RISE_MS) / CREEP_MS, 1);
+                        render(HOLD_AT + (CREEP_TO - HOLD_AT) * easeOut(t));
+                    }
                 }
+
                 frame = requestAnimationFrame(tick);
             }
 
-            // `done` dipanggil setelah bar mencapai 100%.
-            function start(done) {
-                onAnimationEnd = done;
+            function start() {
+                onFinished = null;
                 overlay.classList.add('show');
                 overlay.setAttribute('aria-hidden', 'false');
                 startedAt = performance.now();
-                render(0, 0);
-                frame = requestAnimationFrame(tick);
+                render(0);
+                if (frame === null) frame = requestAnimationFrame(tick);
+            }
+
+            // `done` dipanggil setelah bar benar-benar sampai 100%.
+            function finish(done) {
+                onFinished = done;
+                finishFrom = current;
+                finishAt = performance.now();
+                if (frame === null) frame = requestAnimationFrame(tick);
             }
 
             document.querySelectorAll('.js-approve-form').forEach(function (form) {
@@ -658,11 +687,51 @@
                     const button = form.querySelector('button[type="submit"]');
                     if (button) button.disabled = true;
 
-                    start(function () {
-                        // Tombol submit yang disabled tidak ikut terkirim, tapi form ini
-                        // tidak butuh nilainya — hanya CSRF token.
-                        form.submit();
+                    start();
+
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    }).then(function (response) {
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        return response.json();
+                    }).then(function (data) {
+                        finish(function () {
+                            window.location.href = data.redirect || window.location.href;
+                        });
+                    }).catch(function () {
+                        // Fallback: kirim ulang sebagai submit biasa supaya pesan error
+                        // atau halaman sesi-habis dari server tetap sampai ke manajer.
+                        finish(function () {
+                            form.submit();
+                        });
                     });
+                });
+            });
+
+            // Halaman yang dibuka lagi lewat tombol Back bisa datang dari bfcache
+            // dengan overlay masih terpasang — kembalikan ke kondisi awal.
+            window.addEventListener('pageshow', function (event) {
+                if (!event.persisted) return;
+
+                if (frame !== null) {
+                    cancelAnimationFrame(frame);
+                    frame = null;
+                }
+                onFinished = null;
+                overlay.classList.remove('show');
+                overlay.setAttribute('aria-hidden', 'true');
+                render(0);
+
+                document.querySelectorAll('.js-approve-form').forEach(function (form) {
+                    delete form.dataset.submitting;
+                    const button = form.querySelector('button[type="submit"]');
+                    if (button) button.disabled = false;
                 });
             });
         })();

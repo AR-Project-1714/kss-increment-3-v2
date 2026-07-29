@@ -474,3 +474,24 @@ diganti "rata-rata TKBM per kegiatan".** Rata-rata realisasi hanya bisa dihitung
 tepat dengan menelusuri seluruh kunjungan, sedangkan tabelnya dibatasi 50 baris —
 angkanya akan menyesatkan begitu ada lebih dari 50 kunjungan. Realisasi per kapal
 tetap ada di setiap baris tabel.
+
+---
+
+## 13. Perubahan Lanjutan (28 Juli 2026)
+
+Rancangan di atas tetap berlaku sebagai catatan pengerjaan, tetapi susunan
+halamannya sudah bergeser mengikuti arahan berikutnya dari Pak Mustari —
+lihat [PERBAIKAN_MENU_KINERJA_DAN_RINCIAN_KEGIATAN.md](PERBAIKAN_MENU_KINERJA_DAN_RINCIAN_KEGIATAN.md):
+
+- Periode bawaan Kinerja Operasi menjadi **1 Januari sampai hari ini**;
+  Rincian Kegiatan tetap bulan berjalan.
+- Blok **Kapal Dilayani** dihapus dari Kinerja Operasi (kartu, tabel, dan sheet
+  ekspornya). Kartunya masih ada di dashboard manajer, dan data kapal pada
+  laporan harian tidak disentuh.
+- Kinerja Operasi mendapat **analisis terpisah per jenis kegiatan** (lima panel
+  bertab yang dirender bersama halaman, tanpa query tambahan).
+- Panel **Pemuatan Pupuk Kantong** dihapus dari Rincian Kegiatan lewat penanda
+  katalog `showOnActivityDetail`; kegiatannya tetap dihitung penuh pada Kinerja
+  Operasi.
+- Bagian 6 (susunan halaman) dan Bagian 7.4 (berkas yang disentuh) pada dokumen
+  ini sudah tidak menggambarkan keadaan terkini.

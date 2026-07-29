@@ -81,13 +81,8 @@
                         <span class="text-red">*</span>
                     </div>
                     <div class="input-wrapper">
-                        <select id="jam-kerja" name="time_range" class="custom-input native-select" required>
-                            <option value="" disabled @selected($timeRangeValue === '') hidden>Pilih Jam Kerja</option>
-                            <option value="07.00 - 15.00" @selected(in_array($timeRangeValue, ['07.00 - 15.00', '07:00 - 15:00'], true))>07.00 - 15.00</option>
-                            <option value="15.00 - 23.00" @selected(in_array($timeRangeValue, ['15.00 - 23.00', '15:00 - 23:00'], true))>15.00 - 23.00</option>
-                            <option value="23.00 - 07.00" @selected(in_array($timeRangeValue, ['23.00 - 07.00', '23:00 - 07:00'], true))>23.00 - 07.00</option>
-                        </select>
-                        <i class="fi fi-rr-angle-small-down input-icon"></i>
+                        <input type="text" id="jam-kerja" name="time_range" class="custom-input" value="{{ $timeRangeValue }}" placeholder="07:00 - 15:00" autocomplete="off" inputmode="numeric" maxlength="13" required>
+                        <i class="fi fi-rr-clock input-icon"></i>
                     </div>
                 </div>
 

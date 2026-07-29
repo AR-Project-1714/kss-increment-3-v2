@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QA Tab Lifecycle</title>
+    <link rel="stylesheet" href="/vendor/poppins.css">
+    <link rel="stylesheet" href="/vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css">
+    <link rel="stylesheet" href="/vendor/uicons/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    <link rel="stylesheet" href="/build/assets/manajer-DE8Y6CVs.css">
+    <style>
+        body { display: block; height: 100vh; overflow: hidden; }
+        .qa-shell { height: 100vh; display: flex; flex-direction: column; }
+        .page-content { min-height: 0; }
+        .qa-state {
+            position: fixed;
+            right: 12px;
+            bottom: 12px;
+            z-index: 100;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #fff;
+            font: 11px/1.4 monospace;
+        }
+    </style>
+</head>
+<body>
+<div class="qa-shell">
+    <main class="page-content">
+        <div class="page-header performance-page-header">
+            <div class="performance-page-header__heading">
+                <span class="page-title">Rincian Kegiatan Operasi</span>
+                <span class="page-subtitle">Uji perubahan dari skeleton pendek ke panel rincian yang panjang.</span>
+            </div>
+            <button class="btn-tool btn-tool--primary performance-filter__trigger" type="button">
+                <i class="fi fi-rr-settings-sliders"></i> Filter
+            </button>
+        </div>
+
+        <div class="act-tabs" id="activityTabs" role="tablist" aria-label="Rincian per kegiatan">
+            <button type="button" class="act-tab is-active" role="tab" aria-selected="true"
+                    data-activity-tab="muat-kantong" data-activity-url="/__qa-tab-panel.html">
+                <i class="fi fi-sr-box"></i><span>Muat Kantong</span><span class="act-tab__unit">Ton</span>
+            </button>
+            <button type="button" class="act-tab" role="tab" aria-selected="false"
+                    data-activity-tab="muat-curah" data-activity-url="/__qa-tab-panel.html">
+                <i class="fi fi-sr-ship"></i><span>Muat Curah</span><span class="act-tab__unit">Ton</span>
+            </button>
+            <button type="button" class="act-tab" role="tab" aria-selected="false"
+                    data-activity-tab="bongkar-bahan-baku" data-activity-url="/__qa-tab-panel.html">
+                <i class="fi fi-sr-inbox-in"></i><span>Bongkar Bahan Baku</span><span class="act-tab__unit">Ton</span>
+            </button>
+            <button type="button" class="act-tab" role="tab" aria-selected="false"
+                    data-activity-tab="bongkar-container" data-activity-url="/__qa-tab-panel.html">
+                <i class="fi fi-sr-container-storage"></i><span>Bongkar Container</span><span class="act-tab__unit">Teus</span>
+            </button>
+            <button type="button" class="act-tab" role="tab" aria-selected="false"
+                    data-activity-tab="muat-container" data-activity-url="/__qa-tab-panel.html">
+                <i class="fi fi-sr-boxes"></i><span>Muat Container</span><span class="act-tab__unit">Teus</span>
+            </button>
+            <button type="button" class="act-tab" role="tab" aria-selected="false"
+                    data-activity-tab="trucking-turba" data-activity-url="/__qa-tab-panel.html">
+                <i class="fi fi-sr-truck-side"></i><span>Trucking Turba</span><span class="act-tab__unit">Ton</span>
+            </button>
+            <span class="act-tab-indicator" id="activityTabIndicator" aria-hidden="true"></span>
+        </div>
+
+        <div class="act-panel" id="activity-panel" role="tabpanel" aria-live="polite">
+            <div class="act-panel__loading">
+                <span class="act-skeleton act-skeleton--metrics"></span>
+                <span class="act-skeleton act-skeleton--block"></span>
+            </div>
+        </div>
+    </main>
+</div>
+<output class="qa-state" id="qaState">menunggu panel</output>
+<script>
+    // Buat pekerjaan idle deterministik agar QA dapat mengklik tab lain
+    // sebelum callback pemuatan awal dijalankan.
+    window.requestIdleCallback = function (callback) {
+        return window.setTimeout(function () {
+            callback({ didTimeout: false, timeRemaining: function () { return 20; } });
+        }, 800);
+    };
+</script>
+<script src="/js/components/charts.js?v=qa-tab-fix-3"></script>
+<script>
+    (function () {
+        var tabs = document.getElementById('activityTabs');
+        var panel = document.getElementById('activity-panel');
+        var output = document.getElementById('qaState');
+
+        function report() {
+            var active = tabs.querySelector('.act-tab.is-active');
+            var indicator = document.getElementById('activityTabIndicator');
+            output.textContent = [
+                'tab=' + Math.round(tabs.getBoundingClientRect().height) + 'px',
+                'panel=' + Math.round(panel.getBoundingClientRect().height) + 'px',
+                'active=' + (active && active.getAttribute('data-activity-tab')),
+                'indicator=' + Math.round(indicator.getBoundingClientRect().height) + 'px'
+            ].join(' | ');
+        }
+
+        new ResizeObserver(report).observe(tabs);
+        new MutationObserver(report).observe(panel, { childList: true, subtree: true });
+        window.addEventListener('load', report);
+        window.setTimeout(report, 1600);
+    })();
+</script>
+</body>
+</html>

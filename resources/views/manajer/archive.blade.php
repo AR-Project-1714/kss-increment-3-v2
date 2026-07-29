@@ -292,6 +292,52 @@
             font-size: 13px;
         }
 
+        .archive-filter-fields {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            align-items: end;
+            gap: 12px;
+        }
+
+        .archive-filter-fields .filter-field {
+            min-width: 0;
+            max-width: none;
+        }
+
+        .archive-filter-fields .filter-select-wrapper {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .archive-filter-fields .filter-input,
+        .archive-filter-fields .filter-select-trigger {
+            width: 100%;
+            min-width: 0;
+            height: 36px;
+        }
+
+        .archive-filter-fields .kss-date-trigger.filter-input {
+            min-height: 36px;
+            padding: 0 12px;
+            justify-content: flex-start;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .archive-filter-fields .kss-date-trigger__main {
+            width: 100%;
+        }
+
+        .archive-filter-fields .kss-date-trigger__main i {
+            top: 0;
+            color: var(--blue-main);
+            font-size: 13px;
+        }
+
+        .archive-filter-fields + .performance-filter__actions {
+            margin-top: 14px;
+        }
+
         .archive-empty {
             width: 100%;
             padding: 34px 18px;
@@ -395,6 +441,16 @@
                 margin-left: 0;
                 justify-content: flex-start;
             }
+
+            .archive-filter-fields {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 560px) {
+            .archive-filter-fields {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 @endpush
@@ -483,9 +539,119 @@
     @endphp
 
     <main class="page-content">
-        <div class="page-header">
-            <span class="page-title">Arsip Laporan</span>
-            <span class="page-subtitle">Daftar laporan yang berstatus diserahkan, ditanda tangani, dan diarsipkan.</span>
+        <div class="page-header performance-page-header">
+            <div class="performance-page-header__heading">
+                <span class="page-title">Arsip Laporan</span>
+                <span class="page-subtitle">Daftar laporan yang berstatus diserahkan, ditanda tangani, dan diarsipkan.</span>
+            </div>
+
+            <div class="performance-filter performance-filter--with-export" data-archive-filter>
+                <a href="{{ route('manajer.archive.export', request()->except('page')) }}"
+                   class="btn-tool performance-export-button"
+                   title="Ekspor Excel sesuai filter aktif ({{ $archiveTotal }} laporan)">
+                    <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
+                    <span>Ekspor Excel</span>
+                </a>
+
+                <button type="button"
+                        class="btn-tool btn-tool--primary performance-filter__trigger {{ $hasActiveFilter ? 'performance-filter__trigger--active' : '' }}"
+                        data-archive-filter-trigger
+                        aria-expanded="false"
+                        aria-controls="archive-filter-popover">
+                    <i class="fi fi-rr-settings-sliders" aria-hidden="true"></i>
+                    <span>Filter</span>
+                    @if ($hasActiveFilter)
+                        <span class="performance-filter__status" aria-label="Filter aktif">Aktif</span>
+                    @endif
+                </button>
+
+                <div class="performance-filter__popover"
+                     id="archive-filter-popover"
+                     data-archive-filter-popover
+                     hidden>
+                    <div class="performance-filter__head">
+                        <div>
+                            <span class="performance-filter__title">Filter Arsip Laporan</span>
+                            <span class="performance-filter__subtitle">Atur tanggal, divisi, regu, shift, dan status laporan.</span>
+                        </div>
+                        <button type="button"
+                                class="performance-filter__close"
+                                data-archive-filter-close
+                                aria-label="Tutup filter">
+                            <i class="fi fi-rr-cross-small" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <form method="GET" action="{{ route('manajer.archive') }}" id="archive-filter-form" autocomplete="off">
+                        <input type="hidden" name="q" value="{{ $archiveSearch }}">
+                        <input type="hidden" name="sort" value="{{ $sort }}">
+
+                        <div class="archive-filter-fields">
+                            <div class="filter-field">
+                                <label>Tanggal</label>
+                                <input type="hidden" name="tanggal" value="{{ $selectedDate }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Pilih tanggal">
+                            </div>
+                            <div class="filter-field">
+                                <label>Divisi</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="divisi">
+                                        <option value="all" @selected($selectedDivision === 'all')>Semua Divisi</option>
+                                        <option value="operasional" @selected($selectedDivision === 'operasional')>Operasional</option>
+                                        <option value="pemeliharaan" @selected($selectedDivision === 'pemeliharaan')>Pemeliharaan</option>
+                                        <option value="safety" @selected($selectedDivision === 'safety')>Safety</option>
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+                            <div class="filter-field">
+                                <label>Regu</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="regu">
+                                        <option value="all" @selected($selectedGroup === 'ALL')>Semua Regu</option>
+                                        @foreach (['A', 'B', 'C', 'D'] as $group)
+                                            <option value="{{ $group }}" @selected($selectedGroup === $group)>Regu {{ $group }}</option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+                            <div class="filter-field">
+                                <label>Shift</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="shift">
+                                        <option value="all" @selected($selectedShift === 'all')>Semua Shift</option>
+                                        <option value="pagi" @selected($selectedShift === 'pagi')>Shift Pagi</option>
+                                        <option value="sore" @selected($selectedShift === 'sore')>Shift Sore</option>
+                                        <option value="malam" @selected($selectedShift === 'malam')>Shift Malam</option>
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+                            <div class="filter-field">
+                                <label>Status</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="status">
+                                        <option value="all" @selected($selectedStatus === 'all')>Semua Status</option>
+                                        <option value="submitted" @selected($selectedStatus === \App\Enums\ReportStatus::Submitted->value)>Diserahkan</option>
+                                        <option value="acknowledged" @selected($selectedStatus === \App\Enums\ReportStatus::Acknowledged->value)>Diterima</option>
+                                        <option value="approved" @selected($selectedStatus === \App\Enums\ReportStatus::Approved->value)>Diarsipkan</option>
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="performance-filter__actions">
+                            @if ($hasActiveFilter)
+                                <a href="{{ route('manajer.archive') }}" class="btn-reset">Reset</a>
+                            @endif
+                            <button type="submit" class="btn-tool btn-tool--primary">
+                                <i class="fi fi-rr-check" aria-hidden="true"></i> Terapkan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         @include('charts.kpi-row', ['cards' => $stats])
@@ -538,74 +704,14 @@
                                     </select>
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>
-                                <button type="button" class="btn-tool {{ $hasPanelFilter ? 'btn-tool--active' : '' }}" id="btnFilter"><i class="fi fi-rr-filter"></i> Filter</button>
-                                @if ($hasActiveFilter)
-                                    <a href="{{ route('manajer.archive') }}" class="btn-reset">Reset</a>
-                                @endif
-                                {{-- Unduh langsung tanpa dialog — konsisten dengan tombol unduh
-                                     laporan manajer lain yang juga tanpa pop up konfirmasi. --}}
-                                <a href="{{ route('manajer.archive.export', request()->except('page')) }}"
-                                        class="btn-tool btn-tool--primary"
-                                        title="Ekspor Excel sesuai filter aktif ({{ $archiveTotal }} laporan)">
-                                    <i class="fi fi-rr-cloud-upload-alt"></i> Ekspor
-                                </a>
                             </div>
                         </div>
 
-                        <div class="archive-filters {{ $hasPanelFilter ? '' : 'collapsed' }}" id="archiveFilters">
-                            <div class="filter-field">
-                                <label>Tanggal</label>
-                                <input type="hidden" name="tanggal" value="{{ $selectedDate }}" data-kss-picker="date" data-trigger-class="filter-input" data-placeholder="Pilih tanggal" data-autosubmit-filter>
-                            </div>
-                            <div class="filter-field">
-                                <label>Divisi</label>
-                                <div class="filter-select-wrapper">
-                                    <select class="native-select" name="divisi" data-autosubmit-filter>
-                                        <option value="all" @selected($selectedDivision === 'all')>Semua Divisi</option>
-                                        <option value="operasional" @selected($selectedDivision === 'operasional')>Operasional</option>
-                                        <option value="pemeliharaan" @selected($selectedDivision === 'pemeliharaan')>Pemeliharaan</option>
-                                        <option value="safety" @selected($selectedDivision === 'safety')>Safety</option>
-                                    </select>
-                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                                </div>
-                            </div>
-                            <div class="filter-field">
-                                <label>Regu</label>
-                                <div class="filter-select-wrapper">
-                                    <select class="native-select" name="regu" data-autosubmit-filter>
-                                        <option value="all" @selected($selectedGroup === 'ALL')>Semua Regu</option>
-                                        @foreach (['A', 'B', 'C', 'D'] as $group)
-                                            <option value="{{ $group }}" @selected($selectedGroup === $group)>Regu {{ $group }}</option>
-                                        @endforeach
-                                    </select>
-                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                                </div>
-                            </div>
-                            <div class="filter-field">
-                                <label>Shift</label>
-                                <div class="filter-select-wrapper">
-                                    <select class="native-select" name="shift" data-autosubmit-filter>
-                                        <option value="all" @selected($selectedShift === 'all')>Semua Shift</option>
-                                        <option value="pagi" @selected($selectedShift === 'pagi')>Shift Pagi</option>
-                                        <option value="sore" @selected($selectedShift === 'sore')>Shift Sore</option>
-                                        <option value="malam" @selected($selectedShift === 'malam')>Shift Malam</option>
-                                    </select>
-                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                                </div>
-                            </div>
-                            <div class="filter-field">
-                                <label>Status</label>
-                                <div class="filter-select-wrapper">
-                                    <select class="native-select" name="status" data-autosubmit-filter>
-                                        <option value="all" @selected($selectedStatus === 'all')>Semua Status</option>
-                                        <option value="submitted" @selected($selectedStatus === \App\Enums\ReportStatus::Submitted->value)>Diserahkan</option>
-                                        <option value="acknowledged" @selected($selectedStatus === \App\Enums\ReportStatus::Acknowledged->value)>Diterima</option>
-                                        <option value="approved" @selected($selectedStatus === \App\Enums\ReportStatus::Approved->value)>Diarsipkan</option>
-                                    </select>
-                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                                </div>
-                            </div>
-                        </div>
+                        <input type="hidden" name="tanggal" value="{{ $selectedDate }}">
+                        <input type="hidden" name="divisi" value="{{ $selectedDivision }}">
+                        <input type="hidden" name="regu" value="{{ $selectedGroup === 'ALL' ? 'all' : $selectedGroup }}">
+                        <input type="hidden" name="shift" value="{{ $selectedShift }}">
+                        <input type="hidden" name="status" value="{{ $selectedStatus }}">
                     </form>
                 </div>
 
@@ -790,6 +896,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('archive-search-form');
+            const archiveFilter = document.querySelector('[data-archive-filter]');
+            const filterTrigger = archiveFilter?.querySelector('[data-archive-filter-trigger]');
+            const filterPopover = archiveFilter?.querySelector('[data-archive-filter-popover]');
+            const filterClose = archiveFilter?.querySelector('[data-archive-filter-close]');
             const input = document.getElementById('archive-search-input');
             const clearButton = document.getElementById('archive-search-clear');
             const dropdown = document.getElementById('archive-suggest-dropdown');
@@ -807,6 +917,33 @@
             let controller = null;
             let items = [];
             let activeIndex = -1;
+
+            const setFilterOpen = (open) => {
+                if (!archiveFilter || !filterTrigger || !filterPopover) return;
+                filterPopover.hidden = !open;
+                filterTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+                archiveFilter.classList.toggle('is-open', open);
+            };
+
+            filterTrigger?.addEventListener('click', () => setFilterOpen(filterPopover?.hidden ?? true));
+            filterClose?.addEventListener('click', () => {
+                setFilterOpen(false);
+                filterTrigger?.focus();
+            });
+
+            document.addEventListener('click', event => {
+                const isDatePickerClick = event.target.closest?.('.kss-date-popover');
+
+                if (filterPopover && !filterPopover.hidden && !archiveFilter.contains(event.target) && !isDatePickerClick) {
+                    setFilterOpen(false);
+                }
+            });
+
+            document.addEventListener('keydown', event => {
+                if (event.key !== 'Escape' || !filterPopover || filterPopover.hidden) return;
+                setFilterOpen(false);
+                filterTrigger?.focus();
+            });
 
             function normalize(value) {
                 return String(value || '')

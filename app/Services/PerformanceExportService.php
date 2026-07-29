@@ -15,12 +15,17 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  *
  * Berkasnya menyalin isi halaman apa adanya, satu sheet per bagian:
  *
+ *   Kinerja Operasional — rekap kegiatan mengikuti format laporan manajemen:
+ *                         bulan berjalan · bulan sebelumnya · akumulasi
  *   Ringkasan        — empat KPI + beban kerja + status rasio kerusakan
- *   Per Kegiatan     — lima kegiatan operasi beserta satuannya masing-masing
- *   Tren Bulanan     — tabel 6 bulan (tonase, laporan, kapal, per shift)
+ *   Per Kegiatan     — lima kegiatan operasi beserta satuan dan analisisnya
+ *   Tren Bulanan     — tabel 6 bulan (tonase, laporan, per shift)
  *   Regu & Kegiatan  — perbandingan regu + komposisi jenis kegiatan
  *   Peringkat Lembur — jam terbanyak & paling sering, berdampingan
- *   Kapal Dilayani   — daftar kunjungan kapal beserta realisasinya
+ *
+ * Sheet "Kapal Dilayani" sudah tidak ada: blok kapal dihapus dari halaman
+ * Kinerja Operasi, dan ekspor memang harus menggambarkan halamannya. Data kapal
+ * pada laporan harian sendiri tidak disentuh.
  *
  * Satuan ditulis di kolom tersendiri karena tidak seragam: container dicatat
  * dalam Teus sedangkan kegiatan lain dalam Ton, sehingga penerimanya tidak
@@ -47,20 +52,255 @@ class PerformanceExportService
         $spreadsheet = new Spreadsheet();
         $spreadsheet->removeSheetByIndex(0);
 
+        $this->recapSheet($spreadsheet->createSheet(), $report, $contextLines);
         $this->summarySheet($spreadsheet->createSheet(), $report, $contextLines);
         $this->activitySheet($spreadsheet->createSheet(), $report);
         $this->trendSheet($spreadsheet->createSheet(), $report);
         $this->groupActivitySheet($spreadsheet->createSheet(), $report);
         $this->overtimeSheet($spreadsheet->createSheet(), $report);
-        $this->shipSheet($spreadsheet->createSheet(), $report);
 
         $spreadsheet->setActiveSheetIndex(0);
 
         return $spreadsheet;
     }
 
+    /**
+     * Tambahkan sheet gambaran besar untuk workbook khusus Rincian Kegiatan.
+     * Semua kegiatan tetap ditampilkan, termasuk yang nilainya nol, agar
+     * manajer dapat membedakan "tidak ada aktivitas" dari "tidak diekspor".
+     *
+     * @param  array<string, mixed>  $report
+     * @param  array<int, string>  $contextLines
+     */
+    public function addActivityOverviewSheet(
+        Spreadsheet $spreadsheet,
+        array $report,
+        array $contextLines
+    ): Worksheet
+    {
+        $sheet = $spreadsheet->createSheet();
+        $this->recapSheet($sheet, $report, $contextLines, true, 'Gambaran Besar');
+
+        return $sheet;
+    }
+
     // ============================================================
-    // Sheet 1 — Ringkasan
+    // Sheet 1 — Rekap kegiatan (format laporan manajemen)
+    // ============================================================
+
+    /**
+     * Rekap kegiatan dalam tata letak yang dipakai laporan manajemen: satu blok
+     * per jenis kegiatan, tiap blok dibaca dalam tiga kelompok kolom — bulan
+     * berjalan, bulan-bulan sebelumnya di dalam periode, dan akumulasinya.
+     *
+     * Kegiatan dengan susunan kolom yang sama digabung ke satu blok, persis
+     * seperti bongkar dan muat kontainer yang berbagi satu kepala tabel.
+     *
+     * @param  array<string, mixed>  $report
+     * @param  array<int, string>  $contextLines
+     */
+    private function recapSheet(
+        Worksheet $sheet,
+        array $report,
+        array $contextLines,
+        bool $includeEmpty = false,
+        string $sheetTitle = 'Kinerja Operasional'
+    ): void
+    {
+        $sheet->setTitle($sheetTitle);
+
+        $recap = $report['activityRecap'] ?? [];
+        $labels = $recap['labels'] ?? [];
+
+        $groups = array_values(array_filter([
+            ['key' => 'month', 'title' => 'BULAN SEKARANG', 'range' => $labels['month'] ?? null],
+            ($recap['hasPrevious'] ?? false)
+                ? ['key' => 'previous', 'title' => 'SEBELUMNYA', 'range' => $labels['previous'] ?? null]
+                : null,
+            ['key' => 'total', 'title' => 'AKUMULASI', 'range' => $labels['total'] ?? null],
+        ]));
+
+        // Baris yang seluruh angkanya nol tidak ikut dicetak, sama seperti di
+        // halaman — rekap kosong tidak menambah informasi apa pun.
+        $rows = $recap['rows'] ?? [];
+
+        if (!$includeEmpty) {
+            $rows = array_values(array_filter(
+                $rows,
+                static fn (array $row): bool => $row['total']['count'] > 0 || $row['total']['value'] > 0
+            ));
+        }
+
+        $year = $this->periodYear($labels['total'] ?? '');
+
+        $row = $this->writeHeading(
+            $sheet,
+            'KINERJA OPERASIONAL'.($year === null ? '' : ' TAHUN '.$year),
+            array_merge($contextLines, [
+                'Bongkar muat hasil produksi, bahan baku, dan barang penunjang produksi.',
+                'Kolom Akumulasi adalah jumlah kedua kelompok sebelumnya. Kontainer bersatuan '
+                .'Teus sehingga tidak dijumlahkan bersama kegiatan bersatuan Ton.',
+            ])
+        );
+
+        if ($rows === []) {
+            $sheet->setCellValue('A'.$row, 'Belum ada kegiatan tercatat pada periode ini.');
+            $sheet->getStyle('A'.$row)->getFont()->setItalic(true);
+            $this->autoSize($sheet, 4);
+
+            return;
+        }
+
+        // Judul dibentang selebar tabel terlebar, mengikuti berkas contoh.
+        $titleWidth = 1 + count($groups) * $this->widestRecapBlock($rows);
+        $sheet->mergeCells('A1:'.Coordinate::stringFromColumnIndex($titleWidth).'1');
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        foreach ($this->recapBlocks($rows) as $block) {
+            $row = $this->writeRecapBlock($sheet, $row, $block, $groups);
+        }
+
+        $this->autoSize($sheet, 1 + count($groups) * 4);
+    }
+
+    /**
+     * Jumlah kolom pada blok terlebar, untuk membentangkan judul.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function widestRecapBlock(array $rows): int
+    {
+        $widest = 0;
+
+        foreach ($this->recapBlocks($rows) as $block) {
+            $widest = max($widest, count($block['columns']));
+        }
+
+        return max($widest, 1);
+    }
+
+    /**
+     * Kelompokkan baris rekap yang susunan kolomnya sama menjadi satu blok.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array{columns: array<int, array<string, string>>, rows: array<int, array<string, mixed>>}>
+     */
+    private function recapBlocks(array $rows): array
+    {
+        $blocks = [];
+
+        foreach ($rows as $row) {
+            $columns = [['key' => 'count', 'label' => strtoupper($row['countLabel']), 'decimals' => 0]];
+
+            if ($row['hasDelivery']) {
+                $columns[] = ['key' => 'delivery', 'label' => 'KIRIM ('.strtoupper($row['unit']).')', 'decimals' => 2];
+            }
+
+            $columns[] = ['key' => 'value', 'label' => 'MUAT ('.strtoupper($row['unit']).')', 'decimals' => 2];
+
+            if ($row['hasDamage']) {
+                $columns[] = ['key' => 'damage', 'label' => 'KERUSAKAN ('.strtoupper($row['unit']).')', 'decimals' => 2];
+            }
+
+            $signature = implode('|', array_column($columns, 'label'));
+            $last = array_key_last($blocks);
+
+            if ($last !== null && $blocks[$last]['signature'] === $signature) {
+                $blocks[$last]['rows'][] = $row;
+
+                continue;
+            }
+
+            $blocks[] = ['signature' => $signature, 'columns' => $columns, 'rows' => [$row]];
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * Satu blok rekap: dua baris kepala bertingkat lalu barisan kegiatannya.
+     * Mengembalikan baris awal untuk blok berikutnya.
+     *
+     * @param  array{columns: array<int, array<string, string>>, rows: array<int, array<string, mixed>>}  $block
+     * @param  array<int, array<string, ?string>>  $groups
+     */
+    private function writeRecapBlock(Worksheet $sheet, int $startRow, array $block, array $groups): int
+    {
+        $columns = $block['columns'];
+        $width = count($columns);
+        $headRow = $startRow;
+        $subRow = $startRow + 1;
+
+        $sheet->setCellValue('A'.$headRow, 'KEGIATAN');
+        $sheet->mergeCells('A'.$headRow.':A'.$subRow);
+
+        $columnIndex = 2;
+
+        foreach ($groups as $group) {
+            $first = Coordinate::stringFromColumnIndex($columnIndex);
+            $last = Coordinate::stringFromColumnIndex($columnIndex + $width - 1);
+
+            $sheet->setCellValue($first.$headRow, $group['title'].($group['range'] ? ' ('.$group['range'].')' : ''));
+
+            if ($width > 1) {
+                $sheet->mergeCells($first.$headRow.':'.$last.$headRow);
+            }
+
+            foreach ($columns as $offset => $column) {
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnIndex + $offset).$subRow, $column['label']);
+            }
+
+            $columnIndex += $width;
+        }
+
+        $lastColumn = Coordinate::stringFromColumnIndex($columnIndex - 1);
+
+        $sheet->getStyle("A{$headRow}:{$lastColumn}{$subRow}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$headRow}:{$lastColumn}{$subRow}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::HEADER_FILL);
+        $sheet->getStyle("A{$headRow}:{$lastColumn}{$subRow}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+
+        $row = $subRow + 1;
+
+        foreach ($block['rows'] as $entry) {
+            $sheet->setCellValueExplicit('A'.$row, (string) $entry['label'], DataType::TYPE_STRING);
+
+            $columnIndex = 2;
+
+            foreach ($groups as $group) {
+                foreach ($columns as $offset => $column) {
+                    $cell = Coordinate::stringFromColumnIndex($columnIndex + $offset).$row;
+                    $value = $this->num((float) ($entry[$group['key']][$column['key']] ?? 0), $column['decimals']);
+
+                    $sheet->setCellValue($cell, $value['v']);
+                    $sheet->getStyle($cell)->getNumberFormat()->setFormatCode($value['f']);
+                    $sheet->getStyle($cell)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                }
+
+                $columnIndex += $width;
+            }
+
+            $row++;
+        }
+
+        $sheet->getStyle("A{$headRow}:{$lastColumn}".($row - 1))
+            ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR);
+
+        return $row + 1;
+    }
+
+    /**
+     * Tahun dari label periode, untuk judul sheet. Label selalu diakhiri tahun
+     * (mis. "1 Jan – 28 Jul 2026"); bila tidak terbaca, judulnya tanpa tahun.
+     */
+    private function periodYear(string $label): ?string
+    {
+        return preg_match('/(\d{4})\s*$/', $label, $match) === 1 ? $match[1] : null;
+    }
+
+    // ============================================================
+    // Sheet 2 — Ringkasan
     // ============================================================
 
     /**
@@ -79,7 +319,6 @@ class PerformanceExportService
 
         $row = $this->writeTable($sheet, $row, 'Indikator Utama', ['Indikator', 'Nilai', 'Satuan', 'Perubahan'], [
             ['Tonase Ditangani', $this->num($summary['tonnage']['value'] ?? 0, 1), 'Ton', $this->deltaText($summary['tonnage']['delta'] ?? [])],
-            ['Kapal Dilayani', $this->num($summary['ships']['value'] ?? 0), 'Kapal', $this->deltaText($summary['ships']['delta'] ?? [])],
             ['Tonase per Shift', $this->num($summary['tonnagePerShift']['value'] ?? 0, 1), 'Ton', $this->deltaText($summary['tonnagePerShift']['delta'] ?? [])],
             [
                 'Rasio Kerusakan',
@@ -87,7 +326,12 @@ class PerformanceExportService
                 '%',
                 $this->deltaText($damage['delta'] ?? []),
             ],
-            ['Jumlah Laporan Masuk', $this->num($report['reportCount'] ?? 0), 'Laporan', '-'],
+            [
+                'Laporan Masuk',
+                $this->num($summary['reports']['value'] ?? $report['reportCount'] ?? 0),
+                'Laporan',
+                $this->deltaText($summary['reports']['delta'] ?? []),
+            ],
         ]);
 
         // Status kerusakan mengikuti zona pada gauge di halaman: ambangnya
@@ -161,11 +405,44 @@ class PerformanceExportService
             ];
         }
 
-        $this->writeTable($sheet, $row, 'Kegiatan Operasi', [
+        $row = $this->writeTable($sheet, $row, 'Kegiatan Operasi', [
             'Jenis Kegiatan', 'Nilai', 'Satuan', 'Perubahan',
         ], $rows, 'Belum ada kegiatan tercatat pada periode ini.');
 
-        $this->autoSize($sheet, 4);
+        // Analisis per kegiatan mengikuti panel di halaman: sebaran shift,
+        // regu teratas, dan beban lembur pada laporan yang memuat kegiatan itu.
+        $analysisRows = [];
+
+        foreach ($report['activityPanels'] ?? [] as $panel) {
+            $shifts = [];
+
+            foreach ($panel['shifts'] ?? [] as $shift) {
+                $shifts[$shift['name']] = (float) $shift['value'];
+            }
+
+            $topGroup = ($panel['groups'] ?? [])[0] ?? null;
+
+            $analysisRows[] = [
+                $panel['label'] ?? '-',
+                $panel['unit'] ?? '-',
+                $this->num($panel['value'] ?? 0, 1),
+                $this->num($panel['composition']['contribution'] ?? 0, 1, self::FORMAT_PERCENT_TEXT),
+                $this->num($shifts['Pagi'] ?? 0, 1),
+                $this->num($shifts['Sore'] ?? 0, 1),
+                $this->num($shifts['Malam'] ?? 0, 1),
+                $topGroup === null ? '-' : 'Regu '.$topGroup['name'].' ('.number_format($topGroup['value'], 1, ',', '.').' '.$panel['unit'].')',
+                $this->num($panel['workload']['reports'] ?? 0),
+                $this->num($panel['workload']['overtimeHours'] ?? 0, 1),
+            ];
+        }
+
+        $this->writeTable($sheet, $row, 'Analisis per Kegiatan', [
+            'Jenis Kegiatan', 'Satuan', 'Nilai', 'Porsi Satuan Sama',
+            'Shift Pagi', 'Shift Sore', 'Shift Malam',
+            'Regu Teratas', 'Laporan', 'Jam Lembur',
+        ], $analysisRows, 'Belum ada kegiatan tercatat pada periode ini.');
+
+        $this->autoSize($sheet, 10);
     }
 
     // ============================================================
@@ -197,8 +474,10 @@ class PerformanceExportService
             $rows[] = [
                 $bucket['label'] ?? '-',
                 $this->num($bucket['tonnage'] ?? 0, 1),
+                // Kolom sendiri, bukan ditambahkan ke tonase: container
+                // bersatuan Teus sehingga tidak sejenis dengan Ton.
+                $this->num($bucket['teus'] ?? 0),
                 $this->num($bucket['reports'] ?? 0),
-                $this->num($bucket['ships'] ?? 0),
                 $this->num($bucket['tonnagePerShift'] ?? 0, 1),
                 $this->num($bucket['damageRatio'] ?? 0, 2, self::FORMAT_PERCENT_TEXT),
                 $this->num($shiftBucket['Pagi'] ?? 0, 1),
@@ -208,7 +487,7 @@ class PerformanceExportService
         }
 
         $this->writeTable($sheet, $row, 'Rekap Bulanan', [
-            'Bulan', 'Tonase (Ton)', 'Laporan', 'Kapal', 'Ton/Shift', 'Rasio Kerusakan',
+            'Bulan', 'Tonase (Ton)', 'Container (Teus)', 'Laporan', 'Ton/Shift', 'Rasio Kerusakan',
             'Shift Pagi (Ton)', 'Shift Sore (Ton)', 'Shift Malam (Ton)',
         ], $rows);
 
@@ -314,45 +593,6 @@ class PerformanceExportService
         ], $countRows, 'Belum ada lembur tercatat pada periode ini.');
 
         $this->autoSize($sheet, 4);
-    }
-
-    // ============================================================
-    // Sheet 5 — Kapal
-    // ============================================================
-
-    /**
-     * @param  array<string, mixed>  $report
-     */
-    private function shipSheet(Worksheet $sheet, array $report): void
-    {
-        $sheet->setTitle('Kapal Dilayani');
-
-        $row = $this->writeHeading($sheet, 'Kapal Dilayani', [
-            'Satu baris mewakili satu kunjungan kapal pada periode '.($report['periodLabel'] ?? '-').'.',
-        ]);
-
-        $rows = [];
-        foreach ($report['ships'] ?? [] as $ship) {
-            $rows[] = [
-                $ship['ship_name'] ?? '-',
-                $ship['type'] ?? '-',
-                $ship['agent'] ?? '-',
-                $ship['jetty'] ?? '-',
-                $this->num($ship['capacity'] ?? 0),
-                $this->num($ship['loaded'] ?? 0, 1),
-                ($ship['realization'] ?? null) === null
-                    ? 'Kapasitas belum diisi'
-                    : $this->num($ship['realization'], 1, self::FORMAT_PERCENT_TEXT),
-                $ship['moment'] ?? '-',
-                $this->num($ship['report_count'] ?? 0),
-            ];
-        }
-
-        $this->writeTable($sheet, $row, 'Daftar Kunjungan', [
-            'Kapal', 'Jenis', 'Agen', 'Dermaga', 'Kapasitas (Ton)', 'Termuat (Ton)', 'Realisasi', 'Waktu Sandar', 'Jumlah Laporan',
-        ], $rows, 'Belum ada kegiatan kapal pada periode ini.');
-
-        $this->autoSize($sheet, 9);
     }
 
     // ============================================================

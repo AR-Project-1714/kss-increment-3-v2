@@ -2,7 +2,7 @@
         <div class="header-form d-flex justify-content-between align-items-center align-self-stretch">
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-truck-loading"></i></span>
-                <span class="fw-600">Form Pemuatan Curah Urea</span>
+                <span class="fw-600">Form Pemuatan Curah Urea / Amoniak</span>
             </div>
             <div class="counter-form">Form 3 dari 7</div>
         </div>
@@ -31,7 +31,7 @@
                 <div class="form-grid">
                     <div class="form-group"><label>Agen</label><input type="text" name="agent_urea_1" value="{{ old('agent_urea_1') }}" placeholder="Masukkan Nama Agen"></div>
                     <div class="form-group"><label>Petugas PBM</label><input type="text" name="stevedoring_urea_1" value="{{ old('stevedoring_urea_1') }}" placeholder="Nama Petugas"></div>
-                    <div class="form-group"><label>Jenis Urea</label><input type="text" name="commodity_urea_1" value="{{ old('commodity_urea_1') }}" placeholder="Jenis Urea"></div>
+                    <div class="form-group"><label>Jenis Muatan</label><input type="text" name="commodity_urea_1" value="{{ old('commodity_urea_1') }}" placeholder="Jenis Muatan"></div>
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -49,7 +49,13 @@
                 </div>
 
                 <div class="ship-operation-status">
-                    <span class="ship-operation-status-label">Status pekerjaan kapal</span>
+                    <span class="ship-operation-status-label">
+                        Status pekerjaan kapal
+                        <span class="status-info-icon" tabindex="0" role="button" aria-label="Info status pekerjaan kapal">
+                            <i class="fi fi-rr-info"></i>
+                            <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung — saran ini akan hilang dari daftar.</span>
+                        </span>
+                    </span>
                     <div class="ship-operation-status-options">
                         <label>
                             <input type="radio" name="ship_operation_urea_status_1" value="active" {{ old('ship_operation_urea_status_1', 'active') === 'active' ? 'checked' : '' }}>
