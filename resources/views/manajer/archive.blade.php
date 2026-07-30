@@ -219,6 +219,15 @@
             min-width: 225px;
         }
 
+        /* Kolom No memuat checkbox pilih baris, jadi lebih lebar dari 50px biasa. */
+        .archive-body .thead th.nomor,
+        .archive-body .tbody td.nomor {
+            width: 78px;
+            min-width: 78px;
+            gap: 8px;
+            justify-content: center;
+        }
+
         .archive-body .tbody td.column-2 > span:first-child {
             white-space: nowrap;
         }
@@ -462,6 +471,10 @@
         $archiveLastItem = method_exists($reports, 'lastItem') ? $reports->lastItem() : $reports->count();
         $selectedDivision = $selectedDivision ?? 'all';
         $selectedStatus = $selectedStatus ?? 'all';
+        // Batas unduhan dibaca dari controller agar pesan di UI tidak pernah
+        // berbeda dengan batas yang benar-benar dipakai server.
+        $archiveInstantLimit = $archiveInstantLimit ?? 50;
+        $archiveBundleLimit = $archiveBundleLimit ?? 1000;
         $hasPanelFilter = filled($selectedDate)
             || !in_array($selectedGroup, ['ALL', ''], true)
             || !in_array($selectedShift, ['all', ''], true)
@@ -715,10 +728,30 @@
                     </form>
                 </div>
 
+                @include('partials.archive-bulk-bar', [
+                    'context' => 'manajer',
+                    'total' => $archiveTotal,
+                    'pageCount' => $reports->count(),
+                    'instantLimit' => $archiveInstantLimit,
+                    'bundleLimit' => $archiveBundleLimit,
+                    'search' => $archiveSearch,
+                    'date' => $selectedDate,
+                    'division' => $selectedDivision,
+                    'group' => $selectedGroup,
+                    'shift' => $selectedShift,
+                    'status' => $selectedStatus,
+                ])
+
                 <div class="table-responsive-wrapper">
                     <table>
                         <tr class="thead d-flex justify-content-between align-items-center">
-                            <th class="nomor">No</th>
+                            <th class="nomor">
+                                <input type="checkbox"
+                                       class="archive-select"
+                                       data-bulk-master
+                                       aria-label="Pilih semua laporan di halaman ini">
+                                <span>No</span>
+                            </th>
                             <th class="column-1">Info Dokumen</th>
                             <th class="column-1">Tanggal Laporan</th>
                             <th>Divisi</th>
@@ -739,7 +772,14 @@
                                 data-history-row
                                 data-history-search="{{ $r['search'] ?? '' }}"
                             >
-                                <td class="nomor">{{ $r['no'] }}</td>
+                                <td class="nomor">
+                                    <input type="checkbox"
+                                           class="archive-select"
+                                           value="{{ $r['key'] ?? '' }}"
+                                           data-bulk-checkbox
+                                           aria-label="Pilih {{ $r['title'] }} {{ $r['id'] }}">
+                                    <span data-row-number>{{ $r['no'] }}</span>
+                                </td>
                                 <td class="column-2">
                                     <span>{{ $r['title'] }}</span>
                                     <span class="fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
@@ -851,6 +891,8 @@
             </div>
         </div>
     </main>
+
+    @include('partials.archive-bulk-download')
 @endsection
 
 @push('modals')
@@ -976,7 +1018,9 @@
 
                     if (match) {
                         visible += 1;
-                        const numberCell = row.querySelector('.nomor');
+                        // Sel No memuat checkbox pilih baris, jadi nomor ditulis ke
+                        // span-nya saja supaya checkbox tidak ikut terhapus.
+                        const numberCell = row.querySelector('[data-row-number]') || row.querySelector('.nomor');
                         if (numberCell) numberCell.textContent = pageStart + visible - 1;
                     }
                 });

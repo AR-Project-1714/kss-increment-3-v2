@@ -16,6 +16,7 @@ use App\Models\MaintenanceReport;
 use App\Models\Role;
 use App\Models\SafetyReport;
 use App\Services\ActivityDetailExportService;
+use App\Services\ArchiveBundleService;
 use App\Services\ArchiveMetricsService;
 use App\Services\OperationalPerformanceService;
 use App\Services\PerformanceExportService;
@@ -113,6 +114,8 @@ class ManajerController extends Controller
             'selectedShift' => $filters['selectedShift'],
             'selectedDivision' => $filters['selectedDivision'],
             'selectedStatus' => $filters['selectedStatus'],
+            'archiveInstantLimit' => ArchiveBundleService::INSTANT_LIMIT,
+            'archiveBundleLimit' => ArchiveBundleService::BUNDLE_LIMIT,
         ]);
     }
 
@@ -121,6 +124,41 @@ class ManajerController extends Controller
         $this->authorizeManagementAccess($request);
 
         return $this->archiveExportResponse($request, 'manajer');
+    }
+
+    public function archiveBulkDownload(Request $request)
+    {
+        $this->authorizeManagementAccess($request);
+
+        return $this->archiveBulkDownloadResponse($request);
+    }
+
+    public function archiveBundleStore(Request $request)
+    {
+        $this->authorizeManagementAccess($request);
+
+        return $this->archiveBundleStoreResponse($request, 'manajer');
+    }
+
+    public function archiveBundleShow(Request $request, string $token)
+    {
+        $this->authorizeManagementAccess($request);
+
+        return $this->archiveBundleStatusResponse($request, $token);
+    }
+
+    public function archiveBundleDownload(Request $request, string $token)
+    {
+        $this->authorizeManagementAccess($request);
+
+        return $this->archiveBundleDownloadResponse($request, $token);
+    }
+
+    public function archiveBundleDestroy(Request $request, string $token)
+    {
+        $this->authorizeManagementAccess($request);
+
+        return $this->archiveBundleDestroyResponse($request, $token);
     }
 
     public function archiveSuggestions(Request $request)

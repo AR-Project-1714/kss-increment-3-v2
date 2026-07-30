@@ -20,6 +20,7 @@ use App\Models\MasterUnit;
 use App\Models\Role;
 use App\Models\SafetyReport;
 use App\Models\User;
+use App\Services\ArchiveBundleService;
 use App\Services\ArchiveMetricsService;
 use App\Services\SystemBackupService;
 use App\Services\SystemMetricsService;
@@ -78,12 +79,39 @@ class AdminV2Controller extends Controller
             'selectedShift' => $filters['selectedShift'],
             'selectedDivision' => $filters['selectedDivision'],
             'selectedStatus' => $filters['selectedStatus'],
+            'archiveInstantLimit' => ArchiveBundleService::INSTANT_LIMIT,
+            'archiveBundleLimit' => ArchiveBundleService::BUNDLE_LIMIT,
         ]));
     }
 
     public function archiveExport(Request $request)
     {
         return $this->archiveExportResponse($request, 'admin');
+    }
+
+    public function archiveBulkDownload(Request $request)
+    {
+        return $this->archiveBulkDownloadResponse($request);
+    }
+
+    public function archiveBundleStore(Request $request)
+    {
+        return $this->archiveBundleStoreResponse($request, 'admin');
+    }
+
+    public function archiveBundleShow(Request $request, string $token)
+    {
+        return $this->archiveBundleStatusResponse($request, $token);
+    }
+
+    public function archiveBundleDownload(Request $request, string $token)
+    {
+        return $this->archiveBundleDownloadResponse($request, $token);
+    }
+
+    public function archiveBundleDestroy(Request $request, string $token)
+    {
+        return $this->archiveBundleDestroyResponse($request, $token);
     }
 
     public function archiveSuggestions(Request $request)

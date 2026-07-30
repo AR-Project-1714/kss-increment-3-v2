@@ -583,7 +583,8 @@
         color: var(--black-secondary);
     }
 
-    .thead th.nomor { width: 50px; flex: none; justify-content: center; padding: 10px 0; }
+    /* Kolom No memuat checkbox pilih baris, jadi lebih lebar dari 50px biasa. */
+    .thead th.nomor { width: 78px; flex: none; justify-content: center; gap: 8px; padding: 10px 0; }
     .thead th.column-1 { min-width: 135px; }
     .thead th:nth-child(2) { width: 230px; min-width: 230px; }
     .thead th:nth-child(3) { width: 135px; min-width: 135px; }
@@ -610,7 +611,7 @@
         color: var(--black);
     }
 
-    .tbody td.nomor { width: 50px; flex: none; justify-content: center; padding: 10px 0; color: var(--black-secondary); }
+    .tbody td.nomor { width: 78px; flex: none; justify-content: center; gap: 8px; padding: 10px 0; color: var(--black-secondary); }
 
     .tbody td.column-2 {
         width: 230px;
@@ -850,6 +851,11 @@
     $archiveTotal = method_exists($reports, 'total') ? $reports->total() : $reports->count();
     $archiveFirstItem = method_exists($reports, 'firstItem') ? ($reports->firstItem() ?? 1) : 1;
     $archiveCountLabel = filled($archiveSearch ?? '') || $hasActiveFilter ? 'hasil' : 'laporan';
+    $archivePageCount = method_exists($reports, 'count') ? $reports->count() : count($reports);
+    // Batas unduhan dibaca dari controller agar pesan di UI tidak pernah
+    // berbeda dengan batas yang benar-benar dipakai server.
+    $archiveInstantLimit = $archiveInstantLimit ?? 50;
+    $archiveBundleLimit = $archiveBundleLimit ?? 1000;
 @endphp
 
 <div class="page-header performance-page-header">
@@ -1045,11 +1051,31 @@
     <input type="hidden" name="status" value="{{ $selectedStatus }}">
     </form>
 
+    @include('partials.archive-bulk-bar', [
+        'context' => 'admin',
+        'total' => $archiveTotal,
+        'pageCount' => $archivePageCount,
+        'instantLimit' => $archiveInstantLimit,
+        'bundleLimit' => $archiveBundleLimit,
+        'search' => $archiveSearch ?? '',
+        'date' => $selectedDate ?? '',
+        'division' => $selectedDivision,
+        'group' => $selectedGroup ?? 'ALL',
+        'shift' => $selectedShift ?? 'all',
+        'status' => $selectedStatus,
+    ])
+
     <!-- Table -->
     <div class="table-responsive-wrapper">
         <table>
             <tr class="thead d-flex justify-content-between align-items-center">
-                <th class="nomor">No</th>
+                <th class="nomor">
+                    <input type="checkbox"
+                           class="archive-select"
+                           data-bulk-master
+                           aria-label="Pilih semua laporan di halaman ini">
+                    <span>No</span>
+                </th>
                 <th class="column-1">Info Dokumen</th>
                 <th class="column-1">Tanggal Laporan</th>
                 <th>Divisi</th>
@@ -1066,7 +1092,14 @@
                     $reguCode = $reguCodeSource !== '' ? strtoupper(substr($reguCodeSource, 0, 1)) : '-';
                 @endphp
                 <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="{{ $r['search'] ?? '' }}">
-                    <td class="nomor">{{ $r['no'] }}</td>
+                    <td class="nomor">
+                        <input type="checkbox"
+                               class="archive-select"
+                               value="{{ $r['key'] ?? '' }}"
+                               data-bulk-checkbox
+                               aria-label="Pilih {{ $r['title'] }} {{ $r['id'] }}">
+                        <span data-row-number>{{ $r['no'] }}</span>
+                    </td>
                     <td class="column-2">
                         <span class="archive-doc-title">{{ $r['title'] }}</span>
                         <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
@@ -1141,6 +1174,8 @@
     </div>
     @include('admin.layouts.pagination', ['paginator' => $reports, 'label' => 'laporan'])
 @endcomponent
+
+@include('partials.archive-bulk-download')
 @endsection
 
 @push('scripts')
@@ -1283,7 +1318,9 @@
 
                     if (match) {
                         visible += 1;
-                        const numberCell = row.querySelector('.nomor');
+                        // Sel No memuat checkbox pilih baris, jadi nomor ditulis ke
+                        // span-nya saja supaya checkbox tidak ikut terhapus.
+                        const numberCell = row.querySelector('[data-row-number]') || row.querySelector('.nomor');
                         if (numberCell) numberCell.textContent = pageStart + visible - 1;
                     }
                 });

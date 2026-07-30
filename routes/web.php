@@ -21,6 +21,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');
     Route::get('/archive', [AdminV2Controller::class, 'archive'])->name('archive');
     Route::get('/archive/export', [AdminV2Controller::class, 'archiveExport'])->name('archive.export');
+    Route::post('/archive/bulk-download', [AdminV2Controller::class, 'archiveBulkDownload'])->name('archive.bulk-download');
+    // Bundel ZIP besar dirakit queue worker di latar; klien memantau lewat token.
+    Route::post('/archive/bundles', [AdminV2Controller::class, 'archiveBundleStore'])->name('archive.bundles.store');
+    Route::get('/archive/bundles/{token}', [AdminV2Controller::class, 'archiveBundleShow'])->name('archive.bundles.show');
+    Route::get('/archive/bundles/{token}/download', [AdminV2Controller::class, 'archiveBundleDownload'])->name('archive.bundles.download');
+    Route::delete('/archive/bundles/{token}', [AdminV2Controller::class, 'archiveBundleDestroy'])->name('archive.bundles.destroy');
     Route::get('/archive/suggestions', [AdminV2Controller::class, 'archiveSuggestions'])->name('archive.suggestions');
     Route::get('/log', [AdminV2Controller::class, 'log'])->name('log');
     Route::get('/log/export', [AdminV2Controller::class, 'logExport'])->name('log.export');
@@ -133,6 +139,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/manajer/kegiatan/panel/{key}', [ManajerController::class, 'kegiatanPanel'])->name('manajer.kegiatan.panel');
         Route::get('/manajer/archive', [ManajerController::class, 'archive'])->name('manajer.archive');
         Route::get('/manajer/archive/export', [ManajerController::class, 'archiveExport'])->name('manajer.archive.export');
+        Route::post('/manajer/archive/bulk-download', [ManajerController::class, 'archiveBulkDownload'])->name('manajer.archive.bulk-download');
+        // Bundel ZIP besar dirakit queue worker di latar; klien memantau lewat token.
+        Route::post('/manajer/archive/bundles', [ManajerController::class, 'archiveBundleStore'])->name('manajer.archive.bundles.store');
+        Route::get('/manajer/archive/bundles/{token}', [ManajerController::class, 'archiveBundleShow'])->name('manajer.archive.bundles.show');
+        Route::get('/manajer/archive/bundles/{token}/download', [ManajerController::class, 'archiveBundleDownload'])->name('manajer.archive.bundles.download');
+        Route::delete('/manajer/archive/bundles/{token}', [ManajerController::class, 'archiveBundleDestroy'])->name('manajer.archive.bundles.destroy');
         Route::get('/manajer/archive/suggestions', [ManajerController::class, 'archiveSuggestions'])->name('manajer.archive.suggestions');
         Route::get('/manajer/bantuan', [ManajerController::class, 'bantuan'])->name('manajer.bantuan');
         Route::get('/manajer/reports/{report}', [ManajerController::class, 'show'])->name('manajer.reports.show');

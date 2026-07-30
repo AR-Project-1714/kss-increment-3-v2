@@ -21,6 +21,25 @@ Artisan::command('inspire', function () {
 // terjadi walau tidak ada yang membuka halaman (pembersihan on-request tetap ada).
 Schedule::command('reports:prune-stale')->dailyAt('01:30');
 
+// Bundel ZIP arsip dirakit oleh job di queue. Di VPS tanpa worker daemon
+// (supervisor/systemd), cron per menit yang sudah ada sekaligus menguras
+// antrean: satu proses per menit, berhenti begitu antrean kosong, dan
+// withoutOverlapping mencegah dua worker berjalan bersamaan.
+// Kalau server sudah punya worker daemon sendiri, baris ini boleh dihapus.
+// --memory=512: render dompdf memakan ~100 MB, jauh di atas batas bawaan
+// 128 MB, dan worker yang melampauinya berhenti di tengah bundel.
+// runInBackground() penting: merakit satu bundel bisa berjalan beberapa menit,
+// dan tanpa ini proses schedule:run ikut tertahan selama itu sehingga tugas
+// terjadwal lain pada menit yang sama (backup, snapshot) ikut mundur.
+Schedule::command('queue:work --stop-when-empty --max-time=55 --memory=512')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->runInBackground();
+
+// Buang bundel ZIP yang sudah kedaluwarsa (24 jam) agar disk tidak menumpuk,
+// dan tandai bundel yang terhenti supaya UI tidak menunggu selamanya.
+Schedule::command('archive:prune-bundles')->hourly();
+
 // Rekam keadaan sistem menjelang tengah malam, selagi hitungan aktivitas hari
 // itu masih utuh. Storage dan jumlah pengguna tidak punya jejak historis, jadi
 // tanpa rekaman ini kartu dashboard admin kehilangan angka pembandingnya.

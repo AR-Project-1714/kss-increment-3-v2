@@ -8,14 +8,19 @@ use App\Enums\SafetyStatus;
 use App\Models\AdminActivityLog;
 use App\Models\DailyReport;
 use App\Models\MaintenanceReport;
+use App\Jobs\BuildArchiveBundle;
+use App\Models\ArchiveBundle;
 use App\Models\SafetyReport;
+use App\Services\ArchiveBundleService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Throwable;
 
 trait BuildsDivisionArchive
 {
@@ -100,6 +105,264 @@ trait BuildsDivisionArchive
         }, $fileName, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Unduh massal instan: bundel PDF laporan yang dicentang di tabel (atau
+     * SELURUH hasil filter aktif bila `all=1`) menjadi satu ZIP dalam satu
+     * request. Hanya untuk pilihan kecil — di atas INSTANT_LIMIT permintaan
+     * harus lewat bundel latar (lihat archiveBundleStoreResponse).
+     */
+    protected function archiveBulkDownloadResponse(Request $request)
+    {
+        $service = app(ArchiveBundleService::class);
+        $refs = $this->archiveBulkRefs($request, $service);
+
+        if ($refs->isEmpty()) {
+            return $this->archiveBulkDownloadFailed($request, 'Belum ada laporan yang dipilih untuk diunduh.');
+        }
+
+        if ($refs->count() > ArchiveBundleService::INSTANT_LIMIT) {
+            return $this->archiveBulkDownloadFailed(
+                $request,
+                'Unduhan langsung maksimal '.ArchiveBundleService::INSTANT_LIMIT.' laporan ('.$refs->count().' terpilih). Gunakan penyiapan di latar untuk jumlah sebesar ini.',
+                ['needs_background' => true, 'total' => $refs->count()]
+            );
+        }
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'kss-arsip-');
+
+        if ($zipPath === false) {
+            return $this->archiveBulkDownloadFailed($request, 'Server gagal menyiapkan berkas ZIP sementara. Silakan coba lagi.');
+        }
+
+        // Laporan yang belum punya cache PDF dirender ulang di sini, jadi satu
+        // permintaan bisa jauh lebih lama daripada unduh satu laporan.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(600);
+        }
+
+        try {
+            $result = $service->writeZip($refs, $zipPath);
+        } catch (Throwable $exception) {
+            @unlink($zipPath);
+
+            Log::error('Unduh massal arsip gagal.', ['message' => $exception->getMessage()]);
+
+            return $this->archiveBulkDownloadFailed($request, 'Server gagal membuat berkas ZIP. Silakan coba lagi.');
+        }
+
+        if ($result['added'] === 0) {
+            @unlink($zipPath);
+
+            // Bedakan "laporannya sudah hilang dari arsip" (mis. kunci basi dari
+            // halaman yang lama dibuka) dari "laporannya ada, PDF-nya gagal".
+            return $this->archiveBulkDownloadFailed($request, $result['matched'] === 0
+                ? 'Laporan yang dipilih tidak ditemukan lagi di arsip.'
+                : 'Tidak ada PDF yang berhasil disiapkan dari laporan terpilih.');
+        }
+
+        $this->logArchiveBundleActivity(
+            $request,
+            'Mengunduh massal '.$result['added'].' laporan arsip sebagai ZIP',
+            $result['skipped']
+        );
+
+        return response()
+            ->download($zipPath, $service->downloadFileName($result['added']), [
+                'Content-Type' => 'application/zip',
+            ])
+            ->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Titip permintaan bundel besar ke queue: baris ArchiveBundle dibuat lalu
+     * job BuildArchiveBundle merakit ZIP-nya di latar. Balasannya berisi token
+     * untuk memantau progres, jadi pengguna boleh menutup halaman.
+     */
+    protected function archiveBundleStoreResponse(Request $request, string $context)
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            return $this->archiveBulkDownloadFailed($request, 'Ekstensi ZIP tidak tersedia di server, penyiapan bundel belum bisa dijalankan.');
+        }
+
+        $service = app(ArchiveBundleService::class);
+        $refs = $this->archiveBulkRefs($request, $service);
+
+        if ($refs->isEmpty()) {
+            return $this->archiveBulkDownloadFailed($request, 'Belum ada laporan yang dipilih untuk disiapkan.');
+        }
+
+        if ($refs->count() > ArchiveBundleService::BUNDLE_LIMIT) {
+            return $this->archiveBulkDownloadFailed(
+                $request,
+                'Satu bundel maksimal '.ArchiveBundleService::BUNDLE_LIMIT.' laporan ('.$refs->count().' terpilih). Persempit filter terlebih dahulu.'
+            );
+        }
+
+        // Satu bundel aktif per pengguna: dua permintaan besar sekaligus hanya
+        // akan berebut CPU render PDF dan memperlambat keduanya.
+        $running = ArchiveBundle::query()
+            ->where('user_id', $request->user()?->id)
+            ->whereIn('status', [ArchiveBundle::STATUS_QUEUED, ArchiveBundle::STATUS_PROCESSING])
+            ->latest('id')
+            ->first();
+
+        if ($running !== null) {
+            return response()->json([
+                'message' => 'Masih ada bundel yang sedang disiapkan. Tunggu sampai selesai atau batalkan dulu.',
+                'bundle' => $this->archiveBundlePayload($running),
+            ], 409);
+        }
+
+        $bundle = ArchiveBundle::create([
+            'token' => (string) Str::uuid(),
+            'user_id' => $request->user()?->id,
+            'context' => $context,
+            'status' => ArchiveBundle::STATUS_QUEUED,
+            'total_reports' => $refs->count(),
+            'processed_reports' => 0,
+            'skipped_reports' => 0,
+            'refs' => $service->normalizeRefs($refs),
+            'filter_summary' => $request->boolean('all')
+                ? $this->describeArchiveFilters($this->archiveFiltersFromRequest($request))
+                : $refs->count().' laporan dipilih manual',
+            'expires_at' => now()->addHours(24),
+        ]);
+
+        BuildArchiveBundle::dispatch($bundle->id);
+
+        $this->logArchiveBundleActivity(
+            $request,
+            'Menjadwalkan bundel ZIP arsip berisi '.$bundle->total_reports.' laporan'
+        );
+
+        return response()->json([
+            'message' => 'Bundel sedang disiapkan di latar.',
+            'bundle' => $this->archiveBundlePayload($bundle),
+        ], 202);
+    }
+
+    /**
+     * Progres bundel untuk polling dari halaman arsip.
+     */
+    protected function archiveBundleStatusResponse(Request $request, string $token)
+    {
+        $bundle = $this->findArchiveBundle($request, $token);
+
+        return response()->json(['bundle' => $this->archiveBundlePayload($bundle)]);
+    }
+
+    /**
+     * Unduh berkas bundel yang sudah selesai dirakit.
+     */
+    protected function archiveBundleDownloadResponse(Request $request, string $token)
+    {
+        $bundle = $this->findArchiveBundle($request, $token);
+
+        abort_unless($bundle->isReady(), 409, 'Bundel belum selesai disiapkan.');
+        abort_if($bundle->isExpired(), 410, 'Bundel sudah kedaluwarsa, silakan siapkan ulang.');
+
+        $path = $bundle->absolutePath();
+        abort_unless($path !== null && is_file($path), 404, 'Berkas bundel tidak ditemukan lagi di server.');
+
+        $bundle->update(['downloaded_at' => now()]);
+
+        return response()->download($path, $bundle->file_name ?? 'Arsip-Laporan.zip', [
+            'Content-Type' => 'application/zip',
+        ]);
+    }
+
+    /**
+     * Batalkan / buang bundel milik sendiri beserta berkasnya.
+     */
+    protected function archiveBundleDestroyResponse(Request $request, string $token)
+    {
+        $this->findArchiveBundle($request, $token)->purge();
+
+        return response()->json(['message' => 'Bundel dibatalkan.']);
+    }
+
+    /**
+     * Bundel hanya boleh diakses pemiliknya — token saja tidak cukup kalau
+     * bocor lewat riwayat peramban bersama.
+     */
+    private function findArchiveBundle(Request $request, string $token): ArchiveBundle
+    {
+        $bundle = ArchiveBundle::where('token', $token)->first();
+        $userId = $request->user()?->id;
+
+        abort_if($bundle === null, 404);
+        // Pemilik null tidak boleh cocok dengan penonton null: bundel tanpa
+        // pemilik harus tetap tertutup, bukan jadi milik siapa saja.
+        abort_unless($userId !== null && $bundle->user_id === $userId, 403);
+
+        return $bundle;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function archiveBundlePayload(ArchiveBundle $bundle): array
+    {
+        $routePrefix = $bundle->context === 'manajer' ? 'manajer.archive.bundles' : 'admin.archive.bundles';
+
+        return [
+            'token' => $bundle->token,
+            'status' => $bundle->status,
+            'total' => (int) $bundle->total_reports,
+            'processed' => (int) $bundle->processed_reports,
+            'skipped' => (int) $bundle->skipped_reports,
+            'percent' => $bundle->progressPercent(),
+            'file_name' => $bundle->file_name,
+            'file_size' => $bundle->file_size,
+            'error' => $bundle->error,
+            'filter_summary' => $bundle->filter_summary,
+            'queued_seconds' => $bundle->created_at ? (int) $bundle->created_at->diffInSeconds(now()) : 0,
+            'status_url' => route($routePrefix.'.show', $bundle->token),
+            'download_url' => $bundle->isReady() ? route($routePrefix.'.download', $bundle->token) : null,
+            'cancel_url' => route($routePrefix.'.destroy', $bundle->token),
+        ];
+    }
+
+    /**
+     * Refs dari pilihan manual (`keys[]`) atau dari seluruh hasil filter aktif
+     * (`all=1`) — dipakai jalur instan maupun jalur latar agar keduanya
+     * menafsirkan permintaan yang sama secara identik.
+     *
+     * @return Collection<int, array{kind: string, id: int}>
+     */
+    private function archiveBulkRefs(Request $request, ArchiveBundleService $service): Collection
+    {
+        return $request->boolean('all')
+            ? $this->archiveRowRefs($this->archiveFiltersFromRequest($request))
+            : $service->refsFromKeys((array) $request->input('keys', []));
+    }
+
+    private function logArchiveBundleActivity(Request $request, string $description, int $skipped = 0): void
+    {
+        AdminActivityLog::create([
+            'user_id' => $request->user()?->id,
+            'type' => 'export',
+            'description' => $description.($skipped > 0 ? ' ('.$skipped.' laporan gagal disiapkan)' : ''),
+            'ip_address' => $request->ip(),
+        ]);
+    }
+
+    /**
+     * Kegagalan unduh massal dilaporkan sebagai JSON untuk pemanggil fetch (agar
+     * pesannya bisa ditampilkan tanpa meninggalkan halaman) dan sebagai flash
+     * message untuk submit form biasa.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    private function archiveBulkDownloadFailed(Request $request, string $message, array $extra = [])
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(array_merge(['message' => $message], $extra), 422);
+        }
+
+        return back()->with('error', $message);
     }
 
     protected function describeArchiveFilters(array $filters): string
@@ -267,15 +530,10 @@ trait BuildsDivisionArchive
         };
     }
 
-    protected function maintenanceArchiveStatuses(): array
-    {
-        return [MaintenanceStatus::Submitted, MaintenanceStatus::Approved];
-    }
-
-    protected function safetyArchiveStatuses(): array
-    {
-        return [SafetyStatus::Submitted, SafetyStatus::Approved];
-    }
+    // maintenanceArchiveStatuses() & safetyArchiveStatuses() kini tinggal di
+    // ResolvesMaintenanceMeta / ResolvesSafetyMeta, sejajar dengan
+    // archiveStatuses() milik operasional, agar service bundel latar memakai
+    // daftar status yang sama tanpa menduplikasinya.
 
     /**
      * Kumpulan tuple ringan (kind, id, kunci sort) untuk seluruh baris arsip yang

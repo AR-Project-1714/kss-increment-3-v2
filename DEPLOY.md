@@ -340,11 +340,45 @@ Total CSS + JS per kunjungan pertama turun dari ±1.173 KB menjadi ±171 KB.
 ## 5. Cron untuk tugas terjadwal
 
 Tanpa cron ini, pembersihan draft kadaluarsa, snapshot metrik dashboard admin,
-dan backup otomatis tidak akan berjalan (lihat [`routes/console.php`](routes/console.php)):
+backup otomatis, **dan penyiapan bundel ZIP arsip di latar** tidak akan berjalan
+(lihat [`routes/console.php`](routes/console.php)):
 
 ```bash
 * * * * * cd /var/www/kss-multidivisi && php artisan schedule:run >> /dev/null 2>&1
 ```
+
+### 5.1 Antrean (queue) untuk unduh massal arsip
+
+Unduh massal di halaman Arsip Laporan punya dua jalur:
+
+| Jumlah laporan | Jalur | Kebutuhan |
+| --- | --- | --- |
+| sampai 50 | ZIP dirakit langsung dalam satu request | tidak ada |
+| di atas 50 | job `BuildArchiveBundle` merakit ZIP di latar | **queue worker harus jalan** |
+
+Jadwal di `routes/console.php` sudah menguras antrean lewat cron per menit yang
+sama (`queue:work --stop-when-empty --max-time=55 --memory=512`), jadi VPS
+sederhana tidak perlu daemon terpisah. Konsekuensinya: bundel mulai dikerjakan
+paling lama ±1 menit setelah diminta, dan panel progres di UI menampilkan
+"menunggu antrean" selama itu.
+
+Kalau server ingin bundel langsung mulai tanpa jeda, jalankan worker daemon
+(supervisor/systemd) lalu **hapus** entri `queue:work` dari `routes/console.php`
+agar tidak ada dua worker berebut job:
+
+```bash
+php artisan queue:work --queue=default --memory=512 --timeout=3600 --tries=1
+```
+
+Catatan penting:
+
+- `--memory=512` bukan opsional: render dompdf memakai ±100 MB, di atas batas
+  bawaan 128 MB. Worker yang melampauinya berhenti di tengah bundel.
+- `--timeout=3600` menyamai `$timeout` pada job; bundel 300 laporan bisa
+  memakan beberapa menit.
+- Berkas bundel tersimpan di `storage/app/private/archive-bundles` dan dibuang
+  otomatis setelah 24 jam oleh `archive:prune-bundles` (terjadwal per jam).
+  Sisakan ruang disk untuk beberapa bundel sekaligus (±10 MB per 100 laporan).
 
 ---
 

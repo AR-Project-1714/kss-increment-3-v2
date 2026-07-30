@@ -53,6 +53,14 @@ trait ResolvesSafetyMeta
         return "Laporan_K3_{$id}_{$year}.{$extension}";
     }
 
+    /**
+     * Status laporan K3 yang boleh tampil (dan diunduh) dari arsip.
+     */
+    protected function safetyArchiveStatuses(): array
+    {
+        return [SafetyStatus::Submitted, SafetyStatus::Approved];
+    }
+
     protected function safetyReportRelations(): array
     {
         return [

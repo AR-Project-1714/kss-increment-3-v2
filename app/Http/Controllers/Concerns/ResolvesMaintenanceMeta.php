@@ -52,6 +52,14 @@ trait ResolvesMaintenanceMeta
         return "Laporan_Pemeliharaan_{$id}_{$year}.{$extension}";
     }
 
+    /**
+     * Status laporan pemeliharaan yang boleh tampil (dan diunduh) dari arsip.
+     */
+    protected function maintenanceArchiveStatuses(): array
+    {
+        return [MaintenanceStatus::Submitted, MaintenanceStatus::Approved];
+    }
+
     protected function maintenanceReportRelations(): array
     {
         return [
