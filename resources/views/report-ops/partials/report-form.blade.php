@@ -1661,12 +1661,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const curahPrefixes = [
             'ship_name_urea', 'jetty_urea', 'destination_urea', 'agent_urea', 'stevedoring_urea',
             'commodity_urea', 'capacity_urea', 'berthing_time_urea', 'start_loading_time_urea',
+            'cob_received_urea', 'cob_delivered_urea', 'loading_qty_urea',
             'ship_operation_urea_id', 'ship_operation_urea_status',
         ];
         const ammoniaPrefixes = [
             'ship_name_ammonia', 'jetty_ammonia', 'destination_ammonia', 'agent_ammonia',
             'stevedoring_ammonia', 'commodity_ammonia', 'capacity_ammonia',
             'berthing_time_ammonia', 'start_loading_time_ammonia',
+            'cob_received_ammonia', 'cob_delivered_ammonia', 'loading_qty_ammonia',
             'ship_operation_ammonia_id', 'ship_operation_ammonia_status',
         ];
         const materialPrefixes = [
@@ -2799,6 +2801,7 @@ document.addEventListener('DOMContentLoaded', function () {
         delete row.dataset.replacementCreated;
         row.querySelector('.table-column.delete')?.style.removeProperty('visibility');
         row.querySelectorAll('.ship-operation-suggestions').forEach(dropdown => dropdown.remove());
+        row.querySelectorAll('[data-user-adjusted]').forEach(el => el.removeAttribute('data-user-adjusted'));
         resetAccumulationSummaries(row);
 
         row.querySelectorAll('input, textarea, select').forEach(input => {
@@ -3324,6 +3327,50 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function updateLoadingQty(input) {
+        const wrapper = input.closest('.shipment-details');
+        if (!wrapper) return;
+
+        const receivedInput = wrapper.querySelector('.cob-received-input');
+        const deliveredInput = wrapper.querySelector('.cob-delivered-input');
+        const qtyInput = wrapper.querySelector('.loading-qty-input');
+        if (!receivedInput || !deliveredInput || !qtyInput) return;
+
+        const received = parseFloat(String(receivedInput.value).replace(',', '.')) || 0;
+        const delivered = parseFloat(String(deliveredInput.value).replace(',', '.')) || 0;
+        const qty = Math.max(0, delivered - received);
+
+        qtyInput.value = (receivedInput.value === '' && deliveredInput.value === '') ? '' : qty;
+    }
+
+    // COB pada Laporan Harian adalah pembacaan kumulatif — entri terakhir yang
+    // sudah terisi otomatis dipakai sebagai COB Diserahkan, tapi petugas boleh
+    // menimpanya secara manual kapan saja (ditandai lewat data-user-adjusted).
+    function updateCobDeliveredFromLogs(logInput) {
+        const match = logInput.name.match(/^(bulk_logs|ammonia_logs)\[(\d+)]/);
+        if (!match) return;
+
+        const prefix = match[1] === 'bulk_logs' ? 'urea' : 'ammonia';
+        const sequence = match[2];
+        const pane = logInput.closest('.activity-pane') || document;
+        const deliveredInput = namedControl(pane, `cob_delivered_${prefix}_${sequence}`);
+        if (!deliveredInput) return;
+
+        const wrapper = deliveredInput.closest('.form-group');
+        if (wrapper?.dataset.userAdjusted === 'true') return;
+
+        const logInputs = pane.querySelectorAll(`[name^="${match[1]}[${sequence}]"][name$="[cob]"]`);
+        let lastValue = null;
+        logInputs.forEach(control => {
+            const value = String(control.value ?? '').trim();
+            if (value !== '') lastValue = value;
+        });
+
+        if (lastValue === null || lastValue === deliveredInput.value) return;
+
+        setControlValue(deliveredInput, lastValue);
+    }
+
     function showActivity(section, sequence) {
         section.querySelectorAll('.btn-activity').forEach(tab => tab.classList.toggle('active', Number(tab.dataset.sequence) === sequence));
         section.querySelectorAll('.activity-pane').forEach(pane => {
@@ -3475,6 +3522,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initActivitySection('step-muat-amoniak');
     initActivitySection(document.getElementById('section-bahan-baku'));
     initActivitySection(document.getElementById('section-container'));
+    document.querySelectorAll('.cob-received-input, .cob-delivered-input').forEach(updateLoadingQty);
     restoreSavedPayload();
     applyAbsenceStateToEmployeeRows();
     syncOp7Replacements();
@@ -3671,6 +3719,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (isBagLoadingDetailControl(event.target)) {
             refreshPaneAccumulations(event.target.closest('.activity-pane'));
+        }
+
+        if (event.target.matches('.cob-received-input, .cob-delivered-input')) {
+            if (event.target.matches('.cob-delivered-input') && event.isTrusted) {
+                event.target.closest('.form-group')?.setAttribute('data-user-adjusted', 'true');
+            }
+            updateLoadingQty(event.target);
+        }
+
+        if (event.isTrusted && event.target.matches('[name^="bulk_logs["][name$="[cob]"], [name^="ammonia_logs["][name$="[cob]"]')) {
+            updateCobDeliveredFromLogs(event.target);
         }
 
         const timesheetRow = event.target.closest('.timesheet-input');

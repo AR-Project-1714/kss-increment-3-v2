@@ -47,6 +47,20 @@
                         <div class="input-wrapper"><input type="hidden" name="start_loading_time_urea_1" value="{{ old('start_loading_time_urea_1') }}" class="datetime-picker-input" data-kss-picker="datetime" data-trigger-class="custom-input" data-placeholder="Pilih tanggal & jam" autocomplete="off"></div>
                     </div>
                 </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>COB Diterima</label>
+                        <div class="input-wrapper"><input type="number" name="cob_received_urea_1" value="{{ old('cob_received_urea_1') }}" placeholder="0" min="0" step="0.01" inputmode="decimal" class="cob-received-input" style="padding-right: 40px;"><span class="input-icon" style="font-size: 11px;">MT</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>COB Diserahkan</label>
+                        <div class="input-wrapper"><input type="number" name="cob_delivered_urea_1" value="{{ old('cob_delivered_urea_1') }}" placeholder="0" min="0" step="0.01" inputmode="decimal" class="cob-delivered-input" style="padding-right: 40px;"><span class="input-icon" style="font-size: 11px;">MT</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Jumlah Pemuatan</label>
+                        <div class="input-wrapper"><input type="number" name="loading_qty_urea_1" value="{{ old('loading_qty_urea_1') }}" placeholder="0" readonly class="loading-qty-input" style="padding-right: 40px;"><span class="input-icon" style="font-size: 11px;">MT</span></div>
+                    </div>
+                </div>
 
                 <div class="ship-operation-status">
                     <span class="ship-operation-status-label">

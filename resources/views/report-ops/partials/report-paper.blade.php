@@ -216,6 +216,7 @@
     .report-paper .muted { color: #444; }
     .report-paper .empty-note { text-align: center; font-style: italic; color: #555; padding: 6px; }
     .report-paper .small { font-size: 7px; }
+    .report-paper .hl td { background: #fff59d; font-weight: bold; }
     .report-paper .good { background: #fff; color: #166534; font-weight: bold; }
     .report-paper .bad { background: #fff; color: #991b1b; font-weight: bold; }
     .report-paper .avoid-break { page-break-inside: avoid; }
@@ -420,6 +421,9 @@
                                 <tr><td class="label">Mulai Muat</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->start_loading_time) }}</td></tr>
                                 <tr><td class="label">Tujuan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->destination }}</td></tr>
                                 <tr><td class="label">Petugas PBM</td><td class="colon">:</td><td class="line-cell">{{ $bulk->stevedoring }}</td></tr>
+                                <tr><td class="label">COB Diterima</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->cob_received, 'MT') }}</td></tr>
+                                <tr><td class="label">COB Diserahkan</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->cob_delivered, 'MT') }}</td></tr>
+                                <tr class="hl"><td class="label">Jumlah Pemuatan</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->loading_qty, 'MT') }}</td></tr>
                             </table>
                         </td>
                     </tr>

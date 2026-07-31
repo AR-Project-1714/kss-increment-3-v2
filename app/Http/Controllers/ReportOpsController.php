@@ -1537,10 +1537,15 @@ class ReportOpsController extends Controller
                 $field('capacity'),
                 $field('berthing_time'),
                 $field('start_loading_time'),
+                $field('cob_received'),
+                $field('cob_delivered'),
                 "{$logInput}.{$i}",
             ])) {
                 continue;
             }
+
+            $cobReceived = $this->decimal($request->input($field('cob_received')));
+            $cobDelivered = $this->decimal($request->input($field('cob_delivered')));
 
             $bulkData = [
                 'activity_type' => $activityType,
@@ -1555,6 +1560,9 @@ class ReportOpsController extends Controller
                 'capacity' => $this->decimal($request->input($field('capacity'))),
                 'berthing_time' => $this->dateTime($request->input($field('berthing_time')), $reportDate),
                 'start_loading_time' => $this->dateTime($request->input($field('start_loading_time')), $reportDate),
+                'cob_received' => $cobReceived,
+                'cob_delivered' => $cobDelivered,
+                'loading_qty' => max(0.0, $cobDelivered - $cobReceived),
             ];
 
             $shipOperation = $isDraft
