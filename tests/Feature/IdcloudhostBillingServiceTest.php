@@ -6,6 +6,7 @@ use App\Models\IdcloudhostCreditSnapshot;
 use App\Services\IdcloudhostBillingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -152,5 +153,69 @@ class IdcloudhostBillingServiceTest extends TestCase
         $this->assertSame('Rp 3.200', $page['usage_total_formatted']);
         $this->assertSame('Pembayaran invoice', $page['balance_history'][0]['description']);
         $this->assertGreaterThan(0, $page['runway_percent']);
+    }
+
+    /**
+     * Dashboard tidak boleh jatuh dengan Server Error semata-mata karena
+     * respons API billing berbentuk tidak terduga. Snapshot lama tetap ada,
+     * tetapi menampilkannya sendiri gagal (captured_at rusak) — halaman harus
+     * tetap kembali sebagai "tidak tersedia", bukan melempar exception.
+     */
+    public function test_snapshot_yang_rusak_tidak_menjatuhkan_dashboard(): void
+    {
+        IdcloudhostCreditSnapshot::create([
+            'billing_account_id' => '12345',
+            'credit_available' => 250000,
+            'estimated_daily_cost' => 10000,
+            'estimate_source' => 'invoice_history',
+            'account_title' => 'Produksi KSS',
+            'is_active' => true,
+            'captured_at' => now()->subHour(),
+        ]);
+
+        // Kolom captured_at diubah langsung di database menjadi nilai yang
+        // tidak bisa diuraikan Carbon — meniru data lama/rusak, bukan lewat
+        // Eloquent supaya cast datetime tidak ikut menormalkannya.
+        DB::table('idcloudhost_credit_snapshots')
+            ->update(['captured_at' => 'bukan-tanggal']);
+
+        Http::fake(['*' => Http::response(['message' => 'Unavailable'], 503)]);
+
+        $status = app(IdcloudhostBillingService::class)->dashboard(forceRefresh: true);
+
+        $this->assertFalse($status['available']);
+        $this->assertSame('api_error', $status['reason']);
+    }
+
+    /**
+     * Bentuk respons API yang tidak terduga pada endpoint rincian (invoice,
+     * riwayat saldo, pemakaian) tidak boleh menjatuhkan seluruh halaman
+     * Billing Cloud — status saldo utama tetap harus tampil.
+     */
+    public function test_respons_rincian_yang_tidak_terduga_tidak_menjatuhkan_halaman_billing(): void
+    {
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/payment/billing_account')) {
+                return Http::response([
+                    'running_totals' => ['ongoing' => 500000],
+                    'is_active' => true,
+                ]);
+            }
+
+            // Endpoint invoice mengembalikan bentuk terbungkus yang tidak
+            // sesuai asumsi kode (bukan daftar baris invoice secara langsung).
+            if (str_contains($request->url(), '/payment/invoice/list')) {
+                return Http::response(['data' => 'unexpected-shape']);
+            }
+
+            return Http::response([]);
+        });
+
+        $page = app(IdcloudhostBillingService::class)->billingPage(forceRefresh: true);
+
+        $this->assertTrue($page['available']);
+        $this->assertSame('Rp 500.000', $page['credit_formatted']);
+        $this->assertSame([], $page['reports']);
+        $this->assertSame([], $page['topup_invoices']);
     }
 }

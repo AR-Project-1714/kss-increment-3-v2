@@ -15,6 +15,7 @@ use Throwable;
 class IdcloudhostBillingService
 {
     private const CACHE_KEY_PREFIX = 'idcloudhost.billing.';
+
     private const DETAIL_CACHE_KEY_PREFIX = 'idcloudhost.billing.detail.';
 
     /**
@@ -53,18 +54,30 @@ class IdcloudhostBillingService
                 'billing_account_id' => $accountId,
             ]);
 
-            $snapshot = $this->latestSnapshot($accountId);
+            // present() dipanggil lagi di sini, di luar try di atas — dibungkus
+            // ulang supaya snapshot yang datanya tidak terduga tidak ikut
+            // menjatuhkan halaman. Kegagalan mengambil data yang sudah
+            // dijaga tidak boleh berujung pada kegagalan menampilkannya.
+            try {
+                $snapshot = $this->latestSnapshot($accountId);
 
-            if ($snapshot) {
-                return $this->present([
-                    'billing_account_id' => $snapshot->billing_account_id,
-                    'account_title' => $snapshot->account_title,
-                    'credit_available' => $snapshot->credit_available,
-                    'estimated_daily_cost' => $snapshot->estimated_daily_cost,
-                    'estimate_source' => $snapshot->estimate_source,
-                    'is_active' => $snapshot->is_active,
-                    'captured_at' => $snapshot->captured_at,
-                    'is_stale' => true,
+                if ($snapshot) {
+                    return $this->present([
+                        'billing_account_id' => $snapshot->billing_account_id,
+                        'account_title' => $snapshot->account_title,
+                        'credit_available' => $snapshot->credit_available,
+                        'estimated_daily_cost' => $snapshot->estimated_daily_cost,
+                        'estimate_source' => $snapshot->estimate_source,
+                        'is_active' => $snapshot->is_active,
+                        'captured_at' => $snapshot->captured_at,
+                        'is_stale' => true,
+                    ]);
+                }
+            } catch (Throwable $fallbackException) {
+                Log::warning('Gagal menampilkan snapshot saldo IDCloudHost.', [
+                    'exception' => $fallbackException::class,
+                    'message' => $fallbackException->getMessage(),
+                    'billing_account_id' => $accountId,
                 ]);
             }
 
@@ -108,15 +121,36 @@ class IdcloudhostBillingService
             Cache::forget($cacheKey);
         }
 
-        $seconds = max(60, (int) config('services.idcloudhost.cache_seconds', 900));
-        $details = Cache::remember($cacheKey, now()->addSeconds($seconds), function () use ($accountId): array {
-            $errors = [];
-            $invoices = $this->safeRequest('/payment/invoice/list', $accountId, 'invoice', $errors);
-            $credits = $this->safeRequest('/payment/credit/list', $accountId, 'riwayat saldo', $errors);
-            $usage = $this->safeRequest('/charging/usage', $accountId, 'pemakaian berjalan', $errors);
+        // Permintaan ke tiap endpoint sudah dijaga lewat safeRequest(), tetapi
+        // penyusunan hasilnya (presentBillingCollections) belum — bentuk
+        // respons API yang tidak terduga di sana tidak boleh menjatuhkan
+        // seluruh halaman Billing Cloud. Status utama (saldo) sudah aman lewat
+        // dashboard() di atas; bagian rincian ini boleh gagal sendiri.
+        try {
+            $seconds = max(60, (int) config('services.idcloudhost.cache_seconds', 900));
+            $details = Cache::remember($cacheKey, now()->addSeconds($seconds), function () use ($accountId): array {
+                $errors = [];
+                $invoices = $this->safeRequest('/payment/invoice/list', $accountId, 'invoice', $errors);
+                $credits = $this->safeRequest('/payment/credit/list', $accountId, 'riwayat saldo', $errors);
+                $usage = $this->safeRequest('/charging/usage', $accountId, 'pemakaian berjalan', $errors);
 
-            return $this->presentBillingCollections($invoices, $credits, $usage, $errors);
-        });
+                return $this->presentBillingCollections($invoices, $credits, $usage, $errors);
+            });
+        } catch (Throwable $exception) {
+            Log::warning('Gagal menyusun rincian billing IDCloudHost.', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'billing_account_id' => $accountId,
+            ]);
+
+            $details = [
+                'reports' => [],
+                'topup_invoices' => [],
+                'balance_history' => [],
+                'usage_total_formatted' => null,
+                'partial_errors' => ['Rincian billing sementara tidak dapat dimuat.'],
+            ];
+        }
 
         return array_merge($status, $details);
     }
