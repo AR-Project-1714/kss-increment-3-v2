@@ -86,6 +86,180 @@
     .panel-card__link i { position: relative; top: 1px; font-size: 11px; }
 
     /* =============================================
+       IDCLOUDHOST BILLING
+       ============================================= */
+    .cloud-credit-card {
+        position: relative;
+        overflow: hidden;
+        flex-shrink: 0;
+        margin-bottom: 20px;
+        border: 1px solid var(--smooth-border);
+        border-radius: 12px;
+        background:
+            radial-gradient(circle at 90% 15%, var(--blue-main-10), transparent 32%),
+            var(--white);
+        box-shadow: 0 2px 4px rgba(37,99,235,0.07);
+    }
+
+    .cloud-credit-card::before {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background-color: var(--blue-main);
+        content: "";
+    }
+
+    .cloud-credit-card--warning::before { background-color: var(--orange-main); }
+    .cloud-credit-card--critical::before { background-color: var(--red-main); }
+    .cloud-credit-card--unavailable::before { background-color: var(--muted); }
+
+    .cloud-credit-card__body {
+        display: grid;
+        grid-template-columns: minmax(220px, 1.35fr) repeat(2, minmax(150px, 1fr));
+        gap: 20px;
+        align-items: center;
+        padding: 20px 22px;
+    }
+
+    .cloud-credit-card__identity {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        min-width: 0;
+    }
+
+    .cloud-credit-card__icon {
+        display: flex;
+        width: 44px;
+        height: 44px;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border-radius: 12px;
+        background-color: var(--blue-main-10);
+        color: var(--blue-main);
+        font-size: 19px;
+    }
+
+    .cloud-credit-card--warning .cloud-credit-card__icon {
+        background-color: var(--orange-main-10);
+        color: var(--orange-main);
+    }
+
+    .cloud-credit-card--critical .cloud-credit-card__icon {
+        background-color: var(--red-main-10);
+        color: var(--red-main);
+    }
+
+    .cloud-credit-card__eyebrow,
+    .cloud-credit-card__label {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .cloud-credit-card__title {
+        margin-top: 3px;
+        color: var(--black);
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .cloud-credit-card__meta {
+        display: block;
+        margin-top: 3px;
+        color: var(--black-secondary);
+        font-size: 10px;
+    }
+
+    .cloud-credit-card__metric {
+        min-width: 0;
+        padding-left: 20px;
+        border-left: 1px solid var(--smooth-border);
+    }
+
+    .cloud-credit-card__value {
+        display: block;
+        margin-top: 5px;
+        color: var(--black);
+        font-size: clamp(18px, 2vw, 24px);
+        font-weight: 750;
+        line-height: 1.1;
+        overflow-wrap: anywhere;
+    }
+
+    .cloud-credit-card__hint {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 10px;
+        line-height: 1.4;
+    }
+
+    .cloud-credit-card__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-top: 7px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background-color: var(--success-10);
+        color: var(--success);
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .cloud-credit-card__badge::before {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: currentColor;
+        content: "";
+    }
+
+    .cloud-credit-card--warning .cloud-credit-card__badge {
+        background-color: var(--orange-main-10);
+        color: var(--orange-main);
+    }
+
+    .cloud-credit-card--critical .cloud-credit-card__badge {
+        background-color: var(--red-main-10);
+        color: var(--red-main);
+    }
+
+    .cloud-credit-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 11px 22px;
+        border-top: 1px solid var(--smooth-border);
+        background-color: var(--orange-main-10);
+        color: var(--orange-main);
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.45;
+    }
+
+    .cloud-credit-alert--critical {
+        background-color: var(--red-main-10);
+        color: var(--red-main);
+    }
+
+    .cloud-credit-alert--unavailable {
+        background-color: var(--main-bg);
+        color: var(--black-secondary);
+    }
+
+    .cloud-credit-alert i {
+        position: relative;
+        top: 1px;
+        flex-shrink: 0;
+    }
+
+    /* =============================================
        AUDIT LOG ENTRIES
        ============================================= */
     .audit-log-body { display: flex; flex-direction: column; }
@@ -336,6 +510,42 @@
             grid-template-columns: 1fr;
             gap: 14px;
         }
+
+        .cloud-credit-card__body {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .cloud-credit-card__identity {
+            grid-column: 1 / -1;
+        }
+
+        .cloud-credit-card__metric:first-of-type {
+            padding-left: 0;
+            border-left: none;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .cloud-credit-card__body {
+            grid-template-columns: 1fr;
+            gap: 16px;
+            padding: 18px;
+        }
+
+        .cloud-credit-card__identity {
+            grid-column: auto;
+        }
+
+        .cloud-credit-card__metric,
+        .cloud-credit-card__metric:first-of-type {
+            padding: 14px 0 0;
+            border-top: 1px solid var(--smooth-border);
+            border-left: none;
+        }
+
+        .cloud-credit-alert {
+            padding-inline: 18px;
+        }
     }
 </style>
 @endpush
@@ -357,12 +567,10 @@
 
 <div class="page-header">
     <span class="page-title">Dashboard Sistem</span>
-    <span class="page-subtitle">Pantau status infrastruktur, pengguna, dan pencadangan sistem (Backup).</span>
+    <span class="page-subtitle">Pantau saldo cloud, estimasi masa aktif, aktivitas, dan keamanan sistem.</span>
 </div>
 
-{{-- Kartu ringkasan dengan angka pembanding. Storage dan jumlah pengguna
-     dibandingkan terhadap rekaman harian (system_metric_snapshots), sedangkan
-     aktivitas dan insiden keamanan dihitung langsung dari log. --}}
+{{-- Kartu ringkasan saldo cloud, masa aktif, aktivitas, dan keamanan. --}}
 @include('charts.kpi-row', ['cards' => $stats])
 
 <!-- Aktivitas sistem 30 hari -->
@@ -477,7 +685,7 @@
 </div>
 
 <div class="modal-overlay" id="dashboardUserModal" aria-hidden="true">
-    <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="dashboardUserTitle">
+    <div class="modal-box modal-box--wide modal-box--form-sheet" role="dialog" aria-modal="true" aria-labelledby="dashboardUserTitle">
         <form method="POST" action="{{ route('admin.users.store') }}" id="dashboardUserForm" enctype="multipart/form-data">
             @csrf
             <div class="kss-modal__header">

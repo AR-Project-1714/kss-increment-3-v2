@@ -69,7 +69,11 @@ body.dark-mode {
             flex-shrink: 0;
         }
 
-        .kpi-card__icon i { position: relative; top: 1px; }
+        .kpi-card__icon i {
+            position: relative;
+            top: 2px;
+            line-height: 1;
+        }
 
         .kpi-card__icon--blue   { background-color: var(--blue-main-10);   color: var(--blue-main); }
         .kpi-card__icon--orange { background-color: var(--orange-main-10); color: var(--orange-main); }

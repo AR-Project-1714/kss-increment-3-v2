@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Support\ShipNameNormalizer;
+
 /**
  * Pencarian laporan lintas kolom & relasi (kapal, bongkar, turba, unit, karyawan)
  * plus parser kata kunci tanggal berbahasa Indonesia. Dipakai bersama oleh
@@ -22,6 +24,14 @@ trait SearchesReports
         }
 
         $like = '%'.$keyword.'%';
+
+        // Kata kunci nama kapal ikut dicari dalam bentuk kanoniknya, sehingga
+        // mencari "golden rejeki" tetap menemukan laporan yang menulisnya
+        // "KM. GOLDEN REJEKI" atau "Km.Golden-Rejeki". Bernilai kosong bila
+        // kata kuncinya bukan nama (mis. tanggal atau angka).
+        $shipKey = ShipNameNormalizer::key($keyword);
+        $shipLike = $shipKey === '' ? null : '%'.$shipKey.'%';
+
         $datePatterns = $this->buildDateSearchPatterns($keyword);
 
         if (! empty($datePatterns)) {
@@ -34,7 +44,7 @@ trait SearchesReports
             return;
         }
 
-        $query->where(function ($searchQuery) use ($keyword, $like, $includeApprover): void {
+        $query->where(function ($searchQuery) use ($keyword, $like, $shipLike, $includeApprover): void {
             $this->whereColumnsLike($searchQuery, [
                 'shift',
                 'group_name',
@@ -60,8 +70,8 @@ trait SearchesReports
             }
 
             $searchQuery
-                ->orWhereHas('loadingActivities', function ($relation) use ($like): void {
-                    $relation->where(function ($activity) use ($like): void {
+                ->orWhereHas('loadingActivities', function ($relation) use ($like, $shipLike): void {
+                    $relation->where(function ($activity) use ($like, $shipLike): void {
                         $this->whereColumnsLike($activity, [
                             'ship_name',
                             'agent',
@@ -83,11 +93,13 @@ trait SearchesReports
                             'forklift_warehouse',
                         ], $like);
 
+                        $this->orWhereShipKeyLike($activity, $shipLike);
+
                         $activity->orWhereHas('timesheets', fn ($timesheet) => $this->whereColumnsLike($timesheet, ['category', 'time', 'activity'], $like));
                     });
                 })
-                ->orWhereHas('bulkLoadingActivities', function ($relation) use ($like): void {
-                    $relation->where(function ($activity) use ($like): void {
+                ->orWhereHas('bulkLoadingActivities', function ($relation) use ($like, $shipLike): void {
+                    $relation->where(function ($activity) use ($like, $shipLike): void {
                         $this->whereColumnsLike($activity, [
                             'ship_name',
                             'jetty',
@@ -100,28 +112,42 @@ trait SearchesReports
                             'start_loading_time',
                         ], $like);
 
+                        $this->orWhereShipKeyLike($activity, $shipLike);
+
                         $activity->orWhereHas('logs', fn ($log) => $this->whereColumnsLike($log, ['datetime', 'activity', 'cob'], $like));
                     });
                 })
-                ->orWhereHas('materialActivity', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'ship_name',
-                    'agent',
-                    'capacity',
-                    'ship_tally_names',
-                    'forklift_operator_names',
-                    'delivery_tally_names',
-                    'driver_names',
-                    'working_hours',
-                ], $like))
+                ->orWhereHas('materialActivity', function ($relation) use ($like, $shipLike): void {
+                    $relation->where(function ($activity) use ($like, $shipLike): void {
+                        $this->whereColumnsLike($activity, [
+                            'ship_name',
+                            'agent',
+                            'capacity',
+                            'ship_tally_names',
+                            'forklift_operator_names',
+                            'delivery_tally_names',
+                            'driver_names',
+                            'working_hours',
+                        ], $like);
+
+                        $this->orWhereShipKeyLike($activity, $shipLike);
+                    });
+                })
                 ->orWhereHas('materialActivity.items', fn ($relation) => $this->whereColumnsLike($relation, ['raw_material_type', 'qty_current', 'qty_prev', 'qty_total'], $like))
-                ->orWhereHas('containerActivity', fn ($relation) => $this->whereColumnsLike($relation, [
-                    'ship_name',
-                    'agent',
-                    'capacity',
-                    'ship_tally_names',
-                    'gudang_tally_names',
-                    'driver_names',
-                ], $like))
+                ->orWhereHas('containerActivity', function ($relation) use ($like, $shipLike): void {
+                    $relation->where(function ($activity) use ($like, $shipLike): void {
+                        $this->whereColumnsLike($activity, [
+                            'ship_name',
+                            'agent',
+                            'capacity',
+                            'ship_tally_names',
+                            'gudang_tally_names',
+                            'driver_names',
+                        ], $like);
+
+                        $this->orWhereShipKeyLike($activity, $shipLike);
+                    });
+                })
                 ->orWhereHas('containerActivity.items', fn ($relation) => $this->whereColumnsLike($relation, ['time', 'qty_current', 'qty_prev', 'qty_total', 'status'], $like))
                 ->orWhereHas('turbaActivity', fn ($relation) => $this->whereColumnsLike($relation, [
                     'tally_gudang_names',
@@ -159,6 +185,17 @@ trait SearchesReports
                     'description',
                 ], $like));
         });
+    }
+
+    /**
+     * Tambahkan pencocokan pada kolom nama kanonik kapal, bila kata kuncinya
+     * memang bisa dibaca sebagai nama kapal.
+     */
+    protected function orWhereShipKeyLike($query, ?string $shipLike): void
+    {
+        if ($shipLike !== null) {
+            $query->orWhere('ship_name_key', 'like', $shipLike);
+        }
     }
 
     protected function whereColumnsLike($query, array $columns, string $like): void

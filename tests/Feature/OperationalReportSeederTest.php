@@ -382,7 +382,7 @@ class OperationalReportSeederTest extends TestCase
                     ->join('bulk_loading_activities', 'bulk_loading_activities.id', '=', 'bulk_loading_logs.bulk_loading_activity_id')
                     ->join('daily_reports', 'daily_reports.id', '=', 'bulk_loading_activities.daily_report_id')
                     ->where('bulk_loading_activities.activity_type', BulkLoadingActivity::TYPE_BULK_LOADING),
-                'bulk_loading_logs.cob',
+                'bulk_loading_logs.cob_delta',
                 'bulk_loading_activities.daily_report_id',
             ],
             'muat_amoniak' => [
@@ -390,7 +390,7 @@ class OperationalReportSeederTest extends TestCase
                     ->join('bulk_loading_activities', 'bulk_loading_activities.id', '=', 'bulk_loading_logs.bulk_loading_activity_id')
                     ->join('daily_reports', 'daily_reports.id', '=', 'bulk_loading_activities.daily_report_id')
                     ->where('bulk_loading_activities.activity_type', BulkLoadingActivity::TYPE_AMMONIA_LOADING),
-                'bulk_loading_logs.cob',
+                'bulk_loading_logs.cob_delta',
                 'bulk_loading_activities.daily_report_id',
             ],
             'bongkar_bahan_baku' => [

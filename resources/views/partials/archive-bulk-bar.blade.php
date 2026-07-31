@@ -54,7 +54,6 @@
         <span class="archive-bulk-bar__info">
             <i class="fi fi-rr-check-double" aria-hidden="true"></i>
             <span data-bulk-count>0 laporan dipilih</span>
-            <span class="archive-bulk-bar__hint" data-bulk-hint>Sampai {{ $instantLimit }} laporan diunduh langsung</span>
         </span>
         <div class="archive-bulk-bar__actions">
             @if ($total > $pageCount)

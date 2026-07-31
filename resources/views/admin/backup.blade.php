@@ -276,10 +276,10 @@
 @section('content')
 @php
     $stats = $stats ?? [
-        ['label' => 'Backup Terakhir', 'value' => '21 Mei 2026', 'icon' => 'fi fi-sr-cloud-check', 'color' => 'green'],
-        ['label' => 'Total Cadangan', 'value' => '18', 'icon' => 'fi fi-sr-folder', 'color' => 'blue'],
-        ['label' => 'Storage Terpakai', 'value' => '62%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan'],
-        ['label' => 'Retensi Aktif', 'value' => '30 Hari', 'icon' => 'fi fi-sr-calendar', 'color' => 'orange'],
+        ['key' => 'last-backup', 'label' => 'Backup Terakhir', 'value' => '21 Mei 2026', 'icon' => 'fi fi-sr-cloud-check', 'tint' => 'green', 'delta' => ['available' => true, 'text' => 'Tepat waktu', 'direction' => 'none', 'tone' => 'up'], 'note' => 'Cadangan terakhir tercatat.'],
+        ['key' => 'backup-count', 'label' => 'Total Cadangan', 'value' => '18', 'unit' => 'file', 'icon' => 'fi fi-sr-folder', 'tint' => 'blue', 'delta' => ['available' => true, 'text' => '2 (12,5%)', 'direction' => 'up', 'tone' => 'flat'], 'note' => 'Dibuat 7 hari terakhir dibanding periode sebelumnya.'],
+        ['key' => 'backup-storage', 'label' => 'Storage Terpakai', 'value' => '62', 'unit' => '%', 'icon' => 'fi fi-sr-database', 'tint' => 'cyan', 'delta' => ['available' => false, 'text' => 'Belum ada riwayat'], 'note' => '62% dari kapasitas penyimpanan.'],
+        ['key' => 'retention', 'label' => 'Retensi Aktif', 'value' => '30 Hari', 'icon' => 'fi fi-sr-calendar', 'tint' => 'orange', 'delta' => ['available' => true, 'text' => 'Aktif', 'direction' => 'none', 'tone' => 'up'], 'note' => 'Pembersihan mengikuti kebijakan retensi.'],
     ];
 
     $backups = $backups ?? collect([
@@ -315,17 +315,7 @@
     <span class="page-subtitle">Pantau cadangan sistem, retensi file, dan status pencadangan aplikasi.</span>
 </div>
 
-<div class="stats-row">
-    @foreach ($stats as $s)
-        <div class="stat-card">
-            <span class="stat-card__label">{{ $s['label'] }}</span>
-            <div class="stat-card__row">
-                <span class="stat-card__value">{{ $s['value'] }}</span>
-                <span class="stat-card__icon stat-card__icon--{{ $s['color'] }}"><i class="{{ $s['icon'] }}"></i></span>
-            </div>
-        </div>
-    @endforeach
-</div>
+@include('charts.kpi-row', ['cards' => $stats])
 
 <div class="backup-layout">
     @component('admin.layouts.card', ['title' => 'Daftar Backup'])

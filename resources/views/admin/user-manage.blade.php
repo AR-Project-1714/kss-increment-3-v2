@@ -633,7 +633,7 @@
 @endcomponent
 
 <div class="modal-overlay" id="userFormModal" aria-hidden="true">
-    <div class="modal-box modal-box--wide" role="dialog" aria-modal="true" aria-labelledby="userFormTitle">
+    <div class="modal-box modal-box--wide modal-box--form-sheet" role="dialog" aria-modal="true" aria-labelledby="userFormTitle">
         <form method="POST" action="{{ route('admin.users.store') }}" id="userForm" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="_method" id="userFormMethod" value="POST">

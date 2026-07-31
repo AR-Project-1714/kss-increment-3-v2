@@ -95,10 +95,34 @@ QUEUE_CONNECTION=database
 # JANGAN diaktifkan kalau domain masih HTTP — pengguna akan gagal login karena
 # cookie sesi tidak pernah sampai ke server.
 SESSION_SECURE_COOKIE=true
+
+# --- monitoring saldo IDCloudHost (wajib untuk card billing admin) ---
+# Token tetap server-side; jangan pernah memakai nama VITE_*.
+IDCLOUDHOST_API_KEY=token-api
+IDCLOUDHOST_BILLING_ACCOUNT_ID=id-billing
+IDCLOUDHOST_CURRENCY=IDR
+
+# Peringatan muncul bila salah satu batas nominal/hari terlewati.
+IDCLOUDHOST_LOW_CREDIT_THRESHOLD=100000
+IDCLOUDHOST_WARNING_DAYS=7
+IDCLOUDHOST_CRITICAL_DAYS=3
+
+# Opsional: isi biaya bulanan saat akun belum punya histori invoice.
+# IDCLOUDHOST_ESTIMATED_MONTHLY_COST=500000
 ```
 
 > `APP_DEBUG=false` wajib. Selain memperlambat respons, mode debug menampilkan
 > jejak error berisi isi konfigurasi dan kredensial database kepada pengguna.
+
+Setelah mengubah konfigurasi IDCloudHost pada server yang sudah memakai config
+cache, jalankan `php artisan optimize` lalu verifikasi sekali dengan:
+
+```bash
+php artisan idcloudhost:refresh-credit
+```
+
+Perintah hanya menampilkan saldo terformat dan estimasi; API key tidak ditulis
+ke output atau database. Snapshot saldo disimpan maksimal 90 hari.
 
 ---
 
@@ -120,6 +144,44 @@ php artisan optimize
 
 Aset frontend tidak di-build di server — lihat catatan di "Ringkasan perintah
 rutin" di atas.
+
+### 2.1 Rilis perbaikan identitas kapal & tonase (satu kali)
+
+Khusus rilis yang memuat migrasi `2026_07_31_000001` sampai `000003`, ada satu
+perintah tambahan yang **wajib** dijalankan sesudah `migrate`:
+
+```bash
+php artisan ops:repair-ship-identity
+```
+
+Tanpa perintah ini, tonase muat curah dan muat amoniak akan terbaca **0** di
+seluruh menu, karena kolom `cob_delta` yang menjadi sumber angkanya lahir dalam
+keadaan kosong.
+
+Perintah ini juga:
+
+- memulihkan nilai COB yang titik desimalnya terbuang oleh pembantu `integer()`
+  versi lama (`4420.25` tersimpan sebagai `442025`) — dibaca ulang dari isian
+  form asli di `daily_reports.payload`, bukan ditebak;
+- menyatukan operasi kapal yang terpecah hanya karena ejaan namanya berbeda; dan
+- membentuk operasi kapal untuk riwayat bongkar bahan baku dan container.
+
+Lihat rencananya lebih dulu tanpa menulis apa pun:
+
+```bash
+php artisan ops:repair-ship-identity --dry-run
+```
+
+Ambil backup sebelum menjalankannya — perintah ini menggabungkan dan menghapus
+baris `ship_operations`:
+
+```bash
+php artisan backup:run
+```
+
+Sesudah rilis ini, penjadwal harian sudah menangani sisanya
+(`ops:repair-ship-identity --recalculate-only`, tiap 01.45). Selengkapnya di
+`PERBAIKAN_TONASE_MUAT_CURAH.md`.
 
 `php artisan optimize` menggabungkan cache config, event, route, dan view dalam
 satu perintah. Sudah diuji pada aplikasi ini dan keempatnya terbentuk bersih —

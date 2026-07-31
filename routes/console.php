@@ -21,6 +21,16 @@ Artisan::command('inspire', function () {
 // terjadi walau tidak ada yang membuka halaman (pembersihan on-request tetap ada).
 Schedule::command('reports:prune-stale')->dailyAt('01:30');
 
+// Tonase muat curah adalah SELISIH antar pembacaan COB sepanjang satu
+// pelayaran, bukan jumlah pembacaannya. Selisih itu sudah dihitung ulang tiap
+// kali laporan disimpan, tetapi status laporan masih bisa berubah setelahnya
+// (draft menjadi terkirim, laporan disetujui) dan itu mengubah rangkaian yang
+// ikut dihitung. Sekali sehari seluruh pelayaran dirangkai ulang agar angkanya
+// tidak pernah tertinggal. Penggabungan operasi kapal TIDAK ikut dijalankan di
+// sini — itu mengubah struktur data dan sebaiknya dijalankan sadar lewat
+// `php artisan ops:repair-ship-identity`.
+Schedule::command('ops:repair-ship-identity --recalculate-only')->dailyAt('01:45');
+
 // Bundel ZIP arsip dirakit oleh job di queue. Di VPS tanpa worker daemon
 // (supervisor/systemd), cron per menit yang sudah ada sekaligus menguras
 // antrean: satu proses per menit, berhenti begitu antrean kosong, dan
@@ -44,6 +54,12 @@ Schedule::command('archive:prune-bundles')->hourly();
 // itu masih utuh. Storage dan jumlah pengguna tidak punya jejak historis, jadi
 // tanpa rekaman ini kartu dashboard admin kehilangan angka pembandingnya.
 Schedule::command('system:snapshot')->dailyAt('23:50');
+
+// Saldo cloud di-cache agar dashboard tidak memanggil API eksternal pada
+// setiap request. Snapshot berkala juga menjadi fallback saat API terganggu.
+Schedule::command('idcloudhost:refresh-credit')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping();
 
 // Backup otomatis mengikuti pengaturan admin (admin-backups/schedule.json).
 $backupSchedule = ['frequency' => 'Harian', 'time' => '02:00'];

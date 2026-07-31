@@ -1067,6 +1067,43 @@ document.addEventListener('DOMContentLoaded', function () {
             };
         }
 
+        // Bongkar bahan baku dan container tidak mencatat waktu sandar maupun
+        // jenis muatan, jadi field yang ikut terisi dari saran hanya keterangan
+        // kapal yang memang ada di formnya.
+        match = name.match(/^ship_name_material_(\d+)$/);
+
+        if (match) {
+            return {
+                type: 'bongkar_bahan_baku',
+                sequence: Number(match[1]),
+                idName: `ship_operation_material_id_${match[1]}`,
+                statusName: `ship_operation_material_status_${match[1]}`,
+                fields: {
+                    ship_name: `ship_name_material_${match[1]}`,
+                    agent: `agent_material_${match[1]}`,
+                    jetty: `jetty_material_${match[1]}`,
+                    capacity: `capacity_material_${match[1]}`,
+                },
+            };
+        }
+
+        match = name.match(/^ship_name_container_(\d+)$/);
+
+        if (match) {
+            return {
+                type: 'container',
+                sequence: Number(match[1]),
+                idName: `ship_operation_container_id_${match[1]}`,
+                statusName: `ship_operation_container_status_${match[1]}`,
+                fields: {
+                    ship_name: `ship_name_container_${match[1]}`,
+                    agent: `agent_container_${match[1]}`,
+                    jetty: `jetty_container_${match[1]}`,
+                    capacity: `capacity_container_${match[1]}`,
+                },
+            };
+        }
+
         match = name.match(/^ship_name_ammonia_(\d+)$/);
 
         if (match) {

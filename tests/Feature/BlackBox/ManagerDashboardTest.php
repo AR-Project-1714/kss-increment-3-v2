@@ -13,6 +13,7 @@ use App\Models\LoadingActivity;
 use App\Models\TurbaActivity;
 use App\Models\TurbaDelivery;
 use App\Models\User;
+use App\Services\BulkTonnageService;
 use App\Services\OperationalPerformanceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -88,6 +89,11 @@ class ManagerDashboardTest extends BlackBoxTestCase
                 'cob' => $values[$valueKey],
             ]);
         }
+
+        // COB adalah pembacaan kumulatif; yang dijumlahkan pada statistik
+        // adalah pertambahannya. Sama seperti di controller, tonase dihitung
+        // ulang setelah baris log tersimpan.
+        app(BulkTonnageService::class)->recalculateForReport($report->id);
 
         $container = ContainerActivity::create([
             'daily_report_id' => $report->id,

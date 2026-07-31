@@ -22,6 +22,7 @@ use App\Models\SafetyReport;
 use App\Models\User;
 use App\Services\ArchiveBundleService;
 use App\Services\ArchiveMetricsService;
+use App\Services\IdcloudhostBillingService;
 use App\Services\SystemBackupService;
 use App\Services\SystemMetricsService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -52,14 +53,30 @@ class AdminV2Controller extends Controller
      */
     private const STORAGE_CAPACITY_BYTES = 30 * 1024 * 1024 * 1024;
 
-    public function index(Request $request, SystemMetricsService $metrics)
-    {
+    public function index(
+        Request $request,
+        SystemMetricsService $metrics,
+        IdcloudhostBillingService $idcloudhostBilling
+    ) {
+        $billingStatus = $idcloudhostBilling->dashboard();
+        $systemCards = $metrics->dashboardCards();
+
         return view('admin.index', array_merge($this->shellData($request), [
-            'stats' => $metrics->dashboardCards(),
+            'stats' => array_merge(
+                $idcloudhostBilling->dashboardCards($billingStatus),
+                array_slice($systemCards, 2)
+            ),
             'activityTrend' => $metrics->activityTrend(30),
             'lastBackup' => collect($this->backupFiles())->first(),
             'auditLogs' => $this->latestAuditCards(),
             'roles' => Role::orderBy('name')->get(),
+        ]));
+    }
+
+    public function billing(Request $request, IdcloudhostBillingService $billing)
+    {
+        return view('admin.billing', array_merge($this->shellData($request), [
+            'billing' => $billing->billingPage(),
         ]));
     }
 
@@ -550,7 +567,7 @@ class AdminV2Controller extends Controller
         ]));
     }
 
-    public function backup(Request $request)
+    public function backup(Request $request, SystemMetricsService $metrics)
     {
         $schedule = $this->backupSchedule();
         $backups = $this->backupFiles();
@@ -560,13 +577,64 @@ class AdminV2Controller extends Controller
             ? min(100, (int) round(($usedBytes / self::STORAGE_CAPACITY_BYTES) * 100))
             : 0;
         $annualYear = $this->annualBackupYear();
+        $now = now();
+        $weekStart = $now->copy()->subDays(7);
+        $previousWeekStart = $now->copy()->subDays(14);
+        $recentBackups = collect($backups)->filter(
+            fn (array $backup): bool => $backup['modified_at']->greaterThanOrEqualTo($weekStart)
+        )->count();
+        $previousBackups = collect($backups)->filter(
+            fn (array $backup): bool => $backup['modified_at']->greaterThanOrEqualTo($previousWeekStart)
+                && $backup['modified_at']->lessThan($weekStart)
+        )->count();
+        $storageCard = collect($metrics->dashboardCards())->firstWhere('key', 'storage');
+
+        $lastBackupDelta = ! $lastBackup
+            ? $this->backupComparisonUnavailable('Belum ada backup')
+            : ($lastBackup['modified_at']->greaterThanOrEqualTo($now->copy()->subHours(26))
+                ? ['available' => true, 'text' => 'Tepat waktu', 'direction' => 'none', 'tone' => 'up']
+                : ['available' => true, 'text' => 'Perlu diperiksa', 'direction' => 'none', 'tone' => 'down']);
 
         return view('admin.backup', array_merge($this->shellData($request), [
             'stats' => [
-                ['label' => 'Backup Terakhir', 'value' => $lastBackup['date_short'] ?? 'Belum Ada', 'icon' => 'fi fi-sr-cloud-check', 'color' => 'green'],
-                ['label' => 'Total Cadangan', 'value' => (string) count($backups), 'icon' => 'fi fi-sr-folder', 'color' => 'blue'],
-                ['label' => 'Storage Terpakai', 'value' => $usedPercent.'%', 'icon' => 'fi fi-sr-database', 'color' => 'cyan'],
-                ['label' => 'Retensi Aktif', 'value' => $schedule['retention'], 'icon' => 'fi fi-sr-calendar', 'color' => 'orange'],
+                [
+                    'key' => 'last-backup',
+                    'label' => 'Backup Terakhir',
+                    'value' => $lastBackup['date_short'] ?? 'Belum Ada',
+                    'icon' => 'fi fi-sr-cloud-check',
+                    'tint' => 'green',
+                    'delta' => $lastBackupDelta,
+                    'note' => $lastBackup ? 'Terakhir dibuat '.$lastBackup['date'] : 'Jalankan backup manual untuk membuat cadangan pertama.',
+                ],
+                [
+                    'key' => 'backup-count',
+                    'label' => 'Total Cadangan',
+                    'value' => (string) count($backups),
+                    'unit' => 'file',
+                    'icon' => 'fi fi-sr-folder',
+                    'tint' => 'blue',
+                    'delta' => $this->backupPeriodDelta($recentBackups, $previousBackups),
+                    'note' => 'Dibuat 7 hari terakhir dibanding 7 hari sebelumnya.',
+                ],
+                array_merge($storageCard ?? [
+                    'key' => 'storage',
+                    'label' => 'Storage Terpakai',
+                    'value' => $usedPercent,
+                    'unit' => '%',
+                    'icon' => 'fi fi-sr-database',
+                    'tint' => 'cyan',
+                    'delta' => $this->backupComparisonUnavailable('Belum ada riwayat'),
+                    'note' => $usedPercent.'% dari 30 GB',
+                ], ['key' => 'backup-storage']),
+                [
+                    'key' => 'retention',
+                    'label' => 'Retensi Aktif',
+                    'value' => $schedule['retention'],
+                    'icon' => 'fi fi-sr-calendar',
+                    'tint' => 'orange',
+                    'delta' => ['available' => true, 'text' => 'Aktif', 'direction' => 'none', 'tone' => 'up'],
+                    'note' => 'Pembersihan cadangan mengikuti kebijakan retensi.',
+                ],
             ],
             'backups' => $backups,
             'backupSchedule' => $schedule,
@@ -1705,6 +1773,37 @@ class AdminV2Controller extends Controller
         ];
     }
 
+    /**
+     * Perbandingan jumlah backup antarperiode. Perubahan frekuensi bukan
+     * penilaian baik/buruk, sehingga warnanya dibuat netral.
+     *
+     * @return array<string, mixed>
+     */
+    private function backupPeriodDelta(int $current, int $previous): array
+    {
+        if ($current === $previous) {
+            return ['available' => true, 'text' => 'Tetap', 'direction' => 'flat', 'tone' => 'flat'];
+        }
+
+        $change = $current - $previous;
+        $percentage = $previous > 0
+            ? ' ('.number_format(abs($change / $previous) * 100, 1, ',', '.').'%)'
+            : '';
+
+        return [
+            'available' => true,
+            'text' => number_format(abs($change), 0, ',', '.').$percentage,
+            'direction' => $change > 0 ? 'up' : 'down',
+            'tone' => 'flat',
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function backupComparisonUnavailable(string $text): array
+    {
+        return ['available' => false, 'text' => $text, 'direction' => 'flat', 'tone' => 'flat'];
+    }
+
     private function backupFiles(): array
     {
         Storage::disk('local')->makeDirectory('admin-backups');
@@ -1718,6 +1817,7 @@ class AdminV2Controller extends Controller
 
                 return [
                     'name' => $file,
+                    'modified_at' => $modified,
                     'meta' => $isAnnual ? 'Arsip laporan tahunan' : 'Snapshot data aplikasi',
                     'date' => $modified->locale('id')->translatedFormat('d F Y, H:i'),
                     'date_short' => $modified->locale('id')->translatedFormat('d M Y'),
@@ -1731,7 +1831,7 @@ class AdminV2Controller extends Controller
                     'destroy_url' => route('admin.backup.destroy', $file),
                 ];
             })
-            ->sortByDesc('name')
+            ->sortByDesc('modified_at')
             ->values()
             ->all();
     }

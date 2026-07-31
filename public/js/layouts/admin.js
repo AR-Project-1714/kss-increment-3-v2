@@ -218,8 +218,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             function focusFirstField(modal) {
-                const focusable = modal.querySelector('[data-modal-focus], input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), .kss-modal__select-trigger:not(.is-disabled), button');
+                const isMobile = window.matchMedia('(max-width: 768px)').matches;
+                const selector = isMobile
+                    ? '.kss-modal__close, [data-modal-close], button'
+                    : '[data-modal-focus], input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), .kss-modal__select-trigger:not(.is-disabled), button';
+                const focusable = modal.querySelector(selector);
                 if (focusable) window.setTimeout(() => focusable.focus({ preventScroll: true }), 80);
+            }
+
+            function resetModalPanelState(modal) {
+                modal.querySelectorAll(':scope > .modal-box, :scope > .pop-up.signed').forEach(function (panel) {
+                    panel.style.removeProperty('animation');
+                    panel.style.removeProperty('transform');
+                    panel.style.removeProperty('transition');
+                });
             }
 
             function syncModalSelect(select) {
@@ -317,6 +329,8 @@ document.addEventListener('DOMContentLoaded', function () {
             function openModal(modal) {
                 const target = modalById(modal);
                 if (!target) return;
+                resetModalPanelState(target);
+                window.KssMobileSheet?.syncViewport?.();
                 target.classList.add('show');
                 target.setAttribute('aria-hidden', 'false');
                 body.classList.add('modal-open');
@@ -328,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!target) return;
                 target.classList.remove('show');
                 target.setAttribute('aria-hidden', 'true');
+                resetModalPanelState(target);
                 if (!document.querySelector('.modal-overlay.show')) {
                     body.classList.remove('modal-open');
                 }

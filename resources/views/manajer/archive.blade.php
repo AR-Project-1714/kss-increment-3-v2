@@ -162,12 +162,22 @@
         }
 
         .archive-body .table-responsive-wrapper table {
-            min-width: 1100px;
+            min-width: 1150px;
         }
 
         .archive-body .thead,
         .archive-body .tbody {
-            justify-content: space-between !important;
+            display: grid !important;
+            grid-template-columns:
+                76px
+                minmax(230px, 1.4fr)
+                minmax(135px, 1fr)
+                minmax(135px, .9fr)
+                minmax(105px, .75fr)
+                minmax(120px, .8fr)
+                minmax(125px, .85fr)
+                225px;
+            justify-content: initial !important;
         }
 
         .archive-body .thead th,
@@ -177,53 +187,26 @@
             flex: 0 0 auto;
         }
 
+        .archive-body .tbody.d-none {
+            display: none !important;
+        }
+
+        .archive-body .archive-empty-row > td,
+        .archive-body .archive-search-empty-row > td {
+            grid-column: 1 / -1;
+            width: auto !important;
+            min-width: 0 !important;
+            display: block;
+            padding: 0;
+        }
+
         .archive-body .thead th:nth-child(2),
         .archive-body .tbody td.column-2 {
-            width: 230px;
-            min-width: 230px;
+            padding-left: 0;
         }
 
-        .archive-body .thead th:nth-child(3),
-        .archive-body .tbody td:nth-child(3) {
-            width: 135px;
-            min-width: 135px;
-        }
-
-        .archive-body .thead th:nth-child(4),
-        .archive-body .tbody td:nth-child(4) {
-            width: 135px;
-            min-width: 135px;
-        }
-
-        .archive-body .thead th:nth-child(5),
-        .archive-body .tbody td:nth-child(5) {
-            width: 105px;
-            min-width: 105px;
-        }
-
-        .archive-body .thead th:nth-child(6),
-        .archive-body .tbody td:nth-child(6) {
-            width: 120px;
-            min-width: 120px;
-        }
-
-        .archive-body .thead th:nth-child(7),
-        .archive-body .tbody td:nth-child(7) {
-            width: 125px;
-            min-width: 125px;
-        }
-
-        .archive-body .thead th.aksi,
-        .archive-body .tbody td.aksi {
-            width: 225px;
-            min-width: 225px;
-        }
-
-        /* Kolom No memuat checkbox pilih baris, jadi lebih lebar dari 50px biasa. */
         .archive-body .thead th.nomor,
         .archive-body .tbody td.nomor {
-            width: 78px;
-            min-width: 78px;
             gap: 8px;
             justify-content: center;
         }
@@ -317,6 +300,8 @@
             width: 100%;
             min-width: 0;
         }
+
+        .toolbar-page-size-wrapper { min-width: 128px; }
 
         .archive-filter-fields .filter-input,
         .archive-filter-fields .filter-select-trigger {
@@ -469,6 +454,7 @@
         $archiveTotal = method_exists($reports, 'total') ? $reports->total() : $reports->count();
         $archiveFirstItem = method_exists($reports, 'firstItem') ? $reports->firstItem() : ($archiveTotal > 0 ? 1 : null);
         $archiveLastItem = method_exists($reports, 'lastItem') ? $reports->lastItem() : $reports->count();
+        $archivePerPage = method_exists($reports, 'perPage') ? $reports->perPage() : 10;
         $selectedDivision = $selectedDivision ?? 'all';
         $selectedStatus = $selectedStatus ?? 'all';
         // Batas unduhan dibaca dari controller agar pesan di UI tidak pernah
@@ -598,6 +584,7 @@
                     <form method="GET" action="{{ route('manajer.archive') }}" id="archive-filter-form" autocomplete="off">
                         <input type="hidden" name="q" value="{{ $archiveSearch }}">
                         <input type="hidden" name="sort" value="{{ $sort }}">
+                        <input type="hidden" name="per_page" value="{{ $archivePerPage }}">
 
                         <div class="archive-filter-fields">
                             <div class="filter-field">
@@ -710,6 +697,14 @@
                             </span>
 
                             <div class="archive-toolbar__actions">
+                                <div class="filter-select-wrapper toolbar-page-size-wrapper">
+                                    <select class="native-select" name="per_page" data-autosubmit-filter aria-label="Jumlah laporan per halaman">
+                                        <option value="10" @selected($archivePerPage === 10)>10 baris</option>
+                                        <option value="20" @selected($archivePerPage === 20)>20 baris</option>
+                                        <option value="50" @selected($archivePerPage === 50)>50 baris</option>
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
                                 <div class="filter-select-wrapper toolbar-sort-wrapper">
                                     <select class="native-select" name="sort" data-autosubmit-filter>
                                         <option value="newest" @selected($sort === 'newest')>Terbaru</option>
@@ -824,7 +819,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="tbody archive-empty-row">
                                 <td colspan="8" class="border-0 p-0">
                                     <div class="archive-empty">
                                         <div class="fw-600 mb-1" style="color: var(--black);">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Laporan tidak ditemukan' : 'Arsip masih kosong' }}</div>
@@ -835,7 +830,7 @@
                         @endforelse
 
                         @if ($reports->count() > 0)
-                            <tr id="archive-search-empty" class="d-none">
+                            <tr id="archive-search-empty" class="tbody archive-search-empty-row d-none">
                                 <td colspan="8" class="border-0 p-0">
                                     <div class="archive-empty">
                                         <div class="fw-600 mb-1" style="color: var(--black);">Laporan tidak ditemukan di halaman ini</div>

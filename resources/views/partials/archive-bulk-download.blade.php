@@ -220,7 +220,6 @@
 
             const bar = form.querySelector('[data-bulk-bar]');
             const countLabel = form.querySelector('[data-bulk-count]');
-            const barHint = form.querySelector('[data-bulk-hint]');
             const allFlag = form.querySelector('[data-bulk-all]');
             const keysBox = form.querySelector('[data-bulk-keys]');
             const selectAllButton = form.querySelector('[data-bulk-select-all]');
@@ -315,12 +314,6 @@
                     countLabel.textContent = allMode
                         ? `Semua ${filterTotal} laporan hasil filter dipilih`
                         : `${total} laporan dipilih`;
-                }
-
-                if (barHint) {
-                    barHint.textContent = background
-                        ? `Lebih dari ${instantLimit} laporan — disiapkan di latar`
-                        : `Sampai ${instantLimit} laporan diunduh langsung`;
                 }
 
                 if (submitLabel) {

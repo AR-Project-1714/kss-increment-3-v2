@@ -8,6 +8,8 @@ use App\Models\MasterEnvironmentItem;
 use App\Models\MasterInventoryItem;
 use App\Models\MasterUnit;
 use App\Models\User;
+use App\Services\BulkTonnageService;
+use App\Support\ShipNameNormalizer;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\GuardsSampleData;
 use Illuminate\Database\Seeder;
@@ -125,6 +127,9 @@ class OperationalReportSeeder extends Seeder
     /** @var array<string, User> */
     private array $usersByUsername = [];
 
+    /** COB kumulatif yang sudah tercatat per pelayaran, dikunci nomor pelayaran. */
+    private array $bulkVoyageCob = [];
+
     public function run(): void
     {
         if ($this->shouldSkipSampleData()) {
@@ -164,6 +169,10 @@ class OperationalReportSeeder extends Seeder
         foreach ($slots as [$day, $shiftName, $group, $nextGroup, $slotNumber]) {
             $this->seedSlot($day, $shiftName, $group, $nextGroup, $slotNumber);
         }
+
+        // Tonase muat curah/amoniak adalah selisih antar pembacaan COB, jadi
+        // baru bisa dihitung setelah seluruh pelayaran tertulis lengkap.
+        app(BulkTonnageService::class)->recalculate();
 
         $this->command?->info(
             count($slots).' laporan operasional dibuat untuk '
@@ -290,6 +299,7 @@ class OperationalReportSeeder extends Seeder
         $activity = $report->loadingActivities()->create([
             'sequence' => 1,
             'ship_name' => $name,
+            'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
             'agent' => $agent,
             'jetty' => $jetty,
             'destination' => $destination,
@@ -349,8 +359,16 @@ class OperationalReportSeeder extends Seeder
         $voyageStartSlot = $voyageIndex * $voyageLength;
         [$name, $agent, $jetty, $destination, $capacity] = self::BULK_SHIPS[$voyageIndex % count(self::BULK_SHIPS)];
         $loaded = (int) round((610 + ($slot % 5) * 24) * $factor);
-        $firstLog = (int) round($loaded * 0.46);
-        $secondLog = $loaded - $firstLog;
+
+        // COB dicatat KUMULATIF, sama seperti pada form asli: angkanya adalah
+        // total muatan yang sudah ada di kapal, bukan tambahan shift ini. Data
+        // contoh harus mengikuti kebiasaan itu, karena di situlah letak
+        // kekeliruan penjumlahan yang pernah membuat total tonase membengkak.
+        $carried = $this->bulkVoyageCob[$voyageIndex] ?? 0;
+        $firstLog = $carried + (int) round($loaded * 0.46);
+        $secondLog = $carried + $loaded;
+        $this->bulkVoyageCob[$voyageIndex] = $secondLog;
+
         $berthing = $this->slotMoment($voyageStartSlot, -180);
         $startLoading = $berthing->copy()->addHours(4 + ($voyageIndex % 3));
         $activityType = $voyageIndex % 2 === 0 ? 'muat_curah' : 'muat_amoniak';
@@ -359,6 +377,7 @@ class OperationalReportSeeder extends Seeder
             'activity_type' => $activityType,
             'sequence' => 1,
             'ship_name' => $name,
+            'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
             'agent' => $agent,
             'jetty' => $jetty,
             'destination' => $destination,
@@ -394,6 +413,7 @@ class OperationalReportSeeder extends Seeder
             $material = $report->materialActivity()->create([
                 'sequence' => $sequence,
                 'ship_name' => $name,
+                'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
                 'agent' => $agent,
                 'jetty' => $jetty,
                 'capacity' => $capacity,
@@ -438,6 +458,7 @@ class OperationalReportSeeder extends Seeder
         $container = $report->containerActivity()->create([
             'sequence' => 1,
             'ship_name' => $name,
+            'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
             'agent' => $agent,
             'jetty' => $jetty,
             'capacity' => $emptyCapacity,

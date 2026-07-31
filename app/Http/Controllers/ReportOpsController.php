@@ -15,6 +15,9 @@ use App\Models\MasterTruck;
 use App\Models\MasterUnit;
 use App\Models\ShipOperation;
 use App\Models\UnitCheckLog;
+use App\Services\BulkTonnageService;
+use App\Support\ShipNameNormalizer;
+use App\Support\TonnageNumber;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -234,11 +237,7 @@ class ReportOpsController extends Controller
     public function shipOperationSuggestions(Request $request)
     {
         $validated = $request->validate([
-            'type' => ['required', Rule::in([
-                ShipOperation::TYPE_BAG_LOADING,
-                ShipOperation::TYPE_BULK_LOADING,
-                ShipOperation::TYPE_AMMONIA_LOADING,
-            ])],
+            'type' => ['required', Rule::in(ShipOperation::types())],
             'q' => ['nullable', 'string', 'max:255'],
             'exclude_report_id' => ['nullable', 'integer'],
         ]);
@@ -260,8 +259,14 @@ class ReportOpsController extends Controller
             )
             ->when($keyword !== '', function ($query) use ($keyword): void {
                 $like = '%'.$keyword.'%';
+                // Kata kunci ikut dicari dalam bentuk kanoniknya, sehingga
+                // "km golden rejeki", "Golden-Rejeki", dan "GOLDEN REJEKI"
+                // sama-sama menemukan kapal yang sudah tersimpan. Inilah
+                // pencegahan paling awal: petugas menemukan kapalnya lalu
+                // memilih dari saran, bukan mengetik nama baru.
+                $canonical = ShipNameNormalizer::key($keyword);
 
-                $query->where(function ($search) use ($like): void {
+                $query->where(function ($search) use ($like, $canonical): void {
                     $this->whereColumnsLike($search, [
                         'ship_name',
                         'agent',
@@ -272,6 +277,10 @@ class ReportOpsController extends Controller
                         'marking',
                         'commodity',
                     ], $like);
+
+                    if ($canonical !== '') {
+                        $search->orWhere('ship_name_key', 'like', '%'.$canonical.'%');
+                    }
                 });
             })
             ->orderByRaw("CASE WHEN status = '".ShipOperation::STATUS_ACTIVE."' THEN 0 ELSE 1 END")
@@ -391,6 +400,7 @@ class ReportOpsController extends Controller
                 ]);
 
                 $this->storeDetails($report, $request);
+                app(BulkTonnageService::class)->recalculateForReport($report->id);
             });
         } catch (Throwable $exception) {
             Log::error('Gagal menyimpan laporan operasional.', [
@@ -499,6 +509,7 @@ class ReportOpsController extends Controller
 
                 $this->deleteDetails($report);
                 $this->storeDetails($report, $request);
+                app(BulkTonnageService::class)->recalculateForReport($report->id);
             });
         } catch (Throwable $exception) {
             Log::error('Gagal memperbarui laporan operasional.', [
@@ -1308,6 +1319,7 @@ class ReportOpsController extends Controller
             $loadingData = [
                 'sequence' => $i,
                 'ship_name' => $this->string($request->input("ship_name_{$i}")),
+                'ship_name_key' => ShipNameNormalizer::key($request->input("ship_name_{$i}")) ?: null,
                 'agent' => $this->string($request->input("agent_{$i}")),
                 'jetty' => $this->string($request->input("jetty_{$i}")),
                 'destination' => $this->string($request->input("destination_{$i}")),
@@ -1383,12 +1395,21 @@ class ReportOpsController extends Controller
                 continue;
             }
 
-            $materialActivity = $report->materialActivity()->create([
+            $materialData = [
                 'sequence' => $i,
                 'ship_name' => $this->string($request->input("ship_name_material_{$i}")),
+                'ship_name_key' => ShipNameNormalizer::key($request->input("ship_name_material_{$i}")) ?: null,
                 'agent' => $this->string($request->input("agent_material_{$i}")),
                 'jetty' => $this->string($request->input("jetty_material_{$i}")),
                 'capacity' => $this->decimal($request->input("capacity_material_{$i}")),
+            ];
+
+            $materialOperation = $isDraft
+                ? null
+                : $this->resolveShipOperation($report, $request, ShipOperation::TYPE_MATERIAL_UNLOADING, $i, $materialData);
+
+            $materialActivity = $report->materialActivity()->create($materialData + [
+                'ship_operation_id' => $materialOperation?->id,
                 'ship_tally_names' => $this->string($request->input("material_ship_tally_names_{$i}", $request->input("tally_kapal_{$i}"))),
                 'forklift_operator_names' => $this->string($request->input("material_forklift_operator_names_{$i}", $request->input("opr_forklift_{$i}"))),
                 'forklift_number' => $this->string($request->input("no_forklift_bb_{$i}")),
@@ -1427,12 +1448,21 @@ class ReportOpsController extends Controller
             $containerCapacityEmpty = $this->decimal($request->input("capacity_container_{$i}"));
             $containerCapacityFull = $this->decimal($request->input("capacity_full_container_{$i}"));
 
-            $containerActivity = $report->containerActivity()->create([
+            $containerData = [
                 'sequence' => $i,
                 'ship_name' => $this->string($request->input("ship_name_container_{$i}")),
+                'ship_name_key' => ShipNameNormalizer::key($request->input("ship_name_container_{$i}")) ?: null,
                 'agent' => $this->string($request->input("agent_container_{$i}")),
                 'jetty' => $this->string($request->input("jetty_container_{$i}")),
                 'capacity' => $containerCapacityEmpty,
+            ];
+
+            $containerOperation = $isDraft
+                ? null
+                : $this->resolveShipOperation($report, $request, ShipOperation::TYPE_CONTAINER, $i, $containerData);
+
+            $containerActivity = $report->containerActivity()->create($containerData + [
+                'ship_operation_id' => $containerOperation?->id,
                 'capacity_empty' => $containerCapacityEmpty,
                 'capacity_full' => $containerCapacityFull,
                 'ship_tally_names' => $this->string($request->input("container_ship_tally_names_{$i}", $request->input("tally_muat_{$i}"))),
@@ -1516,6 +1546,7 @@ class ReportOpsController extends Controller
                 'activity_type' => $activityType,
                 'sequence' => $i,
                 'ship_name' => $this->string($request->input($field('ship_name'))),
+                'ship_name_key' => ShipNameNormalizer::key($request->input($field('ship_name'))) ?: null,
                 'jetty' => $this->string($request->input($field('jetty'))),
                 'destination' => $this->string($request->input($field('destination'))),
                 'agent' => $this->string($request->input($field('agent'))),
@@ -1538,7 +1569,11 @@ class ReportOpsController extends Controller
                     $bulkActivity->logs()->create([
                         'datetime' => $this->dateTime($log['time'] ?? null, $reportDate),
                         'activity' => $this->string($log['activity'] ?? null),
-                        'cob' => $this->integer($log['cob'] ?? null) ?: null,
+                        // Titik pada COB bisa berarti pemisah ribuan ("16.750")
+                        // atau koma desimal ("4420.25") — petugas memakai
+                        // keduanya. COB 0 berarti tidak ada penimbangan pada
+                        // kejadian itu, bukan muatan nol, jadi disimpan kosong.
+                        'cob' => TonnageNumber::reading($log['cob'] ?? null),
                     ]);
                 }
             }
@@ -1850,6 +1885,14 @@ class ReportOpsController extends Controller
                 "ship_operation_ammonia_id_{$sequence}",
                 "ship_operation_ammonia_status_{$sequence}",
             ],
+            ShipOperation::TYPE_MATERIAL_UNLOADING => [
+                "ship_operation_material_id_{$sequence}",
+                "ship_operation_material_status_{$sequence}",
+            ],
+            ShipOperation::TYPE_CONTAINER => [
+                "ship_operation_container_id_{$sequence}",
+                "ship_operation_container_status_{$sequence}",
+            ],
             default => [
                 "ship_operation_urea_id_{$sequence}",
                 "ship_operation_urea_status_{$sequence}",
@@ -1864,25 +1907,7 @@ class ReportOpsController extends Controller
             ? ShipOperation::where('type', $type)->whereKey($operationId)->first()
             : null;
 
-        if (! $operation) {
-            // Kapal terarsip ikut dicocokkan agar operasi yang jeda lama otomatis
-            // tersambung kembali (status aktif di-set ulang saat disimpan).
-            $query = ShipOperation::query()
-                ->where('type', $type)
-                ->whereIn('status', [ShipOperation::STATUS_ACTIVE, ShipOperation::STATUS_INACTIVE])
-                ->orderByRaw("CASE WHEN status = '".ShipOperation::STATUS_ACTIVE."' THEN 0 ELSE 1 END")
-                ->where('ship_name', $shipName);
-
-            if ($type === ShipOperation::TYPE_BAG_LOADING && $this->string($data['wo_number'] ?? null) !== null) {
-                $query->where('wo_number', $this->string($data['wo_number']));
-            }
-
-            if ($type !== ShipOperation::TYPE_BAG_LOADING && $this->string($data['commodity'] ?? null) !== null) {
-                $query->where('commodity', $this->string($data['commodity']));
-            }
-
-            $operation = $query->first();
-        }
+        $operation ??= $this->matchShipOperation($type, $shipName, $data);
 
         $operation ??= new ShipOperation([
             'type' => $type,
@@ -1893,6 +1918,7 @@ class ReportOpsController extends Controller
         $operation->fill([
             'status' => $requestedStatus,
             'ship_name' => $shipName,
+            'ship_name_key' => ShipNameNormalizer::key($shipName) ?: null,
             'agent' => $this->string($data['agent'] ?? null),
             'jetty' => $this->string($data['jetty'] ?? null),
             'destination' => $this->string($data['destination'] ?? null),
@@ -1927,6 +1953,112 @@ class ReportOpsController extends Controller
         $operation->save();
 
         return $operation;
+    }
+
+    /**
+     * Cari operasi kapal yang sedang berjalan untuk sebuah nama yang diketik.
+     *
+     * Pencocokan berlapis, dari yang paling pasti ke yang paling longgar:
+     *
+     *   1. Nama persis sama — perilaku lama, tidak berubah.
+     *   2. Nama kanonik sama. Menyatukan beda huruf besar/kecil, tanda baca,
+     *      dan awalan jenis kapal: "KM. Golden Rejeki", "KM. GOLDEN REJEKI",
+     *      dan "km golden rejeki" menjadi satu.
+     *   3. Nama mirip. Menyatukan singkatan ("SUK"), nama terpotong
+     *      ("Sumber Utama K"), dan salah ketik satu-dua huruf.
+     *
+     * Lapisan ketiga hanya boleh menyentuh operasi yang MASIH BERJALAN
+     * (belum selesai dan masih dalam masa simpan saran). Kapal yang sudah
+     * berangkat tidak lagi menjadi kandidat, sehingga nama mirip milik kapal
+     * berbeda pada bulan yang berlainan tidak bisa saling tertarik.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function matchShipOperation(string $type, string $shipName, array $data): ?ShipOperation
+    {
+        // Kapal terarsip ikut dicocokkan agar operasi yang jeda lama otomatis
+        // tersambung kembali (status aktif di-set ulang saat disimpan).
+        $candidates = ShipOperation::query()
+            ->where('type', $type)
+            ->whereIn('status', [ShipOperation::STATUS_ACTIVE, ShipOperation::STATUS_INACTIVE])
+            ->when(
+                $type === ShipOperation::TYPE_BAG_LOADING && $this->string($data['wo_number'] ?? null) !== null,
+                fn ($query) => $query->where('wo_number', $this->string($data['wo_number'])),
+            )
+            ->orderByRaw("CASE WHEN status = '".ShipOperation::STATUS_ACTIVE."' THEN 0 ELSE 1 END")
+            ->orderByDesc('last_report_date')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $exact = $candidates->firstWhere('ship_name', $shipName);
+
+        if ($exact) {
+            return $exact;
+        }
+
+        $key = ShipNameNormalizer::key($shipName);
+
+        if ($key === '') {
+            return null;
+        }
+
+        $canonical = $candidates->first(
+            fn (ShipOperation $operation): bool => ShipNameNormalizer::key($operation->ship_name) === $key
+        );
+
+        if ($canonical) {
+            return $canonical;
+        }
+
+        $best = null;
+        $bestScore = ShipNameNormalizer::MATCH_THRESHOLD;
+
+        foreach ($candidates as $candidate) {
+            if (! $this->isOpenVoyage($candidate)) {
+                continue;
+            }
+
+            $score = ShipNameNormalizer::score($shipName, $candidate->ship_name);
+
+            if ($score >= $bestScore) {
+                $best = $candidate;
+                $bestScore = $score;
+            }
+        }
+
+        if ($best) {
+            Log::info('Nama kapal dicocokkan berdasarkan kemiripan.', [
+                'type' => $type,
+                'diketik' => $shipName,
+                'tersimpan' => $best->ship_name,
+                'ship_operation_id' => $best->id,
+                'skor' => $bestScore,
+            ]);
+        }
+
+        return $best;
+    }
+
+    /**
+     * Apakah operasi kapal masih boleh disambung oleh pencocokan mirip.
+     *
+     * Batasnya sengaja lebih longgar daripada masa simpan saran: pemuatan
+     * curah bisa tertahan berhari-hari karena cuaca atau antrean jetty.
+     */
+    private function isOpenVoyage(ShipOperation $operation): bool
+    {
+        if ($operation->status === ShipOperation::STATUS_COMPLETED) {
+            return false;
+        }
+
+        $lastSeen = $operation->last_report_date ?? $operation->updated_at ?? $operation->created_at;
+
+        return $lastSeen === null
+            || Carbon::parse($lastSeen)->greaterThanOrEqualTo(now()->subDays(BulkTonnageService::VOYAGE_GAP_DAYS));
     }
 
     private function dateTimeLocal(mixed $value): ?string

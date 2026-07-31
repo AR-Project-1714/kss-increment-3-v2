@@ -41,7 +41,7 @@
                     </div>
 
                     <div class="form-grid w-100">
-                        <div class="form-group"><label>Nama Kapal</label><input type="text" name="ship_name_material_1" value="{{ old('ship_name_material_1') }}" placeholder="Masukkan Nama Kapal"></div>
+                        <div class="form-group"><label>Nama Kapal</label><input type="hidden" name="ship_operation_material_id_1" value="{{ old('ship_operation_material_id_1') }}"><input type="text" name="ship_name_material_1" value="{{ old('ship_name_material_1') }}" placeholder="Masukkan Nama Kapal"></div>
                         <div class="form-group"><label>Agen</label><input type="text" name="agent_material_1" value="{{ old('agent_material_1') }}" placeholder="Masukkan Nama Agen"></div>
                     </div>
                     <div class="form-grid w-100">
@@ -49,6 +49,26 @@
                         <div class="form-group">
                             <label>Kapasitas</label>
                             <div class="input-wrapper"><input type="number" name="capacity_material_1" value="{{ old('capacity_material_1') }}" placeholder="Kapasitas" style="padding-right: 40px;"><span class="input-icon" style="font-size:11px;">Ton</span></div>
+                        </div>
+                    </div>
+
+                    <div class="ship-operation-status">
+                        <span class="ship-operation-status-label">
+                            Status pekerjaan kapal
+                            <span class="status-info-icon" tabindex="0" role="button" aria-label="Info status pekerjaan kapal">
+                                <i class="fi fi-rr-info"></i>
+                                <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung — saran ini akan hilang dari daftar.</span>
+                            </span>
+                        </span>
+                        <div class="ship-operation-status-options">
+                            <label>
+                                <input type="radio" name="ship_operation_material_status_1" value="active" {{ old('ship_operation_material_status_1', 'active') === 'active' ? 'checked' : '' }}>
+                                <span>Masih Berjalan</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="ship_operation_material_status_1" value="completed" {{ old('ship_operation_material_status_1') === 'completed' ? 'checked' : '' }}>
+                                <span>Selesai</span>
+                            </label>
                         </div>
                     </div>
 
@@ -145,7 +165,7 @@
                     </div>
 
                     <div class="form-grid w-100">
-                        <div class="form-group"><label>Nama Kapal</label><input type="text" name="ship_name_container_1" value="{{ old('ship_name_container_1') }}" placeholder="Masukkan Nama Kapal"></div>
+                        <div class="form-group"><label>Nama Kapal</label><input type="hidden" name="ship_operation_container_id_1" value="{{ old('ship_operation_container_id_1') }}"><input type="text" name="ship_name_container_1" value="{{ old('ship_name_container_1') }}" placeholder="Masukkan Nama Kapal"></div>
                         <div class="form-group"><label>Agen</label><input type="text" name="agent_container_1" value="{{ old('agent_container_1') }}" placeholder="Masukkan Nama Agen"></div>
                     </div>
                     <div class="form-grid w-100">
@@ -169,6 +189,26 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="ship-operation-status">
+                        <span class="ship-operation-status-label">
+                            Status pekerjaan kapal
+                            <span class="status-info-icon" tabindex="0" role="button" aria-label="Info status pekerjaan kapal">
+                                <i class="fi fi-rr-info"></i>
+                                <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung — saran ini akan hilang dari daftar.</span>
+                            </span>
+                        </span>
+                        <div class="ship-operation-status-options">
+                            <label>
+                                <input type="radio" name="ship_operation_container_status_1" value="active" {{ old('ship_operation_container_status_1', 'active') === 'active' ? 'checked' : '' }}>
+                                <span>Masih Berjalan</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="ship_operation_container_status_1" value="completed" {{ old('ship_operation_container_status_1') === 'completed' ? 'checked' : '' }}>
+                                <span>Selesai</span>
+                            </label>
                         </div>
                     </div>
 

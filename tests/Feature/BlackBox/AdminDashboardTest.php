@@ -3,9 +3,8 @@
 namespace Tests\Feature\BlackBox;
 
 use App\Models\AdminActivityLog;
-use App\Models\SystemMetricSnapshot;
-use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Modul C — Admin / Dashboard Sistem (PENGUJIAN_BLACKBOX.md §4.C).
@@ -22,58 +21,49 @@ class AdminDashboardTest extends BlackBoxTestCase
         $this->actingAs($admin)
             ->get(route('admin.index'))
             ->assertOk()
-            ->assertSee('Pengguna Aktif', false)
-            ->assertSee('Storage Terpakai', false)
+            ->assertSee('Billing Cloud', false)
+            ->assertSee('Remaining Credit', false)
+            ->assertSee('Estimasi Masa Aktif', false)
             ->assertSee('Status Backup Terakhir', false)
             ->assertSee('Kejadian Keamanan', false);
     }
 
-    public function test_tc_adash_02_nilai_kartu_pengguna_aktif_sesuai_data(): void
+    public function test_tc_adash_02_kartu_billing_menampilkan_saldo_dan_masa_aktif(): void
     {
         $admin = $this->admin();
-        // Tambah dua akun aktif + satu nonaktif (nonaktif tidak ikut dihitung).
-        $this->operator('A');
-        $this->maintenance();
-        $this->safety(['status' => 'nonaktif']);
-
-        $aktif = User::where('status', 'aktif')->count();
-        $this->assertSame(3, $aktif); // admin + operator + maintenance
+        Cache::flush();
+        config([
+            'services.idcloudhost.api_key' => 'test-token',
+            'services.idcloudhost.billing_account_id' => '12345',
+            'services.idcloudhost.base_url' => 'https://api.idcloudhost.test/v1',
+            'services.idcloudhost.estimated_monthly_cost' => 300000,
+        ]);
+        Http::fake(['*' => Http::response([
+            'running_totals' => ['ongoing' => 500000],
+            'is_active' => true,
+        ])]);
 
         $response = $this->actingAs($admin)
             ->get(route('admin.index'))
             ->assertOk()
-            ->assertSee('Pengguna Aktif', false);
+            ->assertSee('Remaining Credit', false)
+            ->assertSee('Rp 500.000', false)
+            ->assertSee('Estimasi Masa Aktif', false);
 
-        // Angkanya diperiksa dari data yang dikirim ke view, bukan dari
-        // potongan HTML — supaya penataan ulang markup kartu tidak membuat
-        // pengujian ini gagal tanpa ada perilaku yang benar-benar berubah.
-        $card = collect($response->original->getData()['stats'])->firstWhere('key', 'users');
-
-        $this->assertSame((string) $aktif, $card['value']);
+        $cards = collect($response->original->getData()['stats']);
+        $this->assertSame('Rp 500.000', $cards->firstWhere('key', 'cloud-credit')['value']);
+        $this->assertNotSame('—', $cards->firstWhere('key', 'cloud-runway')['value']);
     }
 
-    public function test_tc_adash_04_kartu_menampilkan_pembanding_periode(): void
+    public function test_tc_adash_04_kartu_billing_menampilkan_fallback_yang_jujur(): void
     {
         $admin = $this->admin();
 
-        // Tanpa rekaman harian, kartu kumulatif harus mengakui bahwa
-        // pembandingnya belum ada — bukan menampilkan angka palsu.
         $this->actingAs($admin)
             ->get(route('admin.index'))
             ->assertOk()
-            ->assertSee('Belum ada riwayat', false);
-
-        SystemMetricSnapshot::create([
-            'captured_on' => Carbon::today()->subDays(10)->toDateString(),
-            'storage_used_bytes' => 1024 * 1024,
-            'active_users' => 1,
-            'total_users' => 1,
-        ]);
-
-        $this->actingAs($admin)
-            ->get(route('admin.index'))
-            ->assertOk()
-            ->assertDontSee('Belum ada riwayat', false);
+            ->assertSee('Tambahkan API key dan Billing Account ID', false)
+            ->assertSee('Tidak tersedia', false);
     }
 
     public function test_tc_adash_05_grafik_aktivitas_mengelompokkan_jenis_kejadian(): void

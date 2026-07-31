@@ -409,6 +409,7 @@
     /* Panel selects sit in a column field: size to content so the arrow stays inside the box */
     .archive-filters .filter-select-wrapper { width: 100%; min-width: 0; flex: 0 0 auto; }
     .toolbar-sort-wrapper { min-width: 120px; }
+    .toolbar-page-size-wrapper { min-width: 128px; }
 
     .filter-select-trigger { display: flex; align-items: center; padding-right: 34px; cursor: pointer; }
     .filter-select-trigger.focus-active { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
@@ -488,7 +489,8 @@
 
         /* Only the toolbar (row) wrappers may flex-grow; panel wrappers stay content-sized */
         .archive-toolbar__actions .filter-select-wrapper,
-        .archive-toolbar__actions .toolbar-sort-wrapper {
+        .archive-toolbar__actions .toolbar-sort-wrapper,
+        .archive-toolbar__actions .toolbar-page-size-wrapper {
             min-width: 140px;
             flex: 1 1 140px;
         }
@@ -565,12 +567,28 @@
     .table-responsive-wrapper::-webkit-scrollbar-thumb { background-color: var(--blue-main-25); border-radius: 10px; }
     .table-responsive-wrapper::-webkit-scrollbar-thumb:hover { background-color: var(--blue-main-40); }
 
-    .table-responsive-wrapper table { min-width: 1100px; width: 100%; }
+    .table-responsive-wrapper table { min-width: 1150px; width: 100%; }
+
+    /* Lebar tambahan tabel dibagi ke kolom isi, bukan menjadi jarak kosong
+       antarkolom. No dan Info Dokumen pun selalu berdampingan rapat. */
+    .thead,
+    .tbody {
+        display: grid !important;
+        grid-template-columns:
+            76px
+            minmax(230px, 1.4fr)
+            minmax(135px, 1fr)
+            minmax(135px, .9fr)
+            minmax(105px, .75fr)
+            minmax(120px, .8fr)
+            minmax(125px, .85fr)
+            225px;
+        justify-content: initial !important;
+    }
 
     .thead {
         background-color: var(--blue-main-5);
         border-radius: 6px;
-        justify-content: space-between !important;
     }
 
     .thead th {
@@ -583,23 +601,28 @@
         color: var(--black-secondary);
     }
 
-    /* Kolom No memuat checkbox pilih baris, jadi lebih lebar dari 50px biasa. */
-    .thead th.nomor { width: 78px; flex: none; justify-content: center; gap: 8px; padding: 10px 0; }
-    .thead th.column-1 { min-width: 135px; }
-    .thead th:nth-child(2) { width: 230px; min-width: 230px; }
-    .thead th:nth-child(3) { width: 135px; min-width: 135px; }
-    .thead th:nth-child(4) { width: 135px; min-width: 135px; }
-    .thead th:nth-child(5) { width: 105px; min-width: 105px; }
-    .thead th:nth-child(6) { width: 120px; min-width: 120px; }
-    .thead th:nth-child(7) { width: 125px; min-width: 125px; }
-    .thead th.aksi { width: 225px; min-width: 225px; }
+    .thead th:nth-child(2) { padding-left: 0; }
+    .thead th.nomor { justify-content: center; gap: 8px; padding: 10px 0; }
 
     .tbody {
         border-bottom: 1px solid var(--smooth-border);
         transition: background-color 0.15s ease-in-out;
-        justify-content: space-between !important;
     }
     .tbody:hover { background-color: var(--blue-main-3); }
+
+    /* Bootstrap .d-none harus tetap menang atas layout grid agar baris pesan
+       pencarian tidak muncul selama masih ada laporan yang ditampilkan. */
+    .tbody.d-none { display: none !important; }
+
+    .archive-empty-row > td,
+    .archive-search-empty-row > td {
+        grid-column: 1 / -1;
+        width: auto !important;
+        min-width: 0 !important;
+        justify-content: center;
+        padding: 20px 12px;
+        text-align: center;
+    }
 
     .tbody td {
         display: flex;
@@ -611,15 +634,14 @@
         color: var(--black);
     }
 
-    .tbody td.nomor { width: 78px; flex: none; justify-content: center; gap: 8px; padding: 10px 0; color: var(--black-secondary); }
+    .tbody td.nomor { justify-content: center; gap: 8px; padding: 10px 0; color: var(--black-secondary); }
 
     .tbody td.column-2 {
-        width: 230px;
-        min-width: 230px;
         flex-direction: column;
         justify-content: center;
         align-items: flex-start;
         gap: 4px;
+        padding-left: 0;
     }
 
     .archive-doc-title {
@@ -633,17 +655,9 @@
         line-height: 1.25;
     }
 
-    .tbody td.column-1 { min-width: 135px; }
-
-    .tbody td:nth-child(3) { width: 135px; min-width: 135px; }
-    .tbody td:nth-child(4) { width: 135px; min-width: 135px; }
-    .tbody td:nth-child(5) { width: 105px; min-width: 105px; }
-    .tbody td:nth-child(6) { width: 120px; min-width: 120px; }
-    .tbody td:nth-child(7) { width: 125px; min-width: 125px; }
-
     .tbody td.column-3 { flex-direction: column; align-items: flex-start; gap: 6px; }
 
-    .tbody td.aksi { gap: 6px; flex-wrap: nowrap; width: 225px; min-width: 225px; }
+    .tbody td.aksi { gap: 6px; flex-wrap: nowrap; }
 
     .report-group {
         display: inline-flex;
@@ -852,6 +866,7 @@
     $archiveFirstItem = method_exists($reports, 'firstItem') ? ($reports->firstItem() ?? 1) : 1;
     $archiveCountLabel = filled($archiveSearch ?? '') || $hasActiveFilter ? 'hasil' : 'laporan';
     $archivePageCount = method_exists($reports, 'count') ? $reports->count() : count($reports);
+    $archivePerPage = method_exists($reports, 'perPage') ? $reports->perPage() : 10;
     // Batas unduhan dibaca dari controller agar pesan di UI tidak pernah
     // berbeda dengan batas yang benar-benar dipakai server.
     $archiveInstantLimit = $archiveInstantLimit ?? 50;
@@ -912,6 +927,7 @@
             <form method="GET" action="{{ route('admin.archive') }}" id="archive-filter-form" autocomplete="off">
                 <input type="hidden" name="q" value="{{ $archiveSearch ?? '' }}">
                 <input type="hidden" name="sort" value="{{ $sort ?? 'newest' }}">
+                <input type="hidden" name="per_page" value="{{ $archivePerPage }}">
 
                 <div class="archive-filter-fields">
                     <div class="filter-field">
@@ -1033,6 +1049,14 @@
                 <span>{{ $archiveTotal }} {{ $archiveCountLabel }}</span>
             </span>
             <div class="archive-toolbar__actions">
+                <div class="filter-select-wrapper toolbar-page-size-wrapper">
+                    <select class="native-select" name="per_page" data-autosubmit-filter aria-label="Jumlah laporan per halaman">
+                        <option value="10" @selected($archivePerPage === 10)>10 baris</option>
+                        <option value="20" @selected($archivePerPage === 20)>20 baris</option>
+                        <option value="50" @selected($archivePerPage === 50)>50 baris</option>
+                    </select>
+                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                </div>
                 <div class="filter-select-wrapper toolbar-sort-wrapper">
                     <select class="native-select" name="sort" data-autosubmit-filter>
                         <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
@@ -1158,14 +1182,14 @@
                     </td>
                 </tr>
             @empty
-                <tr class="tbody d-flex justify-content-center align-items-center">
-                    <td class="column-1 text-muted-custom" style="min-width: 100%; justify-content: center;">Belum ada laporan arsip.</td>
+                <tr class="tbody archive-empty-row">
+                    <td colspan="8" class="text-muted-custom">Belum ada laporan arsip.</td>
                 </tr>
             @endforelse
 
             @if ((method_exists($reports, 'count') ? $reports->count() : count($reports)) > 0)
-                <tr id="archive-search-empty" class="tbody d-flex justify-content-center align-items-center d-none">
-                    <td class="column-1 text-muted-custom" style="min-width: 100%; justify-content: center;">
+                <tr id="archive-search-empty" class="tbody archive-search-empty-row d-none">
+                    <td colspan="8" class="text-muted-custom">
                         Laporan tidak ditemukan di halaman ini. Tekan Enter untuk mencari ke seluruh arsip.
                     </td>
                 </tr>

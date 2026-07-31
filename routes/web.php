@@ -19,6 +19,7 @@ Route::post('/logout', [LoginV2Controller::class, 'logout'])->middleware('auth')
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN])->group(function () {
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');
+    Route::get('/billing-cloud', [AdminV2Controller::class, 'billing'])->name('billing');
     Route::get('/archive', [AdminV2Controller::class, 'archive'])->name('archive');
     Route::get('/archive/export', [AdminV2Controller::class, 'archiveExport'])->name('archive.export');
     Route::post('/archive/bulk-download', [AdminV2Controller::class, 'archiveBulkDownload'])->name('archive.bulk-download');

@@ -104,7 +104,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Pemuatan Pupuk Kantong',
                     'countLabel' => 'Kapal',
-                    'count' => $this->visitIdentity('loading_activities.ship_name', 'loading_activities.arrival_time'),
+                    'count' => $this->visitIdentity('loading_activities', 'loading_activities.arrival_time'),
                     'delivery' => 'loading_activities.qty_delivery_current',
                     'damage' => 'loading_activities.qty_damage_current',
                 ],
@@ -119,7 +119,10 @@ class OperationalPerformanceService
                 'showOnPerformance' => true,
                 'showOnActivityDetail' => true,
                 'from' => 'bulk_loading_logs',
-                'column' => 'bulk_loading_logs.cob',
+                // cob berisi Cargo On Board, yaitu pembacaan KUMULATIF muatan di
+                // kapal. Yang boleh dijumlahkan adalah pertambahannya, bukan
+                // pembacaannya. Lihat BulkTonnageService.
+                'column' => 'bulk_loading_logs.cob_delta',
                 'joins' => [
                     ['bulk_loading_activities', 'bulk_loading_logs.bulk_loading_activity_id', 'bulk_loading_activities.id'],
                 ],
@@ -131,7 +134,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Pemuatan Urea Curah',
                     'countLabel' => 'Kapal',
-                    'count' => $this->visitIdentity('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time'),
+                    'count' => $this->bulkVisitIdentity(),
                 ],
             ],
             'muat_amoniak' => [
@@ -144,7 +147,7 @@ class OperationalPerformanceService
                 'showOnPerformance' => true,
                 'showOnActivityDetail' => true,
                 'from' => 'bulk_loading_logs',
-                'column' => 'bulk_loading_logs.cob',
+                'column' => 'bulk_loading_logs.cob_delta',
                 'joins' => [
                     ['bulk_loading_activities', 'bulk_loading_logs.bulk_loading_activity_id', 'bulk_loading_activities.id'],
                 ],
@@ -156,7 +159,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Pemuatan Amoniak',
                     'countLabel' => 'Kapal',
-                    'count' => $this->visitIdentity('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time'),
+                    'count' => $this->bulkVisitIdentity(),
                 ],
             ],
             'bongkar_bahan_baku' => [
@@ -178,7 +181,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Bongkar Bahan Baku',
                     'countLabel' => 'Kapal',
-                    'count' => 'material_activities.ship_name',
+                    'count' => $this->visitIdentity('material_activities'),
                 ],
             ],
             // Bongkar dan muat container tercatat menyatu pada satu bagian form
@@ -207,7 +210,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Bongkar Container (Empty)',
                     'countLabel' => 'Kapal',
-                    'count' => 'container_activities.ship_name',
+                    'count' => $this->visitIdentity('container_activities'),
                 ],
             ],
             'muat_container' => [
@@ -231,7 +234,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Muat Container (Full)',
                     'countLabel' => 'Kapal',
-                    'count' => 'container_activities.ship_name',
+                    'count' => $this->visitIdentity('container_activities'),
                 ],
             ],
             'trucking_turba' => [
@@ -1896,15 +1899,20 @@ class OperationalPerformanceService
             ->selectRaw('COALESCE(SUM(loading_activities.qty_delivery_current), 0) as delivery')
             ->selectRaw('COALESCE(SUM(loading_activities.qty_damage_current), 0) as damage')
             ->selectRaw('COALESCE(AVG(NULLIF(loading_activities.tkbm_count, 0)), 0) as tkbm')
-            ->selectRaw('COUNT(DISTINCT '.$this->visitIdentity('loading_activities.ship_name', 'loading_activities.arrival_time').') as visits')
+            ->selectRaw('COUNT(DISTINCT '.$this->visitIdentity('loading_activities', 'loading_activities.arrival_time').') as visits')
             ->first();
+
+        // Dikelompokkan menurut identitas pelayaran, bukan nama mentah, supaya
+        // satu kapal yang ejaannya berbeda antar shift tidak terpecah menjadi
+        // beberapa baris dengan akumulasi masing-masing.
+        $baggedVisit = $this->visitIdentity('loading_activities', 'loading_activities.arrival_time');
 
         $rows = $this->parentQuery('loading_activities', $filters)
             ->whereNotNull('loading_activities.ship_name')
             ->where('loading_activities.ship_name', '!=', '')
-            ->groupBy('loading_activities.ship_name', 'loading_activities.arrival_time')
-            ->selectRaw('loading_activities.ship_name as ship_name')
-            ->selectRaw('loading_activities.arrival_time as moment')
+            ->groupBy(DB::raw($baggedVisit))
+            ->selectRaw('MAX(loading_activities.ship_name) as ship_name')
+            ->selectRaw('MAX(loading_activities.arrival_time) as moment')
             ->selectRaw('MAX(loading_activities.agent) as agent')
             ->selectRaw('MAX(loading_activities.jetty) as jetty')
             ->selectRaw('MAX(loading_activities.destination) as destination')
@@ -1968,7 +1976,7 @@ class OperationalPerformanceService
     private function bulkDetail(array $activity, array $filters, int $limit): array
     {
         $totals = $this->scopedSourceQuery($activity, $filters)
-            ->selectRaw('COALESCE(SUM(bulk_loading_logs.cob), 0) as loaded')
+            ->selectRaw('COALESCE(SUM(bulk_loading_logs.cob_delta), 0) as loaded')
             ->selectRaw('COUNT(bulk_loading_logs.id) as log_count')
             ->first();
 
@@ -1980,16 +1988,16 @@ class OperationalPerformanceService
         $this->applyActivityConditions($rowsQuery, $activity);
 
         $rows = $rowsQuery
-            ->groupBy('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time')
-            ->selectRaw('bulk_loading_activities.ship_name as ship_name')
-            ->selectRaw('bulk_loading_activities.berthing_time as berthing')
+            ->groupBy(DB::raw($this->bulkVisitIdentity()))
+            ->selectRaw('MAX(bulk_loading_activities.ship_name) as ship_name')
+            ->selectRaw('MIN(bulk_loading_activities.berthing_time) as berthing')
             ->selectRaw('MAX(bulk_loading_activities.start_loading_time) as start_loading')
             ->selectRaw('MAX(bulk_loading_activities.agent) as agent')
             ->selectRaw('MAX(bulk_loading_activities.stevedoring) as stevedoring')
             ->selectRaw('MAX(bulk_loading_activities.commodity) as commodity')
             ->selectRaw('MAX(bulk_loading_activities.jetty) as jetty')
             ->selectRaw('MAX(bulk_loading_activities.capacity) as capacity')
-            ->selectRaw('COALESCE(SUM(bulk_loading_logs.cob), 0) as loaded')
+            ->selectRaw('COALESCE(SUM(bulk_loading_logs.cob_delta), 0) as loaded')
             ->get()
             ->sortByDesc('loaded')
             ->values();
@@ -2068,8 +2076,11 @@ class OperationalPerformanceService
 
         $rows = $this->parentQuery('material_activities', $filters)
             ->leftJoin('material_items', 'material_items.material_activity_id', '=', 'material_activities.id')
-            ->groupBy('material_activities.ship_name')
-            ->selectRaw('material_activities.ship_name as ship_name')
+            // Dikelompokkan menurut nama kanonik, bukan nama mentah: satu kapal
+            // yang ejaannya berbeda antar shift harus tetap satu baris dengan
+            // tonase yang utuh.
+            ->groupBy(DB::raw($this->visitIdentity('material_activities')))
+            ->selectRaw('MAX(material_activities.ship_name) as ship_name')
             ->selectRaw('MAX(material_activities.agent) as agent')
             ->selectRaw('MAX(material_activities.jetty) as jetty')
             ->selectRaw('MAX(material_activities.capacity) as capacity')
@@ -2139,7 +2150,7 @@ class OperationalPerformanceService
         $totals = $this->scopedSourceQuery($activity, $filters)
             ->selectRaw('COALESCE(SUM(container_items.qty_current), 0) as loaded')
             ->selectRaw('COUNT(container_items.id) as item_count')
-            ->selectRaw('COUNT(DISTINCT container_activities.ship_name) as ships')
+            ->selectRaw('COUNT(DISTINCT '.$this->visitIdentity('container_activities').') as ships')
             ->first();
 
         $capacity = $this->parentQuery('container_activities', $filters)
@@ -2809,11 +2820,11 @@ class OperationalPerformanceService
         return [
             [
                 'table' => 'loading_activities',
-                'identity' => $this->visitIdentity('loading_activities.ship_name', 'loading_activities.arrival_time'),
+                'identity' => $this->visitIdentity('loading_activities', 'loading_activities.arrival_time'),
             ],
             [
                 'table' => 'bulk_loading_activities',
-                'identity' => $this->visitIdentity('bulk_loading_activities.ship_name', 'bulk_loading_activities.berthing_time'),
+                'identity' => $this->bulkVisitIdentity(),
             ],
         ];
     }
@@ -2970,16 +2981,61 @@ class OperationalPerformanceService
     }
 
     /**
-     * Penanda satu kunjungan kapal: nama kapal digabung dengan waktu tibanya.
+     * Penanda satu kunjungan kapal.
+     *
+     * Yang dipakai lebih dulu adalah nomor operasi kapal, karena itulah
+     * identitas pelayaran yang sudah disepakati saat laporan disimpan. Nama
+     * mentah tidak bisa menjadi penanda: satu kapal ditulis berbeda-beda tiap
+     * shift ("KM. Golden Rejeki" / "KM. GOLDEN REJEKI"), sehingga satu
+     * pelayaran akan terhitung sebagai beberapa kunjungan.
+     *
+     * Untuk baris lama yang belum punya nomor operasi, penggantinya adalah nama
+     * KANONIK digabung waktu sandar/tiba — bukan nama mentah.
      */
-    private function visitIdentity(string $shipColumn, string $momentColumn): string
+    private function visitIdentity(string $table, ?string $momentColumn = null): string
     {
-        $ship = 'COALESCE('.$shipColumn.", '')";
-        $moment = 'COALESCE('.$momentColumn.", '')";
+        $operation = $table.'.ship_operation_id';
 
-        return $this->isSqlite()
-            ? $ship." || '|' || ".$moment
-            : 'CONCAT('.$ship.", '|', ".$moment.')';
+        // Bongkar bahan baku dan container tidak mencatat waktu sandar, jadi
+        // cadangannya cukup nama kanonik saja.
+        $fallback = $momentColumn === null
+            ? $this->shipIdentity($table)
+            : ($this->isSqlite()
+                ? $this->shipIdentity($table)." || '|' || COALESCE(".$momentColumn.", '')"
+                : 'CONCAT('.$this->shipIdentity($table).", '|', COALESCE(".$momentColumn.", ''))");
+
+        $fallback = $this->isSqlite()
+            ? "'nama:' || ".$fallback
+            : "CONCAT('nama:', ".$fallback.')';
+
+        $matched = $this->isSqlite()
+            ? "'operasi:' || ".$operation
+            : "CONCAT('operasi:', ".$operation.')';
+
+        return 'CASE WHEN '.$operation.' IS NOT NULL THEN '.$matched.' ELSE '.$fallback.' END';
+    }
+
+    /**
+     * Nama kanonik kapal sebagai penanda cadangan — dipakai saat baris belum
+     * terhubung ke operasi kapal, mis. laporan lama yang ditulis sebelum
+     * kegiatan bongkar punya operasi kapal.
+     *
+     * Tanpa ini, "MV. Sumber Rezeki" dan "MV.SUMBER REZEKI" terhitung dua kapal
+     * pada rekap bulanan dan muncul sebagai dua baris terpisah — masing-masing
+     * hanya membawa sebagian tonasenya.
+     */
+    private function shipIdentity(string $table): string
+    {
+        return 'COALESCE(NULLIF('.$table.".ship_name_key, ''), ".$table.".ship_name, '')";
+    }
+
+    /**
+     * Penanda kunjungan untuk muat curah dan muat amoniak — keduanya berbagi
+     * satu tabel aktivitas.
+     */
+    private function bulkVisitIdentity(): string
+    {
+        return $this->visitIdentity('bulk_loading_activities', 'bulk_loading_activities.berthing_time');
     }
 
     /**

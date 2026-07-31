@@ -1,55 +1,57 @@
-# Design QA — Peringkat Lembur
+# Design QA — Billing Cloud
 
-## Artefak Pembanding
-
-- Source visual truth path: `C:\Users\MUHAMM~1\AppData\Local\Temp\codex-clipboard-0e7e89d0-f5db-4765-af85-ff0aafb0f0fe.png`
-- Implementation screenshot path: `C:\laragon\www\app-kss-codex\design-qa-implementation-full.jpg`
-- Focused implementation path: `C:\laragon\www\app-kss-codex\design-qa-implementation-focused.png`
-- Side-by-side comparison path: `C:\laragon\www\app-kss-codex\design-qa-comparison.png`
-- Responsive screenshot path: `C:\laragon\www\app-kss-codex\design-qa-responsive.jpg`
-
-## Normalisasi
-
-- Source: 852 × 437 piksel.
-- Implementasi penuh: 1440 × 877 piksel dari viewport CSS 1440 × 1000, device scale factor 1.
-- Fokus implementasi: crop 1137 × 647 piksel, lalu diperkecil secara proporsional menjadi lebar 852 piksel pada gambar perbandingan.
-- Gambar perbandingan: 1724 × 485 piksel; source di kiri dan implementasi di kanan.
-- State: mode terang, periode bulan berjalan 1–29 Jul 2026, tabel berisi data riil laporan operasi.
-
-## Pemeriksaan Permukaan Utama
-
-- Fonts and typography: memakai Instrument Sans dan bobot yang sudah menjadi sistem desain aplikasi. Hierarki header, nama, angka, dan unit tetap jelas setelah normalisasi.
-- Spacing and layout rhythm: padding header/baris, garis pembatas, tinggi baris, radius, dan alignment numerik konsisten dengan referensi serta kartu aplikasi.
-- Colors and visual tokens: warna netral memakai token aplikasi; indikator semantik hijau/merah/biru dan badge Regu A–D mempunyai warna berbeda dengan kontras yang cukup.
-- Image quality and asset fidelity: referensi menggunakan avatar foto, tetapi kebutuhan produk secara eksplisit menggantinya dengan identitas regu berbentuk lingkaran. Ikon naik/turun memakai pustaka ikon aplikasi, bukan aset tiruan.
-- Copy and content: kolom akhir sesuai permintaan—Posisi, Nama Petugas, Jumlah Lembur, Total Jam Lembur, dan Rata-rata Jam Lembur.
-
-## Full-view Comparison Evidence
-
-`design-qa-comparison.png` menunjukkan struktur tabel, kepadatan baris, header netral, garis pemisah, dan alignment angka mengikuti karakter referensi. Perbedaan kolom “Previous Times” dan “Changes +/-” pada referensi adalah penyesuaian yang memang diminta pengguna: perubahan posisi digabungkan di kolom Posisi dan rata-rata jam menjadi kolom terakhir.
-
-## Focused Region Comparison Evidence
-
-Fokus tabel diperlukan karena halaman aplikasi memiliki sidebar, navbar, dan kartu analitik lain yang tidak termasuk source. Crop `design-qa-implementation-focused.png` memperlihatkan badge Regu A–D, nama, posisi, dan tiga metrik lembur tanpa gangguan konteks halaman.
+- Source visual truth: `C:\Users\Muhammad Arobi\.codex\generated_images\019fb232-bf3c-70a2-ba07-f284155ff0b4\call_eQ7B9bdmEcWir5mao5FdgCNP.png`
+- Implementation URL: `http://127.0.0.1:8000/admin/billing-cloud`
+- Desktop evidence: `C:\laragon\www\app-kss-codex\design-qa-billing-desktop.png`
+- Mobile evidence: `C:\laragon\www\app-kss-codex\design-qa-billing-mobile.png`
+- Combined comparison: `C:\laragon\www\app-kss-codex\design-qa-comparison.png`
+- State: authenticated admin, light theme, live IDCloudHost data, healthy credit status
+- Viewports: desktop target 1440 × 1000 CSS px; mobile 390 × 844 CSS px
+- Pixel dimensions: source 1781 × 883; desktop implementation 1440 × 981; mobile implementation 390 × 844
+- Density normalization: browser DPR 1; source and implementation were fitted without cropping in the 1781 × 1900 combined comparison canvas. The source contains both its desktop and compact variants, so the implementation desktop and mobile captures were compared against those corresponding regions.
 
 ## Findings
 
-- Tidak ada temuan P0, P1, atau P2.
-- Indikator “Baru” tampil pada data live karena nama personil periode Juni dan Juli tidak saling beririsan. State naik/turun diverifikasi lewat pengujian terisolasi dengan data dua periode.
-- Pada viewport 700 × 800, pembungkus tabel memiliki lebar 623 piksel dan scroll width 820 piksel. Overflow hanya terjadi di dalam tabel; halaman tidak mengalami overflow horizontal.
+No actionable P0, P1, or P2 differences remain.
 
-## Interaction and Runtime Checks
+- Typography: Poppins is retained from the product design system. The implementation reproduces the source hierarchy through a compact service identity, uppercase metric labels, high-weight financial value, and lower-contrast supporting text. Wrapping remains controlled at 390 px.
+- Spacing and layout rhythm: the card preserves the source's two-tier structure, modular metric regions, consistent 12–14 px radii, generous whitespace, and responsive stacking. The requested removal of the left blue accent border is visible in both captures.
+- Colors and tokens: existing KSS surface, border, and text tokens are retained. Green is intentionally used for healthy status and runway progress to make the semantic state accessible; warning and critical variants have amber/red equivalents.
+- Image and icon fidelity: the implementation uses the product's installed Flaticon icon library and existing KSS logo assets. No raster placeholder, handcrafted SVG, emoji, or CSS-drawn icon replaces a source asset.
+- Copy and content: Indonesian copy is preserved. The rendered data uses the effective live balance (`running_totals.ongoing`), daily-cost estimate, usage reports, top-up invoices, and balance transactions rather than static mock values.
+- Responsiveness: the summary stacks cleanly on mobile, the section navigation remains horizontally scrollable, and dense tables use contained horizontal scrolling instead of clipping the page.
+- Accessibility: status is not color-only, progress has an accessible label and numeric value, sections have headings, tables retain semantic headers, and warning states use `role="alert"`.
 
-- Tombol “Lihat semua 12 personil” berhasil membuka baris 11–12 dan berubah menjadi “Tampilkan 10 teratas” dengan `aria-expanded="true"`.
-- Scroll horizontal tersedia ketika tabel tidak muat pada viewport sempit.
-- Console browser: tidak ada error.
+The full-view comparison is sufficient for the hero card, hierarchy, spacing, status treatment, progress bar, desktop grid, and mobile stack. A separate focused crop was not needed because the 1781 px comparison preserves readable text and the key card details at both target sizes.
+
+## Open Questions
+
+- None blocking. The source used illustrative Rp501.085 / ±5,3 bulan values; the implementation intentionally shows current API values.
 
 ## Comparison History
 
-1. Final pass: membandingkan source dengan capture desktop terfokus dan capture responsive. Tidak ditemukan perbedaan P0/P1/P2; tidak diperlukan iterasi perbaikan visual blocking.
+- Pass 1: no P0/P1/P2 visual issues found. The requested no-left-border treatment, desktop layout, mobile stacking, and live-data tables were already present in the first final comparison, so no visual rework iteration was required.
+
+## Primary Interactions Tested
+
+- Admin login and access control.
+- Main-menu navigation to Billing Cloud.
+- Anchor navigation to Riwayat Saldo.
+- Mobile horizontal navigation/table behavior.
+- Console error check: no errors recorded.
+
+## Implementation Checklist
+
+- [x] Option 2 hierarchy without the blue left border.
+- [x] Dedicated Billing Cloud main-menu route.
+- [x] Remaining credit, estimated runway, status, and progress.
+- [x] Usage reports, top-up invoices, and balance history.
+- [x] Responsive desktop and mobile layouts.
+- [x] Accessible semantic status colors and table markup.
+- [x] Browser-rendered desktop/mobile evidence and live-data validation.
 
 ## Follow-up Polish
 
-- Tidak ada polish yang diperlukan untuk memenuhi permintaan saat ini.
+- P3: A future invoice-detail endpoint could make report and invoice identifiers clickable when a safe read-only detail view is required.
 
 final result: passed

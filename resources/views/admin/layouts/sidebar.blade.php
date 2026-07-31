@@ -32,6 +32,11 @@
                     <span class="nav-label">Dashboard Sistem</span>
                 </a>
 
+                <a href="{{ route('admin.billing') }}" class="sidebar__nav-item {{ $active === 'billing' ? 'active' : '' }}" data-tooltip="Billing Cloud">
+                    <span class="nav-icon"><i class="fi fi-sr-wallet"></i></span>
+                    <span class="nav-label">Billing Cloud</span>
+                </a>
+
                 <a href="{{ route('admin.archive') }}" class="sidebar__nav-item {{ $active === 'archive' ? 'active' : '' }}" data-tooltip="Arsip Laporan">
                     <span class="nav-icon"><i class="fi fi-sr-folder"></i></span>
                     <span class="nav-label">Arsip Laporan</span>

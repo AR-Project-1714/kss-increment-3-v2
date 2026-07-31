@@ -33,9 +33,12 @@ trait BuildsDivisionArchive
      */
     protected function archiveFiltersFromRequest(Request $request): array
     {
+        $perPage = (int) $request->input('per_page', 10);
+
         return [
             'archiveSearch' => trim((string) $request->input('q', '')),
             'sort' => $request->input('sort', 'newest') === 'oldest' ? 'oldest' : 'newest',
+            'perPage' => in_array($perPage, [10, 20, 50], true) ? $perPage : 10,
             'selectedDate' => $request->input('tanggal'),
             'selectedGroup' => strtoupper((string) $request->input('regu', 'all')),
             'selectedShift' => strtolower((string) $request->input('shift', 'all')),
@@ -397,12 +400,12 @@ trait BuildsDivisionArchive
     }
     protected function buildDivisionArchivePaginator(Request $request, array $filters, string $context): LengthAwarePaginator
     {
-        $perPage = 10;
+        $perPage = $filters['perPage'] ?? 10;
         $page = LengthAwarePaginator::resolveCurrentPage();
 
         // Ambil hanya tuple ringan (kind, id, kunci sort) dari database — filter,
         // pencarian, dan urutan dikerjakan di SQL. Model lengkap hanya dimuat
-        // untuk 10 baris halaman aktif.
+        // untuk baris pada halaman aktif.
         $refs = $this->archiveRowRefs($filters);
         $total = $refs->count();
         $pageRefs = $refs->slice(($page - 1) * $perPage, $perPage)->values();

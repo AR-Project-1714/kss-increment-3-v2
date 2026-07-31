@@ -33,10 +33,29 @@
         background: var(--divider, #cbd5e1);
     }
 
+    /* Tabel lebar (mis. .table-responsive-wrapper) yang di-scroll horizontal
+       tetap "membocorkan" lebar kontennya ke perhitungan layout viewport
+       browser mobile walaupun overflow-x:auto sudah membatasinya secara
+       visual. Akibatnya elemen position:fixed (modal-overlay,
+       sidebar-backdrop) ikut melebar mengikuti viewport yang salah hitung
+       itu, sehingga pop-up tampak terpotong/hanya muncul setengah di layar.
+       `contain: layout paint` mengisolasi kontribusi lebar tabel tersebut
+       supaya tidak memengaruhi ukuran viewport. */
+    .table-responsive-wrapper {
+        contain: layout paint;
+    }
+
     @media (max-width: 768px) {
         .modal-overlay {
             align-items: flex-end !important;
             padding: 0 !important;
+            top: var(--kss-visual-viewport-offset-top, 0px) !important;
+            right: 0 !important;
+            bottom: auto !important;
+            left: 0 !important;
+            height: var(--kss-visual-viewport-height, 100dvh) !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
         }
 
         .modal-overlay .pop-up.signed,
@@ -44,22 +63,59 @@
             position: relative !important;
             width: 100% !important;
             max-width: 100% !important;
-            max-height: min(86vh, 680px) !important;
+            max-height: min(
+                calc(var(--kss-visual-viewport-height, 100dvh) - max(48px, env(safe-area-inset-top, 0px))),
+                680px
+            ) !important;
             margin: 0 !important;
             border-radius: 20px 20px 0 0 !important;
             padding-top: 30px !important;
             padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)) !important;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch;
-            /* transform/transition sengaja TANPA !important agar bisa
-               ditimpa langsung oleh inline style saat drag (lihat JS). */
-            transform: translateY(100%);
-            transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+            transform: none;
+            transition: none;
         }
 
         .modal-overlay.show .pop-up.signed,
         .modal-overlay.show .modal-box {
-            transform: translateY(0);
+            transform: none;
+            animation: kss-sheet-enter 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        @keyframes kss-sheet-enter {
+            from { transform: translate3d(0, 100%, 0); }
+            to { transform: translate3d(0, 0, 0); }
+        }
+
+        /* Form panjang (contohnya Tambah Pengguna) perlu mempunyai satu area
+           isi yang dapat digulir. Header dan tombol aksi tetap terlihat,
+           sementara panel tidak pernah terdorong keluar dari viewport. */
+        .modal-overlay .modal-box--form-sheet {
+            overflow: hidden !important;
+        }
+
+        .modal-overlay .modal-box--form-sheet > form {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            width: 100%;
+            max-height: inherit;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .modal-box--form-sheet .kss-modal__header,
+        .modal-box--form-sheet .kss-modal__footer {
+            flex-shrink: 0;
+        }
+
+        .modal-box--form-sheet .kss-modal__body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
 
         .kss-sheet-handle {
@@ -108,7 +164,16 @@
         }
 
         function closeOverlay(overlay) {
+            if (window.KssAdminModal?.close) {
+                window.KssAdminModal.close(overlay);
+                return;
+            }
+
             overlay.classList.remove('show');
+            overlay.setAttribute('aria-hidden', 'true');
+            if (!document.querySelector('.modal-overlay.show')) {
+                document.body.classList.remove('modal-open');
+            }
         }
 
         function bindHandle(handle, panel) {
@@ -121,27 +186,27 @@
                 startY = event.touches[0].clientY;
                 startTime = Date.now();
                 dragging = true;
-                panel.style.transition = 'none';
+                panel.style.setProperty('animation', 'none', 'important');
             }, { passive: true });
 
             handle.addEventListener('touchmove', event => {
                 if (!dragging || !event.touches.length) return;
                 const deltaY = Math.max(0, event.touches[0].clientY - startY);
-                panel.style.transform = `translateY(${deltaY}px)`;
+                panel.style.setProperty('transform', `translate3d(0, ${deltaY}px, 0)`, 'important');
                 event.preventDefault();
             }, { passive: false });
 
             function endDrag(event) {
                 if (!dragging) return;
                 dragging = false;
-                panel.style.transition = '';
 
                 const touch = event.changedTouches[0];
                 const deltaY = touch ? Math.max(0, touch.clientY - startY) : 0;
                 const elapsed = Math.max(1, Date.now() - startTime);
                 const velocity = deltaY / elapsed;
 
-                panel.style.transform = '';
+                panel.style.removeProperty('animation');
+                panel.style.removeProperty('transform');
 
                 const overlay = panel.closest('.modal-overlay');
                 if (overlay && (deltaY > CLOSE_THRESHOLD_PX || velocity > CLOSE_VELOCITY)) {
@@ -167,7 +232,17 @@
             root.querySelectorAll('.modal-overlay .pop-up.signed, .modal-overlay .modal-box').forEach(ensureHandle);
         }
 
+        function syncVisualViewport() {
+            const viewport = window.visualViewport;
+            const height = viewport?.height || window.innerHeight;
+            const offsetTop = viewport?.offsetTop || 0;
+
+            document.documentElement.style.setProperty('--kss-visual-viewport-height', `${Math.round(height)}px`);
+            document.documentElement.style.setProperty('--kss-visual-viewport-offset-top', `${Math.round(offsetTop)}px`);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            syncVisualViewport();
             initAll(document);
 
             const observer = new MutationObserver(records => {
@@ -183,7 +258,14 @@
             observer.observe(document.body, { childList: true, subtree: true });
         });
 
-        window.KssMobileSheet = { init: initAll };
+        window.addEventListener('resize', syncVisualViewport, { passive: true });
+        window.visualViewport?.addEventListener('resize', syncVisualViewport, { passive: true });
+        window.visualViewport?.addEventListener('scroll', syncVisualViewport, { passive: true });
+
+        window.KssMobileSheet = {
+            init: initAll,
+            syncViewport: syncVisualViewport,
+        };
     })();
 </script>
 @endonce
