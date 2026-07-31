@@ -233,13 +233,18 @@ class RepairShipIdentity extends Command
 
                 $keeper = $clusters[$target]['keeper'];
 
+                // Rentang tanggal ikut dicetak supaya penggabungan bisa dinilai:
+                // dua baris yang tanggalnya bersambung memang satu kunjungan,
+                // sedangkan yang berjauhan patut dicurigai.
                 $this->line(sprintf(
-                    '  gabung [%s] #%d "%s" → #%d "%s"',
+                    '  gabung [%s] #%d "%s" %s → #%d "%s" %s',
                     $type,
                     $operation->id,
                     $operation->ship_name,
+                    $this->spanText($start, $end),
                     $keeper->id,
                     $keeper->ship_name,
+                    $this->spanText($clusters[$target]['start'], $clusters[$target]['end']),
                 ));
 
                 $merged++;
@@ -254,6 +259,20 @@ class RepairShipIdentity extends Command
         }
 
         return $merged;
+    }
+
+    /**
+     * Rentang tanggal laporan sebuah operasi kapal, untuk dibaca manusia.
+     */
+    private function spanText(?Carbon $start, ?Carbon $end): string
+    {
+        if ($start === null || $end === null) {
+            return '(tanpa laporan)';
+        }
+
+        return $start->isSameDay($end)
+            ? '('.$start->format('d/m').')'
+            : '('.$start->format('d/m').'–'.$end->format('d/m').')';
     }
 
     /**
