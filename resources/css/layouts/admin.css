@@ -123,7 +123,13 @@
            walaupun sudah di-scroll secara visual — sehingga elemen
            position:fixed (modal-overlay, sidebar-backdrop) ikut melebar
            melebihi layar dan pop-up tampak terpotong/hanya muncul setengah. */
-        html { overflow-x: hidden; }
+        /* overflow-y wajib eksplisit: jika hanya overflow-x yang diset, nilai
+           overflow-y yang dihitung browser diam-diam menjadi "auto" (bukan
+           "visible") — html jadi ikut bisa discroll sendiri di luar
+           .page-content. Begitu scroll .page-content mencapai batas, sisa
+           gesture "mengalir" ke html dan menyeret seluruh layout tetap
+           (navbar, sidebar, footer) naik, menyisakan area kosong. */
+        html { overflow-x: hidden; overflow-y: hidden; }
 
         body {
             font-family: 'Poppins', sans-serif;

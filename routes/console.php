@@ -56,9 +56,14 @@ Schedule::command('archive:prune-bundles')->hourly();
 Schedule::command('system:snapshot')->dailyAt('23:50');
 
 // Saldo cloud di-cache agar dashboard tidak memanggil API eksternal pada
-// setiap request. Snapshot berkala juga menjadi fallback saat API terganggu.
+// setiap request. Pembaruan sengaja dibatasi 2x sehari (08:00 & 20:00 WITA)
+// agar tidak membebani kuota API IDCloudHost; cache_seconds di config/services.php
+// diset lebih panjang dari jeda 12 jam ini supaya kunjungan dashboard di antara
+// dua jadwal ini memakai cache, bukan memicu panggilan API sendiri. Snapshot
+// berkala juga menjadi fallback saat API terganggu.
 Schedule::command('idcloudhost:refresh-credit')
-    ->everyThirtyMinutes()
+    ->twiceDaily(8, 20)
+    ->timezone(config('app.timezone'))
     ->withoutOverlapping();
 
 // Backup otomatis mengikuti pengaturan admin (admin-backups/schedule.json).

@@ -182,9 +182,23 @@ body.dark-mode {
             .kpi-card__value { font-size: 22px; }
         }
 
+        /* Ponsel: tetap 2x2, bukan ditumpuk 1 kolom — 4 kartu berbaris ke
+           bawah mendorong konten lain terlalu jauh di layar kecil. Kartu,
+           padding, dan tipografi mengecil bertahap supaya dua kolom tetap
+           muat tanpa membuat angka atau label terpotong. */
         @media (max-width: 430px) {
-            .kpi-row { grid-template-columns: 1fr; gap: 10px; }
-            .kpi-card { min-height: auto; }
+            .kpi-row { gap: 8px; }
+            .kpi-card { padding: 12px 10px 10px; min-height: auto; gap: 8px; }
+            .kpi-card__icon { width: 30px; height: 30px; font-size: 13px; }
+            .kpi-card__label { font-size: 11px; }
+            .kpi-card__value { font-size: 18px; }
+            .kpi-card__unit { font-size: 11px; margin-left: 3px; }
+            .kpi-card__delta { padding: 2px 7px; font-size: 10px; }
+            .kpi-card__note { font-size: 9px; }
+        }
+
+        @media (max-width: 340px) {
+            .kpi-row { grid-template-columns: 1fr; }
         }
 
         /* =============================================

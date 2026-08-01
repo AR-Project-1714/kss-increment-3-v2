@@ -122,7 +122,13 @@
            walaupun sudah di-scroll secara visual — sehingga elemen
            position:fixed (modal-overlay, sidebar-backdrop) ikut melebar
            melebihi layar dan pop-up tampak terpotong/hanya muncul setengah. */
-        html { overflow-x: hidden; }
+        /* overflow-y wajib eksplisit: jika hanya overflow-x yang diset, nilai
+           overflow-y yang dihitung browser diam-diam menjadi "auto" (bukan
+           "visible") — html jadi ikut bisa discroll sendiri di luar
+           .page-content. Begitu scroll .page-content mencapai batas, sisa
+           gesture "mengalir" ke html dan menyeret seluruh layout tetap
+           (navbar, sidebar, footer) naik, menyisakan area kosong. */
+        html { overflow-x: hidden; overflow-y: hidden; }
 
         body {
             font-family: 'Poppins', sans-serif;
@@ -1276,6 +1282,65 @@
             transition: transform 0.34s cubic-bezier(.22,1,.36,1), width 0.34s cubic-bezier(.22,1,.36,1);
             pointer-events: none;
             z-index: 0;
+        }
+
+        /* =============================================
+           MOBILE: tab kegiatan pindah jadi island
+           mengambang di bawah layar, senada dengan pola
+           yang sama pada Billing Cloud dan Bantuan.
+           Struktur & JS indikator tidak berubah — hanya
+           reposisi lewat CSS, moveIndicator() tetap
+           membaca offsetWidth/offsetLeft dari DOM yang
+           sama. .page-content--has-mobile-tabbar ditandai
+           langsung di kegiatan.blade.php supaya ruang
+           kosong di bawah hanya dicadangkan di halaman ini.
+           ============================================= */
+        @media (max-width: 767px) {
+            /* Specificity ganda (bukan cuma cascade order) sengaja dipakai:
+               breakpoint .page-content lain di bawah memakai shorthand
+               "padding: ... 0" yang me-reset padding-bottom ke 0 tanpa ini. */
+            .page-content.page-content--has-mobile-tabbar {
+                padding-bottom: calc(104px + env(safe-area-inset-bottom));
+            }
+
+            .act-tabs {
+                position: fixed;
+                top: auto;
+                bottom: calc(14px + env(safe-area-inset-bottom));
+                left: 50%;
+                right: auto;
+                z-index: 850;
+                width: max-content;
+                max-width: calc(100vw - 28px);
+                transform: translateX(-50%);
+                gap: 4px;
+                padding: 6px;
+                border-radius: 999px;
+                box-shadow: 0 18px 40px rgba(15, 23, 42, .16), 0 2px 10px rgba(15, 23, 42, .08), inset 0 1px 0 rgba(255, 255, 255, .7);
+                scroll-snap-type: x proximity;
+            }
+            body.dark-mode .act-tabs {
+                box-shadow: 0 18px 40px rgba(0, 0, 0, .55), 0 2px 10px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .08);
+            }
+
+            .act-tab {
+                scroll-snap-align: start;
+                flex: 0 0 auto;
+                min-width: 46px;
+                min-height: 46px;
+                padding: 8px 12px;
+                gap: 0;
+                border-radius: 999px;
+            }
+            .act-tab > span { display: none; }
+            .act-tab i { font-size: 15px; }
+
+            .act-tab-indicator {
+                top: 6px;
+                bottom: 6px;
+                border-radius: 999px;
+                box-shadow: 0 0 14px 1px var(--blue-main-40);
+            }
         }
 
         .act-panel { padding-top: 0; }
@@ -2683,16 +2748,6 @@
                 left: 12px;
                 padding: 14px;
                 max-height: calc(100dvh - 78px);
-            }
-
-            .act-tab {
-                min-width: 44px;
-                padding: 9px 10px;
-                gap: 0;
-            }
-
-            .act-tab > span {
-                display: none;
             }
         }
 

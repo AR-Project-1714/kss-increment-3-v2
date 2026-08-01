@@ -49,7 +49,12 @@ return [
         'billing_account_id' => env('IDCLOUDHOST_BILLING_ACCOUNT_ID'),
         'base_url' => env('IDCLOUDHOST_API_BASE_URL', 'https://api.idcloudhost.com/v1'),
         'currency' => env('IDCLOUDHOST_CURRENCY', 'IDR'),
-        'cache_seconds' => (int) env('IDCLOUDHOST_CACHE_SECONDS', 900),
+        // Selaras dengan jadwal idcloudhost:refresh-credit (2x sehari, 08:00 &
+        // 20:00 WITA — lihat routes/console.php): TTL lebih panjang dari jeda
+        // 12 jam antar jadwal supaya kunjungan dashboard di antaranya memakai
+        // cache, bukan memicu panggilan API sendiri. 13 jam memberi jeda aman
+        // bila jadwal sempat terlambat jalan.
+        'cache_seconds' => (int) env('IDCLOUDHOST_CACHE_SECONDS', 46800),
         'timeout_seconds' => (int) env('IDCLOUDHOST_TIMEOUT_SECONDS', 8),
         'warning_days' => (float) env('IDCLOUDHOST_WARNING_DAYS', 7),
         'critical_days' => (float) env('IDCLOUDHOST_CRITICAL_DAYS', 3),

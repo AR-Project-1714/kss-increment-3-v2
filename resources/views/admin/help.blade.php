@@ -41,27 +41,52 @@
         gap: 16px;
     }
 
-    /* ---- Toolbar / pencarian ---- */
-    .help-toolbar {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
+    /* ---- Header + pencarian (gaya & posisi disamakan dengan
+       Pusat Bantuan manajer: kolom kanan, di ujung layar) ---- */
+    .help-page-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+        align-items: start;
+        gap: 24px;
     }
 
-    .help-search { position: relative; flex: 1 1 320px; max-width: 540px; }
+    .help-page-header__heading {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .help-toolbar {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+        width: 100%;
+        min-width: 0;
+        margin-left: auto;
+    }
+
+    .help-search { position: relative; width: 100%; min-width: 0; }
 
     .help-searchbox {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 9px 16px;
-        border: 1px solid var(--smooth-border);
+        border: 1px solid rgba(148, 163, 184, 0.32);
         border-radius: 50px;
-        background-color: var(--main-bg);
+        background-color: var(--white-pure);
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .help-searchbox i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
+    .help-searchbox:focus-within {
+        border-color: var(--blue-main-40);
+        box-shadow: 0 0 0 3px var(--blue-main-10), 0 5px 16px rgba(15, 23, 42, 0.08);
+    }
+
+    .help-searchbox i { color: #7890ad; font-size: 13px; position: relative; top: 1px; }
 
     .help-searchbox input {
         border: none;
@@ -69,12 +94,12 @@
         outline: none;
         font-family: inherit;
         font-size: 12px;
-        color: var(--black);
+        color: #0f172a;
         width: 100%;
         padding-right: 22px;
     }
 
-    .help-searchbox input::placeholder { color: var(--muted); }
+    .help-searchbox input::placeholder { color: #8ca0b8; }
 
     .help-search__clear {
         position: absolute;
@@ -95,7 +120,6 @@
     }
 
     .help-search__clear i { position: relative; top: 1px; }
-    .help-toolbar__hint { font-size: 11px; color: var(--muted); }
 
     /* ---- Tab navigasi (gaya report-tab project, sticky) ---- */
     .help-tabs {
@@ -338,11 +362,64 @@
 
     .is-hidden { display: none !important; }
 
+    @media (max-width: 900px) {
+        .help-page-header { grid-template-columns: 1fr; gap: 12px; }
+    }
+
     @media (max-width: 560px) {
         .section-card__body { padding: 16px 14px; }
         .help-def { grid-template-columns: 1fr; gap: 2px; }
-        .help-tab { min-width: 44px; padding: 9px 10px; gap: 0; }
+    }
+
+    /* =============================================
+       MOBILE: tab pindah jadi island mengambang di
+       bawah layar, senada dengan pola yang sama pada
+       Billing Cloud, Pusat Bantuan manajer, dan Rincian
+       Kegiatan. Struktur & JS scroll-spy tidak berubah —
+       hanya reposisi lewat CSS, moveIndicator() tetap
+       membaca offsetWidth/offsetLeft dari DOM yang sama.
+       ============================================= */
+    @media (max-width: 767px) {
+        .page-content { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+
+        .help-tabs {
+            position: fixed;
+            top: auto;
+            bottom: calc(14px + env(safe-area-inset-bottom));
+            left: 50%;
+            right: auto;
+            z-index: 850;
+            width: max-content;
+            max-width: calc(100vw - 28px);
+            transform: translateX(-50%);
+            gap: 4px;
+            padding: 6px;
+            border-radius: 999px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .16), 0 2px 10px rgba(15, 23, 42, .08), inset 0 1px 0 rgba(255, 255, 255, .7);
+            scroll-snap-type: x proximity;
+        }
+        body.dark-mode .help-tabs {
+            box-shadow: 0 18px 40px rgba(0, 0, 0, .55), 0 2px 10px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .08);
+        }
+
+        .help-tab {
+            scroll-snap-align: start;
+            flex: 0 0 auto;
+            min-width: 46px;
+            min-height: 46px;
+            padding: 8px 12px;
+            gap: 0;
+            border-radius: 999px;
+        }
         .help-tab span:not(.icon-tab) { display: none; }
+        .help-tab .icon-tab i { font-size: 15px; }
+
+        .help-tab-indicator {
+            top: 6px;
+            bottom: 6px;
+            border-radius: 999px;
+            box-shadow: 0 0 14px 1px var(--blue-main-40);
+        }
     }
 </style>
 @endpush
@@ -363,25 +440,22 @@
     ];
 @endphp
 
-<div class="page-header">
-    <span class="page-title">Pusat Bantuan</span>
-    <span class="page-subtitle">Panduan lengkap penggunaan panel admin: dashboard, arsip, log, pengguna, data master, dan backup.</span>
-</div>
+<div class="page-header help-page-header">
+    <div class="help-page-header__heading">
+        <span class="page-title">Pusat Bantuan</span>
+        <span class="page-subtitle">Panduan lengkap penggunaan panel admin: dashboard, arsip, log, pengguna, data master, dan backup.</span>
+    </div>
 
-{{-- Pencarian --}}
-<div class="section-card">
-    <div class="section-card__body">
-        <div class="help-toolbar">
-            <div class="help-search">
-                <div class="help-searchbox">
-                    <i class="fi fi-rr-search"></i>
-                    <input type="text" id="helpSearch" placeholder="Cari bantuan, mis. backup, pengguna, status laporan" autocomplete="off">
-                </div>
-                <button type="button" class="help-search__clear is-hidden" id="helpSearchClear" aria-label="Bersihkan pencarian">
-                    <i class="fi fi-rr-cross-small"></i>
-                </button>
+    {{-- Pencarian ditempatkan di ujung kanan header agar selalu mudah dijangkau. --}}
+    <div class="help-toolbar">
+        <div class="help-search">
+            <div class="help-searchbox">
+                <i class="fi fi-rr-search"></i>
+                <input type="text" id="helpSearch" placeholder="Cari bantuan, mis. backup, pengguna, status laporan" autocomplete="off">
             </div>
-            <span class="help-toolbar__hint">Mengetik akan menyaring topik di bawah secara langsung.</span>
+            <button type="button" class="help-search__clear is-hidden" id="helpSearchClear" aria-label="Bersihkan pencarian">
+                <i class="fi fi-rr-cross-small"></i>
+            </button>
         </div>
     </div>
 </div>
@@ -389,7 +463,7 @@
 {{-- Tab navigasi (sticky + glassmorphism, gaya tab form petugas) --}}
 <div class="help-tabs" id="helpTabs">
     @foreach ($nav as $item)
-        <button type="button" class="help-tab" data-tab="{{ $item['id'] }}">
+        <button type="button" class="help-tab" data-tab="{{ $item['id'] }}" aria-label="{{ $item['label'] }}">
             <span class="icon-tab"><i class="{{ $item['icon'] }}"></i></span>
             <span>{{ $item['label'] }}</span>
         </button>

@@ -96,8 +96,8 @@
             max-width: 100%;
             align-items: center;
             align-content: center;
-            gap: 12px;
-            padding: 10px 12px 8px;
+            gap: 5px 10px;
+            padding: 5px;
             overflow-x: auto;
             overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
@@ -143,8 +143,7 @@
             position: relative;
             z-index: 1;
             display: flex;
-            min-width: 112px;
-            min-height: 40px;
+            min-width: 130px;
             /* Label panjang seperti "Analitik Operasi" tidak boleh menyusut
                dan bertumpuk dengan tab berikutnya. Saat ruang habis, wadah
                yang bergulir horizontal mengambil alih. */
@@ -152,7 +151,7 @@
             justify-content: center;
             align-items: center;
             gap: 8px;
-            padding: 9px 16px;
+            padding: 6px 12px;
             border: none;
             background: transparent;
             border-radius: 8px;
@@ -174,9 +173,9 @@
         .help-tab-indicator {
             position: absolute;
             left: 0;
-            top: 10px;
-            bottom: auto;
-            height: 40px;
+            top: 5px;
+            bottom: 5px;
+            height: auto;
             width: 0;
             border-radius: 8px;
             background: var(--blue-main);
@@ -429,9 +428,56 @@
             .help-card { padding: 14px; }
         }
 
-        @media (max-width: 560px) {
-            .help-tab { min-width: 44px; padding: 9px 10px; gap: 0; }
+        /* =============================================
+           MOBILE: tab pindah jadi island mengambang di
+           bawah layar, senada dengan pola yang sama pada
+           Billing Cloud dan Rincian Kegiatan. Struktur &
+           JS scroll-spy tidak berubah — hanya reposisi
+           lewat CSS, moveIndicator() tetap membaca
+           offsetWidth/offsetLeft dari DOM yang sama.
+           ============================================= */
+        @media (max-width: 767px) {
+            .page-content { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+
+            .help-tabs {
+                position: fixed;
+                top: auto;
+                bottom: calc(14px + env(safe-area-inset-bottom));
+                left: 50%;
+                right: auto;
+                z-index: 850;
+                width: max-content;
+                max-width: calc(100vw - 28px);
+                transform: translateX(-50%);
+                gap: 4px;
+                padding: 6px;
+                border-radius: 999px;
+                box-shadow: 0 18px 40px rgba(15, 23, 42, .16), 0 2px 10px rgba(15, 23, 42, .08), inset 0 1px 0 rgba(255, 255, 255, .7);
+                scroll-snap-type: x proximity;
+            }
+            body.dark-mode .help-tabs {
+                box-shadow: 0 18px 40px rgba(0, 0, 0, .55), 0 2px 10px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .08);
+            }
+
+            .help-tab {
+                scroll-snap-align: start;
+                flex: 0 0 auto;
+                min-width: 46px;
+                min-height: 46px;
+                padding: 8px 12px;
+                gap: 0;
+                border-radius: 999px;
+            }
             .help-tab span:not(.icon-tab) { display: none; }
+            .help-tab .icon-tab i { font-size: 15px; }
+
+            .help-tab-indicator {
+                top: 6px;
+                bottom: 6px;
+                height: auto;
+                border-radius: 999px;
+                box-shadow: 0 0 14px 1px var(--blue-main-40);
+            }
         }
     </style>
 @endpush
@@ -473,7 +519,7 @@
         {{-- Tab navigasi (sticky + glassmorphism, gaya tab form petugas) --}}
         <div class="help-tabs" id="helpTabs">
             @foreach ($nav as $item)
-                <button type="button" class="help-tab" data-tab="{{ $item['id'] }}">
+                <button type="button" class="help-tab" data-tab="{{ $item['id'] }}" aria-label="{{ $item['label'] }}">
                     <span class="icon-tab"><i class="{{ $item['icon'] }}"></i></span>
                     <span>{{ $item['label'] }}</span>
                 </button>

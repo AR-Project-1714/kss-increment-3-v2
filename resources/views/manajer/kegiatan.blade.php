@@ -3,7 +3,7 @@
 @section('title', 'Rincian Kegiatan - Manajer')
 
 @section('content')
-    <main class="page-content">
+    <main class="page-content page-content--has-mobile-tabbar">
         <div class="page-header performance-page-header">
             <div class="performance-page-header__heading">
                 <span class="page-title">Rincian Kegiatan Operasi</span>
