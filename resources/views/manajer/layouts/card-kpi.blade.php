@@ -23,7 +23,7 @@
             'label' => 'Tonase Ditangani',
             'icon' => 'fi fi-sr-box',
             'tint' => 'blue',
-            'unit' => 'Ton',
+            'unit' => 'Ton/MT',
             'decimals' => 0,
         ],
         'ships' => [
@@ -44,7 +44,7 @@
             'label' => 'Tonase per Shift',
             'icon' => 'fi fi-sr-bolt',
             'tint' => 'green',
-            'unit' => 'Ton',
+            'unit' => 'Ton/MT',
             'decimals' => 1,
         ],
         'damageRatio' => [

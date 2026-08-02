@@ -53,6 +53,38 @@
         top: 0 !important;
     }
 
+    /* Tombol aksi utama memakai wrapper .icon-new yang sebelumnya masih
+       mewarisi line-height teks. Jadikan wrapper sebesar glyph agar pusat
+       yang dihitung flex benar-benar pusat ikon, baik pada header biasa
+       maupun tombol sticky. */
+    body.officer-report-shell .btn-new > .icon-new,
+    body.officer-report-shell .btn-draft-save > .icon-new {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        align-self: center;
+        flex: 0 0 auto;
+        line-height: 1 !important;
+    }
+
+    body.officer-report-shell .btn-new > .icon-new > i.fi,
+    body.officer-report-shell .btn-draft-save > .icon-new > i.fi {
+        display: flex !important;
+    }
+
+    /* Poppins menempatkan massa visual label sedikit di atas pusat line box,
+       sedangkan UIcons memenuhi kotak em. Naikkan dua CTA Operasional satu
+       piksel agar pusat optik ikon sejajar dengan label dan tombol. */
+    body.officer-report-shell .report-primary-action > .icon-new {
+        transform: translateY(-1px);
+    }
+
+    /* CTA sticky berukuran lebih ringkas sehingga ikon perlu dinaikkan satu
+       piksel lagi tanpa mengubah posisi pada header normal. */
+    body.officer-report-shell .content-header.is-sticky .report-primary-action > .icon-new {
+        transform: translateY(-2px);
+    }
+
     /* Glyph kecil pada field tabel memiliki massa visual di bawah baseline.
        Koreksi dua piksel dipakai untuk nama unit, BBM, jam masuk/pulang,
        lokasi, dan ikon field tabel lain tanpa mengubah tinggi baris. */

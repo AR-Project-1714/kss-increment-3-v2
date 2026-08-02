@@ -1,10 +1,8 @@
-{{-- Grafik tren tonase & teus enam bulan, tersedia dalam bentuk garis dan batang.
+{{-- Grafik tren kuantum enam bulan, tersedia dalam bentuk garis dan batang.
 
-     Dua deret digambar berdampingan karena satuannya berbeda: kegiatan pupuk
-     dicatat dalam Ton, sedangkan bongkar muat container dalam Teus (jumlah
-     box). Keduanya tidak boleh dijumlahkan, jadi masing-masing memakai sumbu
-     sendiri — Ton di kiri, Teus di kanan — dan tiap periode punya dua batang.
-     Deret Teus baru muncul bila memang ada datanya.
+     Ton untuk kegiatan umum dan MT untuk COB curah/amoniak berbagi sumbu massa
+     di kiri. Container memakai sumbu Teus di kanan. Ketiga seri tidak dilebur
+     menjadi satu garis sehingga satuan sumber selalu terlihat.
 
      Kedua bentuk digambar sekaligus lalu disembunyikan lewat CSS, sehingga
      pergantian tampilan tidak perlu menggambar ulang dan tetap berfungsi
@@ -22,18 +20,19 @@
     $trend = array_values($trend ?? []);
     $count = count($trend);
 
-    $values = array_map(fn ($row) => (float) $row['tonnage'], $trend);
+    $tonValues = array_map(fn ($row) => (float) ($row['ton'] ?? 0), $trend);
+    $mtValues = array_map(fn ($row) => (float) ($row['metricTons'] ?? 0), $trend);
     $teusValues = array_map(fn ($row) => (float) ($row['teus'] ?? 0), $trend);
 
-    $peak = $values === [] ? 0.0 : max($values);
-    $sum = array_sum($values);
-    $mean = $count > 0 ? $sum / $count : 0.0;
-
+    $tonPeak = $tonValues === [] ? 0.0 : max($tonValues);
+    $mtPeak = $mtValues === [] ? 0.0 : max($mtValues);
     $teusPeak = $teusValues === [] ? 0.0 : max($teusValues);
+
+    $tonSum = array_sum($tonValues);
+    $mtSum = array_sum($mtValues);
     $teusSum = array_sum($teusValues);
 
-    // Sumbu kanan hanya dipasang bila container memang tercatat; kartu yang
-    // tidak punya kegiatan container tetap tampil sesederhana sebelumnya.
+    $hasMt = $mtPeak > 0;
     $hasTeus = $teusPeak > 0;
 
     // Batas atas sumbu dibulatkan ke angka "bulat" terdekat supaya garis
@@ -57,7 +56,7 @@
         return $step * $magnitude;
     };
 
-    $max = $niceMax($peak);
+    $max = $niceMax(max($tonPeak, $mtPeak));
     $teusMax = $niceMax($teusPeak);
 
     // Bidang gambar — viewBox kini sebatas bidang plot saja.
@@ -66,7 +65,7 @@
     $plotH = $bottom - $top;
     $slot = $count > 0 ? $vbW / $count : $vbW;
 
-    $yFor = fn (float $value) => round($bottom - ($max > 0 ? ($value / $max) * $plotH : 0), 2);
+    $yForMass = fn (float $value) => round($bottom - ($max > 0 ? ($value / $max) * $plotH : 0), 2);
     $yForTeus = fn (float $value) => round($bottom - ($teusMax > 0 ? ($value / $teusMax) * $plotH : 0), 2);
     $xFor = fn (int $index) => round(($index + 0.5) * $slot, 2);
 
@@ -94,9 +93,14 @@
         return $d;
     };
 
-    $points = [];
-    foreach ($values as $index => $value) {
-        $points[] = [$xFor($index), $yFor($value)];
+    $tonPoints = [];
+    foreach ($tonValues as $index => $value) {
+        $tonPoints[] = [$xFor($index), $yForMass($value)];
+    }
+
+    $mtPoints = [];
+    foreach ($mtValues as $index => $value) {
+        $mtPoints[] = [$xFor($index), $yForMass($value)];
     }
 
     $teusPoints = [];
@@ -104,21 +108,26 @@
         $teusPoints[] = [$xFor($index), $yForTeus($value)];
     }
 
-    $linePath = $smoothPath($points);
-    $areaPath = $points === []
+    $tonLinePath = $smoothPath($tonPoints);
+    $areaPath = $tonPoints === []
         ? ''
-        : $linePath.' L '.end($points)[0].','.$bottom.' L '.$points[0][0].','.$bottom.' Z';
+        : $tonLinePath.' L '.end($tonPoints)[0].','.$bottom.' L '.$tonPoints[0][0].','.$bottom.' Z';
+    $mtLinePath = $hasMt ? $smoothPath($mtPoints) : '';
     $teusLinePath = $hasTeus ? $smoothPath($teusPoints) : '';
 
     $gridSteps = 4;
 
-    // Satu batang memakai lebar penuh; dua batang berbagi slot dengan sela
-    // sempit di tengahnya supaya pasangannya terbaca sebagai satu periode.
-    $barWidth = $hasTeus ? min(30, $slot * 0.26) : min(46, $slot * 0.45);
-    $barGap = $hasTeus ? min(8, $slot * 0.06) : 0.0;
-    $barOffset = $hasTeus
-        ? [-($barGap / 2) - $barWidth, $barGap / 2]
-        : [-$barWidth / 2];
+    // Setiap seri mendapat batang sendiri dan keseluruhan kelompok tetap
+    // dipusatkan pada bulan yang sama.
+    $seriesCount = 1 + ($hasMt ? 1 : 0) + ($hasTeus ? 1 : 0);
+    $barWidth = min(30, $slot * (0.72 / $seriesCount));
+    $barGap = $seriesCount > 1 ? min(6, $slot * 0.04) : 0.0;
+    $barGroupWidth = ($seriesCount * $barWidth) + (($seriesCount - 1) * $barGap);
+    $barOffsets = [];
+
+    for ($index = 0; $index < $seriesCount; $index++) {
+        $barOffsets[] = -($barGroupWidth / 2) + ($barWidth / 2) + ($index * ($barWidth + $barGap));
+    }
 
     $uid = 'trend-'.substr(md5((string) ($trend[0]['key'] ?? 'x').$count), 0, 6);
 
@@ -149,6 +158,7 @@
     $gutterRight = $hasTeus ? $gutterFor($teusTicks) : 0;
 
     $tonColor = 'var(--chart-1)';
+    $mtColor = 'var(--chart-2)';
     $teusColor = 'var(--chart-5)';
 @endphp
 
@@ -169,15 +179,8 @@
 
         <span class="chart-rule chart-rule--base" style="top: {{ $pctY($bottom) }}%" aria-hidden="true"></span>
 
-        {{-- Garis rata-rata tidak diberi label di sebelahnya: pada lebar sempit
-             teksnya bertabrakan dengan grafik, sedangkan angkanya sudah
-             disebut di keterangan bawah. --}}
-        @if ($mean > 0)
-            <span class="chart-rule chart-rule--mean" style="top: {{ $pctY($yFor($mean)) }}%" aria-hidden="true"></span>
-        @endif
-
         <svg class="chart" viewBox="0 0 {{ $vbW }} {{ $vbH }}" preserveAspectRatio="none"
-             role="img" aria-label="Grafik tonase{{ $hasTeus ? ' dan teus' : '' }} bulanan enam bulan terakhir">
+             role="img" aria-label="Grafik kuantum Ton, MT, dan Teus bulanan enam bulan terakhir">
             <defs>
                 <linearGradient id="{{ $uid }}-fill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="{{ $tonColor }}" stop-opacity="0.28"></stop>
@@ -192,8 +195,11 @@
                 @if ($areaPath !== '')
                     <path d="{{ $areaPath }}" fill="url(#{{ $uid }}-fill)"></path>
                 @endif
-                @if ($linePath !== '')
-                    <path class="chart__line" d="{{ $linePath }}" stroke="{{ $tonColor }}"></path>
+                @if ($tonLinePath !== '')
+                    <path class="chart__line" d="{{ $tonLinePath }}" stroke="{{ $tonColor }}"></path>
+                @endif
+                @if ($mtLinePath !== '')
+                    <path class="chart__line chart__line--mt" d="{{ $mtLinePath }}" stroke="{{ $mtColor }}"></path>
                 @endif
                 @if ($teusLinePath !== '')
                     {{-- Tanpa area: bidang di bawahnya sudah dipakai deret Ton,
@@ -209,7 +215,10 @@
                     @php
                         $isNow = $index === $count - 1;
                         $bars = array_values(array_filter([
-                            ['y' => $yFor($values[$index]), 'color' => $tonColor],
+                            ['y' => $yForMass($tonValues[$index]), 'color' => $tonColor],
+                            $hasMt
+                                ? ['y' => $yForMass($mtValues[$index]), 'color' => $mtColor]
+                                : null,
                             $hasTeus
                                 ? ['y' => $yForTeus($teusValues[$index]), 'color' => $teusColor]
                                 : null,
@@ -218,7 +227,7 @@
 
                     @foreach ($bars as $serie => $bar)
                         <rect class="chart__bar"
-                              x="{{ round($xFor($index) + $barOffset[$serie], 2) }}"
+                              x="{{ round($xFor($index) + $barOffsets[$serie] - ($barWidth / 2), 2) }}"
                               y="{{ $bar['y'] }}"
                               width="{{ round($barWidth, 2) }}"
                               height="{{ round(max($bottom - $bar['y'], 0), 2) }}"
@@ -237,15 +246,22 @@
                     // Kinerja Operasi barisnya memang tidak ada, jadi tooltip
                     // tidak boleh menampilkan "0 kapal" yang menyesatkan.
                     $rows = array_values(array_filter([
-                        ['label' => 'Tonase', 'value' => $fmt($row['tonnage'], 1).' Ton', 'color' => $tonColor],
+                        ['label' => 'Kegiatan umum', 'value' => $fmt($tonValues[$index], 1).' Ton', 'color' => $tonColor],
+                        $hasMt
+                            ? ['label' => 'COB Curah/Amoniak', 'value' => $fmt($mtValues[$index], 1).' MT', 'color' => $mtColor]
+                            : null,
                         $hasTeus
-                            ? ['label' => 'Teus', 'value' => $fmt($teusValues[$index]).' Teus', 'color' => $teusColor]
+                            ? ['label' => 'Container', 'value' => $fmt($teusValues[$index]).' Teus', 'color' => $teusColor]
                             : null,
                         ['label' => 'Laporan', 'value' => $fmt($row['reports']), 'color' => 'var(--chart-4)'],
                         ($row['ships'] ?? 0) > 0
                             ? ['label' => 'Kapal', 'value' => $fmt($row['ships']), 'color' => 'var(--chart-2)']
                             : null,
                     ]));
+                    $accessibleSummary = $row['label'].'. '.implode('. ', array_map(
+                        fn (array $item): string => $item['label'].': '.$item['value'],
+                        $rows
+                    ));
                 @endphp
 
                 <g>
@@ -255,22 +271,37 @@
                           data-tip-rows="{{ json_encode($rows) }}"
                           data-tip-cursor="{{ $uid }}-cursor"
                           data-tip-x="{{ $xFor($index) }}"
+                          data-tip-marker="{{ $uid }}-marker-{{ $index }}"
+                          tabindex="0"
+                          role="img"
+                          aria-label="{{ $accessibleSummary }}"
                           x="{{ round($index * $slot, 2) }}"
                           y="{{ $top }}"
                           width="{{ round($slot, 2) }}"
                           height="{{ $plotH }}"></rect>
-
-                    <g class="chart__marker chart-stack__line">
-                        <circle class="chart__dot" cx="{{ $xFor($index) }}" cy="{{ $yFor((float) $row['tonnage']) }}" r="4"
-                                fill="{{ $tonColor }}"></circle>
-                        @if ($hasTeus)
-                            <circle class="chart__dot" cx="{{ $xFor($index) }}" cy="{{ $yForTeus($teusValues[$index]) }}" r="4"
-                                    fill="{{ $teusColor }}"></circle>
-                        @endif
-                    </g>
                 </g>
             @endforeach
         </svg>
+
+        {{-- Marker berada di lapisan HTML agar diameternya tetap dalam piksel.
+             Circle di dalam SVG akan ikut melebar karena kanvas memakai
+             preserveAspectRatio="none" untuk mengisi kartu. --}}
+        <div class="chart-marker-layer chart-stack__line" aria-hidden="true">
+            @foreach ($trend as $index => $row)
+                <span class="chart__marker-group" id="{{ $uid }}-marker-{{ $index }}">
+                    <span class="chart__point"
+                          style="left: {{ $pctX($xFor($index)) }}%; top: {{ $pctY($yForMass($tonValues[$index])) }}%; background-color: {{ $tonColor }};"></span>
+                    @if ($hasMt)
+                        <span class="chart__point"
+                              style="left: {{ $pctX($xFor($index)) }}%; top: {{ $pctY($yForMass($mtValues[$index])) }}%; background-color: {{ $mtColor }};"></span>
+                    @endif
+                    @if ($hasTeus)
+                        <span class="chart__point"
+                              style="left: {{ $pctX($xFor($index)) }}%; top: {{ $pctY($yForTeus($teusValues[$index])) }}%; background-color: {{ $teusColor }};"></span>
+                    @endif
+                </span>
+            @endforeach
+        </div>
 
         {{-- Label bulan --}}
         <div class="chart-axis-row">
@@ -281,23 +312,32 @@
         </div>
     </div>
 
-    @if ($hasTeus)
+    @if ($hasMt || $hasTeus)
         <ul class="chart-legend">
             <li class="chart-legend__item">
                 <span class="chart-legend__swatch" style="background-color: {{ $tonColor }};"></span>
-                Tonase — Ton, sumbu kiri
+                Kegiatan umum — Ton, sumbu kiri
             </li>
-            <li class="chart-legend__item">
-                <span class="chart-legend__swatch" style="background-color: {{ $teusColor }};"></span>
-                Container — Teus, sumbu kanan
-            </li>
+            @if ($hasMt)
+                <li class="chart-legend__item">
+                    <span class="chart-legend__swatch" style="background-color: {{ $mtColor }};"></span>
+                    COB Curah &amp; Amoniak (MT), sumbu kiri
+                </li>
+            @endif
+            @if ($hasTeus)
+                <li class="chart-legend__item">
+                    <span class="chart-legend__swatch" style="background-color: {{ $teusColor }};"></span>
+                    Container — Teus, sumbu kanan
+                </li>
+            @endif
         </ul>
     @endif
 
     <div class="perf-chart__footer">
-        <span>Total 6 bulan: <strong>{{ $fmt($sum) }} Ton</strong></span>
-        <span>Rata-rata bulanan: <strong>{{ $fmt($mean) }} Ton</strong></span>
-        <span>Tertinggi: <strong>{{ $fmt($peak) }} Ton</strong></span>
+        <span>Total kegiatan umum: <strong>{{ $fmt($tonSum) }} Ton</strong></span>
+        @if ($hasMt)
+            <span>Total COB Curah/Amoniak: <strong>{{ $fmt($mtSum) }} MT</strong></span>
+        @endif
         @if ($hasTeus)
             <span>Total container: <strong>{{ $fmt($teusSum) }} Teus</strong></span>
         @endif

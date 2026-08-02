@@ -238,6 +238,71 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertSee('Satuan dan Ekspor', false);
     }
 
+    public function test_tc_mgr_01d_dashboard_memuat_tujuh_ringkasan_kegiatan_dan_deep_link(): void
+    {
+        $this->freezeToday();
+
+        $response = $this->actingAs($this->manager())
+            ->get(route('manajer.index'))
+            ->assertOk()
+            ->assertSeeInOrder([
+                'page-title">Dashboard',
+                'operation-summary-grid operation-summary-grid--cards',
+                'Laporan Masuk',
+            ], false)
+            ->assertDontSee('Tonase Ditangani', false)
+            ->assertDontSee('Tonase per Shift', false)
+            ->assertDontSee('Rasio Kerusakan', false)
+            ->assertSee('Muat Kantong', false)
+            ->assertSee('Muat Curah', false)
+            ->assertSee('Muat Amoniak', false)
+            ->assertSee('Bongkar Bahan Baku', false)
+            ->assertSee('Bongkar Container', false)
+            ->assertSee('Muat Container', false)
+            ->assertSee('Trucking Turba', false)
+            ->assertSee('aria-label="Belum ada pemuatan pada tahun berjalan"', false)
+            ->assertSee('Belum ada kapal', false)
+            ->assertSee('Badge membandingkan bulan berjalan dengan bulan sebelumnya.', false)
+            ->assertSee(route('manajer.performa', [
+                'dari' => '2026-01-01',
+                'sampai' => self::TODAY,
+            ]));
+
+        $this->assertSame(7, substr_count($response->getContent(), '<article class="operation-summary-group operation-summary-group--card">'));
+        $this->assertSame(7, substr_count($response->getContent(), 'class="activity-dashboard-card__value activity-dashboard-card__value--empty"'));
+        $this->assertSame(7, substr_count($response->getContent(), 'class="activity-dashboard-card__arrow"'));
+    }
+
+    public function test_tc_mgr_01e_dashboard_memakai_ytd_dan_delta_bulan_sebelumnya(): void
+    {
+        $this->freezeToday();
+
+        $operator = $this->operator('A');
+        $this->opsReportWithActivities(
+            $operator,
+            ['report_date' => '2026-06-10'],
+            ['kantong' => 100, 'trucking' => 0]
+        );
+        $this->opsReportWithActivities(
+            $operator,
+            ['report_date' => '2026-07-10'],
+            ['kantong' => 150, 'trucking' => 0]
+        );
+
+        $dashboard = app(OperationalPerformanceService::class)->dashboardKpi();
+        $card = collect($dashboard['activitySummary']['rows'])->firstWhere('key', 'muat_kantong');
+
+        $this->assertSame('2026-01-01', $dashboard['periodStart']);
+        $this->assertSame(self::TODAY, $dashboard['periodEnd']);
+        $this->assertSame(250.0, (float) $card['total']['value']);
+        $this->assertSame(2, (int) $card['total']['count']);
+        $this->assertSame(150.0, (float) $card['comparison']['current']);
+        $this->assertSame(100.0, (float) $card['comparison']['previous']);
+        $this->assertSame('50,0%', $card['comparison']['delta']['text']);
+        $this->assertSame('up', $card['comparison']['delta']['tone']);
+        $this->assertSame('vs Jun 2026', $card['comparison']['label']);
+    }
+
     public function test_tc_mgr_02_tab_divisi_dan_jumlahnya(): void
     {
         $manager = $this->manager();
@@ -668,16 +733,46 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->actingAs($manager)
             ->get(route('manajer.performa'))
             ->assertOk()
-            ->assertSee('Tren Tonase', false)
-            ->assertSee('Ringkasan Kinerja Operasi', false)
+            ->assertSee('Tren Kuantum', false)
+            ->assertSee('Kinerja Operasi', false)
+            ->assertSee('Ringkasan Kegiatan Operasi', false)
+            ->assertSee('performance-activity-grid', false)
+            ->assertSee('performance-activity-card--featured', false)
+            ->assertSee('Bulan berjalan', false)
+            ->assertSee('Sebelumnya', false)
+            ->assertSee('Muat Kantong', false)
+            ->assertSee('Muat Curah', false)
+            ->assertSee('Muat Amoniak', false)
+            ->assertSee('Bongkar Bahan Baku', false)
+            ->assertSee('Bongkar Container', false)
+            ->assertSee('Muat Container', false)
+            ->assertSee('Trucking Turba', false)
+            ->assertSee('Muat Curah dan Amoniak', false)
+            ->assertSee('MT', false)
+            ->assertSeeInOrder([
+                'Tren Kuantum',
+                'Komposisi Kegiatan',
+                'Kuantum per Shift',
+                'Rasio Kerusakan',
+                'Perbandingan Regu',
+                'Beban Kerja',
+                'Peringkat Lembur',
+            ], false)
             ->assertSee('data-performance-filter-trigger', false)
             ->assertSee('data-performance-filter-popover', false)
             ->assertDontSee('performance-island', false)
             ->assertDontSee('Rekap per Jenis Kegiatan', false)
-            ->assertDontSee('Ringkasan Kegiatan', false)
             ->assertDontSee('data-activity-tab', false)
             ->assertDontSee('data-activity-switch', false)
-            ->assertDontSee('id="activity-panel"', false);
+            ->assertDontSee('id="activity-panel"', false)
+            ->assertDontSee('class="kpi-row"', false)
+            ->assertDontSee('Tonase Ditangani', false)
+            ->assertDontSee('Laporan Masuk', false)
+            ->assertDontSee('Tonase per Shift', false)
+            ->assertDontSee('perf-analysis-number', false);
+
+        $response = $this->actingAs($manager)->get(route('manajer.performa'))->assertOk();
+        $this->assertSame(7, substr_count($response->getContent(), '<article class="performance-activity-card'));
     }
 
     public function test_tc_mgr_12_filter_aktif_ikut_terbawa_ke_panel_kegiatan(): void
@@ -702,6 +797,41 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertSee('act-panel__title', false)
             ->assertSee('act-block', false)
             ->assertSee('Pemuatan Urea Curah', false);
+    }
+
+    public function test_tc_mgr_12b_deep_link_memilih_tab_dan_mempertahankan_filter(): void
+    {
+        $this->freezeToday();
+
+        $manager = $this->manager();
+        $this->opsReportWithActivities($this->operator('A'), [
+            'report_date' => '2026-07-10',
+            'group_name' => 'A',
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get(route('manajer.kegiatan', [
+                'periode' => '3-bulan',
+                'regu' => 'A',
+                'kegiatan' => 'muat_container',
+            ]))
+            ->assertOk()
+            ->assertSee('id="activity-tab-muat_container"', false)
+            ->assertSee('aria-labelledby="activity-tab-muat_container"', false);
+
+        $this->assertMatchesRegularExpression(
+            '/class="act-tab is-active"\s+id="activity-tab-muat_container"/s',
+            $response->getContent()
+        );
+
+        $this->actingAs($manager)
+            ->get(route('manajer.performa', ['periode' => '3-bulan', 'regu' => 'A']))
+            ->assertOk()
+            ->assertSee(route('manajer.kegiatan', [
+                'periode' => '3-bulan',
+                'regu' => 'A',
+                'kegiatan' => 'muat_kantong',
+            ]));
     }
 
     public function test_tc_mgr_13_menu_kegiatan_ditolak_untuk_selain_manajer(): void
@@ -784,9 +914,12 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->actingAs($manager)
             ->get(route('manajer.performa'))
             ->assertOk()
-            ->assertSee('vs Jun 2026', false)
-            ->assertSee('spark spark--up kpi-card__spark', false)
-            ->assertSee('spark spark--down kpi-card__spark', false);
+            ->assertSee('Bulan berjalan', false)
+            ->assertSee('Sebelumnya', false)
+            ->assertSee('performance-activity-comparison__fill--current', false)
+            ->assertSee('performance-activity-comparison__fill--previous', false)
+            ->assertDontSee('vs Jun 2026', false)
+            ->assertDontSee('kpi-card__spark', false);
     }
 
     public function test_tc_mgr_14c_analitik_ytd_memakai_periode_setara_tahun_lalu(): void
@@ -848,8 +981,10 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->get(route('manajer.performa'))
             ->assertOk()
             ->assertDontSee('Kapal Dilayani', false)
-            // Tempat kartunya diisi jumlah laporan yang jadi dasar hitungan.
-            ->assertSee('Laporan Masuk', false);
+            ->assertDontSee('Laporan Masuk', false)
+            ->assertSee('Muat Kantong', false)
+            ->assertSee('Kapal', false)
+            ->assertSee('performance-activity-card__stat-value', false);
     }
 
     public function test_tc_mgr_17_endpoint_panel_hanya_melayani_kegiatan_katalog(): void
@@ -892,6 +1027,18 @@ class ManagerDashboardTest extends BlackBoxTestCase
 
         $this->assertSame(100.0, (float) $cards['muat_kantong']['value']);
         $this->assertSame('Ton', $cards['muat_kantong']['unit']);
+        $this->assertSame('vs Jun 2026', $cards['muat_kantong']['comparison']['label']);
+        $this->assertSame(100.0, (float) $cards['muat_kantong']['comparison']['current']);
+        $this->assertSame(0.0, (float) $cards['muat_kantong']['comparison']['previous']);
+        $this->assertNotSame('', $cards['muat_kantong']['sparkline']);
+
+        $this->actingAs($manager)
+            ->get(route('manajer.performa'))
+            ->assertOk()
+            ->assertSee('performance-activity-card__trend--up', false)
+            ->assertSee('performance-activity-card__spark', false)
+            ->assertSee('Tren 6 bulan', false)
+            ->assertSee('vs Jun 2026', false);
 
         // Kantong + trucking = 120 Ton; container 50 Teus tidak ikut.
         $this->assertSame(120.0, (float) $report['summary']['tonnage']['value']);
@@ -915,7 +1062,10 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->get(route('manajer.performa'))
             ->assertOk()
             ->assertSee('Muat Curah', false)
-            ->assertSee('Muat Amoniak', false);
+            ->assertSee('Muat Amoniak', false)
+            ->assertSee('tabindex="0"', false)
+            ->assertSee('role="img"', false)
+            ->assertSee('COB Curah/Amoniak: 65,0 MT', false);
 
         $this->assertStringNotContainsString('Muat Curah / Amoniak', $response->getContent());
 
@@ -930,6 +1080,14 @@ class ManagerDashboardTest extends BlackBoxTestCase
 
         $this->assertSame(40.0, (float) $cards['muat_curah']['value']);
         $this->assertSame(25.0, (float) $cards['muat_amoniak']['value']);
+        $this->assertSame('MT', $cards['muat_curah']['unit']);
+        $this->assertSame('MT', $cards['muat_amoniak']['unit']);
+
+        $latestTrend = collect($report['trend'])->last();
+        $this->assertSame(100.0, (float) $latestTrend['ton']);
+        $this->assertSame(65.0, (float) $latestTrend['metricTons']);
+        $this->assertSame(165.0, (float) $latestTrend['tonnage']);
+        $this->assertSame(65.0, (float) collect($report['shiftTrendMt'])->last()['total']);
 
         $this->actingAs($manager)
             ->get(route('manajer.kegiatan.panel', ['key' => 'muat_amoniak']))
@@ -977,7 +1135,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertOk()
             ->assertSee('Teus', false)
             // Donut komposisi hanya memuat kegiatan bersatuan Ton.
-            ->assertSee('Container dihitung terpisah karena bersatuan Teus.', false);
+            ->assertSee('COB Curah/Amoniak memakai MT; container dihitung terpisah karena bersatuan Teus.', false);
 
         // Bongkar memakai baris Empty, muat memakai baris Full; keduanya Teus.
         $this->actingAs($manager)
@@ -1091,7 +1249,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->actingAs($manager)
             ->get(route('manajer.performa'))
             ->assertOk()
-            ->assertDontSee('Ringkasan Kegiatan', false)
+            ->assertSee('Ringkasan Kegiatan Operasi', false)
             ->assertDontSee('Rekap Kegiatan', false);
 
         // Rekap sekarang dibaca di dalam tab kegiatan, bukan pada ringkasan
@@ -1213,6 +1371,62 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ->assertSee('overtime-ranking__group--b', false)
             ->assertSee('Naik 1 posisi', false)
             ->assertSee('Turun 1 posisi', false);
+    }
+
+    public function test_tc_mgr_26_panel_kegiatan_memuat_semua_personil_dengan_sepuluh_baris_awal(): void
+    {
+        $this->freezeToday();
+
+        $manager = $this->manager();
+        $operator = $this->operator('A');
+
+        foreach (range(1, 11) as $index) {
+            $this->opsReportWithActivities(
+                $operator,
+                [
+                    'report_date' => '2026-07-'.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                    'group_name' => 'A',
+                ],
+                ['lembur' => 'Petugas '.str_pad((string) $index, 2, '0', STR_PAD_LEFT)]
+            );
+        }
+
+        $response = $this->actingAs($manager)
+            ->get(route('manajer.kegiatan.panel', [
+                'key' => 'muat_kantong',
+                'periode' => 'bulan-ini',
+            ]))
+            ->assertOk()
+            ->assertSee('data-visible-count="10"', false)
+            ->assertSee('Lihat semua 11 personil', false)
+            ->assertSee('aria-expanded="false"', false)
+            ->assertSee('Petugas 01', false)
+            ->assertSee('Petugas 11', false);
+
+        $this->assertSame(11, substr_count($response->getContent(), 'data-overtime-position='));
+        $this->assertSame(1, substr_count($response->getContent(), 'overtime-ranking__row--extra'));
+    }
+
+    public function test_tc_mgr_27_panel_kegiatan_tanpa_lembur_tidak_memuat_tombol(): void
+    {
+        $this->freezeToday();
+
+        $manager = $this->manager();
+        $report = $this->opsReportWithActivities($this->operator('A'), ['report_date' => '2026-07-10']);
+        EmployeeLog::query()
+            ->where('daily_report_id', $report->id)
+            ->where('description', 'Lembur')
+            ->delete();
+
+        $this->actingAs($manager)
+            ->get(route('manajer.kegiatan.panel', [
+                'key' => 'muat_kantong',
+                'periode' => 'bulan-ini',
+            ]))
+            ->assertOk()
+            ->assertSee('Peringkat Lembur', false)
+            ->assertSee('Belum ada lembur tercatat pada periode ini.', false)
+            ->assertDontSee('data-leader-toggle', false);
     }
 
     public function test_tc_mgr_23_jumlah_query_tidak_tumbuh_mengikuti_regu_dan_shift(): void

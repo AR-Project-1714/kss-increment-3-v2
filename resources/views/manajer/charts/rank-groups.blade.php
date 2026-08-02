@@ -1,4 +1,4 @@
-{{-- Perbandingan tonase antar regu sebagai batang horizontal.
+{{-- Perbandingan massa Ton/MT antar regu sebagai batang horizontal.
 
      Warna mengikuti peringkat, bukan identitas regu: hijau untuk yang teratas
      lalu menurun ke oranye. Angka dan keterangan tetap ditulis di setiap baris
@@ -46,9 +46,9 @@
             <div class="rank-bar__row">
                 <div class="rank-bar__head">
                     <span class="rank-bar__name">Regu {{ $group['name'] }}</span>
-                    <span class="rank-bar__meta">{{ $group['reports'] }} laporan · {{ $fmt($group['tonnagePerShift'], 1) }} ton/shift</span>
+                    <span class="rank-bar__meta">{{ $group['reports'] }} laporan · {{ $fmt($group['tonnagePerShift'], 1) }} Ton/MT per shift</span>
                     <span class="rank-bar__value">
-                        {{ $fmt($group['tonnage']) }} Ton
+                        {{ $fmt($group['tonnage']) }} Ton/MT
                         @if ($deltaText)
                             <span class="perf-delta perf-delta--{{ $delta['tone'] ?? 'flat' }}">{{ $deltaText }}</span>
                         @endif
@@ -59,8 +59,8 @@
                      data-chart-tip
                      data-tip-title="Regu {{ $group['name'] }}"
                      data-tip-rows="{{ json_encode(array_values(array_filter([
-                        ['label' => 'Tonase', 'value' => $fmt($group['tonnage'], 1).' Ton', 'color' => $color],
-                        ['label' => 'Ton per shift', 'value' => $fmt($group['tonnagePerShift'], 1)],
+                        ['label' => 'Massa', 'value' => $fmt($group['tonnage'], 1).' Ton/MT', 'color' => $color],
+                        ['label' => 'Massa per shift', 'value' => $fmt($group['tonnagePerShift'], 1).' Ton/MT'],
                         ['label' => 'Rasio kerusakan', 'value' => $fmt($group['damageRatio'], 2).'%'],
                         $deltaText ? ['label' => $comparisonLabel ?? 'Perubahan', 'value' => $deltaText] : null,
                      ]))) }}">

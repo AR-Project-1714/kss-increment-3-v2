@@ -53,7 +53,7 @@ Bahasa antarmuka dan komentar kode adalah Bahasa Indonesia.
 - `README.md`, `DOKUMENTASI.md` — dokumentasi produk dan teknis.
 - `PERANCANGAN_MODUL_PEMELIHARAAN.md`, `PERANCANGAN_MODUL_SAFETY.md` — perancangan per modul.
 - `KEAMANAN_SISTEM.md` — catatan keamanan.
-- Design system incumbent hidup di `resources/css/layouts/*.css` dan `resources/css/components/*.css` (token pada `admin.css`, kartu metrik pada `charts.css`). Belum ada DESIGN.md.
+- Design system incumbent hidup di `resources/css/layouts/*.css` dan `resources/css/components/*.css` (token pada `admin.css`, kartu metrik pada `charts.css`) serta terdokumentasi dalam `DESIGN.md`.
 
 Data billing berasal dari API IDCloudHost yang nyata; angka contoh apa pun tidak boleh dikarang.
 

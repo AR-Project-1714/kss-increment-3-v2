@@ -3805,7 +3805,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="text-header fw-600 fsize-20">{{ $headerTitle }}</span>
                 <span class="note fw-300 fsize-12 text-secondary">ID: {{ $headerDocumentLabel }}</span>
             </div>
-            <button type="button" id="btnSaveDraft" class="btn-new d-flex justify-content-center align-items-center gap-10">
+            <button type="button" id="btnSaveDraft" class="btn-new report-primary-action d-flex justify-content-center align-items-center gap-10">
                 <div class="icon-new"><i class="fi fi-rr-disk"></i></div>
                 <span class="btn-text fw-500">{{ $draftButtonLabel }}</span>
             </button>

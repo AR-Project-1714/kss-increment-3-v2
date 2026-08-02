@@ -103,8 +103,6 @@
 
     $hasShiftSpread = $shiftSpread !== [];
     $hasWorkload = ($workload['reports'] ?? 0) > 0;
-    $hasOvertime = ($overtime['ranking'] ?? []) !== [];
-
 @endphp
 
 <div class="act-panel__inner">
@@ -298,14 +296,12 @@
     @endif
 
     {{-- Peringkat lembur pada kegiatan ini --}}
-    @if ($hasOvertime)
-        <div class="act-block">
-            <span class="act-block__title">Peringkat Lembur</span>
-            <span class="act-block__subtitle">Personil pada laporan yang memuat kegiatan ini, diurutkan menurut total jam dan dibandingkan dengan periode sebelumnya.</span>
+    <div class="act-block">
+        <span class="act-block__title">Peringkat Lembur</span>
+        <span class="act-block__subtitle">Seluruh personil pada laporan yang memuat kegiatan ini, diurutkan menurut total jam dan dibandingkan dengan periode sebelumnya.</span>
 
-            @include('manajer.charts.overtime-leaders', ['leaders' => $overtime])
-        </div>
-    @endif
+        @include('manajer.charts.overtime-leaders', ['leaders' => $overtime, 'visible' => 10])
+    </div>
 
     {{-- Rincian tambahan khas kegiatan: jenis bahan baku / tujuan trucking --}}
     @if (! empty($detail['breakdown']))

@@ -104,6 +104,9 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Pemuatan Pupuk Kantong',
                     'countLabel' => 'Kapal',
+                    'valueLabel' => 'Pemuatan',
+                    'deliveryLabel' => 'Pengiriman',
+                    'damageLabel' => 'Kerusakan',
                     'count' => $this->visitIdentity('loading_activities', 'loading_activities.arrival_time'),
                     'delivery' => 'loading_activities.qty_delivery_current',
                     'damage' => 'loading_activities.qty_damage_current',
@@ -112,7 +115,7 @@ class OperationalPerformanceService
             'muat_curah' => [
                 'label' => 'Pemuatan Urea Curah',
                 'short' => 'Muat Curah',
-                'unit' => 'Ton',
+                'unit' => 'MT',
                 'icon' => 'fi fi-sr-ship',
                 'tint' => 'cyan',
                 'countsToTonnage' => true,
@@ -134,13 +137,14 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Pemuatan Urea Curah',
                     'countLabel' => 'Kapal',
+                    'valueLabel' => 'Pemuatan',
                     'count' => $this->bulkVisitIdentity(),
                 ],
             ],
             'muat_amoniak' => [
                 'label' => 'Pemuatan Amoniak',
                 'short' => 'Muat Amoniak',
-                'unit' => 'Ton',
+                'unit' => 'MT',
                 'icon' => 'fi fi-rr-flask',
                 'tint' => 'cyan',
                 'countsToTonnage' => true,
@@ -159,6 +163,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Pemuatan Amoniak',
                     'countLabel' => 'Kapal',
+                    'valueLabel' => 'Pemuatan',
                     'count' => $this->bulkVisitIdentity(),
                 ],
             ],
@@ -181,6 +186,7 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Bongkar Bahan Baku',
                     'countLabel' => 'Kapal',
+                    'valueLabel' => 'Pembongkaran',
                     'count' => $this->visitIdentity('material_activities'),
                 ],
             ],
@@ -210,6 +216,8 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Bongkar Container (Empty)',
                     'countLabel' => 'Kapal',
+                    'summaryLabel' => 'Bongkar Container',
+                    'valueLabel' => 'Bongkar Empty',
                     'count' => $this->visitIdentity('container_activities'),
                 ],
             ],
@@ -234,6 +242,8 @@ class OperationalPerformanceService
                 'recap' => [
                     'label' => 'Muat Container (Full)',
                     'countLabel' => 'Kapal',
+                    'summaryLabel' => 'Muat Container',
+                    'valueLabel' => 'Muat Full',
                     'count' => $this->visitIdentity('container_activities'),
                 ],
             ],
@@ -258,6 +268,9 @@ class OperationalPerformanceService
                     // Trucking tidak dihitung per kapal: satu baris sama dengan
                     // satu rit pengiriman.
                     'countLabel' => 'Rit',
+                    'summaryLabel' => 'Trucking ke Gudang Turba',
+                    'summaryCountLabel' => 'Rit/DO',
+                    'valueLabel' => 'Pembongkaran',
                     'count' => 'turba_deliveries.id',
                 ],
             ],
@@ -309,6 +322,21 @@ class OperationalPerformanceService
     }
 
     /**
+     * Kegiatan bermassa menurut satuan sumbernya. Ton dipakai kegiatan umum,
+     * sedangkan MT dipakai pembacaan COB curah dan amoniak. Keduanya tetap
+     * masuk total tonase, tetapi dipisah pada grafik agar labelnya jujur.
+     *
+     * @return array<int, string>
+     */
+    private function massKeysForUnit(string $unit): array
+    {
+        return array_keys(array_filter(
+            $this->activityCatalog(),
+            static fn (array $activity): bool => $activity['countsToTonnage'] && $activity['unit'] === $unit
+        ));
+    }
+
+    /**
      * Kegiatan bersatuan Teus — bongkar muat container. Dijumlahkan terpisah
      * dari tonase karena satuannya berbeda, bukan karena nilainya diabaikan.
      *
@@ -327,19 +355,24 @@ class OperationalPerformanceService
     // ============================================================
 
     /**
-     * Ringkasan untuk empat kartu KPI dashboard: bulan berjalan dibanding
-     * periode setara bulan lalu, lengkap dengan seri enam bulan untuk sparkline.
+     * Ringkasan Dashboard memakai capaian tahun berjalan sebagai nilai utama.
+     * Badge tujuh kartu kegiatan membandingkan bulan berjalan dengan bulan
+     * kalender sebelumnya agar rentang YTD tidak dibandingkan dengan rentang
+     * yang bertumpang tindih.
      *
      * @return array<string, mixed>
      */
     public function dashboardKpi(): array
     {
+        $today = Carbon::today();
         $filters = [
-            'start' => Carbon::today()->startOfMonth(),
-            'end' => Carbon::today(),
+            'start' => $today->copy()->startOfYear(),
+            'end' => $today,
         ];
 
         [$prevStart, $prevEnd] = $this->equivalentPreviousPeriod($filters['start'], $filters['end']);
+        $previousMonthStart = $today->copy()->subMonthNoOverflow()->startOfMonth();
+        $previousMonthEnd = $previousMonthStart->copy()->endOfMonth();
 
         // Kartu "Kapal Dilayani" hanya ada di dashboard, jadi kunjungan kapal
         // memang perlu ditarik di sini — berbeda dengan halaman Kinerja Operasi
@@ -355,11 +388,56 @@ class OperationalPerformanceService
             $this->summaryCards($summary, $previous),
             [
                 'periodLabel' => $this->periodLabel($filters['start'], $filters['end']),
+                'periodStart' => $filters['start']->toDateString(),
+                'periodEnd' => $filters['end']->toDateString(),
                 'comparisonLabel' => 'vs '.$this->periodLabel($prevStart, $prevEnd),
                 'trend' => $trend,
                 'sparklines' => $this->sparklinesFor($trend),
+                // Grid kegiatan memakai rekap yang sama dengan Kinerja Operasi,
+                // lalu diperkaya satu pembanding bulanan khusus Dashboard.
+                'activitySummary' => $this->dashboardActivitySummary(
+                    $filters,
+                    $previousMonthStart,
+                    $previousMonthEnd,
+                ),
             ]
         );
+    }
+
+    /**
+     * Tambahkan delta bulan berjalan terhadap bulan kalender sebelumnya pada
+     * rekap YTD tanpa mengubah struktur rekap yang dipakai Kinerja Operasi.
+     *
+     * @param  array{start: CarbonInterface, end: CarbonInterface}  $filters
+     * @return array<string, mixed>
+     */
+    private function dashboardActivitySummary(
+        array $filters,
+        CarbonInterface $previousMonthStart,
+        CarbonInterface $previousMonthEnd,
+    ): array {
+        $summary = $this->activityRecap($filters);
+        $previousRows = collect($this->activityRecap([
+            'start' => $previousMonthStart,
+            'end' => $previousMonthEnd,
+        ])['rows'] ?? [])->keyBy('key');
+        $comparisonLabel = 'vs '.$previousMonthStart->copy()->locale('id')->translatedFormat('M Y');
+
+        foreach ($summary['rows'] as $index => $row) {
+            $currentValue = (float) ($row['month']['value'] ?? 0);
+            $previousValue = (float) ($previousRows->get($row['key'])['total']['value'] ?? 0);
+
+            $summary['rows'][$index]['comparison'] = [
+                'current' => $currentValue,
+                'previous' => $previousValue,
+                'label' => $comparisonLabel,
+                'delta' => $this->delta($currentValue, $previousValue),
+            ];
+        }
+
+        $summary['comparisonLabel'] = $comparisonLabel;
+
+        return $summary;
     }
 
     /**
@@ -421,7 +499,9 @@ class OperationalPerformanceService
             'trend' => $trend,
             'sparklines' => $this->sparklinesFor($trend, withShips: false),
             'trendMax' => max(1.0, max(array_column($trend, 'tonnage') ?: [0.0])),
-            'shiftTrend' => $this->shiftTrend($monthly, $filters),
+            'shiftTrend' => $this->shiftTrend($monthly, $filters, $this->massKeysForUnit('Ton')),
+            'shiftTrendMt' => $this->shiftTrend($monthly, $filters, $this->massKeysForUnit('MT')),
+            'shiftTrendTeus' => $this->shiftTrend($monthly, $filters, $this->teusKeys()),
             'groups' => $this->groupPerformance($matrix, $filters),
             'activities' => $this->activityBreakdown($matrix, $filters),
             'activityCards' => $this->activityCards($matrix, $monthly, $filters),
@@ -1034,10 +1114,26 @@ class OperationalPerformanceService
     {
         $current = $this->summaryFrom($matrix, 'ini', $filters);
         $previous = $this->summaryFrom($matrix, 'lalu', $filters);
+        [$previousStart, $previousEnd] = $this->equivalentPreviousPeriod($filters['start'], $filters['end']);
+        $defaultComparisonLabel = 'vs '.$this->periodLabel($previousStart, $previousEnd);
+        $bucketKeys = array_keys($monthly['buckets']);
+        $compareMonths = $this->isCurrentYearToDatePeriod($filters['start'], $filters['end'])
+            && count($bucketKeys) >= 2;
         $cards = [];
 
         foreach ($this->activityCatalog() as $key => $activity) {
             $series = $this->activitySeries($monthly, $key, $filters);
+            $comparisonCurrent = (float) ($current['perActivity'][$key] ?? 0.0);
+            $comparisonPrevious = (float) ($previous['perActivity'][$key] ?? 0.0);
+            $comparisonLabel = $defaultComparisonLabel;
+
+            if ($compareMonths) {
+                $comparisonCurrent = (float) ($series[array_key_last($series)] ?? 0.0);
+                $comparisonPrevious = (float) ($series[array_key_last($series) - 1] ?? 0.0);
+                $previousMonth = Carbon::createFromFormat('Y-m-d', $bucketKeys[array_key_last($bucketKeys) - 1].'-01')
+                    ->locale('id');
+                $comparisonLabel = 'vs '.$previousMonth->translatedFormat('M Y');
+            }
 
             $cards[] = [
                 'key' => $key,
@@ -1047,7 +1143,12 @@ class OperationalPerformanceService
                 'icon' => $activity['icon'],
                 'tint' => $activity['tint'],
                 'value' => $current['perActivity'][$key] ?? 0.0,
-                'delta' => $this->delta($current['perActivity'][$key] ?? 0.0, $previous['perActivity'][$key] ?? 0.0),
+                'delta' => $this->delta($comparisonCurrent, $comparisonPrevious),
+                'comparison' => [
+                    'current' => $comparisonCurrent,
+                    'previous' => $comparisonPrevious,
+                    'label' => $comparisonLabel,
+                ],
                 'sparkline' => $this->sparklinePoints($series),
                 'reports' => (int) $this->sumRows($matrix['reports'], 'ini', $filters),
             ];
@@ -1182,8 +1283,18 @@ class OperationalPerformanceService
             $rows[] = [
                 'key' => $key,
                 'label' => $recap['label'],
+                'summaryLabel' => $recap['summaryLabel'] ?? $recap['label'],
+                // Dashboard memakai nama singkat agar tujuh kartu tetap
+                // ringkas; Kinerja Operasi mempertahankan label rekap penuh.
+                'dashboardLabel' => $recap['dashboardLabel'] ?? $source['short'],
                 'unit' => $source['unit'],
                 'countLabel' => $recap['countLabel'],
+                'summaryCountLabel' => $recap['summaryCountLabel'] ?? $recap['countLabel'],
+                'valueLabel' => $recap['valueLabel'],
+                'deliveryLabel' => $recap['deliveryLabel'] ?? null,
+                'damageLabel' => $recap['damageLabel'] ?? null,
+                'icon' => $source['icon'],
+                'tint' => $source['tint'],
                 'hasDelivery' => isset($recap['delivery']),
                 'hasDamage' => isset($recap['damage']),
                 'month' => $month,
@@ -1683,6 +1794,7 @@ class OperationalPerformanceService
 
         return $this->overtimeLeadersFrom(
             $rowsFor($filters),
+            limit: null,
             previousRows: $rowsFor(array_merge($filters, [
                 'start' => $prevStart,
                 'end' => $prevEnd,
@@ -2031,7 +2143,7 @@ class OperationalPerformanceService
             'metrics' => [
                 ['label' => 'Kapal dilayani', 'value' => $rows->count(), 'unit' => 'kapal', 'decimals' => 0],
                 ['label' => 'Entri log jam', 'value' => (int) ($totals->log_count ?? 0), 'unit' => 'entri', 'decimals' => 0],
-                ['label' => 'Rata-rata COB per entri', 'value' => ($totals->log_count ?? 0) > 0 ? (float) $totals->loaded / (int) $totals->log_count : 0.0, 'unit' => 'Ton', 'decimals' => 1],
+                ['label' => 'Rata-rata COB per entri', 'value' => ($totals->log_count ?? 0) > 0 ? (float) $totals->loaded / (int) $totals->log_count : 0.0, 'unit' => 'MT', 'decimals' => 1],
                 ['label' => 'Rata-rata jeda sandar → mulai muat', 'value' => $waits === [] ? null : array_sum($waits) / count($waits), 'unit' => 'jam', 'decimals' => 1],
             ],
             'table' => $this->detailTable([
@@ -2041,7 +2153,7 @@ class OperationalPerformanceService
                 ['label' => 'Komoditi', 'type' => 'muted'],
                 ['label' => 'Dermaga', 'type' => 'muted'],
                 ['label' => 'Kapasitas', 'type' => 'number', 'decimals' => 0, 'unit' => 'Ton'],
-                ['label' => 'COB', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
+                ['label' => 'COB', 'type' => 'number', 'decimals' => 1, 'unit' => 'MT'],
                 ['label' => 'Realisasi', 'type' => 'ratio'],
                 ['label' => 'Sandar', 'type' => 'muted'],
                 ['label' => 'Mulai Muat', 'type' => 'muted'],
@@ -2459,9 +2571,8 @@ class OperationalPerformanceService
      * tertentu; null berarti seluruh laporan pada periode terpilih.
      *
      * $limit bernilai null berarti seluruh personil ikut diurutkan — dipakai
-     * halaman Kinerja Operasi, yang menampilkan sepuluh teratas lebih dulu lalu
-     * membuka sisanya lewat tombol. Panel per kegiatan tetap dipangkas karena
-     * ruangnya sempit.
+     * halaman Kinerja Operasi dan panel kegiatan. Keduanya menampilkan sepuluh
+     * teratas lebih dulu lalu membuka sisanya tanpa request baru.
      *
      * Posisi utama diurutkan dari total jam, lalu frekuensi dan nama. Perubahan
      * posisi dibandingkan dengan rentang pembanding yang setara. Regu dipilih
@@ -2678,6 +2789,8 @@ class OperationalPerformanceService
         foreach ($monthly['buckets'] as $key => $bucket) {
             $buckets[$key] = $bucket + [
                 'tonnage' => 0.0,
+                'ton' => 0.0,
+                'metricTons' => 0.0,
                 'teus' => 0.0,
                 'reports' => 0,
                 'ships' => 0,
@@ -2689,7 +2802,13 @@ class OperationalPerformanceService
         foreach ($this->tonnageKeys() as $key) {
             foreach ($monthly['activities'][$key] as $row) {
                 if (isset($buckets[$row->bucket]) && $this->rowMatches($row, $filters)) {
-                    $buckets[$row->bucket]['tonnage'] += (float) $row->total;
+                    $value = (float) $row->total;
+                    $buckets[$row->bucket]['tonnage'] += $value;
+
+                    $field = $this->activityCatalog()[$key]['unit'] === 'MT'
+                        ? 'metricTons'
+                        : 'ton';
+                    $buckets[$row->bucket][$field] += $value;
                 }
             }
         }
@@ -2738,15 +2857,17 @@ class OperationalPerformanceService
     }
 
     /**
-     * Tonase bulanan yang dipecah menjadi tiga shift, untuk grafik area
-     * bertumpuk. Nama shift di data lapangan tidak seragam ("1", "Pagi",
-     * "Shift 1"), jadi dirapikan dulu ke tiga kelompok tetap.
+     * Kuantum bulanan yang dipecah menjadi tiga shift, untuk grafik area
+     * bertumpuk. Secara bawaan hanya kegiatan bersatuan Ton; daftar kunci dapat
+     * diganti dengan kegiatan Teus agar kedua satuan tetap berdiri sendiri.
+     * Nama shift di data lapangan tidak seragam ("1", "Pagi", "Shift 1"),
+     * jadi dirapikan dulu ke tiga kelompok tetap.
      *
      * @param  array<string, mixed>  $monthly
      * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    private function shiftTrend(array $monthly, array $filters): array
+    private function shiftTrend(array $monthly, array $filters, ?array $activityKeys = null): array
     {
         $buckets = [];
 
@@ -2759,7 +2880,7 @@ class OperationalPerformanceService
             ];
         }
 
-        foreach ($this->tonnageKeys() as $key) {
+        foreach (($activityKeys ?? $this->tonnageKeys()) as $key) {
             foreach ($monthly['activities'][$key] as $row) {
                 if (isset($buckets[$row->bucket]) && $this->rowMatches($row, $filters)) {
                     $buckets[$row->bucket][$this->normalizeShift($row->shift)] += (float) $row->total;

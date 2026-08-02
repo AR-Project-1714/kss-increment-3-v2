@@ -39,7 +39,7 @@
             /* Grayscale */
             --black:           #0F172A;
             --black-secondary: #334155;
-            --muted:           #94A3B8;
+            --muted:           #64748B;
             --smooth-border:   #E2E8F0;
             --divider:         #CBD5E1;
             --main-bg:         #F8FAFC;
@@ -87,7 +87,7 @@
             --white:           #1E293B;
             --black:           #F8FAFC;
             --black-secondary: #CBD5E1;
-            --muted:           #64748B;
+            --muted:           #94A3B8;
             --smooth-border:   #334155;
             --divider:         #334155;
 
@@ -949,6 +949,811 @@
         .perf-row__label { color: var(--black-secondary); }
         .perf-row__value { font-weight: 600; color: var(--black); white-space: nowrap; }
 
+        /* Ringkasan kegiatan dipakai ulang di Dashboard dan Kinerja Operasi.
+           Setiap grup adalah satu kelompok data, sementara baris metrik tetap
+           rata kanan agar angka mudah dibandingkan secara vertikal. */
+        .operation-summary-section__action,
+        .operation-summary-group__link {
+            text-decoration: none;
+        }
+
+        .operation-summary-section__period {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--black-secondary);
+        }
+
+        .operation-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+            column-gap: 24px;
+        }
+
+        .operation-summary-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            min-width: 0;
+            padding: 14px 0 12px;
+            border-top: 1px solid var(--smooth-border);
+        }
+
+        .operation-summary-group:nth-child(-n + 2) { border-top: 0; }
+
+        /* Pada Dashboard tiap kegiatan menjadi kartu KPI utama halaman, bukan
+           kartu di dalam section-card. Struktur mengikuti pola nilai utama,
+           konteks kecil, dan pembanding ringkas. */
+        .operation-summary-grid--cards {
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            align-items: stretch;
+            gap: 12px;
+        }
+
+        /* Tiga kegiatan utama mendapat ruang lebih lega pada baris pertama;
+           empat kegiatan sisanya tetap rapat pada baris kedua. */
+        .operation-summary-grid--cards > :nth-child(-n + 3) { grid-column: span 4; }
+        .operation-summary-grid--cards > :nth-child(n + 4) { grid-column: span 3; }
+
+        .operation-summary-group--card {
+            min-height: 98px;
+            padding: 12px 14px 8px;
+            background-color: var(--white);
+            border: 1px solid var(--smooth-border);
+            border-radius: 12px;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .operation-summary-group--card:nth-child(-n + 2) {
+            border-top: 1px solid var(--smooth-border);
+        }
+
+        .activity-dashboard-card__header,
+        .activity-dashboard-card__identity,
+        .activity-dashboard-card__body,
+        .activity-dashboard-card__primary,
+        .activity-dashboard-card__delta,
+        .activity-dashboard-card__arrow {
+            display: flex;
+            align-items: center;
+        }
+
+        .activity-dashboard-card__header {
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .activity-dashboard-card__identity {
+            min-width: 0;
+            gap: 8px;
+        }
+
+        .operation-summary-group--card .operation-summary-group__icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .operation-summary-group--card .operation-summary-group__title {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .activity-dashboard-card__arrow {
+            position: relative;
+            width: auto;
+            height: auto;
+            flex: 0 0 auto;
+            color: var(--blue-main);
+            line-height: 1;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        /* Area klik tetap nyaman tanpa menambahkan kotak atau padding visual. */
+        .activity-dashboard-card__arrow::before {
+            position: absolute;
+            inset: 50% auto auto 50%;
+            width: 30px;
+            height: 30px;
+            content: '';
+            transform: translate(-50%, -50%);
+        }
+
+        .activity-dashboard-card__arrow:hover {
+            color: var(--blue-main-hover);
+        }
+
+        .activity-dashboard-card__arrow:focus-visible {
+            outline: 2px solid var(--blue-main);
+            outline-offset: 2px;
+        }
+
+        .activity-dashboard-card__arrow i {
+            position: relative;
+            top: 1px;
+            font-size: 14px;
+        }
+
+        .activity-dashboard-card__body {
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .activity-dashboard-card__primary {
+            min-width: 0;
+            align-items: baseline;
+        }
+
+        .activity-dashboard-card__value {
+            color: var(--black);
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .activity-dashboard-card__value--empty { color: var(--muted); }
+
+        .activity-dashboard-card__unit {
+            margin-left: 4px;
+            color: var(--black-secondary);
+            font-size: 9px;
+            font-weight: 500;
+        }
+
+        .activity-dashboard-card__delta {
+            flex: 0 0 auto;
+            gap: 4px;
+            max-width: 52%;
+            padding: 3px 6px;
+            border-radius: 999px;
+            font-size: 8px;
+            font-weight: 600;
+            line-height: 1.25;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .activity-dashboard-card__delta i {
+            flex: 0 0 auto;
+            position: relative;
+            top: 1px;
+        }
+
+        .activity-dashboard-card__delta--up {
+            color: var(--success-hover);
+            background-color: var(--success-10);
+        }
+
+        .activity-dashboard-card__delta--down {
+            color: var(--red-main);
+            background-color: var(--red-main-10);
+        }
+
+        .activity-dashboard-card__delta--flat {
+            color: var(--black-secondary);
+            background-color: var(--blue-main-5);
+        }
+
+        body.dark-mode .activity-dashboard-card__delta--up { color: var(--success); }
+
+        .activity-dashboard-card__count {
+            display: block;
+            margin-top: 5px;
+            color: var(--black-secondary);
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        .activity-dashboard-card__count strong {
+            color: var(--black);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .operation-summary-group__head {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--smooth-border);
+        }
+
+        .operation-summary-group__icon {
+            width: 30px;
+            height: 30px;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 13px;
+        }
+
+        .operation-summary-group__icon i { position: relative; top: 1px; }
+        .operation-summary-group__icon--blue { color: var(--blue-main); background-color: var(--blue-main-10); }
+        .operation-summary-group__icon--cyan { color: var(--cyan-main); background-color: var(--cyan-main-10); }
+        .operation-summary-group__icon--green { color: var(--success); background-color: var(--success-10); }
+        .operation-summary-group__icon--orange { color: var(--orange-main); background-color: var(--orange-main-10); }
+
+        .operation-summary-group__title {
+            min-width: 0;
+            color: var(--black);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+            text-decoration: none;
+        }
+
+        .operation-summary-group__title:hover { color: var(--blue-main); }
+
+        .operation-summary-group__title:focus-visible,
+        .operation-summary-group__link:focus-visible {
+            outline: 2px solid var(--blue-main);
+            outline-offset: 3px;
+            border-radius: 4px;
+        }
+
+        .operation-summary-group__metrics {
+            display: flex;
+            flex-direction: column;
+            margin: 7px 0 0;
+        }
+
+        .operation-summary-group__metric {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 7px 0;
+            border-bottom: 1px solid var(--smooth-border);
+        }
+
+        .operation-summary-group__metric dt {
+            min-width: 0;
+            color: var(--black-secondary);
+            font-size: 10px;
+            font-weight: 400;
+        }
+
+        .operation-summary-group__metric dd {
+            margin: 0;
+            color: var(--black);
+            font-size: 11px;
+            font-weight: 600;
+            text-align: right;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .operation-summary-group__metric small {
+            margin-left: 4px;
+            color: var(--black-secondary);
+            font-size: 9px;
+            font-weight: 400;
+        }
+
+        .operation-summary-group__empty { color: var(--muted); }
+
+        .operation-summary-group__link {
+            align-self: flex-end;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 9px;
+            color: var(--blue-main);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .operation-summary-group__link i { position: relative; top: 1px; }
+
+        /* Kinerja Operasi memakai kartu analisis yang lebih lapang daripada
+           kartu Dashboard. Nilai akumulasi menjadi orientasi utama, sedangkan
+           batang horizontal membandingkan dua segmen periode secara presisi. */
+        .performance-activity-overview {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .performance-activity-overview__header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .performance-activity-overview__heading { min-width: 0; }
+
+        .performance-activity-overview__title {
+            margin: 0;
+            color: var(--black);
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
+        .performance-activity-overview__subtitle {
+            max-width: 72ch;
+            margin: 3px 0 0;
+            color: var(--black-secondary);
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        .performance-activity-overview__periods {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--black-secondary);
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        .performance-activity-overview__periods span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .performance-activity-overview__periods span + span {
+            padding-left: 10px;
+            border-left: 1px solid var(--smooth-border);
+        }
+
+        .performance-activity-overview__periods i { position: relative; top: 1px; }
+
+        .performance-activity-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .performance-activity-card {
+            --performance-activity-accent: var(--blue-main);
+            --performance-activity-tint: var(--blue-main-10);
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            background-color: var(--white);
+            border: 1px solid var(--smooth-border);
+            border-radius: 14px;
+        }
+
+        .performance-activity-card--featured { grid-column: 1 / -1; }
+        .performance-activity-card--cyan {
+            --performance-activity-accent: var(--cyan-main);
+            --performance-activity-tint: var(--cyan-main-10);
+        }
+        .performance-activity-card--green {
+            --performance-activity-accent: var(--success);
+            --performance-activity-tint: var(--success-10);
+        }
+        .performance-activity-card--orange {
+            --performance-activity-accent: var(--orange-main);
+            --performance-activity-tint: var(--orange-main-10);
+        }
+
+        .performance-activity-card__header,
+        .performance-activity-card__identity,
+        .performance-activity-card__link,
+        .performance-activity-card__stats,
+        .performance-activity-comparison__heading,
+        .performance-activity-comparison__row {
+            display: flex;
+            align-items: center;
+        }
+
+        .performance-activity-card__header {
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .performance-activity-card__identity {
+            min-width: 0;
+            gap: 10px;
+        }
+
+        .performance-activity-card__icon {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            color: var(--performance-activity-accent);
+            background-color: var(--performance-activity-tint);
+            font-size: 14px;
+        }
+
+        .performance-activity-card__icon i { position: relative; top: 1px; }
+
+        .performance-activity-card__title {
+            margin: 0;
+            color: var(--black);
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
+        .performance-activity-card__context {
+            display: block;
+            margin-top: 1px;
+            color: var(--muted);
+            font-size: 8px;
+            line-height: 1.4;
+        }
+
+        .performance-activity-card__link {
+            flex: 0 0 auto;
+            justify-content: center;
+            gap: 5px;
+            min-height: 30px;
+            padding: 5px 8px;
+            border-radius: 8px;
+            color: var(--blue-main);
+            font-size: 9px;
+            font-weight: 600;
+            line-height: 1;
+            text-decoration: none;
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .performance-activity-card__link:hover {
+            color: var(--blue-main-hover);
+            background-color: var(--blue-main-10);
+        }
+
+        .performance-activity-card__link:focus-visible {
+            outline: 2px solid var(--blue-main);
+            outline-offset: 2px;
+        }
+
+        .performance-activity-card__link i { position: relative; top: 1px; }
+
+        .performance-activity-card__stats {
+            display: grid;
+            grid-template-columns: max-content max-content minmax(150px, 1fr);
+            gap: 24px;
+            margin-top: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--smooth-border);
+        }
+
+        .performance-activity-card__stat {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .performance-activity-card__stat + .performance-activity-card__stat {
+            padding-left: 24px;
+            border-left: 1px solid var(--smooth-border);
+        }
+
+        .performance-activity-card__stat-label {
+            color: var(--black-secondary);
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        .performance-activity-card__stat-value {
+            color: var(--black);
+            font-size: 20px;
+            font-weight: 600;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .performance-activity-card__stat-value small {
+            margin-left: 3px;
+            color: var(--black-secondary);
+            font-size: 9px;
+            font-weight: 500;
+            letter-spacing: 0;
+        }
+
+        .performance-activity-card__stat-value--empty { color: var(--muted); }
+
+        .performance-activity-card__trend {
+            min-width: 0;
+            width: min(260px, 100%);
+            justify-self: end;
+            color: var(--muted);
+        }
+
+        .performance-activity-card__trend--up { color: var(--success); }
+        .performance-activity-card__trend--down { color: var(--red-main); }
+
+        .performance-activity-card__trend-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            color: var(--black-secondary);
+            font-size: 8px;
+            line-height: 1.3;
+        }
+
+        .performance-activity-card__trend-delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            color: currentColor;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .performance-activity-card__trend-delta i { position: relative; top: 1px; }
+
+        .performance-activity-card__spark {
+            width: 100%;
+            height: 30px;
+            margin-top: 2px;
+        }
+
+        .performance-activity-card__trend-note {
+            display: block;
+            margin-top: 1px;
+            color: var(--muted);
+            font-size: 7px;
+            line-height: 1.3;
+            text-align: right;
+        }
+
+        .performance-activity-card__comparisons {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .performance-activity-card__comparisons--featured {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .performance-activity-comparison { min-width: 0; }
+
+        .performance-activity-comparison + .performance-activity-comparison {
+            padding-left: 14px;
+            border-left: 1px solid var(--smooth-border);
+        }
+
+        .performance-activity-comparison__heading {
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 7px;
+            color: var(--black);
+            font-size: 9px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .performance-activity-comparison__heading span:last-child {
+            color: var(--muted);
+            font-size: 8px;
+            font-weight: 500;
+        }
+
+        .performance-activity-comparison__row {
+            display: grid;
+            grid-template-columns: 74px minmax(48px, 1fr) minmax(48px, auto);
+            gap: 7px;
+            min-height: 19px;
+        }
+
+        .performance-activity-comparison__label {
+            overflow: hidden;
+            color: var(--black-secondary);
+            font-size: 8px;
+            line-height: 1.3;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .performance-activity-comparison__track {
+            height: 6px;
+            overflow: hidden;
+            border-radius: 999px;
+            background-color: var(--blue-main-5);
+        }
+
+        .performance-activity-comparison__fill {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+        }
+
+        .performance-activity-comparison__fill--current { background-color: var(--performance-activity-accent); }
+        .performance-activity-comparison__fill--previous { background-color: var(--black-secondary); opacity: 0.5; }
+
+        .performance-activity-comparison__value {
+            color: var(--black);
+            font-size: 8px;
+            font-weight: 600;
+            line-height: 1.3;
+            text-align: right;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .performance-activity-card__empty {
+            display: flex;
+            align-items: center;
+            min-height: 62px;
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 9px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 1100px) {
+            .performance-activity-card__stats {
+                grid-template-columns: max-content max-content minmax(110px, 1fr);
+                gap: 16px;
+            }
+
+            .performance-activity-card__stat + .performance-activity-card__stat {
+                padding-left: 16px;
+            }
+
+            .performance-activity-card__comparisons--featured {
+                grid-template-columns: 1fr;
+            }
+
+            .performance-activity-comparison + .performance-activity-comparison {
+                padding-top: 10px;
+                padding-left: 0;
+                border-top: 1px solid var(--smooth-border);
+                border-left: 0;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .performance-activity-overview__header {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .performance-activity-overview__periods {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 3px;
+            }
+
+            .performance-activity-overview__periods span + span {
+                padding-left: 0;
+                border-left: 0;
+            }
+
+            .performance-activity-grid { grid-template-columns: 1fr; }
+            .performance-activity-card--featured { grid-column: auto; }
+            .performance-activity-card { padding: 14px; }
+            .performance-activity-card__link span { display: none; }
+            .performance-activity-card__link { width: 30px; padding: 0; }
+            .performance-activity-card__stats { gap: 16px; }
+
+            .performance-activity-card__stat + .performance-activity-card__stat {
+                padding-left: 16px;
+            }
+
+            .performance-activity-card__comparisons--featured {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .performance-activity-card__stats {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .performance-activity-card__trend {
+                grid-column: 1 / -1;
+                width: 100%;
+                max-width: none;
+                padding-top: 10px;
+                border-top: 1px solid var(--smooth-border);
+            }
+
+            .performance-activity-card__spark { height: 34px; }
+        }
+
+        .quantum-shift-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+
+        .quantum-shift-grid__panel + .quantum-shift-grid__panel {
+            padding-top: 16px;
+            border-top: 1px solid var(--smooth-border);
+        }
+
+        .quantum-shift-grid__title {
+            display: block;
+            color: var(--black);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .quantum-shift-grid__subtitle {
+            display: block;
+            margin-bottom: 12px;
+            color: var(--muted);
+            font-size: 9px;
+        }
+
+        /* Area label bulan membutuhkan pemisah visual yang jelas sebelum
+           legend; aturan umum grafik sengaja lebih rapat untuk kartu kecil. */
+        .quantum-shift-grid__chart .chart-frame + .chart-legend {
+            margin-top: 10px;
+        }
+
+        /* Pada baris komposisi, grafik menyampaikan proporsi sementara daftar
+           di kanan memberi angka presisi. Keduanya satu kelompok informasi,
+           bukan dua kartu terpisah. */
+        .performance-composition-card .section-card__body {
+            justify-content: center;
+        }
+
+        .performance-composition-card .donut-wrap {
+            flex-direction: row;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .performance-composition-card .donut__stage {
+            width: min(32%, 220px);
+            min-width: 180px;
+            flex: 0 1 220px;
+        }
+
+        .performance-composition-card .donut-details {
+            flex: 1 1 0;
+            padding-left: 28px;
+            border-left: 1px solid var(--smooth-border);
+        }
+
+        .performance-composition-card .donut-legend {
+            padding-top: 0;
+            border-top: 0;
+        }
+
+        .performance-composition-card .donut-note {
+            text-align: left;
+        }
+
+        .performance-damage-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .performance-damage-card .section-card__body {
+            flex: 1;
+        }
+
+        .perf-empty--action {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
         /* Baris analitik: grafik utama lebar + panel ringkasan di samping,
            mengikuti pola "grafik utama | ringkasan" pada panduan dashboard. */
         .perf-layout {
@@ -1082,6 +1887,38 @@
 
         @media (max-width: 1100px) {
             .perf-layout { grid-template-columns: 1fr; }
+            .operation-summary-grid--cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .operation-summary-grid--cards > :nth-child(n) { grid-column: span 1; }
+
+            /* Pada grid dua kolom, kartu terakhir yang tidak mempunyai pasangan
+               mengisi satu baris penuh agar tidak menyisakan setengah bidang. */
+            .operation-summary-grid--cards > :last-child:nth-child(odd) {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .performance-composition-card .donut-wrap {
+                flex-direction: column;
+                gap: 18px;
+            }
+
+            .performance-composition-card .donut__stage {
+                width: 100%;
+                min-width: 0;
+                flex-basis: auto;
+            }
+
+            .performance-composition-card .donut-details {
+                padding-top: 16px;
+                padding-left: 0;
+                border-top: 1px solid var(--smooth-border);
+                border-left: 0;
+            }
+
+            .performance-composition-card .donut-note {
+                text-align: center;
+            }
         }
 
 
@@ -2629,6 +3466,90 @@
                 padding: 14px 12px;
             }
 
+            .operation-summary-grid { grid-template-columns: 1fr; }
+
+            /* Dashboard tetap ringkas pada ponsel: dua kartu per baris masih
+               memberi ruang cukup untuk nilai, satuan, dan badge pembanding.
+               Varian grup biasa tetap satu kolom agar daftar metrik terbaca. */
+            .operation-summary-grid--cards {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .operation-summary-grid--cards > :nth-child(n) {
+                grid-column: span 1;
+            }
+
+            .operation-summary-grid--cards > :last-child:nth-child(odd) {
+                grid-column: 1 / -1;
+            }
+
+            .operation-summary-group { padding: 12px 0; }
+
+            .operation-summary-group--card {
+                min-height: 86px;
+                padding: 9px 10px 7px;
+            }
+
+            .activity-dashboard-card__header {
+                align-items: flex-start;
+                gap: 6px;
+            }
+
+            .activity-dashboard-card__identity { gap: 6px; }
+
+            .operation-summary-group--card .operation-summary-group__icon {
+                width: 24px;
+                height: 24px;
+                border-radius: 7px;
+                font-size: 10px;
+            }
+
+            .operation-summary-group--card .operation-summary-group__title {
+                display: -webkit-box;
+                overflow: hidden;
+                font-size: 10px;
+                line-height: 1.25;
+                white-space: normal;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+            }
+
+            .activity-dashboard-card__arrow i { font-size: 12px; }
+
+            .activity-dashboard-card__body {
+                gap: 4px;
+                margin-top: 7px;
+            }
+
+            .activity-dashboard-card__value { font-size: 15px; }
+
+            .activity-dashboard-card__unit {
+                margin-left: 3px;
+                font-size: 8px;
+            }
+
+            .activity-dashboard-card__delta {
+                max-width: 46%;
+                gap: 2px;
+                padding: 2px 4px;
+                font-size: 7px;
+            }
+
+            .activity-dashboard-card__count {
+                margin-top: 4px;
+                font-size: 8px;
+            }
+
+            .operation-summary-group:nth-child(2) { border-top: 1px solid var(--smooth-border); }
+
+            .operation-summary-section .section-card__tools,
+            .operation-summary-section__action {
+                width: 100%;
+            }
+
+            .operation-summary-section__action { justify-content: center; }
+
             .report-time {
                 gap: 8px !important;
             }
@@ -2752,6 +3673,27 @@
         }
 
         @media (max-width: 360px) {
+            .operation-summary-grid--cards { gap: 6px; }
+
+            .operation-summary-group--card {
+                min-height: 82px;
+                padding: 8px 8px 6px;
+            }
+
+            .operation-summary-group--card .operation-summary-group__icon {
+                width: 22px;
+                height: 22px;
+                font-size: 9px;
+            }
+
+            .operation-summary-group--card .operation-summary-group__title {
+                font-size: 9px;
+            }
+
+            .activity-dashboard-card__value { font-size: 14px; }
+            .activity-dashboard-card__delta { font-size: 6.5px; }
+            .activity-dashboard-card__count { font-size: 7.5px; }
+
             .stats-row {
                 grid-template-columns: 1fr;
             }

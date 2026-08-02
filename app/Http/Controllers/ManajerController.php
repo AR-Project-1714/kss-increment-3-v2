@@ -86,9 +86,12 @@ class ManajerController extends Controller
             'safety' => $incomingSafetyReports->count(),
         ];
 
+        $dashboardKpi = $this->dashboardKpi();
+
         return view('manajer.index', [
             'stats' => $this->dashboardStats(),
-            'kpi' => $this->dashboardKpi(),
+            'kpi' => $dashboardKpi,
+            'operationalSummary' => $dashboardKpi['activitySummary'] ?? [],
             'incomingReports' => $incomingReports,
             'incomingMaintenanceReports' => $incomingMaintenanceReports,
             'incomingSafetyReports' => $incomingSafetyReports,
@@ -638,7 +641,7 @@ class ManajerController extends Controller
     private function performanceCacheKey(array $filters, string $section = 'ringkasan'): string
     {
         return sprintf(
-            'manajer.performa.v5.%s.%s.%s.%s.%s.%s',
+            'manajer.performa.v6.%s.%s.%s.%s.%s.%s',
             $section,
             $this->performanceStamp(),
             $filters['start']->toDateString(),

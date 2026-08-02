@@ -3,6 +3,13 @@
 @section('title', 'Rincian Kegiatan - Manajer')
 
 @section('content')
+    @php
+        $requestedActivity = (string) request('kegiatan', '');
+        $activityKeys = array_column($activities, 'key');
+        $activeActivity = in_array($requestedActivity, $activityKeys, true)
+            ? $requestedActivity
+            : ($activityKeys[0] ?? '');
+    @endphp
     <main class="page-content page-content--has-mobile-tabbar">
         <div class="page-header performance-page-header">
             <div class="performance-page-header__heading">
@@ -24,10 +31,13 @@
 
         <div class="act-tabs" id="activityTabs" role="tablist" aria-label="Rincian per kegiatan">
             @foreach ($activities as $index => $activity)
+                @php($isActive = $activity['key'] === $activeActivity)
                 <button type="button"
-                        class="act-tab {{ $index === 0 ? 'is-active' : '' }}"
+                        class="act-tab {{ $isActive ? 'is-active' : '' }}"
+                        id="activity-tab-{{ $activity['key'] }}"
                         role="tab"
-                        aria-selected="{{ $index === 0 ? 'true' : 'false' }}"
+                        aria-selected="{{ $isActive ? 'true' : 'false' }}"
+                        aria-controls="activity-panel"
                         aria-label="{{ $activity['short'] }}, {{ $activity['unit'] }}"
                         title="{{ $activity['short'] }} ({{ $activity['unit'] }})"
                         data-activity-tab="{{ $activity['key'] }}"
@@ -41,7 +51,7 @@
         </div>
 
         {{-- Diisi lewat permintaan terpisah setelah halaman siap. --}}
-        <div class="act-panel" id="activity-panel" role="tabpanel" aria-live="polite">
+        <div class="act-panel" id="activity-panel" role="tabpanel" aria-live="polite" aria-labelledby="activity-tab-{{ $activeActivity }}">
             <div class="act-panel__loading">
                 <span class="act-skeleton act-skeleton--metrics"></span>
                 <span class="act-skeleton act-skeleton--block"></span>

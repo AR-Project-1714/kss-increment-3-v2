@@ -262,7 +262,7 @@ class OperationalReportSeederTest extends TestCase
 
         $this->assertStringContainsString('Muat Amoniak', $compositionHtml);
         $this->assertStringContainsString(
-            number_format($rawTotals['muat_amoniak'], 2, ',', '.').'<span>Ton</span>',
+            number_format($rawTotals['muat_amoniak'], 2, ',', '.').'<span>MT</span>',
             $ammoniaPanelHtml
         );
     }

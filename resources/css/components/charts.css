@@ -343,11 +343,39 @@ body.dark-mode {
             stroke-width: 2;
         }
 
-        .chart__dot {
-            stroke: var(--white);
-            stroke-width: 2;
-            transition: r 0.16s ease;
-            vector-effect: non-scaling-stroke;
+        .chart__line--mt {
+            stroke-dasharray: 2 3;
+            stroke-width: 2.25;
+        }
+
+        /* Titik data tidak ditempatkan di SVG karena kanvas diregangkan secara
+           non-proporsional. Lapisan HTML mempertahankan diameter 10px pada
+           setiap lebar kartu sambil tetap mengikuti koordinat persentase. */
+        .chart-marker-layer,
+        .chart__marker-group {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .chart-marker-layer {
+            z-index: 2;
+            overflow: visible;
+        }
+
+        .chart__point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border: 2px solid var(--white);
+            border-radius: 50%;
+            box-sizing: border-box;
+            transform: translate(-50%, -50%);
+            transition: transform 0.16s ease;
+        }
+
+        .chart__marker-group.is-active .chart__point {
+            transform: translate(-50%, -50%) scale(1.35);
         }
 
         .chart__bar {
@@ -361,8 +389,13 @@ body.dark-mode {
             cursor: pointer;
         }
 
-        .chart__hotspot:hover ~ .chart__marker .chart__dot,
-        .chart__hotspot.is-active ~ .chart__marker .chart__dot { r: 6; }
+        .chart__hotspot:focus-visible {
+            outline: none;
+            stroke: var(--blue-main);
+            stroke-width: 2;
+            stroke-dasharray: 4 3;
+            vector-effect: non-scaling-stroke;
+        }
 
         .chart__cursor {
             stroke: var(--divider);
@@ -589,6 +622,11 @@ body.dark-mode {
             inset: 0;
         }
 
+        .donut-details {
+            width: 100%;
+            min-width: 0;
+        }
+
         .donut-legend {
             width: 100%;
             display: flex;
@@ -626,6 +664,12 @@ body.dark-mode {
             color: var(--muted);
             font-weight: 400;
             margin-left: 4px;
+        }
+
+        .donut-legend__unit {
+            color: var(--black-secondary);
+            font-size: 9px;
+            font-weight: 400;
         }
 
         /* ---------- Bar horizontal perbandingan regu ---------- */

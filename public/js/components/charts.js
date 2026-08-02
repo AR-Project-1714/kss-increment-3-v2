@@ -11,6 +11,7 @@
  *   [data-chart-tip]        elemen yang memicu tooltip
  *   [data-tip-title]        judul tooltip (mis. nama bulan)
  *   [data-tip-rows]         JSON: [{label, value, color}]
+ *   [data-tip-marker]       id kelompok marker HTML yang disorot
  *   [data-chart-stack]      pembungkus grafik yang punya dua bentuk
  *   [data-chart-view]       "line" atau "bar" pada pembungkus tersebut
  *   [data-chart-switch]     tombol pengubah bentuk, nilainya "line"/"bar"
@@ -111,12 +112,25 @@
         document.querySelectorAll('.chart__cursor.is-visible').forEach(function (el) {
             el.classList.remove('is-visible');
         });
+        document.querySelectorAll('.chart__marker-group.is-active').forEach(function (el) {
+            el.classList.remove('is-active');
+        });
     }
 
     function showFor(target, event) {
         renderTooltip(target);
         positionTooltip(event);
         target.classList.add('is-active');
+
+        document.querySelectorAll('.chart__marker-group.is-active').forEach(function (el) {
+            el.classList.remove('is-active');
+        });
+
+        var markerId = target.getAttribute('data-tip-marker');
+        if (markerId) {
+            var marker = document.getElementById(markerId);
+            if (marker) marker.classList.add('is-active');
+        }
 
         // Garis bantu vertikal pada grafik tren mengikuti kolom yang disorot.
         var cursorId = target.getAttribute('data-tip-cursor');
@@ -287,6 +301,7 @@
 
             moveIndicator(active);
             keepTabVisible(active);
+            panel.setAttribute('aria-labelledby', active.id || '');
         }
 
         function showSkeleton() {
@@ -303,6 +318,12 @@
             selectedKey = key;
             markActive(tab);
             hideTooltip();
+
+            if (window.history && typeof window.history.replaceState === 'function') {
+                var nextUrl = new URL(window.location.href);
+                nextUrl.searchParams.set('kegiatan', key);
+                window.history.replaceState({}, '', nextUrl.toString());
+            }
 
             if (cache[key]) {
                 panel.innerHTML = cache[key];
@@ -330,10 +351,17 @@
                     if (selectedKey !== key) return;
 
                     panel.innerHTML =
-                        '<div class="perf-empty">Rincian kegiatan gagal dimuat. ' +
-                        'Coba pilih ulang tab ini atau muat ulang halaman.</div>';
+                        '<div class="perf-empty perf-empty--action">' +
+                        '<span>Rincian kegiatan gagal dimuat.</span>' +
+                        '<button type="button" class="btn-tool" data-activity-retry>Coba lagi</button>' +
+                        '</div>';
                 });
         }
+
+        panel.addEventListener('click', function (event) {
+            if (!event.target.closest('[data-activity-retry]')) return;
+            load(activeTab());
+        });
 
         tabs.forEach(function (tab) {
             tab.addEventListener('click', function () {
@@ -341,7 +369,8 @@
             });
         });
 
-        markActive(tabs[0]);
+        var initialTab = activeTab();
+        markActive(initialTab);
         window.addEventListener('resize', scheduleIndicatorSync);
 
         // Lebar tab dapat berubah tanpa resize window: font selesai dimuat,
@@ -369,11 +398,11 @@
             window.requestIdleCallback(function () {
                 // Klik pengguna selalu menang atas pekerjaan idle. Tanpa guard
                 // ini pilihan yang dibuat cepat dapat dipaksa kembali ke tab 1.
-                if (selectedKey === null) load(tabs[0]);
+                if (selectedKey === null) load(initialTab);
             }, { timeout: 1200 });
         } else {
             window.setTimeout(function () {
-                if (selectedKey === null) load(tabs[0]);
+                if (selectedKey === null) load(initialTab);
             }, 200);
         }
     }
@@ -503,6 +532,26 @@
             if (target.contains(event.relatedTarget)) return;
             hideTooltip();
         });
+
+        // Area data SVG dapat difokuskan dengan keyboard. Fokus menampilkan
+        // detail yang sama seperti hover tanpa membutuhkan aktivasi tambahan.
+        document.addEventListener('focus', function (event) {
+            var target = event.target.closest('[data-chart-tip]');
+            if (!target) return;
+
+            var rect = target.getBoundingClientRect();
+            showFor(target, {
+                clientX: rect.left + rect.width / 2,
+                clientY: rect.top,
+            });
+        }, true);
+
+        document.addEventListener('blur', function (event) {
+            var target = event.target.closest('[data-chart-tip]');
+            if (!target) return;
+            if (target.contains(event.relatedTarget)) return;
+            hideTooltip();
+        }, true);
 
         // Perangkat sentuh: ketuk untuk menampilkan, ketuk di luar untuk menutup.
         document.addEventListener('click', function (event) {

@@ -1,4 +1,4 @@
-{{-- Donut komposisi tonase per jenis kegiatan.
+{{-- Donut komposisi massa per jenis kegiatan.
 
      Segmen digambar dengan stroke-dasharray pada satu lingkaran: panjang garis
      mewakili porsi, offset menggeser posisi awalnya. Cara ini lebih ringkas
@@ -38,6 +38,7 @@
             'dash' => round($length, 2).' '.round($circumference - $length, 2),
             'offset' => round(-$offset, 2),
             'label' => $row['label'],
+            'unit' => $row['unit'],
             'tonnage' => (float) $row['tonnage'],
             'share' => $share * 100,
         ];
@@ -47,12 +48,12 @@
 @endphp
 
 @if ($segments === [])
-    <div class="perf-empty">Belum ada tonase pada periode ini.</div>
+    <div class="perf-empty">Belum ada kegiatan bersatuan Ton maupun MT pada periode ini.</div>
 @else
     <div class="donut-wrap">
         <div class="donut__stage">
             <svg class="donut" viewBox="0 0 {{ $canvas }} {{ $canvas }}" role="img"
-                 aria-label="Komposisi tonase menurut jenis kegiatan">
+                 aria-label="Komposisi massa menurut jenis kegiatan">
                 <circle class="donut__track" cx="{{ $center }}" cy="{{ $center }}" r="{{ $radius }}"></circle>
 
                 @foreach ($segments as $segment)
@@ -65,7 +66,7 @@
                             data-chart-tip
                             data-tip-title="{{ $segment['label'] }}"
                             data-tip-rows="{{ json_encode([
-                                ['label' => 'Tonase', 'value' => $fmt($segment['tonnage'], 1).' Ton', 'color' => $segment['color']],
+                                ['label' => 'Kuantum', 'value' => $fmt($segment['tonnage'], 1).' '.$segment['unit'], 'color' => $segment['color']],
                                 ['label' => 'Porsi', 'value' => $fmt($segment['share'], 1).'%'],
                             ]) }}"></circle>
                 @endforeach
@@ -73,27 +74,28 @@
 
             <div class="donut-center">
                 <span class="donut-center__value">{{ $fmt($total) }}</span>
-                <span class="donut-center__label">Ton total</span>
+                <span class="donut-center__label">Ton/MT total</span>
             </div>
         </div>
 
-        {{-- Legend di bawah donut: nama kegiatan panjang-panjang, jadi lebih
-             terbaca sebagai daftar selebar kartu daripada dijejalkan di samping. --}}
-        <div class="donut-legend">
-            @foreach ($segments as $segment)
-                <div class="donut-legend__row">
-                    <span class="chart-legend__swatch" style="background-color: {{ $segment['color'] }};"></span>
-                    <span class="donut-legend__name">{{ $segment['label'] }}</span>
-                    <span class="donut-legend__value">
-                        {{ $fmt($segment['tonnage']) }}
-                        <span class="donut-legend__share">{{ $fmt($segment['share'], 1) }}%</span>
-                    </span>
-                </div>
-            @endforeach
-        </div>
+        <div class="donut-details">
+            <div class="donut-legend">
+                @foreach ($segments as $segment)
+                    <div class="donut-legend__row">
+                        <span class="chart-legend__swatch" style="background-color: {{ $segment['color'] }};"></span>
+                        <span class="donut-legend__name">{{ $segment['label'] }}</span>
+                        <span class="donut-legend__value">
+                            {{ $fmt($segment['tonnage']) }}
+                            <span class="donut-legend__unit">{{ $segment['unit'] }}</span>
+                            <span class="donut-legend__share">{{ $fmt($segment['share'], 1) }}%</span>
+                        </span>
+                    </div>
+                @endforeach
+            </div>
 
-        {{-- Container sengaja tidak ada di donut ini: satuannya Teus, sehingga
-             porsinya tidak bisa dihitung terhadap total tonase. --}}
-        <p class="donut-note">Container dihitung terpisah karena bersatuan Teus.</p>
+            {{-- Ton dan MT setara secara massa, tetapi label sumber tetap ditulis.
+                 Container tidak masuk karena satuannya Teus. --}}
+            <p class="donut-note">COB Curah/Amoniak memakai MT; container dihitung terpisah karena bersatuan Teus.</p>
+        </div>
     </div>
 @endif

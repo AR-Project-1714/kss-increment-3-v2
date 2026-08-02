@@ -193,10 +193,21 @@
     <main class="page-content">
         <div class="page-header">
             <span class="page-title">Dashboard</span>
-            <span class="page-subtitle">Ringkasan performa dan aktivitas pelaporan dari ketiga divisi.</span>
+            <span class="page-subtitle">
+                Akumulasi kegiatan {{ $kpi['periodLabel'] ?? 'tahun berjalan' }}.
+                Badge membandingkan bulan berjalan dengan bulan sebelumnya.
+            </span>
         </div>
 
-        @include('manajer.layouts.card-kpi')
+        @include('manajer.partials.operational-summary', [
+            'summary' => $operationalSummary ?? [],
+            'showEmptyGroups' => true,
+            'variant' => 'cards',
+            'linkQuery' => array_filter([
+                'dari' => $kpi['periodStart'] ?? null,
+                'sampai' => $kpi['periodEnd'] ?? null,
+            ]),
+        ])
 
         <div class="section-card">
             <div class="section-card__header d-flex flex-column align-items-start">
