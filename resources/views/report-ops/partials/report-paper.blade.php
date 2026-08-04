@@ -423,7 +423,7 @@
                                 <tr><td class="label">Petugas PBM</td><td class="colon">:</td><td class="line-cell">{{ $bulk->stevedoring }}</td></tr>
                                 <tr><td class="label">COB Diterima</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->cob_received, 'MT') }}</td></tr>
                                 <tr><td class="label">COB Diserahkan</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->cob_delivered, 'MT') }}</td></tr>
-                                <tr class="hl"><td class="label">Jumlah Pemuatan</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->loading_qty, 'MT') }}</td></tr>
+                                <tr class="b"><td class="label">Jumlah Pemuatan</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->loading_qty, 'MT') }}</td></tr>
                             </table>
                         </td>
                     </tr>
