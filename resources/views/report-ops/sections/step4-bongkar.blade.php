@@ -220,7 +220,7 @@
                                 <div class="table-column small"><span>Sekarang</span></div>
                                 <div class="table-column small"><span>Lalu</span></div>
                                 <div class="table-column small"><span>Total</span></div>
-                                <div class="table-column small"><span>Empty / Full</span></div>
+                                <div class="table-column small"><span>Keterangan</span></div>
                                 <div class="table-column delete"><span>Hapus</span></div>
                             </div>
                             <div class="body">
