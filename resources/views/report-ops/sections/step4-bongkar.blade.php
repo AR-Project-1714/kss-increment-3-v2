@@ -10,7 +10,7 @@
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
             <div class="step-info-note">
                 <i class="fi fi-rr-info"></i>
-                <span>Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri.</span>
+                <span>Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri. Pada tabel container, kolom <strong>Empty / Full</strong> wajib diisi untuk setiap baris yang ada jumlahnya: <strong>Empty</strong> berarti bongkar, <strong>Full</strong> berarti muat. Isian itulah yang menentukan baris masuk ke <strong>Bongkar Container</strong> atau <strong>Muat Container</strong> pada laporan kinerja.</span>
             </div>
             <div class="form-bongkar d-flex flex-column align-items-start align-self-stretch" style="gap: 25px;">
                 <div class="tab-group tab-group-bongkar" id="bongkar-tabs-group">
@@ -220,25 +220,39 @@
                                 <div class="table-column small"><span>Sekarang</span></div>
                                 <div class="table-column small"><span>Lalu</span></div>
                                 <div class="table-column small"><span>Total</span></div>
-                                <div class="table-column small"><span>Ket</span></div>
+                                <div class="table-column small"><span>Empty / Full</span></div>
                                 <div class="table-column delete"><span>Hapus</span></div>
                             </div>
                             <div class="body">
                                 <div class="table-column no"><span>1</span></div>
                                 <div class="table-column main">
-                                    <div class="table-input-wrapper"><span class="icon"><i class="fi fi-rr-clock"></i></span><input type="text" name="unloading_containers_1[0][time_text]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13"></div>
+                                    <div class="table-input-wrapper"><span class="icon"><i class="fi fi-rr-clock"></i></span><input type="text" name="unloading_containers_1[0][time_text]" class="time-range-input" placeholder="00:00 - 00:00" autocomplete="off" inputmode="numeric" maxlength="13"></div>
                                 </div>
                                 <div class="table-column small"><input type="number" name="unloading_containers_1[0][qty_current]" class="form-control-custom" placeholder="0"></div>
                                 <div class="table-column small"><input type="number" name="unloading_containers_1[0][qty_prev]" class="form-control-custom" placeholder="0"></div>
                                 <div class="table-column small"><input type="number" name="unloading_containers_1[0][qty_total]" class="form-control-custom" placeholder="0" readonly></div>
+                                {{-- Isian ini yang memisahkan baris menjadi kegiatan
+                                     Bongkar Container atau Muat Container di laporan
+                                     manajer: Empty berarti bongkar, Full berarti muat.
+                                     Tetap boleh diketik bebas, tetapi isinya
+                                     diseragamkan di server (ContainerStatusNormalizer)
+                                     supaya ejaan seperti "Container empty" tidak lagi
+                                     jatuh di luar kedua kegiatan. --}}
                                 <div class="table-column small">
-                                    <input type="text" name="unloading_containers_1[0][status]" class="form-control-custom" placeholder="Ket" autocomplete="off" value="{{ old('unloading_containers_1.0.status') }}">
+                                    <input type="text" name="unloading_containers_1[0][status]" class="form-control-custom" list="container-status-options" placeholder="Empty / Full" autocomplete="off" value="{{ old('unloading_containers_1.0.status') }}">
                                 </div>
                                 <div class="table-column delete"><button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button></div>
                             </div>
                             <button type="button" class="btn-tambah-baris"><i class="fi fi-rr-plus-small"></i> Tambah Baris</button>
                         </div>
                     </div>
+
+                    {{-- Saran cepat penanda container. Empty = bongkar, Full = muat. --}}
+                    <datalist id="container-status-options">
+                        <option value="Empty"></option>
+                        <option value="Full"></option>
+                    </datalist>
+
                     <!-- Petugas Section Card Container -->
                     <div class="petugas-card w-100 container-content">
                         <h5 class="card-title">Petugas</h5>

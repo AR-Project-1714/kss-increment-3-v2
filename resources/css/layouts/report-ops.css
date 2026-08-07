@@ -1442,6 +1442,13 @@
         }
         .tbl-custom-select-trigger::placeholder { color: var(--muted); }
 
+        /* Isian tabel yang belum terbaca — dipakai penanda Empty/Full pada baris
+           container. Ditandai merah karena baris seperti itu tidak masuk
+           kegiatan mana pun bila tetap dikirim. */
+        .form-control-custom.is-invalid {
+            border-color: var(--red-main); box-shadow: 0 0 0 3px var(--red-main-10);
+        }
+
         /* Container Custom Options List */
         .tbl-custom-options {
             position: absolute; top: 100%; left: 0; right: 0; background: var(--white); border: 1px solid var(--black-25);

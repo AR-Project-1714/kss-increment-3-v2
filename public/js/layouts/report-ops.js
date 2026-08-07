@@ -449,6 +449,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             window.validateReportGroupRoute({ enforce: true });
                         }
 
+                        if (typeof window.validateContainerStatuses === 'function') {
+                            window.validateContainerStatuses({ enforce: true });
+                        }
+
                         if (!formIsValid(mainForm)) {
                             const invalidControl = mainForm.querySelector(':invalid');
 

@@ -153,10 +153,19 @@
 
     {{-- Metrik sekunder dan catatan khas kegiatan berada dalam satu card,
          sejajar dengan rekap, tren, beban kerja, dan bagian lain di bawahnya. --}}
-    @if ($metrics !== [] || ! empty($detail['note']))
+    @if ($metrics !== [] || ! empty($detail['note']) || ! empty($detail['warning']))
         <div class="act-block">
             <span class="act-block__title">Indikator Kegiatan</span>
             <span class="act-block__subtitle">Metrik operasional khusus untuk kegiatan yang sedang dipilih.</span>
+
+            {{-- Angka yang belum berkategori. Ditaruh di atas metrik karena
+                 nilainya belum ikut terhitung pada angka-angka di bawahnya. --}}
+            @if (! empty($detail['warning']))
+                <p class="act-block__warning">
+                    <i class="fi fi-rr-exclamation"></i>
+                    <span>{{ $detail['warning'] }}</span>
+                </p>
+            @endif
 
             @if ($metrics !== [])
                 <div @class(['act-metrics', 'act-metrics--'.count($metrics) => count($metrics) < 4])>

@@ -16,6 +16,7 @@ use App\Models\MasterUnit;
 use App\Models\ShipOperation;
 use App\Models\UnitCheckLog;
 use App\Services\BulkTonnageService;
+use App\Support\ContainerStatusNormalizer;
 use App\Support\ShipNameNormalizer;
 use App\Support\TonnageNumber;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -38,6 +39,13 @@ class ReportOpsController extends Controller
     use SearchesReports;
 
     private const MASTER_DATA_CACHE_TTL = 60 * 60 * 24;
+
+    /**
+     * Batas jumlah kegiatan (tab "Kegiatan N") yang dibaca dari satu laporan.
+     * Nama isiannya berakhiran nomor urut, sehingga pembacaannya perlu batas
+     * atas yang tetap.
+     */
+    private const MAX_ACTIVITY_SEQUENCE = 20;
 
     private const PENDING_PDF_CACHE_TTL = 60 * 10;
 
@@ -379,6 +387,8 @@ class ReportOpsController extends Controller
             ]);
         }
 
+        $this->normalizeContainerStatuses($request);
+
         $validated = $request->validate($this->rules($status === ReportStatus::Draft->value, $request), [], $this->attributes());
         $payload = $this->decodePayload($request->input('form_payload'));
         $report = null;
@@ -488,6 +498,8 @@ class ReportOpsController extends Controller
                 ),
             ]);
         }
+
+        $this->normalizeContainerStatuses($request);
 
         $validated = $request->validate($this->rules($status === ReportStatus::Draft->value, $request), [], $this->attributes());
         $payload = $this->decodePayload($request->input('form_payload'));
@@ -1262,6 +1274,7 @@ class ReportOpsController extends Controller
             'ammonia_logs' => ['nullable', 'array'],
             'unloading_materials' => ['nullable', 'array'],
             'unloading_containers' => ['nullable', 'array'],
+            ...$this->containerStatusRules(),
             'turba_deliveries' => ['nullable', 'array'],
             'unit_logs' => ['nullable', 'array'],
             'inventory_logs' => ['nullable', 'array'],
@@ -1273,6 +1286,31 @@ class ReportOpsController extends Controller
             'replacement_logs' => ['nullable', 'array'],
             'other_activity_logs' => ['nullable', 'array'],
         ];
+    }
+
+    /**
+     * Penanda Empty/Full hanya boleh berisi dua nilai baku itu, atau kosong.
+     *
+     * Kolom inilah yang memisahkan Bongkar Container dari Muat Container di
+     * seluruh laporan manajer. Selama nilainya bebas, ejaan yang meleset tidak
+     * masuk kegiatan mana pun dan angkanya lenyap tanpa peringatan. Isian sudah
+     * diseragamkan lebih dulu oleh normalizeContainerStatuses(), jadi aturan
+     * ini berperan sebagai jaring terakhir — bukan penyaring pertama.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function containerStatusRules(): array
+    {
+        $rules = [];
+
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
+            $rules["unloading_containers_{$i}.*.status"] = [
+                'nullable',
+                Rule::in([ContainerStatusNormalizer::EMPTY_STATUS, ContainerStatusNormalizer::FULL_STATUS]),
+            ];
+        }
+
+        return $rules;
     }
 
     private function attributes(): array
@@ -1296,7 +1334,7 @@ class ReportOpsController extends Controller
 
         $this->pruneStaleShipOperations();
 
-        for ($i = 1; $i <= 20; $i++) {
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
             if (! $this->hasAny($request, [
                 "ship_name_{$i}",
                 "agent_{$i}",
@@ -1386,7 +1424,7 @@ class ReportOpsController extends Controller
             'ammonia_logs',
         );
 
-        for ($i = 1; $i <= 20; $i++) {
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
             if (! $this->hasAny($request, [
                 "ship_name_material_{$i}", "agent_material_{$i}", "jetty_material_{$i}", "capacity_material_{$i}",
                 "unloading_materials_{$i}", "tally_kapal_{$i}", "opr_forklift_{$i}", "no_forklift_bb_{$i}", "tally_pengiriman_{$i}",
@@ -1431,7 +1469,7 @@ class ReportOpsController extends Controller
             }
         }
 
-        for ($i = 1; $i <= 20; $i++) {
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
             $containerRows = $this->rows($request->input("unloading_containers_{$i}", []));
             $hasContainerRows = array_filter(
                 $containerRows,
@@ -1476,7 +1514,10 @@ class ReportOpsController extends Controller
                     $containerActivity->items()->create([
                         'time' => $this->time($container['time'] ?? null),
                         'time_text' => $this->string($container['time_text'] ?? null),
-                        'status' => $this->string($container['status'] ?? null),
+                        // Sudah diseragamkan sebelum validasi; diulang di sini
+                        // supaya jalur non-HTTP (seeder, uji, impor) tidak bisa
+                        // menyelipkan penanda bebas ke kolom pemisah kegiatan.
+                        'status' => ContainerStatusNormalizer::normalize($container['status'] ?? null),
                         'qty_current' => $this->decimal($container['qty_current'] ?? null),
                         'qty_prev' => $this->decimal($container['qty_prev'] ?? null),
                         'qty_total' => $this->decimal($container['qty_total'] ?? null),
@@ -1524,7 +1565,7 @@ class ReportOpsController extends Controller
         string $fieldSuffix,
         string $logInput,
     ): void {
-        for ($i = 1; $i <= 20; $i++) {
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
             $field = fn (string $name): string => "{$name}_{$fieldSuffix}_{$i}";
 
             if (! $this->hasAny($request, [
@@ -1668,7 +1709,7 @@ class ReportOpsController extends Controller
             }
         }
 
-        for ($i = 1; $i <= 20; $i++) {
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
             if ($this->hasAny($request, ["kegiatan_desc_{$i}", "kegiatan_personil_{$i}", "kegiatan_jam_{$i}"])) {
                 [$timeIn, $timeOut] = $this->splitTimeRange($request->input("kegiatan_jam_{$i}"));
 
@@ -2501,7 +2542,80 @@ class ReportOpsController extends Controller
 
         $decoded = json_decode($payload, true);
 
-        return is_array($decoded) ? $decoded : null;
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        return $this->normalizePayloadContainerStatuses($decoded);
+    }
+
+    /**
+     * Seragamkan penanda Empty/Full pada isian yang dikirim form.
+     *
+     * Dropdown pada form sudah membatasi pilihan, tetapi jalur ini tetap
+     * diperlukan: draft lama dan autosave masih membawa teks bebas hasil
+     * kolom "Ket" versi sebelumnya. Dijalankan sebelum validasi supaya nilai
+     * lama ikut diterjemahkan, bukan ditolak.
+     */
+    private function normalizeContainerStatuses(Request $request): void
+    {
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
+            $key = "unloading_containers_{$i}";
+            $rows = $request->input($key);
+
+            if (! is_array($rows)) {
+                continue;
+            }
+
+            $changed = false;
+
+            foreach ($rows as $index => $row) {
+                if (! is_array($row) || ! array_key_exists('status', $row)) {
+                    continue;
+                }
+
+                $normalized = ContainerStatusNormalizer::normalize($row['status']);
+
+                if ($normalized !== $row['status']) {
+                    $rows[$index]['status'] = $normalized;
+                    $changed = true;
+                }
+            }
+
+            if ($changed) {
+                $request->merge([$key => $rows]);
+            }
+        }
+    }
+
+    /**
+     * Payload disimpan apa adanya lalu diputar ulang ke form saat laporan
+     * dibuka kembali. Penandanya ikut diseragamkan di sini supaya nilai lama
+     * seperti "Container empty" tetap terpilih pada dropdown — tanpa ini,
+     * membuka laporan lama akan menampilkan kolom itu dalam keadaan kosong.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function normalizePayloadContainerStatuses(array $payload): array
+    {
+        if (! isset($payload['fields']) || ! is_array($payload['fields'])) {
+            return $payload;
+        }
+
+        foreach ($payload['fields'] as $index => $field) {
+            if (! is_array($field) || ! isset($field['key']) || ! is_string($field['key'])) {
+                continue;
+            }
+
+            if (preg_match('/^unloading_containers_\d+\[\d+\]\[status\]$/', $field['key']) !== 1) {
+                continue;
+            }
+
+            $payload['fields'][$index]['value'] = ContainerStatusNormalizer::normalize($field['value'] ?? null) ?? '';
+        }
+
+        return $payload;
     }
 
     private function hasAny(Request $request, array $keys): bool

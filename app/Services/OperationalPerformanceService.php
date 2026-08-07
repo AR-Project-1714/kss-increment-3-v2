@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\ReportStatus;
 use App\Models\BulkLoadingActivity;
 use App\Models\DailyReport;
+use App\Support\ContainerStatusNormalizer;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -1642,6 +1643,10 @@ class OperationalPerformanceService
             'breakdownTitle' => null,
             'tableCaption' => null,
             'note' => null,
+            // Peringatan angka yang belum berkategori. Sejauh ini hanya
+            // container yang bisa mengisinya, tetapi kuncinya selalu ada agar
+            // tampilan dan ekspor tidak perlu tahu kegiatan mana yang memakai.
+            'warning' => null,
         ], $detail, [
             'trend' => $trend,
             'trendMax' => max(1.0, max(array_column($trend, 'value') ?: [0.0])),
@@ -2299,6 +2304,7 @@ class OperationalPerformanceService
 
         return [
             'value' => $loaded,
+            'warning' => $this->unmarkedContainerWarning($activity, $filters),
             'metrics' => [
                 ['label' => 'Kapal dilayani', 'value' => (int) ($totals->ships ?? 0), 'unit' => 'kapal', 'decimals' => 0],
                 ['label' => 'Kapasitas tercatat', 'value' => $capacityValue, 'unit' => 'Teus', 'decimals' => 0],
@@ -2318,6 +2324,56 @@ class OperationalPerformanceService
                 .'dijumlahkan ke Total Tonase. Pemisahan bongkar dan muat mengikuti '
                 .'penanda Empty atau Full pada tiap baris laporan.',
         ];
+    }
+
+    /**
+     * Baris container yang membawa jumlah tetapi penandanya bukan Empty maupun
+     * Full. Baris seperti ini tidak masuk kegiatan mana pun.
+     *
+     * Sebelumnya angka semacam itu lenyap tanpa jejak: satu-satunya cara
+     * mengetahuinya adalah bila ada yang kebetulan hafal totalnya. Panel wajib
+     * menyebutkannya sendiri supaya selisih tidak perlu ditemukan secara
+     * kebetulan lagi.
+     *
+     * Penandanya diperiksa terhadap dua nilai baku, bukan sekadar NULL, supaya
+     * sisa teks bebas dari laporan lama ikut terhitung selama belum dirapikan
+     * `container:repair-status`.
+     *
+     * @param  array<string, mixed>  $activity
+     * @param  array<string, mixed>  $filters
+     */
+    private function unmarkedContainerWarning(array $activity, array $filters): ?string
+    {
+        $unmarked = $this->scopedSourceQuery(array_merge($activity, ['conditions' => []]), $filters)
+            ->where('container_items.qty_current', '!=', 0)
+            ->where(function (QueryBuilder $query): void {
+                $query->whereNull('container_items.status')
+                    ->orWhereNotIn('container_items.status', [
+                        ContainerStatusNormalizer::EMPTY_STATUS,
+                        ContainerStatusNormalizer::FULL_STATUS,
+                    ]);
+            })
+            ->selectRaw('COUNT(container_items.id) as row_count')
+            ->selectRaw('COALESCE(SUM(container_items.qty_current), 0) as total')
+            ->first();
+
+        $rowCount = (int) ($unmarked->row_count ?? 0);
+
+        if ($rowCount === 0) {
+            return null;
+        }
+
+        return $rowCount.' baris container ('.$this->formatTeus((float) ($unmarked->total ?? 0)).' Teus) '
+            .'belum ditandai Empty atau Full, sehingga belum masuk hitungan Bongkar maupun Muat. '
+            .'Buka laporan hariannya lalu lengkapi kolom Empty / Full pada baris tersebut.';
+    }
+
+    /**
+     * Teus selalu bilangan bulat (jumlah box), jadi ditulis tanpa desimal.
+     */
+    private function formatTeus(float $value): string
+    {
+        return number_format($value, 0, ',', '.');
     }
 
     /**

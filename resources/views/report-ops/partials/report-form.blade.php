@@ -1866,6 +1866,7 @@ document.addEventListener('DOMContentLoaded', function () {
         window.__reportAutosaveSuppress = true; // pengiriman manual: matikan autosave
         statusInput.value = status;
         validateReportGroupRoute({ enforce: status !== 'draft' });
+        validateContainerStatuses({ enforce: status !== 'draft' });
 
         if (status === 'draft') {
             form.querySelectorAll('[required]').forEach(input => {
@@ -2750,6 +2751,94 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     window.validateReportGroupRoute = validateReportGroupRoute;
+
+    // ==========================================
+    // Penanda Empty/Full pada tabel container
+    //
+    // Pilihan ini yang memisahkan Bongkar Container dari Muat Container di
+    // laporan manajer. Baris yang ada jumlahnya tetapi penandanya belum dipilih
+    // tidak masuk kegiatan mana pun — angkanya hilang tanpa peringatan. Karena
+    // itu baris seperti itu ditahan di sini, sebelum laporan dikirim.
+    // ==========================================
+
+    const containerStatusMessage = 'Isi Empty atau Full pada setiap baris container yang ada jumlahnya. '
+        + 'Empty berarti bongkar, Full berarti muat.';
+
+    const CONTAINER_STATUSES = ['Empty', 'Full'];
+
+    function containerStatusInputs() {
+        if (!form) return [];
+
+        return Array.from(form.querySelectorAll('[name^="unloading_containers_"][name$="[status]"]'));
+    }
+
+    /**
+     * Bentuk baku dari apa yang diketik, atau null bila belum terbaca.
+     *
+     * Sengaja hanya mengenali dua kata bakunya — jauh lebih longgar daripada
+     * ContainerStatusNormalizer di server, yang tetap menjadi penentu akhir dan
+     * masih menerjemahkan ejaan seperti "Container empty". Penjaga di layar ini
+     * cukup mengarahkan petugas ke dua kata yang ada di daftar saran, bukan
+     * menyalin ulang seluruh aturan server (yang pasti akan menyimpang).
+     */
+    function canonicalContainerStatus(value) {
+        const typed = String(value ?? '').trim().toLowerCase();
+
+        return CONTAINER_STATUSES.find(status => status.toLowerCase() === typed) ?? null;
+    }
+
+    // Baris yang jumlahnya nol tidak menggeser angka apa pun, jadi tidak perlu
+    // ditahan — cukup baris yang benar-benar membawa muatan.
+    function containerRowHasQuantity(input) {
+        const row = input.closest('.body');
+        const qty = row?.querySelector('input[name$="[qty_current]"]');
+
+        return Number(String(qty?.value ?? '').replace(',', '.')) !== 0;
+    }
+
+    function validateContainerStatuses(options = {}) {
+        const { enforce = statusInput?.value !== 'draft' } = options;
+        let firstInvalid = null;
+
+        containerStatusInputs().forEach(input => {
+            const isUnreadable = enforce
+                && containerRowHasQuantity(input)
+                && canonicalContainerStatus(input.value) === null;
+
+            input.setCustomValidity(isUnreadable ? containerStatusMessage : '');
+            input.classList.toggle('is-invalid', isUnreadable);
+
+            if (isUnreadable && !firstInvalid) firstInvalid = input;
+        });
+
+        return firstInvalid === null;
+    }
+
+    window.validateContainerStatuses = validateContainerStatuses;
+
+    // Rapikan huruf begitu petugas selesai mengetik, supaya yang terlihat di
+    // layar sama persis dengan yang tersimpan ("empty" -> "Empty").
+    document.addEventListener('blur', event => {
+        if (! event.target?.matches?.('[name^="unloading_containers_"][name$="[status]"]')) return;
+
+        const canonical = canonicalContainerStatus(event.target.value);
+        if (canonical !== null) event.target.value = canonical;
+
+        validateContainerStatuses();
+    }, true);
+
+    // Didengarkan pada fase CAPTURE. Baris container bisa disusun ulang dan
+    // di-clone oleh mekanisme "Tambah Baris"/"Kegiatan N", dan sebagian kendali
+    // di dalam tabel menahan propagasi event-nya. Fase capture selalu dilewati
+    // lebih dulu dan tidak bergantung pada bubbling, sehingga penandaan tetap
+    // hidup tanpa perlu memasang listener ulang di tiap baris baru.
+    ['change', 'input'].forEach(eventName => {
+        document.addEventListener(eventName, event => {
+            if (event.target?.matches?.('[name^="unloading_containers_"]')) {
+                validateContainerStatuses();
+            }
+        }, true);
+    });
 
     const bagLoadingDetailPrefixes = [
         'ship_operation_id',

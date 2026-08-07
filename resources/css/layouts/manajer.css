@@ -2257,6 +2257,30 @@
             margin: 0;
         }
 
+        /* Peringatan angka yang belum berkategori. Sengaja lebih menonjol dari
+           .act-panel__note karena isinya bukan penjelasan, melainkan data yang
+           belum ikut terhitung dan perlu ditindaklanjuti. */
+        .act-block__warning {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin: 0;
+            padding: 10px 12px;
+            border: 1px solid var(--red-main-10);
+            border-radius: 8px;
+            background: var(--red-main-5);
+            color: var(--red-main);
+            /* Satu langkah di atas .act-panel__note (10px) supaya peringatan
+               ini terbaca lebih dulu daripada catatan penjelas di bawahnya. */
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .act-block__warning i {
+            flex: none;
+            margin-top: 1px;
+        }
+
         .act-metrics {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));

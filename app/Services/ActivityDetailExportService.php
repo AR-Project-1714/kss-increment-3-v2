@@ -823,6 +823,15 @@ class ActivityDetailExportService
         $delta = $panel['delta'] ?? [];
 
         $insights = [];
+
+        // Angka yang belum berkategori ditaruh paling depan: selama masih ada,
+        // seluruh angka di bawahnya belum lengkap. Daftar ini dipotong lima di
+        // akhir, jadi urutannya sekaligus menentukan apa yang tidak boleh
+        // tergeser keluar.
+        if ($detail['warning'] ?? null) {
+            $insights[] = (string) $detail['warning'];
+        }
+
         if ($value <= 0) {
             $insights[] = 'Belum ada volume kegiatan pada periode dan filter aktif.';
         } else {
