@@ -46,14 +46,33 @@ class ShipOperation extends Model
 
     public const ACTIVE_SUGGESTION_TTL_DAYS = 3;
 
+    public static function typeLabel(string $type): string
+    {
+        return match ($type) {
+            self::TYPE_BAG_LOADING => 'Muat Kantong',
+            self::TYPE_BULK_LOADING => 'Muat Curah',
+            self::TYPE_AMMONIA_LOADING => 'Muat Amoniak',
+            self::TYPE_MATERIAL_UNLOADING => 'Bongkar Bahan Baku',
+            self::TYPE_CONTAINER => 'Bongkar/Muat Container',
+            default => 'Operasi Kapal',
+        };
+    }
+
+    public static function statusLabel(string $status): string
+    {
+        return match ($status) {
+            self::STATUS_COMPLETED => 'Selesai',
+            self::STATUS_INACTIVE => 'Diarsipkan',
+            default => 'Masih Berjalan',
+        };
+    }
+
     protected $guarded = ['id'];
 
     /**
-     * Arsipkan (bukan hapus) saran operasi kapal yang tidak diperbarui melewati
-     * masa simpan. Operasi kapal bisa jeda beberapa hari (cuaca, antrean jetty),
-     * jadi datanya dipertahankan agar akumulasi muat tidak putus — kapal terarsip
-     * tetap bisa ditemukan lewat pencarian saran dan aktif kembali saat dipakai.
-     * Dipakai on-request maupun lewat penjadwal.
+     * Arsipkan (bukan hapus) saran operasi lama yang belum memiliki histori
+     * keputusan. Operasi yang sudah dikonfirmasi tetap aktif sampai petugas
+     * menandainya selesai, termasuk saat ada jeda cuaca atau antrean.
      */
     public static function pruneStaleActiveSuggestions(): int
     {
@@ -62,6 +81,7 @@ class ShipOperation extends Model
         return static::query()
             ->whereIn('type', self::types())
             ->where('status', self::STATUS_ACTIVE)
+            ->whereDoesntHave('decisions')
             ->where(function ($query) use ($cutoff): void {
                 $query->where('updated_at', '<', $cutoff)
                     ->orWhere(function ($fallback) use ($cutoff): void {
@@ -103,5 +123,15 @@ class ShipOperation extends Model
     public function containerActivities()
     {
         return $this->hasMany(ContainerActivity::class);
+    }
+
+    public function decisions()
+    {
+        return $this->hasMany(ShipOperationDecision::class);
+    }
+
+    public function lastReport()
+    {
+        return $this->belongsTo(DailyReport::class, 'last_report_id');
     }
 }

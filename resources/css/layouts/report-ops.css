@@ -1,3 +1,5 @@
+@import '../components/account-settings.css';
+
 /* =========================================
            VARIABLES (COLOR PALETTE & THEME)
            ========================================= */
@@ -516,7 +518,7 @@
 
         .icon-tab i {
             position: relative;
-            top: 1px;
+            top: -2px;
             font-size: 12px;
         }
         .tab-amount {
@@ -1586,16 +1588,24 @@
         .form-card-head .title .box-icon { display: flex; width: 25px; height: 25px; padding: 10px; justify-content: center; align-items: center; border-radius: 6px; background: var(--white); }
         .box-icon i { position: relative; top: 2px; }
 
-        .form-card-content { display: flex; padding: 10px; align-items: flex-end; gap: 5px; align-self: stretch; }
-        .card-form-group { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; flex: 1 0 0; }
+        .form-card-content { display: flex; min-width: 0; padding: 10px; align-items: flex-end; gap: 5px; align-self: stretch; box-sizing: border-box; }
+        .form-card-content > .icon { display: flex; flex: 0 0 18px; justify-content: center; align-items: center; margin-bottom: 10px; }
+        .form-card-content > .icon i { position: static !important; }
+        .card-form-group { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 5px; flex: 1 1 0; }
         .card-form-group label { font-size: 11px; }
-        .card-form-group input[type="number"] {
-            width: 100%; box-sizing: border-box; min-width: 0; padding: 8px 0; text-align: center;
-            border-radius: 10px; border: 1px solid var(--divider); font-size: 12px; font-weight: 500; align-self: stretch; background-color: var(--white); color: var(--dark-main);
+        .card-form-group input[type="number"],
+        .card-form-group input[data-locale-number="true"] {
+            width: 100%; box-sizing: border-box; min-width: 0; padding: 8px 6px; text-align: center;
+            border-radius: 10px; border: 1px solid var(--divider); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; align-self: stretch; background-color: var(--white); color: var(--dark-main);
         }
-        .deliv .card-form-group input[type="number"]:focus { outline: 3px solid var(--blue-main-10); box-shadow: 0 0 1px 0 var(--blue-main); background-color: var(--blue-input-focus); }
-        .load .card-form-group input[type="number"]:focus { outline: 3px solid var(--orange-main-10); box-shadow: 0 0 1px 0 var(--orange-main); background-color: var(--orange-input-focus); }
-        .damage .card-form-group input[type="number"]:focus { outline: 3px solid var(--red-main-10); box-shadow: 0 0 1px 0 var(--red-main); background-color: var(--red-input-focus); }
+        input[data-locale-number="true"].is-long-number,
+        .form-card-head .accumulated.is-long-number { font-size: 11px; letter-spacing: -0.01em; }
+        input[data-locale-number="true"].is-very-long-number,
+        .form-card-head .accumulated.is-very-long-number { font-size: 10px; letter-spacing: -0.02em; }
+        .form-card-head .accumulated { min-width: 0; max-width: 62%; font-variant-numeric: tabular-nums; text-align: end; white-space: nowrap; }
+        .deliv .card-form-group input:is([type="number"], [data-locale-number="true"]):focus { outline: 3px solid var(--blue-main-10); box-shadow: 0 0 1px 0 var(--blue-main); background-color: var(--blue-input-focus); }
+        .load .card-form-group input:is([type="number"], [data-locale-number="true"]):focus { outline: 3px solid var(--orange-main-10); box-shadow: 0 0 1px 0 var(--orange-main); background-color: var(--orange-input-focus); }
+        .damage .card-form-group input:is([type="number"], [data-locale-number="true"]):focus { outline: 3px solid var(--red-main-10); box-shadow: 0 0 1px 0 var(--red-main); background-color: var(--red-input-focus); }
 
         /* Saat lebar tidak cukup untuk tiga kartu sejajar, stack penuh agar
            Pengiriman & Pemuatan selebar Kerusakan (tidak jadi 2+1 yang timpang). */

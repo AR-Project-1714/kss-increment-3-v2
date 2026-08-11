@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ContainerItem;
 use App\Models\DailyReport;
+use App\Models\ShipOperation;
 use App\Models\User;
 use App\Services\OperationalPerformanceService;
 use Carbon\Carbon;
@@ -216,6 +217,10 @@ class ContainerStatusIntegrityTest extends TestCase
         // Jam 23.30 menahan pergeseran "tanggal dinas" shift Malam, supaya
         // tanggal laporan pada uji ini persis seperti yang dituliskan.
         Carbon::setTestNow(Carbon::parse($date)->setTime(23, 30));
+
+        if (filled($fields['ship_name_container_1'] ?? null)) {
+            $fields['ship_operation_container_status_1'] ??= ShipOperation::STATUS_ACTIVE;
+        }
 
         $this->actingAs($this->operator())
             ->post(route('report-ops.store'), array_merge([

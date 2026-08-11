@@ -96,6 +96,7 @@ trait ResolvesReportMeta
             'turbaActivity.deliveries',
             'unitCheckLogs',
             'employeeLogs',
+            'operationDecisions.shipOperation',
         ];
     }
 

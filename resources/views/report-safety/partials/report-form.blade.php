@@ -64,11 +64,6 @@
     .btn-form.finish:hover .icon { opacity: 1; max-width: 20px; margin-left: 10px; transform: translateX(0); }
     .btn-form .icon i { position: relative; top: 2px; line-height: 1; }
 
-    /* align-items:flex-start (bukan center) agar ikon mengikuti baris PERTAMA
-       teks, bukan pusat seluruh paragraf -- catatan ini sering 2 baris.
-       Koreksi vertikal ikon sendiri ada di officer-icon-alignment.blade.php. */
-    .form-meta-note { font-size:11px; color:var(--muted); display:flex; align-items:flex-start; gap:6px; }
-
     /* ===== Accordion Lokasi Inspeksi ===== */
     .loc-list { display:flex; flex-direction:column; gap:14px; width:100%; }
     .loc-accordion { border:1px solid var(--blue-main-40); border-radius:12px; background:var(--white); width:100%; box-shadow:0 1px 3px var(--blue-main-10); overflow:hidden; }
@@ -179,6 +174,9 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-document"></i></span>
                     <span class="fw-600">Info Umum</span>
+                    <x-form-info-popover id="info-form-safety-umum" label="Informasi Form Info Umum">
+                        Isi jam masuk dan jam pulang kerja secara manual. Tidak ada pengisian otomatis. Jam masuk wajib diisi saat mengirim laporan, dan menjadi pembeda jika ada lebih dari satu laporan pada tanggal yang sama.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 1 dari 4</div>
             </div>
@@ -213,7 +211,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Isi jam masuk dan jam pulang kerja secara manual. Tidak ada pengisian otomatis. Jam masuk wajib diisi saat mengirim laporan, dan menjadi pembeda jika ada lebih dari satu laporan pada tanggal yang sama.</span></div>
             </div>
             <div class="content-form box-button" style="padding-top:0">
                 <a href="{{ route('safety.index') }}" class="btn-form cancel"><span class="icon"><i class="fi fi-br-cross-small"></i></span><span>Batalkan</span></a>
@@ -227,13 +224,15 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-shield-check"></i></span>
                     <span class="fw-600">Inspeksi K3</span>
+                    <x-form-info-popover id="info-form-safety-inspeksi" label="Informasi Form Inspeksi K3">
+                        Setiap lokasi berisi daftar item untuk dinilai. Klik judul lokasi untuk membuka atau menutup daftar. <strong>QTY</strong> hanya diisi untuk item yang dapat dihitung.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 2 dari 4</div>
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
                 <div class="inspection-header">
-                    <div class="form-meta-note" style="flex:1 0 0;"><i class="fi fi-rr-info"></i><span>Tiap lokasi berisi daftar item untuk dinilai. Klik judul lokasi untuk buka/tutup. QTY hanya untuk item terhitung.</span></div>
-                    <button type="button" class="set-all-good" id="set-all-bagus"><i class="fi fi-rr-check-double"></i> Set Semua Bagus</button>
+                    <button type="button" class="set-all-good" id="set-all-bagus" style="margin-left:auto;"><i class="fi fi-rr-check-double"></i> Set Semua Bagus</button>
                 </div>
 
                 <div class="loc-list" id="location-list">
@@ -318,11 +317,13 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-settings"></i></span>
                     <span class="fw-600">Kegiatan Operasi &amp; Pemeliharaan</span>
+                    <x-form-info-popover id="info-form-safety-kegiatan" label="Informasi Form Kegiatan Operasi dan Pemeliharaan">
+                        Catat kegiatan operasi dan pemeliharaan beserta kondisinya, misalnya <strong>Aman</strong>. Tambah baris bila ada lebih dari satu kegiatan.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 3 dari 4</div>
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Catat kegiatan operasi & pemeliharaan beserta kondisinya (mis. "Aman"). Tambah baris bila perlu.</span></div>
                 <div class="table-wrapper">
                     <div class="table-input" id="operation-table">
                         <div class="head">
@@ -359,11 +360,13 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-triangle-warning"></i></span>
                     <span class="fw-600">Laporan Kejadian &amp; Lain-lain</span>
+                    <x-form-info-popover id="info-form-safety-kejadian" label="Informasi Form Laporan Kejadian dan Lain-lain">
+                        Bagian ini boleh dikosongkan bila tidak ada kejadian. Tambahkan satu baris untuk setiap kejadian yang perlu dicatat.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 4 dari 4</div>
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Bagian ini boleh dikosongkan bila tidak ada kejadian. Tambah baris untuk mencatat kejadian.</span></div>
                 <div class="table-wrapper">
                     <div class="table-input" id="incident-table">
                         <div class="head">

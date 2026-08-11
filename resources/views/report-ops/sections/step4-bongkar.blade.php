@@ -3,15 +3,14 @@
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-box-open"></i></span>
                 <span class="fw-600">Form Bongkar</span>
+                <x-form-info-popover id="info-form-ops-bongkar" label="Informasi Form Bongkar">
+                    Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri. Pada tabel container, kolom <strong>Empty / Full</strong> wajib diisi untuk setiap baris yang ada jumlahnya: <strong>Empty</strong> berarti bongkar, <strong>Full</strong> berarti muat. Isian itulah yang menentukan baris masuk ke <strong>Bongkar Container</strong> atau <strong>Muat Container</strong> pada laporan kinerja.
+                </x-form-info-popover>
             </div>
             <div class="counter-form">Form 5 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
-            <div class="step-info-note">
-                <i class="fi fi-rr-info"></i>
-                <span>Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri. Pada tabel container, kolom <strong>Empty / Full</strong> wajib diisi untuk setiap baris yang ada jumlahnya: <strong>Empty</strong> berarti bongkar, <strong>Full</strong> berarti muat. Isian itulah yang menentukan baris masuk ke <strong>Bongkar Container</strong> atau <strong>Muat Container</strong> pada laporan kinerja.</span>
-            </div>
             <div class="form-bongkar d-flex flex-column align-items-start align-self-stretch" style="gap: 25px;">
                 <div class="tab-group tab-group-bongkar" id="bongkar-tabs-group">
                     <a class="tab-sections active" id="tab-btn-bahan-baku">
@@ -57,12 +56,12 @@
                             Status pekerjaan kapal
                             <span class="status-info-icon" tabindex="0" role="button" aria-label="Info status pekerjaan kapal">
                                 <i class="fi fi-rr-info"></i>
-                                <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung — saran ini akan hilang dari daftar.</span>
+                                <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung, saran ini akan hilang dari daftar.</span>
                             </span>
                         </span>
                         <div class="ship-operation-status-options">
                             <label>
-                                <input type="radio" name="ship_operation_material_status_1" value="active" {{ old('ship_operation_material_status_1', 'active') === 'active' ? 'checked' : '' }}>
+                                <input type="radio" name="ship_operation_material_status_1" value="active" {{ old('ship_operation_material_status_1') === 'active' ? 'checked' : '' }}>
                                 <span>Masih Berjalan</span>
                             </label>
                             <label>
@@ -197,12 +196,12 @@
                             Status pekerjaan kapal
                             <span class="status-info-icon" tabindex="0" role="button" aria-label="Info status pekerjaan kapal">
                                 <i class="fi fi-rr-info"></i>
-                                <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung — saran ini akan hilang dari daftar.</span>
+                                <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung, saran ini akan hilang dari daftar.</span>
                             </span>
                         </span>
                         <div class="ship-operation-status-options">
                             <label>
-                                <input type="radio" name="ship_operation_container_status_1" value="active" {{ old('ship_operation_container_status_1', 'active') === 'active' ? 'checked' : '' }}>
+                                <input type="radio" name="ship_operation_container_status_1" value="active" {{ old('ship_operation_container_status_1') === 'active' ? 'checked' : '' }}>
                                 <span>Masih Berjalan</span>
                             </label>
                             <label>

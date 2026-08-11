@@ -3,15 +3,14 @@
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-bag-seedling"></i></span>
                 <span class="fw-600">Form Muat Kantong</span>
+                <x-form-info-popover id="info-form-ops-muat-kantong" label="Informasi Form Muat Kantong">
+                    Catat pemuatan pupuk kantong untuk tiap kapal. Pilih nama kapal dari saran agar kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal.
+                </x-form-info-popover>
             </div>
             <div class="counter-form">Form 2 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
-            <div class="step-info-note">
-                <i class="fi fi-rr-info"></i>
-                <span>Catat pemuatan pupuk kantong untuk tiap kapal. Pilih nama kapal dari saran agar kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal.</span>
-            </div>
             <div class="form-muat-kantong d-flex flex-column align-items-start align-self-stretch">
                 <div class="tab-activity d-flex align-items-center gap-10">
                     <button type="button" class="btn-activity active">Kegiatan 1</button>
@@ -99,12 +98,12 @@
                         Status pekerjaan kapal
                         <span class="status-info-icon" tabindex="0" role="button" aria-label="Info status pekerjaan kapal">
                             <i class="fi fi-rr-info"></i>
-                            <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung — saran ini akan hilang dari daftar.</span>
+                            <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung, saran ini akan hilang dari daftar.</span>
                         </span>
                     </span>
                     <div class="ship-operation-status-options">
                         <label>
-                            <input type="radio" name="ship_operation_status_1" value="active" {{ old('ship_operation_status_1', 'active') === 'active' ? 'checked' : '' }}>
+                            <input type="radio" name="ship_operation_status_1" value="active" {{ old('ship_operation_status_1') === 'active' ? 'checked' : '' }}>
                             <span>Masih Berjalan</span>
                         </label>
                         <label>
@@ -126,7 +125,7 @@
                     </div>
                     <div class="form-card-content">
                         <div class="card-form-group"><label>Sekarang</label><input type="number" name="qty_delivery_current_1" value="{{ old('qty_delivery_current_1') }}" placeholder="0"></div>
-                        <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small" style="position: relative; top: -2px;"></i></span>
+                        <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small"></i></span>
                         <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_delivery_prev_1" value="{{ old('qty_delivery_prev_1') }}" placeholder="0"></div>
                     </div>
                 </div>
@@ -140,7 +139,7 @@
                     </div>
                     <div class="form-card-content">
                         <div class="card-form-group"><label>Sekarang</label><input type="number" name="qty_loading_current_1" value="{{ old('qty_loading_current_1') }}" placeholder="0"></div>
-                        <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small" style="position: relative; top: -2px;"></i></span>
+                        <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small"></i></span>
                         <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_loading_prev_1" value="{{ old('qty_loading_prev_1') }}" placeholder="0"></div>
                     </div>
                 </div>
@@ -154,7 +153,7 @@
                     </div>
                     <div class="form-card-content">
                         <div class="card-form-group"><label>Sekarang</label><input type="number" name="qty_damage_current_1" value="{{ old('qty_damage_current_1') }}" placeholder="0"></div>
-                        <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small" style="position: relative; top: -2px;"></i></span>
+                        <span class="icon" style="color: var(--muted);"><i class="fi fi-rr-plus-small"></i></span>
                         <div class="card-form-group"><label>Lalu</label><input type="number" name="qty_damage_prev_1" value="{{ old('qty_damage_prev_1') }}" placeholder="0"></div>
                     </div>
                 </div>

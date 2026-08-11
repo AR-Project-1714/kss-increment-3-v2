@@ -61,6 +61,7 @@ class ManagerDashboardTest extends BlackBoxTestCase
             'arrival_time' => ($overrides['report_date'] ?? '2026-05-21').' 06:00:00',
             'capacity' => 5000,
             'tkbm_count' => 12,
+            'qty_delivery_current' => $values['pengiriman'] ?? 0,
             'qty_loading_current' => $values['kantong'] ?? 100,
             'qty_damage_current' => $values['kerusakan'] ?? 2,
         ]);
@@ -1287,6 +1288,38 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->assertSame('Teus', $rows['bongkar_container']['unit']);
         $this->assertSame(50.0, $rows['bongkar_container']['total']['value']);
         $this->assertSame(20.0, $rows['muat_container']['total']['value']);
+    }
+
+    public function test_tc_mgr_24b_rekap_muat_kantong_menampilkan_kirim_pemuatan_dan_kerusakan(): void
+    {
+        $this->freezeToday();
+
+        $manager = $this->manager();
+        $operator = $this->operator('A');
+
+        $this->opsReportWithActivities($operator, ['report_date' => '2026-02-10'], [
+            'kantong' => 100,
+            'pengiriman' => 110,
+            'kerusakan' => 2,
+        ]);
+        $this->opsReportWithActivities($operator, ['report_date' => '2026-07-10'], [
+            'kantong' => 60,
+            'pengiriman' => 65,
+            'kerusakan' => 3,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('manajer.kegiatan.panel', [
+                'key' => 'muat_kantong',
+                'periode' => 'tahun-berjalan',
+            ]))
+            ->assertOk()
+            ->assertSee('Kirim 65,00 Ton', false)
+            ->assertSee('Pemuatan 60,00 Ton', false)
+            ->assertSee('Kerusakan 3,00 Ton', false)
+            ->assertSee('Kirim 175,00 Ton', false)
+            ->assertSee('Pemuatan 160,00 Ton', false)
+            ->assertSee('Kerusakan 5,00 Ton', false);
     }
 
     public function test_tc_mgr_25_peringkat_lembur_memuat_regu_rata_rata_dan_perubahan_posisi(): void

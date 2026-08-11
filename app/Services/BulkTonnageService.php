@@ -101,6 +101,24 @@ class BulkTonnageService
     }
 
     /**
+     * Hitung ulang pelayaran lama dan baru yang tersentuh sebuah edit.
+     *
+     * @param  array<int, int>  $operationIds
+     */
+    public function recalculateForOperationIds(array $operationIds): int
+    {
+        $keys = collect($operationIds)
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->map(fn (int $id): string => 'op:'.$id)
+            ->values()
+            ->all();
+
+        return $keys === [] ? 0 : $this->recalculate($keys);
+    }
+
+    /**
      * Kunci pengelompokan satu pelayaran.
      *
      * Nomor operasi kapal dipakai bila ada karena itulah identitas yang sudah

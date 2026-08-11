@@ -227,6 +227,28 @@ class BackupOperationalReportSeeder extends Seeder
         $input['status'] = ReportStatus::Submitted->value;
         $input['confirm_duplicate'] = '1';
 
+        // Arsip ini dibuat sebelum keputusan status kapal diwajibkan. Agar
+        // pemutaran ulang tetap merepresentasikan perilaku form lama, kapal
+        // yang belum memiliki field status diperlakukan sebagai masih berjalan.
+        // Laporan baru tidak mendapat kelonggaran ini karena tetap melewati
+        // validasi eksplisit di controller.
+        foreach ([
+            'ship_name' => 'ship_operation_status',
+            'ship_name_urea' => 'ship_operation_urea_status',
+            'ship_name_ammonia' => 'ship_operation_ammonia_status',
+            'ship_name_material' => 'ship_operation_material_status',
+            'ship_name_container' => 'ship_operation_container_status',
+        ] as $shipPrefix => $statusPrefix) {
+            for ($sequence = 1; $sequence <= 20; $sequence++) {
+                $shipKey = "{$shipPrefix}_{$sequence}";
+                $statusKey = "{$statusPrefix}_{$sequence}";
+
+                if (filled($input[$shipKey] ?? null) && ! array_key_exists($statusKey, $input)) {
+                    $input[$statusKey] = ShipOperation::STATUS_ACTIVE;
+                }
+            }
+        }
+
         // Payload adalah rekaman isian form apa adanya. Form asli selalu
         // mengirimnya, dan perintah perbaikan memakainya untuk memulihkan nilai
         // COB yang titik desimalnya pernah terbuang — jadi seeder pun harus

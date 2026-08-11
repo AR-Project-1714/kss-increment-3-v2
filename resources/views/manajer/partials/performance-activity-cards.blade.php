@@ -51,7 +51,7 @@
                     : ($chartTone === 'down' ? 'fi fi-rr-arrow-trend-down' : null);
                 $deltaText = ($delta['available'] ?? false)
                     ? (($delta['direction'] ?? 'flat') === 'up' ? '+' : (($delta['direction'] ?? 'flat') === 'down' ? '−' : '')).$delta['text']
-                    : ($comparisonCurrent > 0 && $comparisonPrevious <= 0 ? 'Baru' : '—');
+                    : ($comparisonCurrent > 0 && $comparisonPrevious <= 0 ? 'Baru' : '-');
             @endphp
 
             <article class="performance-activity-card performance-activity-card--{{ $row['tint'] }} {{ $isFeatured ? 'performance-activity-card--featured' : '' }}">

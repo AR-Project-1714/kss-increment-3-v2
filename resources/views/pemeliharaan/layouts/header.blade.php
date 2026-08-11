@@ -10,11 +10,14 @@
         </div>
     </div>
     <div class="header-right d-flex justify-content-center align-items-center gap-20">
-        <button class="btn-theme br-10" id="themeToggle" title="Ganti Tema">
-            <div class="icon-container">
-                <i class="fi fi-rr-sun" id="themeIcon"></i>
-            </div>
-        </button>
+        <div class="kss-account-toolbar">
+            <button class="btn-theme br-10" id="themeToggle" title="Ganti Tema">
+                <div class="icon-container">
+                    <i class="fi fi-rr-sun" id="themeIcon"></i>
+                </div>
+            </button>
+            @include('partials.account-trigger')
+        </div>
         <div class="divider-vertical"></div>
         <form action="{{ route('logout') }}" method="POST" class="m-0">
             @csrf

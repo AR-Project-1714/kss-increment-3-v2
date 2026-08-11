@@ -188,6 +188,53 @@ class MaintenanceReportTest extends BlackBoxTestCase
             ->assertDontSee('Ganti oli sudah beres', false);
     }
 
+    public function test_pekerjaan_utama_yang_belum_selesai_dimuat_di_laporan_baru(): void
+    {
+        $user = $this->maintenance();
+
+        $this->actingAs($user)
+            ->post(route('pemeliharaan.store'), [
+                'status' => MaintenanceStatus::Submitted->value,
+                'report_date' => '2026-05-31',
+                'work_time_start' => '07:00',
+                'work_time_end' => '16:00',
+                'main_items' => [
+                    [
+                        'work_group' => 'I',
+                        'description' => 'Servis berkala telah selesai',
+                        'assignee' => 'Mekanik A',
+                        'is_completed' => 1,
+                    ],
+                    [
+                        'work_group' => 'II',
+                        'description' => 'Perbaikan pompa masih berjalan',
+                        'assignee' => 'Mekanik B',
+                        'is_completed' => 0,
+                        'notes' => 'Menunggu komponen',
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('pemeliharaan.index'));
+
+        $response = $this->actingAs($user)
+            ->get(route('pemeliharaan.create'))
+            ->assertOk()
+            ->assertSee('1 pekerjaan utama yang belum selesai', false)
+            ->assertSee('Perbaikan pompa masih berjalan', false)
+            ->assertSee('Menunggu komponen - Lanjutan dari', false)
+            ->assertDontSee('Servis berkala telah selesai', false);
+
+        $html = $response->getContent();
+        $this->assertMatchesRegularExpression(
+            '/name="main_items\[\d+\]\[work_group\]" value="II"/',
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            '/name="main_items\[\d+\]\[is_completed\]"[^>]*value="0"[^>]*checked/',
+            $html
+        );
+    }
+
     public function test_tc_pml_09_laporan_ganda_tanggal_dan_jam_sama_ditolak(): void
     {
         $user = $this->maintenance();

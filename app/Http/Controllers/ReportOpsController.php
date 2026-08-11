@@ -14,6 +14,7 @@ use App\Models\MasterInventoryItem;
 use App\Models\MasterTruck;
 use App\Models\MasterUnit;
 use App\Models\ShipOperation;
+use App\Models\ShipOperationDecision;
 use App\Models\UnitCheckLog;
 use App\Services\BulkTonnageService;
 use App\Support\ContainerStatusNormalizer;
@@ -34,6 +35,10 @@ use Throwable;
 
 class ReportOpsController extends Controller
 {
+    private const MAX_STORED_DECIMAL = 9999999999999.99;
+
+    private const MAX_STORED_INTEGER = 2147483647;
+
     use AutosavesDraftReports;
     use ResolvesReportMeta;
     use SearchesReports;
@@ -66,7 +71,7 @@ class ReportOpsController extends Controller
 
         $this->pruneStaleDraftReports();
 
-        $incomingReports = DailyReport::with(['creator', 'receiver', 'approver'])
+        $incomingReports = DailyReport::with(['creator', 'receiver', 'approver', 'operationDecisions.shipOperation'])
             ->where('status', ReportStatus::Submitted)
             ->when(
                 $userGroup === '',
@@ -355,6 +360,7 @@ class ReportOpsController extends Controller
 
         return view('report-ops.create', array_merge($this->masterData(), [
             'reservedReport' => $reservedReport,
+            'carryForwardOperations' => $this->carryForwardOperations(),
         ]));
     }
 
@@ -410,12 +416,14 @@ class ReportOpsController extends Controller
                 ]);
 
                 $this->storeDetails($report, $request);
+                $this->reconcileShipOperations($this->shipOperationIdsForReport($report));
                 app(BulkTonnageService::class)->recalculateForReport($report->id);
             });
         } catch (Throwable $exception) {
             Log::error('Gagal menyimpan laporan operasional.', [
                 'user_id' => $request->user()?->id,
                 'message' => $exception->getMessage(),
+                'exception' => $exception,
             ]);
 
             return back()
@@ -463,6 +471,7 @@ class ReportOpsController extends Controller
 
         return view('report-ops.edit', array_merge($this->masterData($report), [
             'report' => $this->loadReport($report),
+            'carryForwardOperations' => $this->carryForwardOperations(),
         ]));
     }
 
@@ -509,6 +518,8 @@ class ReportOpsController extends Controller
 
         try {
             DB::transaction(function () use ($request, $report, $validated, $payload): void {
+                $oldOperationIds = $this->shipOperationIdsForReport($report);
+
                 $report->update([
                     'report_date' => $validated['report_date'] ?? null,
                     'shift' => $validated['shift'] ?? null,
@@ -519,8 +530,15 @@ class ReportOpsController extends Controller
                     'payload' => $payload,
                 ]);
 
+                $report->operationDecisions()->delete();
                 $this->deleteDetails($report);
                 $this->storeDetails($report, $request);
+
+                $newOperationIds = $this->shipOperationIdsForReport($report);
+                $touchedOperationIds = array_values(array_unique(array_merge($oldOperationIds, $newOperationIds)));
+
+                $this->reconcileShipOperations($touchedOperationIds);
+                app(BulkTonnageService::class)->recalculateForOperationIds($touchedOperationIds);
                 app(BulkTonnageService::class)->recalculateForReport($report->id);
             });
         } catch (Throwable $exception) {
@@ -528,6 +546,7 @@ class ReportOpsController extends Controller
                 'report_id' => $report->id,
                 'user_id' => $request->user()?->id,
                 'message' => $exception->getMessage(),
+                'exception' => $exception,
             ]);
 
             return back()
@@ -1275,6 +1294,7 @@ class ReportOpsController extends Controller
             'unloading_materials' => ['nullable', 'array'],
             'unloading_containers' => ['nullable', 'array'],
             ...$this->containerStatusRules(),
+            ...$this->shipOperationStatusRules($isDraft, $request),
             'turba_deliveries' => ['nullable', 'array'],
             'unit_logs' => ['nullable', 'array'],
             'inventory_logs' => ['nullable', 'array'],
@@ -1313,14 +1333,80 @@ class ReportOpsController extends Controller
         return $rules;
     }
 
+    /**
+     * Setiap kapal pada laporan terkirim wajib punya keputusan handover yang
+     * eksplisit. Draft boleh menyimpannya kosong; server tidak lagi diam-diam
+     * menganggap field kosong sebagai "Masih Berjalan".
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function shipOperationStatusRules(bool $isDraft, ?Request $request = null): array
+    {
+        $rules = [];
+        $pairs = [
+            ['ship_name', 'ship_operation_id', 'ship_operation_status', ShipOperation::TYPE_BAG_LOADING],
+            ['ship_name_urea', 'ship_operation_urea_id', 'ship_operation_urea_status', ShipOperation::TYPE_BULK_LOADING],
+            ['ship_name_ammonia', 'ship_operation_ammonia_id', 'ship_operation_ammonia_status', ShipOperation::TYPE_AMMONIA_LOADING],
+            ['ship_name_material', 'ship_operation_material_id', 'ship_operation_material_status', ShipOperation::TYPE_MATERIAL_UNLOADING],
+            ['ship_name_container', 'ship_operation_container_id', 'ship_operation_container_status', ShipOperation::TYPE_CONTAINER],
+        ];
+
+        foreach ($pairs as [$shipPrefix, $idPrefix, $statusPrefix, $type]) {
+            for ($sequence = 1; $sequence <= self::MAX_ACTIVITY_SEQUENCE; $sequence++) {
+                $statusName = "{$statusPrefix}_{$sequence}";
+                $idName = "{$idPrefix}_{$sequence}";
+                $rules[$statusName] = [
+                    $isDraft ? 'nullable' : "required_with:{$shipPrefix}_{$sequence}",
+                    Rule::in([ShipOperation::STATUS_ACTIVE, ShipOperation::STATUS_COMPLETED]),
+                    function (string $attribute, mixed $value, callable $fail) use ($isDraft, $request, $idName, $type): void {
+                        if ($isDraft || $value !== ShipOperation::STATUS_ACTIVE) {
+                            return;
+                        }
+
+                        $operationId = (int) ($request?->input($idName) ?? 0);
+                        if ($operationId <= 0) {
+                            return;
+                        }
+
+                        $alreadyCompleted = ShipOperation::query()
+                            ->whereKey($operationId)
+                            ->where('type', $type)
+                            ->where('status', ShipOperation::STATUS_COMPLETED)
+                            ->exists();
+
+                        if ($alreadyCompleted) {
+                            $fail('Operasi kapal ini sudah ditandai selesai pada laporan lain. Muat ulang form dan periksa status kapal sebelum mengirim.');
+                        }
+                    },
+                ];
+            }
+        }
+
+        return $rules;
+    }
+
     private function attributes(): array
     {
-        return [
+        $attributes = [
             'report_date' => 'hari/tanggal',
             'group_name' => 'group/regu',
             'received_by_group' => 'group/regu penerima',
             'time_range' => 'jam kerja',
         ];
+
+        foreach ([
+            'ship_operation_status',
+            'ship_operation_urea_status',
+            'ship_operation_ammonia_status',
+            'ship_operation_material_status',
+            'ship_operation_container_status',
+        ] as $prefix) {
+            for ($sequence = 1; $sequence <= self::MAX_ACTIVITY_SEQUENCE; $sequence++) {
+                $attributes["{$prefix}_{$sequence}"] = "status pekerjaan kapal kegiatan {$sequence}";
+            }
+        }
+
+        return $attributes;
     }
 
     private function storeDetails(DailyReport $report, Request $request): void
@@ -1819,12 +1905,9 @@ class ReportOpsController extends Controller
         return [
             'id' => $operation->id,
             'type' => $operation->type,
+            'type_label' => ShipOperation::typeLabel($operation->type),
             'status' => $operation->status,
-            'status_label' => match ($operation->status) {
-                ShipOperation::STATUS_COMPLETED => 'Selesai',
-                ShipOperation::STATUS_INACTIVE => 'Diarsipkan',
-                default => 'Aktif',
-            },
+            'status_label' => ShipOperation::statusLabel($operation->status),
             'ship_name' => $operation->ship_name,
             'agent' => $operation->agent,
             'jetty' => $operation->jetty,
@@ -1947,9 +2030,11 @@ class ReportOpsController extends Controller
                 "ship_operation_urea_status_{$sequence}",
             ],
         };
-        $requestedStatus = $request->input($statusKey) === ShipOperation::STATUS_COMPLETED
-            ? ShipOperation::STATUS_COMPLETED
-            : ShipOperation::STATUS_ACTIVE;
+        $statusInput = $request->input($statusKey);
+        $hasExplicitStatus = in_array($statusInput, [
+            ShipOperation::STATUS_ACTIVE,
+            ShipOperation::STATUS_COMPLETED,
+        ], true);
 
         $operationId = $this->integer($request->input($idKey));
         $operation = $operationId > 0
@@ -1957,6 +2042,10 @@ class ReportOpsController extends Controller
             : null;
 
         $operation ??= $this->matchShipOperation($type, $shipName, $data);
+
+        $requestedStatus = $hasExplicitStatus
+            ? $statusInput
+            : ($operation?->status ?? ShipOperation::STATUS_ACTIVE);
 
         $operation ??= new ShipOperation([
             'type' => $type,
@@ -2001,7 +2090,174 @@ class ReportOpsController extends Controller
 
         $operation->save();
 
+        if ($hasExplicitStatus) {
+            ShipOperationDecision::updateOrCreate(
+                [
+                    'ship_operation_id' => $operation->id,
+                    'daily_report_id' => $report->id,
+                ],
+                [
+                    'status' => $requestedStatus,
+                    'decided_by' => $request->user()?->id,
+                    'decided_at' => now(),
+                ],
+            );
+        }
+
         return $operation;
+    }
+
+    /**
+     * Operasi berjalan yang benar-benar diserahterimakan kepada regu user.
+     * Daftar ini mengisi form baru; operasi aktif global milik regu lain tetap
+     * tersedia lewat pencarian, tetapi tidak disisipkan diam-diam.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function carryForwardOperations(): array
+    {
+        $userGroup = strtoupper(trim((string) (auth()->user()?->group ?? '')));
+
+        if ($userGroup === '') {
+            return [];
+        }
+
+        $this->pruneStaleShipOperations();
+
+        return ShipOperation::query()
+            ->with('lastReport:id,report_date,shift,group_name,received_by_group,status')
+            ->where('status', ShipOperation::STATUS_ACTIVE)
+            ->whereHas('lastReport', function ($query) use ($userGroup): void {
+                $query->where('received_by_group', $userGroup)
+                    ->whereIn('status', [
+                        ReportStatus::Submitted->value,
+                        ReportStatus::Acknowledged->value,
+                        ReportStatus::Approved->value,
+                    ]);
+            })
+            ->orderByDesc('last_report_date')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('type')
+            ->flatMap(fn ($operations) => $operations->take(self::MAX_ACTIVITY_SEQUENCE))
+            ->map(function (ShipOperation $operation): array {
+                $source = $operation->lastReport;
+
+                return $this->shipOperationSuggestionItem($operation) + [
+                    'type_label' => ShipOperation::typeLabel($operation->type),
+                    'handover' => [
+                        'report_id' => $source?->id,
+                        'document_id' => $source ? $this->documentId($source) : null,
+                        'report_date' => $source?->report_date?->toDateString(),
+                        'shift' => $source?->shift,
+                        'group' => $source?->group_name,
+                    ],
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /** @return array<int, int> */
+    private function shipOperationIdsForReport(DailyReport $report): array
+    {
+        return collect()
+            ->merge($report->loadingActivities()->whereNotNull('ship_operation_id')->pluck('ship_operation_id'))
+            ->merge($report->bulkLoadingActivities()->whereNotNull('ship_operation_id')->pluck('ship_operation_id'))
+            ->merge($report->materialActivity()->whereNotNull('ship_operation_id')->pluck('ship_operation_id'))
+            ->merge($report->containerActivity()->whereNotNull('ship_operation_id')->pluck('ship_operation_id'))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Status induk selalu mengikuti keputusan pada laporan kronologis terakhir,
+     * bukan laporan lama yang kebetulan diedit paling akhir.
+     *
+     * @param  array<int, int>  $operationIds
+     */
+    private function reconcileShipOperations(array $operationIds): void
+    {
+        foreach (array_unique(array_map('intval', $operationIds)) as $operationId) {
+            if ($operationId <= 0) {
+                continue;
+            }
+
+            $operation = ShipOperation::find($operationId);
+
+            if (! $operation) {
+                continue;
+            }
+
+            $latestReport = $this->latestLinkedReportForOperation($operationId);
+
+            if (! $latestReport) {
+                $operation->update([
+                    'status' => ShipOperation::STATUS_INACTIVE,
+                    'last_report_id' => null,
+                    'last_report_date' => null,
+                    'completed_at' => null,
+                    'completed_by' => null,
+                ]);
+
+                continue;
+            }
+
+            $decision = ShipOperationDecision::query()
+                ->where('ship_operation_id', $operationId)
+                ->where('daily_report_id', $latestReport->id)
+                ->first();
+
+            $updates = [
+                'last_report_id' => $latestReport->id,
+                'last_report_date' => $latestReport->report_date,
+            ];
+
+            // Data lama belum memiliki histori keputusan. Dalam kasus itu
+            // pertahankan status bisnis yang sudah ada, tetapi perbaiki tautan
+            // laporan terakhirnya. Semua laporan baru selalu punya decision.
+            if ($decision) {
+                $updates['status'] = $decision->status;
+                $updates['completed_at'] = $decision->status === ShipOperation::STATUS_COMPLETED
+                    ? ($decision->decided_at ?? $decision->updated_at)
+                    : null;
+                $updates['completed_by'] = $decision->status === ShipOperation::STATUS_COMPLETED
+                    ? $decision->decided_by
+                    : null;
+            }
+
+            $operation->update($updates);
+        }
+    }
+
+    private function latestLinkedReportForOperation(int $operationId): ?DailyReport
+    {
+        $reportIds = collect()
+            ->merge(DB::table('loading_activities')->where('ship_operation_id', $operationId)->pluck('daily_report_id'))
+            ->merge(DB::table('bulk_loading_activities')->where('ship_operation_id', $operationId)->pluck('daily_report_id'))
+            ->merge(DB::table('material_activities')->where('ship_operation_id', $operationId)->pluck('daily_report_id'))
+            ->merge(DB::table('container_activities')->where('ship_operation_id', $operationId)->pluck('daily_report_id'))
+            ->unique()
+            ->values();
+
+        if ($reportIds->isEmpty()) {
+            return null;
+        }
+
+        return DailyReport::query()
+            ->whereIn('id', $reportIds)
+            ->whereIn('status', [
+                ReportStatus::Submitted->value,
+                ReportStatus::Acknowledged->value,
+                ReportStatus::Approved->value,
+            ])
+            ->orderByDesc('report_date')
+            ->orderByRaw("CASE LOWER(shift) WHEN 'malam' THEN 3 WHEN 'sore' THEN 2 WHEN 'siang' THEN 2 ELSE 1 END DESC")
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**
@@ -2671,20 +2927,12 @@ class ReportOpsController extends Controller
 
     private function decimal(mixed $value): float
     {
-        if ($value === null || $value === '') {
-            return 0.0;
-        }
-
-        return max(0.0, (float) str_replace(',', '.', preg_replace('/[^\d,.\-]/', '', (string) $value)));
+        return min(self::MAX_STORED_DECIMAL, max(0.0, TonnageNumber::parse($value) ?? 0.0));
     }
 
     private function integer(mixed $value): int
     {
-        if ($value === null || $value === '') {
-            return 0;
-        }
-
-        return max(0, (int) preg_replace('/[^\d\-]/', '', (string) $value));
+        return min(self::MAX_STORED_INTEGER, max(0, (int) (TonnageNumber::parse($value) ?? 0)));
     }
 
     private function nonNegativeNumericString(mixed $value): ?string
@@ -2695,13 +2943,9 @@ class ReportOpsController extends Controller
             return null;
         }
 
-        $normalized = str_replace(',', '.', $text);
+        $number = TonnageNumber::parse($text);
 
-        if (preg_match('/^-?\d+(?:\.\d+)?$/', $normalized) === 1) {
-            return (string) max(0, (float) $normalized);
-        }
-
-        return $text;
+        return $number === null ? $text : (string) max(0, $number);
     }
 
     private function time(mixed $value): ?string

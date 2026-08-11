@@ -150,40 +150,161 @@ document.addEventListener('DOMContentLoaded', function() {
                 // ==========================================
                 // 2C. NUMBER INPUT SAFETY
                 // ==========================================
-                function normalizeNumberInput(input) {
-                    if (!input || input.type !== 'number') return;
+                const MAX_REPORT_DECIMAL = 9999999999999.99;
+                const MAX_REPORT_INTEGER = 2147483647;
 
-                    input.min = '0';
-                    input.setAttribute('inputmode', 'decimal');
-                    // Satuan ton boleh desimal; tanpa ini step default = 1 dan browser menolak angka koma.
-                    if (!input.hasAttribute('step')) {
-                        input.setAttribute('step', 'any');
-                    }
+                function isWholeNumberInput(input) {
+                    const name = String(input?.name || '');
+                    return /(?:^|_)tkbm_count_|inventory_logs\[\d+]\[quantity]/.test(name);
+                }
 
-                    if (input.value === '') return;
+                function maxReportNumberForInput(input) {
+                    return isWholeNumberInput(input) ? MAX_REPORT_INTEGER : MAX_REPORT_DECIMAL;
+                }
 
-                    const normalized = Number(input.value);
-                    if (!Number.isFinite(normalized) || normalized < 0) {
-                        input.value = '0';
+                const reportNumber = window.KssReportNumber;
+
+                if (!reportNumber) {
+                    throw new Error('Pemformat angka laporan gagal dimuat.');
+                }
+
+                function parseReportNumber(value, mode = 'locale') {
+                    return reportNumber.parse(value, { mode });
+                }
+
+                function formatReportNumber(value, preserveTypedFraction = false, mode = 'flexible', maximum = MAX_REPORT_DECIMAL) {
+                    return reportNumber.format(value, {
+                        mode,
+                        preserveFraction: preserveTypedFraction,
+                        maximum,
+                    });
+                }
+
+                function canonicalReportNumber(value, maximum = MAX_REPORT_DECIMAL, mode = 'locale') {
+                    return reportNumber.canonical(value, { mode, maximum });
+                }
+
+                function fitReportNumberDisplay(element) {
+                    if (!element) return;
+
+                    const display = String('value' in element ? element.value : element.textContent || '').trim();
+                    element.classList.toggle('is-long-number', display.length > 11);
+                    element.classList.toggle('is-very-long-number', display.length > 16);
+
+                    if (display.length > 11) {
+                        element.title = element.dataset.numberClamped === 'true'
+                            ? `Nilai maksimal ${display}`
+                            : display;
+                        element.dataset.autoNumberTitle = 'true';
+                    } else if (element.dataset.autoNumberTitle === 'true') {
+                        element.removeAttribute('title');
+                        delete element.dataset.autoNumberTitle;
                     }
                 }
 
+                function restoreNumberCaret(input, digitsToRight) {
+                    if (document.activeElement !== input || input.readOnly) return;
+
+                    let caret = input.value.length;
+                    let remaining = digitsToRight;
+
+                    while (caret > 0 && remaining > 0) {
+                        caret--;
+                        if (/\d/.test(input.value[caret])) remaining--;
+                    }
+
+                    input.setSelectionRange(caret, caret);
+                }
+
+                function normalizeNumberInput(input, requestedMode = null) {
+                    if (!input || (input.type !== 'number' && input.dataset.localeNumber !== 'true')) return;
+
+                    const originalValue = input.value;
+                    const selectionEnd = input.selectionEnd ?? originalValue.length;
+                    const digitsToRight = (originalValue.slice(selectionEnd).match(/\d/g) || []).length;
+                    const maximum = maxReportNumberForInput(input);
+                    const mode = requestedMode || (input.dataset.localeNumber === 'true' ? 'locale' : 'flexible');
+                    const parsed = parseReportNumber(originalValue, mode);
+                    const safeValue = parsed !== null && parsed > maximum ? String(maximum) : originalValue;
+
+                    input.type = 'text';
+                    input.dataset.localeNumber = 'true';
+                    input.dataset.numberMaximum = String(maximum);
+                    input.dataset.numberClamped = parsed !== null && parsed > maximum ? 'true' : 'false';
+                    input.min = '0';
+                    input.setAttribute('inputmode', isWholeNumberInput(input) ? 'numeric' : 'decimal');
+                    input.setAttribute('autocomplete', 'off');
+                    input.maxLength = isWholeNumberInput(input) ? 13 : 20;
+
+                    if (originalValue === '') {
+                        fitReportNumberDisplay(input);
+                        return;
+                    }
+
+                    input.value = formatReportNumber(
+                        safeValue,
+                        true,
+                        parsed !== null && parsed > maximum ? 'flexible' : mode,
+                        maximum
+                    );
+                    fitReportNumberDisplay(input);
+                    restoreNumberCaret(input, digitsToRight);
+                }
+
                 function prepareNonNegativeNumberInputs(root = document) {
-                    root.querySelectorAll?.('input[type="number"]').forEach(normalizeNumberInput);
+                    root.querySelectorAll?.('input[type="number"], input[data-locale-number="true"]')
+                        .forEach(normalizeNumberInput);
                 }
 
                 window.normalizeReportNumberInputs = function () {
                     prepareNonNegativeNumberInputs(document);
                 };
+                window.parseReportNumber = parseReportNumber;
+                window.formatReportNumber = formatReportNumber;
+                window.canonicalReportNumber = canonicalReportNumber;
+                window.fitReportNumberDisplay = fitReportNumberDisplay;
+                window.setReportNumberValue = function (input, value) {
+                    if (!input) return;
+
+                    input.value = formatReportNumber(
+                        value,
+                        true,
+                        'flexible',
+                        maxReportNumberForInput(input)
+                    );
+                    normalizeNumberInput(input, 'locale');
+                };
 
                 prepareNonNegativeNumberInputs();
+
+                document.querySelectorAll('form').forEach(form => {
+                    if (form.dataset.localeNumberFormBound === 'true') return;
+                    form.dataset.localeNumberFormBound = 'true';
+
+                    form.addEventListener('formdata', event => {
+                        const controlsByName = new Map();
+
+                        form.querySelectorAll('input[data-locale-number="true"][name]:not(:disabled)').forEach(input => {
+                            if (!controlsByName.has(input.name)) controlsByName.set(input.name, []);
+                            controlsByName.get(input.name).push(input);
+                        });
+
+                        controlsByName.forEach((inputs, name) => {
+                            event.formData.delete(name);
+                            inputs.forEach(input => event.formData.append(
+                                name,
+                                canonicalReportNumber(input.value, maxReportNumberForInput(input))
+                            ));
+                        });
+                    });
+                });
 
                 const numberInputObserver = new MutationObserver(records => {
                     records.forEach(record => {
                         record.addedNodes.forEach(node => {
                             if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-                            if (node.matches?.('input[type="number"]')) {
+                            if (node.matches?.('input[type="number"], input[data-locale-number="true"]')) {
                                 normalizeNumberInput(node);
                             }
 
@@ -195,27 +316,64 @@ document.addEventListener('DOMContentLoaded', function() {
                 numberInputObserver.observe(document.body, { childList: true, subtree: true });
 
                 document.addEventListener('keydown', event => {
-                    if (!event.target.matches?.('input[type="number"]')) return;
+                    if (!event.target.matches?.('input[data-locale-number="true"]')) return;
 
                     if (['-', '+', 'e', 'E'].includes(event.key)) {
                         event.preventDefault();
                     }
+
+                    if (isWholeNumberInput(event.target) && [',', '.'].includes(event.key)) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    if (event.key === ',') {
+                        const input = event.target;
+                        const start = input.selectionStart ?? input.value.length;
+                        const end = input.selectionEnd ?? start;
+                        const valueOutsideSelection = input.value.slice(0, start) + input.value.slice(end);
+                        if (valueOutsideSelection.includes(',')) event.preventDefault();
+                    }
+
+                    if (event.key === '.' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+                        event.preventDefault();
+                        const input = event.target;
+                        const start = input.selectionStart ?? input.value.length;
+                        const end = input.selectionEnd ?? start;
+                        const valueOutsideSelection = input.value.slice(0, start) + input.value.slice(end);
+
+                        if (valueOutsideSelection.includes(',')) return;
+
+                        input.setRangeText(',', start, end, 'end');
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
                 });
 
+                function markFlexibleNumberEntry(event) {
+                    if (event.target.matches?.('input[data-locale-number="true"]')) {
+                        event.target.dataset.numberFlexibleEntry = 'true';
+                    }
+                }
+
+                document.addEventListener('paste', markFlexibleNumberEntry);
+                document.addEventListener('drop', markFlexibleNumberEntry);
+
                 document.addEventListener('input', event => {
-                    if (event.target.matches?.('input[type="number"]')) {
-                        normalizeNumberInput(event.target);
+                    if (event.target.matches?.('input[data-locale-number="true"]')) {
+                        const isFlexibleEntry = event.target.dataset.numberFlexibleEntry === 'true';
+                        delete event.target.dataset.numberFlexibleEntry;
+                        normalizeNumberInput(event.target, isFlexibleEntry ? 'flexible' : 'locale');
                     }
                 });
 
                 document.addEventListener('change', event => {
-                    if (event.target.matches?.('input[type="number"]')) {
-                        normalizeNumberInput(event.target);
+                    if (event.target.matches?.('input[data-locale-number="true"]')) {
+                        normalizeNumberInput(event.target, 'locale');
                     }
                 });
 
                 document.addEventListener('wheel', event => {
-                    if (event.target.matches?.('input[type="number"]') && document.activeElement === event.target) {
+                    if (event.target.matches?.('input[data-locale-number="true"]') && document.activeElement === event.target) {
                         event.preventDefault();
                     }
                 }, { passive: false });
@@ -242,6 +400,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const dayReportWarningText = finishModal?.querySelector('[data-day-report-warning-text]');
                 const dayCountUrl = finishModal?.dataset.dayCountUrl || '';
                 const currentReportId = finishModal?.dataset.reportId || '';
+                const operationReviewList = finishModal?.querySelector('[data-operation-review-list]');
+                const operationReviewEmpty = finishModal?.querySelector('[data-operation-review-empty]');
+                const operationReviewAlert = finishModal?.querySelector('[data-operation-review-alert]');
+                const operationReviewCount = finishModal?.querySelector('[data-operation-review-count]');
+                const operationReviewState = new Map();
 
                 // Modals Script 1
                 const signatureModal = document.getElementById('signatureModal');
@@ -265,6 +428,156 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 document.querySelector('[name="received_by_group"]')?.addEventListener('change', updateFinishReceiverLabel);
                 updateFinishReceiverLabel();
+
+                const operationDefinitions = [
+                    { pattern: /^ship_name_(\d+)$/, status: n => `ship_operation_status_${n}`, label: 'Muat Kantong' },
+                    { pattern: /^ship_name_urea_(\d+)$/, status: n => `ship_operation_urea_status_${n}`, label: 'Muat Curah' },
+                    { pattern: /^ship_name_ammonia_(\d+)$/, status: n => `ship_operation_ammonia_status_${n}`, label: 'Muat Amoniak' },
+                    { pattern: /^ship_name_material_(\d+)$/, status: n => `ship_operation_material_status_${n}`, label: 'Bongkar Bahan Baku' },
+                    { pattern: /^ship_name_container_(\d+)$/, status: n => `ship_operation_container_status_${n}`, label: 'Bongkar/Muat Container' },
+                ];
+
+                function reportShipOperations() {
+                    if (!mainForm) return [];
+
+                    const operations = [];
+                    mainForm.querySelectorAll('input[name^="ship_name_"]').forEach(input => {
+                        const shipName = String(input.value || '').trim();
+                        if (!shipName) return;
+
+                        for (const definition of operationDefinitions) {
+                            const match = input.name.match(definition.pattern);
+                            if (!match) continue;
+
+                            const statusName = definition.status(match[1]);
+                            const radios = Array.from(mainForm.querySelectorAll(`input[name="${statusName}"]`));
+                            operations.push({
+                                key: statusName,
+                                shipName,
+                                activityLabel: definition.label,
+                                radios,
+                                status: radios.find(radio => radio.checked)?.value || '',
+                            });
+                            break;
+                        }
+                    });
+
+                    return operations;
+                }
+
+                function operationReviewComplete(operations = reportShipOperations()) {
+                    return operations.every(operation => {
+                        const reviewed = operationReviewState.get(operation.key);
+                        return reviewed
+                            && reviewed.shipName === operation.shipName
+                            && reviewed.status === operation.status
+                            && ['active', 'completed'].includes(operation.status);
+                    });
+                }
+
+                function updateOperationReviewSubmitState(operations = reportShipOperations()) {
+                    const complete = operationReviewComplete(operations);
+                    const total = operations.length;
+                    const reviewed = operations.filter(operation => {
+                        const state = operationReviewState.get(operation.key);
+                        return state?.shipName === operation.shipName && state?.status === operation.status;
+                    }).length;
+
+                    if (operationReviewCount) {
+                        operationReviewCount.textContent = total > 0 ? `${reviewed}/${total} dikonfirmasi` : '';
+                    }
+                    operationReviewAlert?.classList.toggle('d-none', complete || total === 0);
+                    operationReviewEmpty?.classList.toggle('d-none', total !== 0);
+
+                    if (btnFinalSubmit) {
+                        btnFinalSubmit.disabled = !complete;
+                        btnFinalSubmit.title = complete ? '' : 'Konfirmasikan status seluruh operasi kapal terlebih dahulu.';
+                    }
+
+                    return complete;
+                }
+
+                function renderOperationReview() {
+                    if (!operationReviewList) return;
+
+                    const operations = reportShipOperations();
+                    operationReviewList.replaceChildren();
+
+                    operations.forEach(operation => {
+                        const reviewed = operationReviewState.get(operation.key);
+                        const isReviewed = reviewed?.shipName === operation.shipName
+                            && reviewed?.status === operation.status;
+
+                        const item = document.createElement('div');
+                        item.className = 'ship-operation-review__item';
+                        item.setAttribute('role', 'listitem');
+
+                        const identity = document.createElement('span');
+                        identity.className = 'ship-operation-review__identity';
+                        const name = document.createElement('strong');
+                        name.textContent = operation.shipName;
+                        const activity = document.createElement('span');
+                        activity.textContent = operation.activityLabel;
+                        identity.append(name, activity);
+
+                        const choices = document.createElement('span');
+                        choices.className = 'ship-operation-review__choices';
+
+                        [
+                            { value: 'active', label: 'Masih berjalan' },
+                            { value: 'completed', label: 'Selesai' },
+                        ].forEach(choice => {
+                            const button = document.createElement('button');
+                            button.type = 'button';
+                            button.className = 'ship-operation-review__choice';
+                            button.dataset.operationStatus = choice.value;
+                            button.textContent = choice.label;
+                            const active = isReviewed && operation.status === choice.value;
+                            button.classList.toggle('is-active', active);
+                            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+
+                            button.addEventListener('click', () => {
+                                const radio = operation.radios.find(control => control.value === choice.value);
+                                if (!radio) return;
+
+                                radio.checked = true;
+                                radio.dispatchEvent(new Event('input', { bubbles: true }));
+                                radio.dispatchEvent(new Event('change', { bubbles: true }));
+                                operationReviewState.set(operation.key, {
+                                    shipName: operation.shipName,
+                                    status: choice.value,
+                                });
+                                renderOperationReview();
+                            });
+
+                            choices.appendChild(button);
+                        });
+
+                        item.append(identity, choices);
+                        operationReviewList.appendChild(item);
+                    });
+
+                    updateOperationReviewSubmitState(operations);
+                }
+
+                function operationReviewKeyForField(name) {
+                    if (/^ship_operation.*_status_\d+$/.test(name)) return name;
+
+                    for (const definition of operationDefinitions) {
+                        const match = name.match(definition.pattern);
+                        if (match) return definition.status(match[1]);
+                    }
+
+                    return null;
+                }
+
+                mainForm?.addEventListener('input', event => {
+                    const reviewKey = operationReviewKeyForField(String(event.target?.name || ''));
+                    if (!reviewKey) return;
+
+                    operationReviewState.delete(reviewKey);
+                    if (finishModal?.classList.contains('show')) renderOperationReview();
+                });
 
                 // Peringatan ringan: bila kombinasi tanggal dinas + shift + regu yang
                 // dipilih SUDAH memiliki laporan terkirim, ingatkan petugas sebelum
@@ -312,6 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     btnOpenConfirm.addEventListener('click', () => {
                         updateFinishReceiverLabel();
                         updateDayReportWarning();
+                        renderOperationReview();
                         finishModal.classList.add('show');
                     });
                 }
@@ -340,8 +654,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         isFinalSubmitting = false;
                         btnFinalSubmit.innerHTML = finalSubmitOriginalHtml;
                         btnFinalSubmit.style.opacity = '';
-                        btnFinalSubmit.disabled = false;
                         btnFinalSubmit.removeAttribute('aria-busy');
+                        updateOperationReviewSubmitState();
                     }
 
                     function formPrototypeMethod(methodName) {
@@ -439,6 +753,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     btnFinalSubmit.addEventListener('click', () => {
                         if (isFinalSubmitting) return;
+
+                        if (!operationReviewComplete()) {
+                            renderOperationReview();
+                            operationReviewList?.querySelector('button')?.focus();
+                            window.showReportToast?.(
+                                'error',
+                                'Status kapal belum lengkap',
+                                'Konfirmasikan setiap operasi kapal sebelum mengirim laporan.'
+                            );
+                            return;
+                        }
 
                         window.normalizeReportNumberInputs?.();
 

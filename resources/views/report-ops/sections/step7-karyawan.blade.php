@@ -2,16 +2,14 @@
         <div class="header-form d-flex justify-content-between align-items-center align-self-stretch">
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-employee-man"></i></span><span class="fw-600">Form Karyawan</span>
+                <x-form-info-popover id="info-form-ops-karyawan" label="Informasi Form Karyawan">
+                    Catat kehadiran karyawan per kategori: <strong>Shift</strong>, <strong>Relief &amp; Lembur</strong>, <strong>OP.7 &amp; Pengganti</strong>, dan <strong>Lain-lain</strong>. Isi jam <strong>Masuk</strong>/<strong>Pulang</strong>; tab yang tidak ada personilnya boleh dikosongkan.
+                </x-form-info-popover>
             </div>
             <div class="counter-form">Form 8 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
-            <div class="step-info-note">
-                <i class="fi fi-rr-info"></i>
-                <span>Catat kehadiran karyawan per kategori: <strong>Shift</strong>, <strong>Relief &amp; Lembur</strong>, <strong>OP.7 &amp; Pengganti</strong>, dan <strong>Lain-lain</strong>. Isi jam <strong>Masuk</strong>/<strong>Pulang</strong>; tab yang tidak ada personilnya boleh dikosongkan.</span>
-            </div>
-
             <!-- SUB TABS KARYAWAN -->
             <div class="inspection-header d-flex justify-content-between align-items-end align-self-stretch">
                 <div class="tab-group" id="karyawan-tabs-group">

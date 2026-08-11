@@ -9,6 +9,7 @@ use App\Models\EmployeeLog;
 use App\Models\LoadingActivity;
 use App\Models\MasterEmployee;
 use App\Models\MaterialActivity;
+use App\Models\ShipOperation;
 use App\Models\TurbaActivity;
 use App\Services\OperationalPerformanceService;
 use Carbon\Carbon;
@@ -35,11 +36,35 @@ class OperationalReportSeederTest extends TestCase
             $this->seed(OperationalReportSeeder::class);
 
             $this->assertSame(270, DailyReport::count());
-            $this->assertSame(270, LoadingActivity::count());
-            $this->assertSame(180, BulkLoadingActivity::count());
-            $this->assertSame(97, MaterialActivity::count());
-            $this->assertSame(68, ContainerActivity::count());
+            $this->assertSame(540, LoadingActivity::count());
+            $this->assertSame(720, BulkLoadingActivity::count());
+            $this->assertSame(180, MaterialActivity::count());
+            $this->assertSame(136, ContainerActivity::count());
             $this->assertSame(135, TurbaActivity::count());
+
+            // Setiap bagian form yang disediakan seeder harus benar-benar
+            // memperagakan tombol Kegiatan 1 dan Kegiatan 2, bukan hanya
+            // memperbanyak laporan yang masing-masing tetap satu kegiatan.
+            $this->assertCount(0, LoadingActivity::query()
+                ->select('daily_report_id')
+                ->groupBy('daily_report_id')
+                ->havingRaw('COUNT(*) < 2')
+                ->get());
+            $this->assertCount(0, BulkLoadingActivity::query()
+                ->select('daily_report_id', 'activity_type')
+                ->groupBy('daily_report_id', 'activity_type')
+                ->havingRaw('COUNT(*) < 2')
+                ->get());
+            $this->assertCount(0, MaterialActivity::query()
+                ->select('daily_report_id')
+                ->groupBy('daily_report_id')
+                ->havingRaw('COUNT(*) < 2')
+                ->get());
+            $this->assertCount(0, ContainerActivity::query()
+                ->select('daily_report_id')
+                ->groupBy('daily_report_id')
+                ->havingRaw('COUNT(*) < 2')
+                ->get());
 
             $this->assertSame('2026-05-01', Carbon::parse(DailyReport::min('report_date'))->toDateString());
             $this->assertSame('2026-07-29', Carbon::parse(DailyReport::max('report_date'))->toDateString());
@@ -47,6 +72,65 @@ class OperationalReportSeederTest extends TestCase
                 0,
                 DailyReport::whereNotIn('status', ['submitted', 'acknowledged', 'approved'])->count()
             );
+
+            $latestReport = DailyReport::query()
+                ->whereDate('report_date', '2026-07-29')
+                ->where('shift', 'Malam')
+                ->firstOrFail();
+
+            $this->assertSame('B', $latestReport->group_name);
+            $this->assertSame('A', $latestReport->received_by_group);
+            $this->assertSame('submitted', $latestReport->status->value);
+            $this->assertSame(
+                0,
+                DailyReport::query()
+                    ->whereDate('report_date', '<', '2026-07-29')
+                    ->where('status', '!=', 'approved')
+                    ->count()
+            );
+
+            $handoverShip = ShipOperation::query()
+                ->where('type', ShipOperation::TYPE_BAG_LOADING)
+                ->where('ship_name', 'KM. Sinkronisasi Antar Shift')
+                ->firstOrFail();
+
+            $this->assertSame(ShipOperation::STATUS_ACTIVE, $handoverShip->status);
+            $this->assertSame($latestReport->id, $handoverShip->last_report_id);
+            $this->assertDatabaseHas('loading_activities', [
+                'daily_report_id' => $latestReport->id,
+                'ship_operation_id' => $handoverShip->id,
+            ]);
+            $this->assertSame(2, ShipOperation::query()
+                ->where('type', ShipOperation::TYPE_BAG_LOADING)
+                ->where('last_report_id', $latestReport->id)
+                ->where('status', ShipOperation::STATUS_ACTIVE)
+                ->count());
+            $this->assertSame(2, $latestReport->loadingActivities()
+                ->whereNotNull('ship_operation_id')
+                ->count());
+
+            foreach ([
+                ShipOperation::TYPE_BULK_LOADING => 'MV. Curah Kesinambungan',
+                ShipOperation::TYPE_AMMONIA_LOADING => 'MT. Amoniak Kesinambungan',
+            ] as $type => $shipName) {
+                $operation = ShipOperation::query()
+                    ->where('type', $type)
+                    ->where('ship_name', $shipName)
+                    ->firstOrFail();
+
+                $this->assertSame(ShipOperation::STATUS_ACTIVE, $operation->status);
+                $this->assertSame($latestReport->id, $operation->last_report_id);
+                $this->assertDatabaseHas('bulk_loading_activities', [
+                    'daily_report_id' => $latestReport->id,
+                    'ship_operation_id' => $operation->id,
+                    'activity_type' => $type,
+                ]);
+                $this->assertSame(2, ShipOperation::query()
+                    ->where('type', $type)
+                    ->where('last_report_id', $latestReport->id)
+                    ->where('status', ShipOperation::STATUS_ACTIVE)
+                    ->count());
+            }
 
             $juneProductivity = $this->averageBaggedValue('2026-06-01', '2026-06-30', 'qty_loading_current');
             $julyProductivity = $this->averageBaggedValue('2026-07-01', '2026-07-29', 'qty_loading_current');
@@ -101,7 +185,8 @@ class OperationalReportSeederTest extends TestCase
             $this->seed(OperationalReportSeeder::class);
 
             $this->assertSame(270, DailyReport::count());
-            $this->assertSame(270, LoadingActivity::count());
+            $this->assertSame(540, LoadingActivity::count());
+            $this->assertSame(720, BulkLoadingActivity::count());
             $this->assertSame($employeesBefore, $this->employeeSnapshot());
         } finally {
             Carbon::setTestNow();

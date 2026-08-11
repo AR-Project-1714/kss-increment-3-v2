@@ -50,11 +50,11 @@
                         <span class="act-metric__caption">
                             @if ($row['hasDelivery'])
                                 Kirim {{ $fmt($cell['delivery'], 2) }} {{ $row['unit'] }}
-                            @endif
-                            @if ($row['hasDelivery'] && $row['hasDamage'])
                                 <br>
+                                {{ $row['valueLabel'] }} {{ $fmt($cell['value'], 2) }} {{ $row['unit'] }}
                             @endif
                             @if ($row['hasDamage'])
+                                <br>
                                 Kerusakan {{ $fmt($cell['damage'], 2) }} {{ $row['unit'] }}
                             @endif
                         </span>

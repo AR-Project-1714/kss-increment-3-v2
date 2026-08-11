@@ -1,4 +1,5 @@
 @import '../components/charts.css';
+@import '../components/account-settings.css';
 
 /* =============================================
            CSS VARIABLES — Light Mode
@@ -3729,3 +3730,26 @@
                 justify-content: space-between;
             }
         }
+/* Status kualitas data pada halaman performa dan rincian kegiatan. */
+.performance-verification-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 15px;
+    padding: 11px 13px;
+    border: 1px solid var(--orange-main-10);
+    border-radius: 10px;
+    background-color: var(--orange-main-10);
+    color: var(--black-secondary);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.performance-verification-note i {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    color: var(--orange-main);
+}
+
+.performance-verification-note strong { color: var(--black); }

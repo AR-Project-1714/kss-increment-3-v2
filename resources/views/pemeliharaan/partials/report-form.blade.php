@@ -56,6 +56,30 @@
             'notes'        => $item->notes ?? '',
         ];
     }
+    // Carry-over pekerjaan utama dimuat sebelum kartu Group I-IV yang kosong
+    // dibuat, supaya isi lanjutan tidak tertimpa atau muncul ganda.
+    $carryMainRows = collect($carryOverMain ?? []);
+    $carryOverMainInfo = null;
+    if (! $reportModel && empty($mainRows) && $carryMainRows->isNotEmpty()) {
+        foreach ($carryMainRows as $item) {
+            $carryNote = trim((string) ($item['notes'] ?? ''));
+            $carryMark = $item['source_date'] ? 'Lanjutan dari '.$item['source_date'] : 'Lanjutan laporan sebelumnya';
+
+            $mainRows[] = [
+                'work_group'   => trim((string) ($item['work_group'] ?? '')),
+                'unit_id'      => $item['unit_id'] ?: $unitIdByLabel->get((string) ($item['unit_label'] ?? ''), ''),
+                'description'  => $item['description'] ?? '',
+                'assignee'     => $item['assignee'] ?? '',
+                'is_completed' => 0,
+                'notes'        => $carryNote === '' ? $carryMark : $carryNote.' - '.$carryMark,
+            ];
+        }
+
+        $carryOverMainInfo = [
+            'count' => $carryMainRows->count(),
+            'date'  => $carryMainRows->first()['source_date'] ?? null,
+        ];
+    }
     // Kartu kosong tidak ikut tersimpan, jadi Group I-IV selalu dimunculkan
     // kembali sebagai default (kartu tambahan di luar itu ikut apa adanya).
     $usedGroups = array_values(array_filter(array_column($mainRows, 'work_group')));
@@ -227,6 +251,8 @@
        teks, bukan pusat seluruh paragraf -- catatan ini sering 2 baris.
        Koreksi vertikal ikon sendiri ada di officer-icon-alignment.blade.php. */
     .form-meta-note { font-size:11px; color:var(--muted); display:flex; align-items:flex-start; gap:6px; }
+    .carry-over-note { width:100%; margin-bottom:16px; padding:12px 14px; border:1px solid var(--orange-main-40); border-radius:10px; background:var(--orange-main-10); color:var(--dark-main); line-height:1.55; overflow-wrap:anywhere; }
+    .carry-over-note > i { color:var(--orange-main); flex:0 0 auto; }
     .info-work-time { min-width:160px; }
     .info-work-time__range { flex-wrap:nowrap; }
     .info-work-time__range .input-wrapper { min-width:0; flex:1 1 0; }
@@ -282,6 +308,9 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-document"></i></span>
                     <span class="fw-600">Info Umum</span>
+                    <x-form-info-popover id="info-form-maintenance-umum" label="Informasi Form Info Umum">
+                        Jam kerja otomatis: Senin–Kamis 07.00–16.00, Jumat 07.00–17.00. Sabtu/Minggu dikosongkan dan dapat diisi manual oleh petugas. Jam masuk wajib diisi saat mengirim laporan, dan menjadi pembeda jika ada lebih dari satu laporan pada tanggal yang sama.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 1 dari 5</div>
             </div>
@@ -316,7 +345,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Jam kerja otomatis: Senin-Kamis 07.00-16.00, Jumat 07.00-17.00. Sabtu/Minggu dikosongkan dan dapat diisi manual oleh petugas. Jam masuk wajib diisi saat mengirim laporan, dan menjadi pembeda jika ada lebih dari satu laporan pada tanggal yang sama.</span></div>
             </div>
             <div class="content-form box-button" style="padding-top:0">
                 <a href="{{ route('pemeliharaan.index') }}" class="btn-form cancel"><span class="icon"><i class="fi fi-br-cross-small"></i></span><span>Batalkan</span></a>
@@ -330,11 +358,23 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-settings"></i></span>
                     <span class="fw-600">Pekerjaan Utama</span>
+                    <x-form-info-popover id="info-form-maintenance-pekerjaan-utama" label="Informasi Form Pekerjaan Utama">
+                        Tersedia empat kelompok kerja bawaan (<strong>Group I–IV</strong>). Kartu boleh dibiarkan kosong bila grup tidak memiliki pekerjaan, ditambah bila ada grup lain, atau dihapus bila tidak dipakai.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 2 dari 5</div>
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Default empat kelompok kerja (Group I–IV). Kartu boleh dibiarkan kosong bila grup tidak ada pekerjaan, ditambah bila ada grup lain, atau dihapus bila tidak dipakai.</span></div>
+                @if (! empty($carryOverMainInfo))
+                    <div class="form-meta-note carry-over-note">
+                        <i class="fi fi-rr-time-forward"></i>
+                        <span>
+                            {{ $carryOverMainInfo['count'] }} pekerjaan utama yang belum selesai
+                            {{ $carryOverMainInfo['date'] ? 'dari laporan '.$carryOverMainInfo['date'] : 'dari laporan sebelumnya' }}
+                            dimuat otomatis sebagai lanjutan. Perbarui status menjadi <strong>Selesai</strong> setelah pekerjaannya tuntas.
+                        </span>
+                    </div>
+                @endif
                 <div class="work-card-list" id="main-list">
                     @foreach ($mainRows as $i => $row)
                         <div class="work-card main-card">
@@ -408,13 +448,15 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-flame"></i></span>
                     <span class="fw-600">Pekerjaan Prioritas</span>
+                    <x-form-info-popover id="info-form-maintenance-prioritas" label="Informasi Form Pekerjaan Prioritas">
+                        Tambah satu kartu untuk setiap pekerjaan prioritas. Nama unit dipilih dari master data unit agar pencatatan tetap konsisten.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 3 dari 5</div>
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Tambah kartu untuk tiap pekerjaan prioritas. Nama unit dipilih dari master data unit.</span></div>
                 @if (! empty($carryOverInfo))
-                    <div class="form-meta-note carry-over-note" style="border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.10); color: #92400E;">
+                    <div class="form-meta-note carry-over-note">
                         <i class="fi fi-rr-time-forward"></i>
                         <span>
                             {{ $carryOverInfo['count'] }} pekerjaan yang belum selesai
@@ -494,6 +536,9 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-truck-side"></i></span>
                     <span class="fw-600">Kondisi Unit Saat Ini</span>
+                    <x-form-info-popover id="info-form-maintenance-kondisi-unit" label="Informasi Form Kondisi Unit Saat Ini">
+                        Nilai kondisi setiap unit pada dua kelompok kendaraan. Gunakan <strong>Set Semua Ready</strong> untuk menandai seluruh unit sekaligus, lalu ubah unit yang rusak agar ringkasan kondisi tetap akurat.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 4 dari 5</div>
             </div>
@@ -600,11 +645,13 @@
                 <div class="title-form d-flex align-items-center gap-10">
                     <span class="icon-title-form"><i class="fi fi-sr-employee-man"></i></span>
                     <span class="fw-600">Daftar Hadir Karyawan</span>
+                    <x-form-info-popover id="info-form-maintenance-kehadiran" label="Informasi Form Daftar Hadir Karyawan">
+                        Roster dimuat otomatis dari Waktu Kerja Non Shift. Periksa data yang tersedia dan tambahkan baris untuk personel tambahan bila diperlukan.
+                    </x-form-info-popover>
                 </div>
                 <div class="counter-form">Form 5 dari 5</div>
             </div>
             <div class="content-form d-flex flex-column align-items-start align-self-stretch w-100">
-                <div class="form-meta-note"><i class="fi fi-rr-info"></i><span>Roster di-preload otomatis (Waktu Kerja Non Shift). Tambah baris untuk personel tambahan.</span></div>
                 <div class="table-wrapper">
                     <div class="table-input" id="attendance-table">
                         <div class="head">

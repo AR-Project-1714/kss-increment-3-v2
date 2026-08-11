@@ -49,6 +49,7 @@ class OperationalReportTest extends BlackBoxTestCase
         $this->actingAs($operator)
             ->post(route('report-ops.store'), $this->validSubmitPayload([
                 'ship_name_1' => 'KM Info Umum',
+                'ship_operation_status_1' => ShipOperation::STATUS_ACTIVE,
             ]))
             ->assertRedirect(route('report-ops.index'));
 
@@ -92,6 +93,7 @@ class OperationalReportTest extends BlackBoxTestCase
         $this->actingAs($operator)
             ->post(route('report-ops.store'), $this->validSubmitPayload([
                 'ship_name_1' => 'KM Lengkap',
+                'ship_operation_status_1' => ShipOperation::STATUS_ACTIVE,
                 'capacity_1' => '1000',
                 'unit_logs' => [
                     [
@@ -184,6 +186,9 @@ class OperationalReportTest extends BlackBoxTestCase
             ->assertSeeInOrder([
                 'II. Pemuatan Urea Curah',
                 'MV Curah Mandiri',
+                'Kapasitas',
+                'Sandar',
+                'Mulai Muat',
                 'III. Pemuatan Amoniak',
                 'MT Amoniak Mandiri',
                 'IV. Bongkar Bahan Baku',

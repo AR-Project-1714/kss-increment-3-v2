@@ -209,6 +209,18 @@ class UnloadingShipOperationTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse($date)->setTime(23, 30));
 
+        foreach ([
+            'ship_name_1' => 'ship_operation_status_1',
+            'ship_name_urea_1' => 'ship_operation_urea_status_1',
+            'ship_name_ammonia_1' => 'ship_operation_ammonia_status_1',
+            'ship_name_material_1' => 'ship_operation_material_status_1',
+            'ship_name_container_1' => 'ship_operation_container_status_1',
+        ] as $shipField => $statusField) {
+            if (filled($fields[$shipField] ?? null) && ! array_key_exists($statusField, $fields)) {
+                $fields[$statusField] = ShipOperation::STATUS_ACTIVE;
+            }
+        }
+
         $this->actingAs($this->operator())
             ->post(route('report-ops.store'), array_merge([
                 'status' => 'submitted',

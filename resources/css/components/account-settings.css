@@ -1,0 +1,829 @@
+/* Pengaturan akun bersama untuk seluruh shell aplikasi. */
+.kss-account {
+    position: relative;
+    min-width: 0;
+    z-index: 10020;
+}
+
+.kss-account-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.kss-account-toolbar > .btn-theme,
+.kss-account__trigger {
+    width: 36px;
+    height: 36px;
+}
+
+.kss-account__trigger {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 36px;
+    padding: 2px;
+    border: 1px solid var(--smooth-border);
+    border-radius: 10px;
+    color: var(--blue-main);
+    background-color: var(--white);
+    cursor: pointer;
+    transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.kss-account__trigger:hover,
+.kss-account__trigger[aria-expanded="true"] {
+    background-color: var(--blue-main-5);
+    border-color: var(--blue-main-25);
+    box-shadow: 0 5px 14px var(--blue-main-10);
+    transform: translateY(-1px);
+}
+
+.kss-account__trigger:focus-visible,
+.kss-account__menu-item:focus-visible,
+.kss-account-modal button:focus-visible,
+.kss-account-field input:focus-visible,
+.kss-account-photo__dropzone:focus-visible {
+    outline: 3px solid var(--blue-main-25);
+    outline-offset: 2px;
+}
+
+.kss-account__trigger-avatar {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    overflow: hidden;
+    border-radius: 8px;
+    color: var(--blue-main);
+    background-color: var(--blue-main-10);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.kss-account__trigger-avatar img,
+.kss-account__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.kss-account__trigger-avatar [hidden],
+.kss-account__avatar [hidden] {
+    display: none;
+}
+
+.kss-account__presence {
+    position: absolute;
+    right: 1px;
+    bottom: 1px;
+    width: 7px;
+    height: 7px;
+    border: 2px solid var(--white);
+    border-radius: 50%;
+    background-color: var(--success);
+}
+
+.kss-account__menu-icon i,
+.kss-account__menu-arrow,
+.kss-account-modal i {
+    position: relative;
+    top: 1px;
+}
+
+.kss-account__popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    left: auto;
+    width: min(290px, calc(100vw - 24px));
+    padding: 8px;
+    border: 1px solid var(--smooth-border);
+    border-radius: 14px;
+    background-color: var(--white);
+    box-shadow: 0 18px 42px color-mix(in srgb, var(--dark-main, var(--black)) 18%, transparent);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(.98);
+    transform-origin: top right;
+    transition: opacity .18s ease, visibility .18s ease, transform .28s cubic-bezier(.22, 1, .36, 1);
+}
+
+.kss-account__popover::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    height: 8px;
+}
+
+.kss-account__popover.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .kss-account:hover .kss-account__popover {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.kss-account__summary {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 8px;
+}
+
+.kss-account__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    overflow: hidden;
+    border-radius: 10px;
+    color: var(--blue-main);
+    background-color: var(--blue-main-10);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.kss-account__summary-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kss-account__summary-copy strong,
+.kss-account__menu-item strong {
+    overflow: hidden;
+    color: var(--dark-main, var(--black));
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kss-account__summary-copy small,
+.kss-account__summary-copy > span,
+.kss-account__menu-item small {
+    overflow: hidden;
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kss-account__summary-copy > span {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 9px;
+    line-height: 1.4;
+}
+
+.kss-account__divider {
+    height: 1px;
+    margin: 4px 2px;
+    background-color: var(--smooth-border);
+}
+
+.kss-account__menu-heading {
+    display: block;
+    padding: 7px 8px 4px;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.3;
+    text-transform: uppercase;
+}
+
+.kss-account__menu-item {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 16px;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 9px 8px;
+    border: 0;
+    border-radius: 9px;
+    color: var(--dark-main, var(--black));
+    background-color: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease;
+}
+
+.kss-account__popover form {
+    width: 100%;
+}
+
+.kss-account__menu-item:hover {
+    color: var(--blue-main);
+    background-color: var(--blue-main-5);
+}
+
+.kss-account__menu-item:disabled {
+    cursor: wait;
+    opacity: .65;
+}
+
+.kss-account__menu-item.is-loading .kss-account__menu-icon i {
+    animation: kss-account-spin .8s linear infinite;
+}
+
+.kss-account__menu-item > span:nth-child(2) {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kss-account__menu-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    color: var(--blue-main);
+    background-color: var(--blue-main-10);
+}
+
+.kss-account__menu-arrow {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.kss-account-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10040;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background-color: color-mix(in srgb, var(--dark-main, var(--black)) 56%, transparent);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .22s ease, visibility .22s ease;
+}
+
+.kss-account-modal.is-open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.kss-account-modal__panel {
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100dvh - 36px);
+    overflow: hidden;
+    border: 1px solid var(--smooth-border);
+    border-radius: 14px;
+    background-color: var(--white);
+    box-shadow: 0 24px 58px color-mix(in srgb, var(--dark-main, var(--black)) 22%, transparent);
+    transform: translateY(14px) scale(.98);
+    transition: transform .34s cubic-bezier(.22, 1, .36, 1);
+}
+
+.kss-account-modal.is-open .kss-account-modal__panel {
+    transform: translateY(0) scale(1);
+}
+
+.kss-account-modal__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 20px 16px;
+    border-bottom: 1px solid var(--smooth-border);
+}
+
+.kss-account-modal__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border-radius: 9px;
+    color: var(--blue-main);
+    background-color: var(--blue-main-10);
+    font-size: 16px;
+}
+
+.kss-account-modal__heading {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kss-account-modal__heading strong {
+    color: var(--dark-main, var(--black));
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.kss-account-modal__heading small {
+    margin-top: 3px;
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.kss-account-modal__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    padding: 0;
+    border: 1px solid var(--smooth-border);
+    border-radius: 8px;
+    color: var(--muted);
+    background-color: var(--white);
+    cursor: pointer;
+    transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+
+.kss-account-modal__close:hover {
+    color: var(--red-main);
+    border-color: var(--red-main-10);
+    background-color: var(--red-main-5);
+}
+
+.kss-account-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: calc(100dvh - 190px);
+    overflow-y: auto;
+    padding: 18px 20px;
+}
+
+.kss-account-modal__alert {
+    padding: 9px 11px;
+    border: 1px solid var(--red-main-10);
+    border-radius: 8px;
+    color: var(--red-main);
+    background-color: var(--red-main-5);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.kss-account-photo__panel {
+    width: min(480px, calc(100vw - 32px));
+}
+
+.kss-account-photo__body {
+    gap: 16px;
+}
+
+.kss-account-photo__preview-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.kss-account-photo__preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    flex: 0 0 72px;
+    overflow: hidden;
+    border-radius: 14px;
+    color: var(--blue-main);
+    background-color: var(--blue-main-10);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.kss-account-photo__preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.kss-account-photo__preview [hidden] {
+    display: none;
+}
+
+.kss-account-photo__preview-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kss-account-photo__preview-copy strong {
+    color: var(--dark-main, var(--black));
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.kss-account-photo__preview-copy small {
+    margin-top: 3px;
+    overflow: hidden;
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    line-height: 1.5;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kss-account-photo__dropzone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 126px;
+    padding: 20px;
+    border: 1px dashed var(--blue-main-25);
+    border-radius: 12px;
+    color: var(--dark-main, var(--black));
+    background-color: var(--blue-main-5);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.kss-account-photo__dropzone:hover,
+.kss-account-photo__dropzone.is-dragging {
+    border-color: var(--blue-main);
+    background-color: var(--blue-main-10);
+    box-shadow: 0 8px 22px var(--blue-main-10);
+    transform: translateY(-1px);
+}
+
+.kss-account-photo__dropzone:disabled {
+    cursor: wait;
+    opacity: .6;
+    transform: none;
+}
+
+.kss-account-photo__dropzone-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 10px;
+    color: var(--blue-main);
+    background-color: var(--white);
+    font-size: 17px;
+}
+
+.kss-account-photo__dropzone-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kss-account-photo__dropzone-copy strong {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.kss-account-photo__dropzone-copy small {
+    margin-top: 3px;
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.kss-account-photo__rules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px 14px;
+    color: var(--dark-secondary, var(--black-secondary));
+}
+
+.kss-account-photo__rules span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    line-height: 1.4;
+}
+
+.kss-account-photo__rules i {
+    color: var(--blue-main);
+}
+
+.kss-account-photo__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    background-color: var(--main-bg);
+}
+
+.kss-account-photo__progress[hidden] {
+    display: none;
+}
+
+.kss-account-photo__progress-copy {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.kss-account-photo__progress-copy strong {
+    color: var(--dark-main, var(--black));
+    font-weight: 600;
+}
+
+.kss-account-photo__progress-track {
+    display: block;
+    width: 100%;
+    height: 7px;
+    overflow: hidden;
+    border-radius: 6px;
+    background-color: var(--smooth-border);
+}
+
+.kss-account-photo__progress-track > span {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background-color: var(--blue-main);
+    transition: width .18s ease;
+}
+
+.kss-account-photo__progress.is-indeterminate .kss-account-photo__progress-track > span {
+    width: 36%;
+    animation: kss-account-progress 1.15s cubic-bezier(.22, 1, .36, 1) infinite;
+}
+
+.kss-account-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.kss-account-field label {
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.kss-account-field__control {
+    position: relative;
+}
+
+.kss-account-field input {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 42px 9px 12px;
+    border: 1px solid var(--smooth-border);
+    border-radius: 8px;
+    outline: none;
+    color: var(--dark-main, var(--black));
+    background-color: var(--white);
+    font: 400 12px/1.4 'Poppins', sans-serif;
+    transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+.kss-account-field input::placeholder {
+    color: var(--muted);
+    opacity: .8;
+}
+
+.kss-account-field input:focus {
+    border-color: var(--blue-main);
+    box-shadow: 0 0 0 3px var(--blue-main-10);
+}
+
+.kss-account-field.is-invalid input {
+    border-color: var(--red-main);
+    box-shadow: 0 0 0 3px var(--red-main-10);
+}
+
+.kss-account-field__control button {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    color: var(--muted);
+    background-color: transparent;
+    transform: translateY(-50%);
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease;
+}
+
+.kss-account-field__control button:hover {
+    color: var(--blue-main);
+    background-color: var(--blue-main-5);
+}
+
+.kss-account-field__error {
+    min-height: 0;
+    color: var(--red-main);
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.kss-account-field__error:empty {
+    display: none;
+}
+
+.kss-password-checks {
+    display: grid;
+    gap: 5px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    color: var(--dark-secondary, var(--black-secondary));
+    background-color: var(--main-bg);
+}
+
+.kss-password-checks span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
+    line-height: 1.4;
+    transition: color .2s ease;
+}
+
+.kss-password-checks span i {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.kss-password-checks span.is-valid {
+    color: var(--success);
+}
+
+.kss-password-checks span.is-valid i {
+    color: var(--success);
+}
+
+.kss-account-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px 18px;
+    border-top: 1px solid var(--smooth-border);
+    background-color: var(--main-bg);
+}
+
+.kss-account-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 8px 14px;
+    border: 1px solid var(--smooth-border);
+    border-radius: 8px;
+    font: 500 11px/1.3 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease, border-color .2s ease, transform .2s ease;
+}
+
+.kss-account-button--secondary {
+    color: var(--dark-secondary, var(--black-secondary));
+    background-color: var(--white);
+}
+
+.kss-account-button--secondary:hover {
+    color: var(--blue-main);
+    border-color: var(--blue-main-25);
+    background-color: var(--blue-main-5);
+}
+
+.kss-account-button--primary {
+    color: var(--button-color, var(--white-pure));
+    border-color: var(--blue-main);
+    background-color: var(--blue-main);
+}
+
+.kss-account-button--primary:hover:not(:disabled) {
+    border-color: var(--blue-hover);
+    background-color: var(--blue-hover);
+    transform: translateY(-1px);
+}
+
+.kss-account-button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.kss-account-button.is-loading i {
+    animation: kss-account-spin .8s linear infinite;
+}
+
+body.kss-account-modal-open {
+    overflow: hidden !important;
+}
+
+@keyframes kss-account-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes kss-account-progress {
+    from { transform: translateX(-110%); }
+    to { transform: translateX(290%); }
+}
+
+@media (max-width: 640px) {
+    .kss-account-modal {
+        align-items: flex-end;
+        padding: 12px;
+    }
+
+    .kss-account-modal__panel {
+        width: 100%;
+        max-height: calc(100dvh - 24px);
+        border-radius: 14px;
+        transform: translateY(28px);
+    }
+
+    .kss-account-modal__footer {
+        flex-direction: column-reverse;
+    }
+
+    .kss-account-button {
+        width: 100%;
+        min-height: 40px;
+    }
+
+    .kss-account-photo__dropzone {
+        align-items: center;
+        flex-direction: column;
+        min-height: 140px;
+        text-align: center;
+    }
+
+    .kss-account-photo__preview {
+        width: 64px;
+        height: 64px;
+        flex-basis: 64px;
+    }
+}
+
+@media (pointer: coarse), (max-width: 480px) {
+    .kss-account-toolbar > .btn-theme,
+    .kss-account__trigger {
+        width: 40px;
+        height: 40px;
+    }
+
+    .kss-account__trigger {
+        flex-basis: 40px;
+    }
+
+    .kss-account__trigger-avatar {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kss-account__popover,
+    .kss-account-modal,
+    .kss-account-modal__panel,
+    .kss-account-button,
+    .kss-account-photo__dropzone,
+    .kss-account-photo__progress-track > span {
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+    }
+}

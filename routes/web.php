@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AdminV2Controller;
 use App\Http\Controllers\LoginV2Controller;
 use App\Http\Controllers\ManajerController;
@@ -16,6 +17,14 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [LoginV2Controller::class, 'logout'])->middleware('auth')->name('logout');
+
+Route::patch('/account/password', [AccountController::class, 'updatePassword'])
+    ->middleware(['auth', 'throttle:6,1'])
+    ->name('account.password.update');
+
+Route::patch('/account/profile-photo', [AccountController::class, 'updateProfilePhoto'])
+    ->middleware(['auth', 'throttle:10,1'])
+    ->name('account.profile-photo.update');
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN])->group(function () {
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');

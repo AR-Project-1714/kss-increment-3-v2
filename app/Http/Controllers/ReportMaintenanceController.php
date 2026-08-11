@@ -442,9 +442,14 @@ class ReportMaintenanceController extends Controller
             'employees'  => $employees,
             'workGroups' => self::WORK_GROUPS,
             'latestUnitConditions' => $this->latestUnitConditions($report),
-            // Carry-over hanya untuk laporan baru; saat edit, baris prioritas
-            // memakai data laporan itu sendiri.
-            'carryOverPriority' => $report ? collect() : $this->unfinishedPriorityItems(),
+            // Carry-over hanya untuk laporan baru; saat edit, setiap baris
+            // memakai data laporan itu sendiri agar tidak tercampur laporan lain.
+            'carryOverMain' => $report
+                ? collect()
+                : $this->unfinishedWorkItems(MaintenanceWorkItem::TYPE_UTAMA),
+            'carryOverPriority' => $report
+                ? collect()
+                : $this->unfinishedWorkItems(MaintenanceWorkItem::TYPE_PRIORITAS),
             'previousReportPeek' => $this->previousReportPeek($report),
         ];
     }
@@ -489,11 +494,11 @@ class ReportMaintenanceController extends Controller
     }
 
     /**
-     * Pekerjaan prioritas yang belum selesai dari laporan terkirim/disetujui
-     * terakhir — dimuat otomatis sebagai baris awal laporan baru supaya
-     * pekerjaan lanjutan tidak hilang antar periode kerja.
+     * Pekerjaan yang belum selesai dari laporan terkirim/disetujui terakhir.
+     * Dipakai oleh pekerjaan utama dan prioritas supaya pekerjaan lanjutan
+     * tidak hilang antar laporan.
      */
-    private function unfinishedPriorityItems()
+    private function unfinishedWorkItems(string $workType)
     {
         $latest = MaintenanceReport::query()
             ->whereIn('status', [
@@ -512,7 +517,8 @@ class ReportMaintenanceController extends Controller
             ? $latest->report_date->locale('id')->translatedFormat('d F Y')
             : null;
 
-        return $latest->priorityWorkItems()
+        return $latest->workItems()
+            ->where('work_type', $workType)
             ->where('is_completed', false)
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -520,6 +526,7 @@ class ReportMaintenanceController extends Controller
             ->map(fn (MaintenanceWorkItem $item): array => [
                 'unit_id'     => $item->master_unit_id,
                 'unit_label'  => $item->unit_label,
+                'work_group'  => $item->work_group,
                 'description' => $item->description,
                 'assignee'    => $item->assignee,
                 'notes'       => $item->notes,

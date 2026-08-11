@@ -26,6 +26,8 @@
     .thead th.col-aksi { flex: 0 0 250px !important; min-width: 250px; justify-content: flex-end; }
     .tbody td.col-aksi { flex: 0 0 250px !important; min-width: 250px; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
     .tbody td.col-aksi .btn { white-space: nowrap; }
+    .tbody td.col-aksi .btn > span:first-child { display: inline-flex; align-items: center; line-height: 1; }
+    .tbody td.col-aksi .btn i { position: relative; top: 0; display: block; line-height: 1; }
     .tbody td.col-aksi .btn.print-report { background-color: var(--cyan-main); color: #fff; justify-content: center; padding: 6px 9px; }
     .tbody td.col-aksi .btn.print-report:hover { filter: brightness(.93); transform: translateY(-1px); }
     .time-badge { display:inline-flex; min-height:20px; padding:2px 8px; align-items:center; gap:4px; border-radius:10px; font-size:10px; font-weight:500; line-height:1; background-color:var(--success-10); color:var(--success); white-space:nowrap; }

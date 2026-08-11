@@ -36,6 +36,8 @@
 
     @stack('modals')
 
+    @include('partials.account-settings')
+
     <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}" crossorigin="anonymous"></script>
 
     <script src="{{ asset('js/layouts/report-safety.js') }}?v={{ @filemtime(public_path('js/layouts/report-safety.js')) }}"></script>

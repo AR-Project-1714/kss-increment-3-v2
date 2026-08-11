@@ -391,7 +391,7 @@
                                         data-confirm-submit="true"
                                         data-confirm-tone="warning"
                                         data-confirm-title="Minta restore dari backup?"
-                                        data-confirm-subtitle="Sistem hanya mencatat permintaan — data tidak berubah."
+                                        data-confirm-subtitle="Sistem hanya mencatat permintaan, data tidak berubah."
                                         data-confirm-message="Pemulihan data dilakukan manual oleh admin server: unduh file backup lalu impor ke database. Permintaan ini masuk ke log aktivitas sebagai jejak audit."
                                         data-confirm-summary="{{ $backup['name'] }}"
                                         data-confirm-label="Catat Permintaan"

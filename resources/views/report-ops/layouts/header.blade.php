@@ -6,17 +6,18 @@
             <div class="divider-vertical"></div>
             <div class="info-officer d-flex flex-column align-items-start flexible">
                 <span class="nama align-self-stretch fsize-12 fw-600">Selamat Datang, {{ auth()->user()->name ?? 'Operasional' }}</span>
-                <span class="role align-self-stretch fsize-9 text-secondary fw-300">
-                    {{ auth()->user()->jobTitle() }}
-                </span>
+                <span class="role align-self-stretch fsize-9 text-secondary fw-300">{{ auth()->user()->jobTitle() }}</span>
             </div>
         </div>
         <div class="header-right d-flex justify-content-center align-items-center gap-20">
-            <button class="btn-theme br-10" id="themeToggle" title="Ganti Tema">
-                <div class="icon-container">
-                    <i class="fi fi-rr-sun" id="themeIcon"></i>
-                </div>
-            </button>
+            <div class="kss-account-toolbar">
+                <button class="btn-theme br-10" id="themeToggle" title="Ganti Tema">
+                    <div class="icon-container">
+                        <i class="fi fi-rr-sun" id="themeIcon"></i>
+                    </div>
+                </button>
+                @include('partials.account-trigger')
+            </div>
             <div class="divider-vertical"></div>
             <form action="{{ route('logout') }}" method="POST" class="m-0">
                 @csrf

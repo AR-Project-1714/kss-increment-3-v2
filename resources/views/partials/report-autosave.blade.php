@@ -109,6 +109,7 @@
     const AUTOSAVE_INTERVAL_MS = 30000;
     const SPINNER_MS = 1500;      // spinner berputar tetap ~1,5 dtk (target 1-2 dtk)
     const DONE_VISIBLE_MS = 2500; // teks "Laporan tersimpan" tampil ~2,5 dtk (target 2-3 dtk)
+    const SAVE_TIMEOUT_MS = 15000;
     const OFFLINE_KEY_PREFIX = 'kssOfflineDraft:';
     const OFFLINE_TTL_MS = 3 * 24 * 60 * 60 * 1000; // selaras masa simpan draft (3 hari)
     let dirty = false;
@@ -137,6 +138,7 @@
 
     let hideTimer = null;
     let spinnerTimer = null;
+    let spinnerElapsed = false;
 
     // Muncul di atas-tengah; jika tombol "Simpan Sebagai Draft" sedang melayang
     // (header sticky), letakkan pil tepat di bawah tombol tersebut.
@@ -150,9 +152,8 @@
         toast.style.top = top + 'px';
     }
 
-    // Tampilkan spinner dengan durasi tetap (SPINNER_MS), lalu beralih otomatis ke
-    // centang + "Laporan tersimpan" — tidak tergantung lamanya request jaringan,
-    // jadi spinner tak akan berputar terlalu lama.
+    // Spinner tampil sekurangnya SPINNER_MS, tetapi centang baru muncul setelah
+    // server atau fallback offline benar-benar menerima snapshot.
     function showSaving() {
         if (!toast.isConnected) document.body.appendChild(toast);
         window.clearTimeout(hideTimer);
@@ -163,11 +164,18 @@
         toast.classList.add('show');
         saveError = false;
         savedOffline = false;
-        spinnerTimer = window.setTimeout(finishSpinner, SPINNER_MS);
+        spinnerElapsed = false;
+        spinnerTimer = window.setTimeout(() => {
+            spinnerElapsed = true;
+            finishSpinner();
+        }, SPINNER_MS);
     }
 
     function finishSpinner() {
         if (!toast.classList.contains('show')) return;
+        // Jangan pernah menyatakan "tersimpan" sebelum server/offline fallback
+        // benar-benar selesai memproses snapshot terbaru.
+        if (saving || !spinnerElapsed) return;
         if (saveError) { hideToast(); return; } // simpan gagal: tutup tanpa "tersimpan"
         if (label) label.textContent = savedOffline ? 'Tersimpan offline, sinkron saat online' : 'Laporan tersimpan';
         toast.classList.add('is-done');
@@ -224,9 +232,9 @@
         }
     }
 
-    // Kirim ulang seluruh draft offline yang tertunda. Record dihapus bila server
-    // sudah menjawab (sukses atau ditolak permanen); dipertahankan hanya saat
-    // jaringan masih gagal, token kedaluwarsa (419), atau server error (5xx).
+    // Kirim ulang seluruh draft offline yang tertunda. Snapshot hanya dihapus
+    // setelah server benar-benar menerimanya; kegagalan jaringan, autentikasi,
+    // atau validasi dipertahankan sampai TTL agar isian tetap dapat dipulihkan.
     async function syncOfflineDrafts() {
         if (!navigator.onLine) return;
 
@@ -259,16 +267,31 @@
             if (tokenInput) data.set('_token', tokenInput.value);
 
             try {
-                const response = await fetch(record.action, {
+                let response = await fetch(record.action, {
                     method: 'POST',
                     body: data,
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                     credentials: 'same-origin',
                 });
 
-                if (response.status !== 419 && response.status < 500) {
+                // Draft tujuan bisa sudah kedaluwarsa. Simpan sebagai draft baru
+                // alih-alih membuang snapshot offline saat endpoint update 404.
+                if (response.status === 404 && form.dataset.storeUrl) {
+                    data.delete('_method');
+                    response = await fetch(form.dataset.storeUrl, {
+                        method: 'POST',
+                        body: data,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                    });
+                }
+
+                // Hanya hapus snapshot setelah server benar-benar menerimanya.
+                // Respons validasi/auth dipertahankan sampai TTL agar data tidak
+                // hilang hanya karena sesi atau isian sementara bermasalah.
+                if (response.ok) {
                     try { window.localStorage.removeItem(key); } catch (_) {}
-                    if (response.ok) synced++;
+                    synced++;
                 }
             } catch (_) {
                 // Masih offline / server tak terjangkau — coba lagi nanti.
@@ -280,12 +303,13 @@
         }
     }
 
-    function postDraft() {
+    function postDraft(signal = undefined) {
         return fetch(form.action, {
             method: 'POST',
             body: buildDraftFormData(),
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
             credentials: 'same-origin',
+            signal,
         });
     }
 
@@ -305,13 +329,17 @@
         saving = true;
         showSaving(); // spinner tampil ~SPINNER_MS, lalu finishSpinner() menampilkan hasil
         const actionUsed = form.action;
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const requestTimeout = controller
+            ? window.setTimeout(() => controller.abort(), SAVE_TIMEOUT_MS)
+            : null;
         // Perubahan yang diketik SELAMA request berlangsung tidak boleh ikut
         // dianggap tersimpan; hanya bersihkan dirty bila tak ada ketikan baru.
         const revision = ++dirtyRevision;
         try {
-            let response = await postDraft();
+            let response = await postDraft(controller?.signal);
             if (response.status === 404 && recoverToStoreEndpoint()) {
-                response = await postDraft();
+                response = await postDraft(controller?.signal);
             }
             if (!response.ok) { saveError = true; return; }
             everSaved = true;
@@ -338,7 +366,9 @@
                 saveError = true;
             }
         } finally {
+            if (requestTimeout !== null) window.clearTimeout(requestTimeout);
             saving = false;
+            finishSpinner();
         }
     }
 
@@ -382,7 +412,14 @@
     // agar draft yang sudah diketik tidak ikut dibuang lewat discardBlankBeacon,
     // termasuk ketikan pada 1,2 detik pertama sebelum trackingReady menyala.
     const markDirty = (event) => {
-        if (event.isTrusted) everTouched = true;
+        if (event.isTrusted) {
+            // Ketikan nyata harus langsung aman, termasuk bila terjadi sebelum
+            // jeda 1,2 detik untuk mengabaikan event prefill sintetis berakhir.
+            everTouched = true;
+            dirty = true;
+            return;
+        }
+
         if (trackingReady) dirty = true;
     };
     form.addEventListener('input', markDirty);

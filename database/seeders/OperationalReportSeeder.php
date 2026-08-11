@@ -7,6 +7,7 @@ use App\Models\MasterEmployee;
 use App\Models\MasterEnvironmentItem;
 use App\Models\MasterInventoryItem;
 use App\Models\MasterUnit;
+use App\Models\ShipOperation;
 use App\Models\User;
 use App\Services\BulkTonnageService;
 use App\Support\ShipNameNormalizer;
@@ -15,7 +16,7 @@ use Database\Seeders\Concerns\GuardsSampleData;
 use Illuminate\Database\Seeder;
 
 /**
- * Data contoh laporan operasi untuk periode Mei-Juli 2026.
+ * Data contoh laporan operasi dari Mei 2026 sampai hari ini.
  *
  * Setiap hari berisi tiga shift dengan rotasi Regu A-D. Seluruh sumber data
  * yang dipakai menu Kinerja Operasi dan Rincian Kegiatan ikut diisi supaya
@@ -37,8 +38,6 @@ class OperationalReportSeeder extends Seeder
     private const SOURCE = 'OperationalReportSeeder';
 
     private const PERIOD_START = '2026-05-01';
-
-    private const PERIOD_END = '2026-07-31';
 
     private const GROUPS = ['A', 'B', 'C', 'D'];
 
@@ -97,6 +96,13 @@ class OperationalReportSeeder extends Seeder
         ['Ocean Makmur', 'PT. Pelayaran Bahari', 'Jetty 2', 'Thailand', 9000],
     ];
 
+    private const AMMONIA_SHIPS = [
+        ['MT. Gas Indonesia', 'PT. Pertamina Trans Kontinental', 'Jetty 1', 'Makassar', 5200],
+        ['MT. Sinar Amoniak', 'PT. Samudera Energi', 'Jetty 2', 'Balikpapan', 4800],
+        ['MT. Celebes Gas', 'PT. Pelayaran Bahari', 'Jetty 1', 'Bontang', 5500],
+        ['MT. Energi Timur', 'PT. Lintas Samudera', 'Jetty 2', 'Surabaya', 5000],
+    ];
+
     private const MATERIAL_SHIPS = [
         ['MV. Bongkar Jaya', 'PT. Karya Samudera', 'Jetty 3', 6500],
         ['MV. Timur Laut', 'PT. Lintas Bahari', 'Jetty 2', 7200],
@@ -137,8 +143,7 @@ class OperationalReportSeeder extends Seeder
         }
 
         $start = Carbon::parse(self::PERIOD_START)->startOfDay();
-        $configuredEnd = Carbon::parse(self::PERIOD_END)->startOfDay();
-        $end = Carbon::today()->lessThan($configuredEnd) ? Carbon::today() : $configuredEnd;
+        $end = Carbon::today()->startOfDay();
 
         if ($end->lessThan($start)) {
             $this->command?->warn('OperationalReportSeeder belum dijalankan karena periode Mei 2026 belum dimulai.');
@@ -156,7 +161,17 @@ class OperationalReportSeeder extends Seeder
             foreach (array_keys(self::SHIFTS) as $shiftName) {
                 $group = self::GROUPS[$slot % count(self::GROUPS)];
                 $nextGroup = self::GROUPS[($slot + 1) % count(self::GROUPS)];
-                $slotData = [$day->copy(), $shiftName, $group, $nextGroup, $slot];
+                $isLatest = $day->isSameDay($end) && $shiftName === 'Malam';
+
+                // Skenario uji handover: laporan terbaru selalu dikirim oleh
+                // Grup B ke Grup A, agar akun Grup A dapat meneruskan data
+                // kapal yang sedang berjalan pada shift berikutnya.
+                if ($isLatest) {
+                    $group = 'B';
+                    $nextGroup = 'A';
+                }
+
+                $slotData = [$day->copy(), $shiftName, $group, $nextGroup, $slot, $isLatest];
 
                 $slots[] = $slotData;
                 $expectedReports[$this->reportKey($day, $shiftName, $group)] = true;
@@ -166,8 +181,8 @@ class OperationalReportSeeder extends Seeder
 
         $this->pruneObsoleteSampleReports($expectedReports);
 
-        foreach ($slots as [$day, $shiftName, $group, $nextGroup, $slotNumber]) {
-            $this->seedSlot($day, $shiftName, $group, $nextGroup, $slotNumber);
+        foreach ($slots as [$day, $shiftName, $group, $nextGroup, $slotNumber, $isLatest]) {
+            $this->seedSlot($day, $shiftName, $group, $nextGroup, $slotNumber, $isLatest);
         }
 
         // Tonase muat curah/amoniak adalah selisih antar pembacaan COB, jadi
@@ -197,13 +212,22 @@ class OperationalReportSeeder extends Seeder
             ->all();
     }
 
-    private function seedSlot(Carbon $day, string $shiftName, string $group, string $nextGroup, int $slot): void
-    {
+    private function seedSlot(
+        Carbon $day,
+        string $shiftName,
+        string $group,
+        string $nextGroup,
+        int $slot,
+        bool $isLatest
+    ): void {
         $creator = $this->usersByUsername['karu.'.strtolower($group)] ?? null;
         $receiver = $this->usersByUsername['karu.'.strtolower($nextGroup)] ?? null;
         $approver = $this->usersByUsername['manajer'] ?? null;
         $submittedAt = $this->submissionMoment($day, $shiftName, $slot);
-        $status = $slot % 13 === 0 ? 'submitted' : ($slot % 5 === 0 ? 'acknowledged' : 'approved');
+        // Laporan sebelum laporan terakhir sudah berada di arsip (approved).
+        // Hanya handover terbaru yang masih terkirim agar terlihat di inbox
+        // Grup A dan bisa dipakai menguji sinkronisasi antar-shift.
+        $status = $isLatest ? 'submitted' : 'approved';
         $receivedAt = $status === 'submitted' ? null : $submittedAt->copy()->addMinutes(12 + ($slot % 9));
         $approvedAt = $status === 'approved' ? $receivedAt?->copy()->addMinutes(35 + ($slot % 45)) : null;
 
@@ -227,8 +251,10 @@ class OperationalReportSeeder extends Seeder
                 'approved_at' => $approvedAt,
                 'payload' => [
                     'source' => self::SOURCE,
-                    'period' => 'Mei-Juli 2026',
-                    'scenario' => 'Perbandingan kegiatan dan kinerja operasional',
+                    'period' => 'Mei 2026 - '.$day->copy()->endOfDay()->locale('id')->translatedFormat('d F Y'),
+                    'scenario' => $isLatest
+                        ? 'Handover kapal antar-shift: Grup B ke Grup A'
+                        : 'Perbandingan kegiatan dan kinerja operasional (arsip)',
                 ],
                 'created_at' => $submittedAt,
                 'updated_at' => $approvedAt ?? $receivedAt ?? $submittedAt,
@@ -247,7 +273,7 @@ class OperationalReportSeeder extends Seeder
 
         $this->seedBagged($report, $slot, $day, $shiftName, $factor);
 
-        if (($dayIndex + $shiftIndex) % 3 !== 2) {
+        if ($isLatest || ($dayIndex + $shiftIndex) % 3 !== 2) {
             $this->seedBulk($report, $slot, $day, $shiftName, $factor);
         }
 
@@ -263,6 +289,13 @@ class OperationalReportSeeder extends Seeder
             $this->seedTurba($report, $slot, $shiftName, $factor);
         }
 
+        // Jalankan setelah seluruh kegiatan kapal dibuat. Pada laporan terbaru,
+        // kegiatan pertama tiap jenis diganti menjadi kapal handover tanpa
+        // menambah tab ketiga atau menciptakan tonase ganda.
+        if ($isLatest) {
+            $this->seedLatestInterShiftShips($report, $day, $creator);
+        }
+
         $this->seedUnitChecks($report);
         $this->seedEmployees($report, $group, self::SHIFTS[$shiftName], $slot);
     }
@@ -274,77 +307,280 @@ class OperationalReportSeeder extends Seeder
         string $shiftName,
         float $factor
     ): void {
+        $activityCount = 2;
         $voyageLength = 6;
         $voyageIndex = intdiv($slot, $voyageLength);
         $voyageStartSlot = $voyageIndex * $voyageLength;
-        [$name, $agent, $jetty, $destination, $capacity] = self::BAGGED_SHIPS[$voyageIndex % count(self::BAGGED_SHIPS)];
+        $shares = [1 => 0.57, 2 => 0.43];
 
-        $current = $this->baggedQuantity($slot, $factor);
-        $previous = 0;
+        for ($sequence = 1; $sequence <= $activityCount; $sequence++) {
+            $shipIndex = $voyageIndex * $activityCount + $sequence - 1;
+            [$name, $agent, $jetty, $destination, $capacity] = self::BAGGED_SHIPS[$shipIndex % count(self::BAGGED_SHIPS)];
+            $share = $shares[$sequence];
+            $current = (int) round($this->baggedQuantity($slot, $factor) * $share);
+            $previous = 0;
 
-        for ($previousSlot = $voyageStartSlot; $previousSlot < $slot; $previousSlot++) {
-            $previousDay = Carbon::parse(self::PERIOD_START)->addDays(intdiv($previousSlot, count(self::SHIFTS)));
-            $previousShift = array_keys(self::SHIFTS)[$previousSlot % count(self::SHIFTS)];
-            $previousGroup = self::GROUPS[$previousSlot % count(self::GROUPS)];
-            $previous += $this->baggedQuantity(
-                $previousSlot,
-                $this->productivityFactor($previousDay, $previousGroup, $previousShift, $previousSlot)
+            for ($previousSlot = $voyageStartSlot; $previousSlot < $slot; $previousSlot++) {
+                $previousDay = Carbon::parse(self::PERIOD_START)->addDays(intdiv($previousSlot, count(self::SHIFTS)));
+                $previousShift = array_keys(self::SHIFTS)[$previousSlot % count(self::SHIFTS)];
+                $previousGroup = self::GROUPS[$previousSlot % count(self::GROUPS)];
+                $previous += (int) round($this->baggedQuantity(
+                    $previousSlot,
+                    $this->productivityFactor($previousDay, $previousGroup, $previousShift, $previousSlot)
+                ) * $share);
+            }
+
+            $damage = ($day->month === 6
+                ? 0.75 + ($slot % 4) * 0.18
+                : 0.22 + ($slot % 3) * 0.11) * $share;
+
+            $activity = $report->loadingActivities()->create([
+                'sequence' => $sequence,
+                'ship_name' => $name,
+                'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
+                'agent' => $agent,
+                'jetty' => $jetty,
+                'destination' => $destination,
+                'capacity' => $capacity,
+                'wo_number' => 'WO-KTG-2026-'.str_pad((string) ($shipIndex + 1), 4, '0', STR_PAD_LEFT),
+                'cargo_type' => 'Urea Granul',
+                'marking' => $shipIndex % 2 === 0 ? 'Nitrea' : 'Pupuk Indonesia',
+                'arrival_time' => $this->slotMoment($voyageStartSlot, -90 + $sequence * 15),
+                'operating_gang' => (string) (1 + $shipIndex % 3),
+                'tkbm_count' => 20 + (($slot + $sequence) % 8),
+                'foreman' => ['Nasir', 'Linta', 'Sahrul', 'Bahar'][($slot + $sequence - 1) % 4],
+                'qty_delivery_current' => $current + 9,
+                'qty_delivery_prev' => $previous + 20,
+                'qty_loading_current' => $current,
+                'qty_loading_prev' => $previous,
+                'qty_damage_current' => round($damage, 2),
+                'qty_damage_prev' => round(($slot - $voyageStartSlot) * $damage, 2),
+                'tally_warehouse' => ['Syamsuddin', 'Asmuni', 'Zein'][($slot + $sequence) % 3],
+                'driver_name' => $sequence === 1 ? 'Arlis, Udin' : 'Nurdian, Samsul',
+                'truck_number' => $sequence === 1 ? 'TRL-02, TRL-05' : 'TRL-01, TRL-04',
+                'tally_ship' => $sequence === 1 ? 'Jefry, Zein' : 'Mustafa, Rudi',
+                'operator_ship' => $sequence === 1 ? 'Wirawan' : 'Santoso',
+                'forklift_ship' => $sequence === 1 ? 'FL-71, FL-16' : 'FL-72, FL-18',
+                'operator_warehouse' => 'Tim Gudang Produk '.($sequence === 1 ? 'A' : 'B'),
+                'forklift_warehouse' => $sequence === 1 ? 'FL-17' : 'FL-19',
+            ]);
+
+            $activity->timesheets()->createMany([
+                [
+                    'category' => 'delivery',
+                    'time' => $this->shiftMoment($day, $shiftName, 20 + $sequence * 20)->format('H:i'),
+                    'activity' => 'Distribusi kantong dari gudang ke dermaga sesuai WO kegiatan '.$sequence,
+                ],
+                [
+                    'category' => 'loading',
+                    'time' => $this->shiftMoment($day, $shiftName, 95 + $sequence * 25)->format('H:i'),
+                    'activity' => 'Pemuatan palka dan verifikasi tally kapal kegiatan '.$sequence,
+                ],
+            ]);
+        }
+    }
+
+    /**
+     * Kapal uji yang sengaja dibiarkan aktif pada laporan terakhir. Ketika
+     * Grup A membuka form shift berikutnya, ketiganya muncul sebagai saran
+     * operasi berjalan di Muat Kantong, Muat Curah, dan Muat Amoniak.
+     */
+    private function seedLatestInterShiftShips(DailyReport $report, Carbon $day, ?User $creator): void
+    {
+        foreach ([
+            [
+                'sequence' => 1,
+                'name' => 'KM. Sinkronisasi Antar Shift',
+                'wo' => 'WO-SINKRON-'.$day->format('Ymd'),
+                'jetty' => 'Jetty 3',
+                'destination' => 'Makassar',
+                'capacity' => 3200,
+                'marking' => 'Nitrea',
+                'arrival' => $day->copy()->setTime(20, 30),
+            ],
+            [
+                'sequence' => 2,
+                'name' => 'KM. Kesinambungan Kegiatan 2',
+                'wo' => 'WO-SINKRON-2-'.$day->format('Ymd'),
+                'jetty' => 'Tursina',
+                'destination' => 'Banjarmasin',
+                'capacity' => 2800,
+                'marking' => 'Pupuk Indonesia',
+                'arrival' => $day->copy()->setTime(21, 15),
+            ],
+        ] as $ship) {
+            $activity = $report->loadingActivities()
+                ->where('sequence', $ship['sequence'])
+                ->first();
+
+            if (! $activity) {
+                continue;
+            }
+
+            $operation = $this->upsertHandoverOperation(
+                ShipOperation::TYPE_BAG_LOADING,
+                $ship['name'],
+                $ship['wo'],
+                [
+                    'agent' => 'PT. Pelayaran Uji KSS',
+                    'jetty' => $ship['jetty'],
+                    'destination' => $ship['destination'],
+                    'capacity' => $ship['capacity'],
+                    'cargo_type' => 'Urea Granul',
+                    'marking' => $ship['marking'],
+                    'arrival_time' => $ship['arrival'],
+                ],
+                $report,
+                $creator
             );
+
+            $activity->update([
+                'ship_operation_id' => $operation->id,
+                'ship_name' => $operation->ship_name,
+                'ship_name_key' => ShipNameNormalizer::key($operation->ship_name),
+                'agent' => $operation->agent,
+                'jetty' => $operation->jetty,
+                'destination' => $operation->destination,
+                'capacity' => $operation->capacity,
+                'wo_number' => $operation->wo_number,
+                'cargo_type' => $operation->cargo_type,
+                'marking' => $operation->marking,
+                'arrival_time' => $operation->arrival_time,
+            ]);
         }
 
-        $damage = $day->month === 6
-            ? 0.75 + ($slot % 4) * 0.18
-            : 0.22 + ($slot % 3) * 0.11;
-
-        $activity = $report->loadingActivities()->create([
-            'sequence' => 1,
-            'ship_name' => $name,
-            'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
-            'agent' => $agent,
-            'jetty' => $jetty,
-            'destination' => $destination,
-            'capacity' => $capacity,
-            'wo_number' => 'WO-KTG-2026-'.str_pad((string) ($voyageIndex + 1), 4, '0', STR_PAD_LEFT),
-            'cargo_type' => 'Urea Granul',
-            'marking' => $voyageIndex % 2 === 0 ? 'Nitrea' : 'Pupuk Indonesia',
-            'arrival_time' => $this->slotMoment($voyageStartSlot, -75),
-            'operating_gang' => (string) (1 + $voyageIndex % 3),
-            'tkbm_count' => 22 + ($slot % 7),
-            'foreman' => ['Nasir', 'Linta', 'Sahrul', 'Bahar'][$slot % 4],
-            'qty_delivery_current' => $current + 18,
-            'qty_delivery_prev' => $previous + 45,
-            'qty_loading_current' => $current,
-            'qty_loading_prev' => $previous,
-            'qty_damage_current' => round($damage, 2),
-            'qty_damage_prev' => round(($slot - $voyageStartSlot) * $damage, 2),
-            'tally_warehouse' => ['Syamsuddin', 'Asmuni', 'Zein'][$slot % 3],
-            'driver_name' => 'Arlis, Udin, Nurdian',
-            'truck_number' => 'TRL-02, TRL-05',
-            'tally_ship' => 'Jefry, Zein',
-            'operator_ship' => 'Wirawan',
-            'forklift_ship' => 'FL-71, FL-16',
-            'operator_warehouse' => 'Tim Gudang Produk',
-            'forklift_warehouse' => 'FL-17',
-        ]);
-
-        [$deliveryTime, $loadingTime] = match ($shiftName) {
-            'Pagi' => ['07:30', '09:00'],
-            'Sore' => ['15:30', '17:00'],
-            default => ['23:30', '01:00'],
-        };
-
-        $activity->timesheets()->createMany([
+        foreach ([
             [
-                'category' => 'delivery',
-                'time' => $deliveryTime,
-                'activity' => 'Distribusi kantong dari gudang ke dermaga sesuai WO',
+                'type' => ShipOperation::TYPE_BULK_LOADING,
+                'sequence' => 1,
+                'name' => 'MV. Curah Kesinambungan',
+                'capacity' => 15000,
+                'commodity' => 'Urea Curah Granul',
+                'berthing' => $day->copy()->setTime(19, 45),
+                'cob' => [8450, 8725],
             ],
             [
-                'category' => 'loading',
-                'time' => $loadingTime,
-                'activity' => 'Pemuatan palka dan verifikasi tally kapal',
+                'type' => ShipOperation::TYPE_BULK_LOADING,
+                'sequence' => 2,
+                'name' => 'MV. Curah Kesinambungan II',
+                'capacity' => 9000,
+                'commodity' => 'Urea Curah Granul',
+                'berthing' => $day->copy()->setTime(20, 15),
+                'cob' => [4125, 4380],
             ],
-        ]);
+            [
+                'type' => ShipOperation::TYPE_AMMONIA_LOADING,
+                'sequence' => 1,
+                'name' => 'MT. Amoniak Kesinambungan',
+                'capacity' => 5000,
+                'commodity' => 'Amoniak Cair',
+                'berthing' => $day->copy()->setTime(21, 0),
+                'cob' => [2180.5, 2315.75],
+            ],
+            [
+                'type' => ShipOperation::TYPE_AMMONIA_LOADING,
+                'sequence' => 2,
+                'name' => 'MT. Amoniak Kesinambungan II',
+                'capacity' => 4800,
+                'commodity' => 'Amoniak Cair',
+                'berthing' => $day->copy()->setTime(21, 30),
+                'cob' => [1650.25, 1788.5],
+            ],
+        ] as $ship) {
+            $bulkOperation = $this->upsertHandoverOperation(
+                $ship['type'],
+                $ship['name'],
+                null,
+                [
+                    'agent' => 'PT. Pelayaran Uji KSS',
+                    'jetty' => $ship['type'] === ShipOperation::TYPE_BULK_LOADING ? 'Jetty 1' : 'Jetty 2',
+                    'destination' => 'Makassar',
+                    'capacity' => $ship['capacity'],
+                    'stevedoring' => 'PBM KSS',
+                    'commodity' => $ship['commodity'],
+                    'berthing_time' => $ship['berthing'],
+                    'start_loading_time' => $ship['berthing']->copy()->addHours(1),
+                ],
+                $report,
+                $creator
+            );
+
+            $activity = $report->bulkLoadingActivities()
+                ->where('activity_type', $ship['type'])
+                ->where('sequence', $ship['sequence'])
+                ->first();
+
+            if (! $activity) {
+                continue;
+            }
+
+            $activity->update([
+                'ship_operation_id' => $bulkOperation->id,
+                'ship_name' => $bulkOperation->ship_name,
+                'ship_name_key' => ShipNameNormalizer::key($bulkOperation->ship_name),
+                'agent' => $bulkOperation->agent,
+                'jetty' => $bulkOperation->jetty,
+                'destination' => $bulkOperation->destination,
+                'stevedoring' => $bulkOperation->stevedoring,
+                'commodity' => $bulkOperation->commodity,
+                'capacity' => $bulkOperation->capacity,
+                'berthing_time' => $bulkOperation->berthing_time,
+                'start_loading_time' => $bulkOperation->start_loading_time,
+            ]);
+
+            $activity->logs()->delete();
+            $activity->logs()->createMany([
+                [
+                    'datetime' => $ship['berthing']->copy()->addHours(1),
+                    'activity' => 'Pemuatan awal untuk diteruskan regu berikutnya',
+                    'cob' => $ship['cob'][0],
+                ],
+                [
+                    'datetime' => $ship['berthing']->copy()->addHours(2),
+                    'activity' => 'Pemuatan berjalan dan pencatatan COB handover',
+                    'cob' => $ship['cob'][1],
+                ],
+            ]);
+        }
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function upsertHandoverOperation(
+        string $type,
+        string $shipName,
+        ?string $woNumber,
+        array $attributes,
+        DailyReport $report,
+        ?User $creator
+    ): ShipOperation {
+        $operation = ShipOperation::updateOrCreate(
+            [
+                'type' => $type,
+                'ship_name_key' => ShipNameNormalizer::key($shipName),
+                'wo_number' => $woNumber,
+            ],
+            array_merge($attributes, [
+                'status' => ShipOperation::STATUS_ACTIVE,
+                'ship_name' => $shipName,
+                'ship_name_key' => ShipNameNormalizer::key($shipName),
+                'wo_number' => $woNumber,
+                'started_at' => $attributes['arrival_time'] ?? $attributes['berthing_time'] ?? now(),
+                'created_by' => $creator?->id,
+                'last_report_id' => $report->id,
+                'last_report_date' => $report->report_date,
+            ])
+        );
+
+        $report->operationDecisions()->updateOrCreate(
+            ['ship_operation_id' => $operation->id],
+            [
+                'status' => ShipOperation::STATUS_ACTIVE,
+                'decided_by' => $creator?->id,
+                'decided_at' => $report->updated_at ?? now(),
+            ],
+        );
+
+        return $operation;
     }
 
     private function seedBulk(
@@ -354,57 +590,69 @@ class OperationalReportSeeder extends Seeder
         string $shiftName,
         float $factor
     ): void {
+        $activityCount = 2;
         $voyageLength = 12;
         $voyageIndex = intdiv($slot, $voyageLength);
         $voyageStartSlot = $voyageIndex * $voyageLength;
-        [$name, $agent, $jetty, $destination, $capacity] = self::BULK_SHIPS[$voyageIndex % count(self::BULK_SHIPS)];
-        $loaded = (int) round((610 + ($slot % 5) * 24) * $factor);
 
-        // COB dicatat KUMULATIF, sama seperti pada form asli: angkanya adalah
-        // total muatan yang sudah ada di kapal, bukan tambahan shift ini. Data
-        // contoh harus mengikuti kebiasaan itu, karena di situlah letak
-        // kekeliruan penjumlahan yang pernah membuat total tonase membengkak.
-        $carried = $this->bulkVoyageCob[$voyageIndex] ?? 0;
-        $firstLog = $carried + (int) round($loaded * 0.46);
-        $secondLog = $carried + $loaded;
-        $this->bulkVoyageCob[$voyageIndex] = $secondLog;
+        foreach ([
+            [ShipOperation::TYPE_BULK_LOADING, self::BULK_SHIPS, 610, 24, 'Urea Curah Granul'],
+            [ShipOperation::TYPE_AMMONIA_LOADING, self::AMMONIA_SHIPS, 260, 12, 'Amoniak Cair'],
+        ] as $typeIndex => [$activityType, $ships, $baseQuantity, $variation, $commodity]) {
+            foreach ([1 => 0.56, 2 => 0.44] as $sequence => $share) {
+                $shipIndex = $voyageIndex * $activityCount + $sequence - 1;
+                [$name, $agent, $jetty, $destination, $capacity] = $ships[$shipIndex % count($ships)];
+                $loaded = round(($baseQuantity + ($slot % 5) * $variation) * $factor * $share, 2);
+                $voyageKey = $activityType.'|'.$voyageIndex.'|'.$sequence;
 
-        $berthing = $this->slotMoment($voyageStartSlot, -180);
-        $startLoading = $berthing->copy()->addHours(4 + ($voyageIndex % 3));
-        $activityType = $voyageIndex % 2 === 0 ? 'muat_curah' : 'muat_amoniak';
+                // COB dicatat kumulatif per kapal/pelayaran. Masing-masing tab
+                // mempunyai kunci sendiri agar Kegiatan 2 tidak melanjutkan COB
+                // milik Kegiatan 1.
+                $carried = $this->bulkVoyageCob[$voyageKey] ?? 0;
+                $firstLog = round($carried + $loaded * 0.46, 2);
+                $secondLog = round($carried + $loaded, 2);
+                $this->bulkVoyageCob[$voyageKey] = $secondLog;
 
-        $activity = $report->bulkLoadingActivities()->create([
-            'activity_type' => $activityType,
-            'sequence' => 1,
-            'ship_name' => $name,
-            'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
-            'agent' => $agent,
-            'jetty' => $jetty,
-            'destination' => $destination,
-            'stevedoring' => 'PBM KSS',
-            'commodity' => $activityType === 'muat_amoniak' ? 'Amoniak Cair' : 'Urea Curah Granul',
-            'capacity' => $capacity,
-            'berthing_time' => $berthing,
-            'start_loading_time' => $startLoading,
-        ]);
+                $berthing = $this->slotMoment(
+                    $voyageStartSlot,
+                    -210 + $typeIndex * 45 + $sequence * 20
+                );
+                $startLoading = $berthing->copy()->addHours(3 + (($voyageIndex + $sequence) % 3));
 
-        $activity->logs()->createMany([
-            [
-                'datetime' => $this->shiftMoment($day, $shiftName, 50),
-                'activity' => 'Pemuatan palka aktif dan pemeriksaan draft awal',
-                'cob' => $firstLog,
-            ],
-            [
-                'datetime' => $this->shiftMoment($day, $shiftName, 210),
-                'activity' => 'Pemuatan lanjutan dan pemerataan muatan palka',
-                'cob' => $secondLog,
-            ],
-        ]);
+                $activity = $report->bulkLoadingActivities()->create([
+                    'activity_type' => $activityType,
+                    'sequence' => $sequence,
+                    'ship_name' => $name,
+                    'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
+                    'agent' => $agent,
+                    'jetty' => $jetty,
+                    'destination' => $destination,
+                    'stevedoring' => 'PBM KSS Tim '.$sequence,
+                    'commodity' => $commodity,
+                    'capacity' => $capacity,
+                    'berthing_time' => $berthing,
+                    'start_loading_time' => $startLoading,
+                ]);
+
+                $activity->logs()->createMany([
+                    [
+                        'datetime' => $this->shiftMoment($day, $shiftName, 35 + $sequence * 20),
+                        'activity' => 'Pemuatan awal dan pemeriksaan kapal kegiatan '.$sequence,
+                        'cob' => $firstLog,
+                    ],
+                    [
+                        'datetime' => $this->shiftMoment($day, $shiftName, 180 + $sequence * 25),
+                        'activity' => 'Pemuatan lanjutan dan pencatatan COB kegiatan '.$sequence,
+                        'cob' => $secondLog,
+                    ],
+                ]);
+            }
+        }
     }
 
     private function seedMaterial(DailyReport $report, int $slot, float $factor): void
     {
-        $activityCount = $slot % 13 === 0 ? 2 : 1;
+        $activityCount = 2;
 
         for ($sequence = 1; $sequence <= $activityCount; $sequence++) {
             $shipIndex = intdiv($slot, 4) + $sequence - 1;
@@ -446,46 +694,51 @@ class OperationalReportSeeder extends Seeder
 
     private function seedContainer(DailyReport $report, int $slot, string $shiftName, float $factor): void
     {
+        $activityCount = 2;
         $voyageIndex = intdiv($slot, 8);
-        [$name, $agent, $jetty, $emptyCapacity, $fullCapacity] = self::CONTAINER_SHIPS[
-            $voyageIndex % count(self::CONTAINER_SHIPS)
-        ];
-        $emptyCurrent = min($emptyCapacity, (int) round((27 + $slot % 8) * $factor));
-        $fullCurrent = min($fullCapacity, (int) round((16 + $slot % 6) * $factor));
-        $emptyPrevious = ($slot % 3) * 9;
-        $fullPrevious = ($slot % 2) * 7;
 
-        $container = $report->containerActivity()->create([
-            'sequence' => 1,
-            'ship_name' => $name,
-            'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
-            'agent' => $agent,
-            'jetty' => $jetty,
-            'capacity' => $emptyCapacity,
-            'capacity_empty' => $emptyCapacity,
-            'capacity_full' => $fullCapacity,
-            'ship_tally_names' => ['Asri Sahibu', 'Mustafa', 'Zein'][$slot % 3],
-            'gudang_tally_names' => ['Mustafa', 'Jefry', 'Asmuni'][$slot % 3],
-            'driver_names' => 'Samsul Zainuddin, Arlis',
-            'truck_number' => 'TRL-01, TRL-03',
-        ]);
+        foreach ([1 => 0.55, 2 => 0.45] as $sequence => $share) {
+            $shipIndex = $voyageIndex * $activityCount + $sequence - 1;
+            [$name, $agent, $jetty, $emptyCapacity, $fullCapacity] = self::CONTAINER_SHIPS[
+                $shipIndex % count(self::CONTAINER_SHIPS)
+            ];
+            $emptyCurrent = min($emptyCapacity, (int) round((27 + $slot % 8) * $factor * $share));
+            $fullCurrent = min($fullCapacity, (int) round((16 + $slot % 6) * $factor * $share));
+            $emptyPrevious = (int) round(($slot % 3) * 9 * $share);
+            $fullPrevious = (int) round(($slot % 2) * 7 * $share);
 
-        $container->items()->createMany([
-            [
-                'time_text' => self::SHIFTS[$shiftName],
-                'qty_current' => $emptyCurrent,
-                'qty_prev' => $emptyPrevious,
-                'qty_total' => $emptyCurrent + $emptyPrevious,
-                'status' => 'Empty',
-            ],
-            [
-                'time_text' => self::SHIFTS[$shiftName],
-                'qty_current' => $fullCurrent,
-                'qty_prev' => $fullPrevious,
-                'qty_total' => $fullCurrent + $fullPrevious,
-                'status' => 'Full',
-            ],
-        ]);
+            $container = $report->containerActivity()->create([
+                'sequence' => $sequence,
+                'ship_name' => $name,
+                'ship_name_key' => ShipNameNormalizer::key($name) ?: null,
+                'agent' => $agent,
+                'jetty' => $jetty,
+                'capacity' => $emptyCapacity,
+                'capacity_empty' => $emptyCapacity,
+                'capacity_full' => $fullCapacity,
+                'ship_tally_names' => ['Asri Sahibu', 'Mustafa', 'Zein'][($slot + $sequence) % 3],
+                'gudang_tally_names' => ['Mustafa', 'Jefry', 'Asmuni'][($slot + $sequence - 1) % 3],
+                'driver_names' => $sequence === 1 ? 'Samsul Zainuddin, Arlis' : 'Udin, Nurdian',
+                'truck_number' => $sequence === 1 ? 'TRL-01, TRL-03' : 'TRL-02, TRL-05',
+            ]);
+
+            $container->items()->createMany([
+                [
+                    'time_text' => self::SHIFTS[$shiftName],
+                    'qty_current' => $emptyCurrent,
+                    'qty_prev' => $emptyPrevious,
+                    'qty_total' => $emptyCurrent + $emptyPrevious,
+                    'status' => 'Empty',
+                ],
+                [
+                    'time_text' => self::SHIFTS[$shiftName],
+                    'qty_current' => $fullCurrent,
+                    'qty_prev' => $fullPrevious,
+                    'qty_total' => $fullCurrent + $fullPrevious,
+                    'status' => 'Full',
+                ],
+            ]);
+        }
     }
 
     private function seedTurba(DailyReport $report, int $slot, string $shiftName, float $factor): void

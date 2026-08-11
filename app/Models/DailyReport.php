@@ -114,4 +114,9 @@ class DailyReport extends Model
     {
         return $this->hasMany(EmployeeLog::class);
     }
+
+    public function operationDecisions()
+    {
+        return $this->hasMany(ShipOperationDecision::class);
+    }
 }

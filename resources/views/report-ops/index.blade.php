@@ -12,6 +12,58 @@
             white-space: nowrap;
         }
 
+        .sign-operation-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            padding: 11px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 10px;
+            background-color: var(--black-5);
+        }
+
+        .sign-operation-summary__title {
+            color: var(--dark-main);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .sign-operation-summary__item {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 8px;
+            border-radius: 8px;
+            background-color: var(--white);
+        }
+
+        .sign-operation-summary__identity {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            gap: 1px;
+            color: var(--dark-main);
+            font-size: 11px;
+            overflow-wrap: anywhere;
+        }
+
+        .sign-operation-summary__identity small { color: var(--dark-secondary); font-size: 9px; }
+
+        .sign-operation-summary__status {
+            padding: 4px 8px;
+            border-radius: 999px;
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .sign-operation-summary__status--completed {
+            background-color: var(--success-10);
+            color: var(--success);
+        }
+
         .empty-state {
             width: 100%;
             padding: 36px 20px;
@@ -59,6 +111,21 @@
             flex-wrap: nowrap;
             justify-content: flex-end;
             width: 100%;
+        }
+
+        .report-button .btn > span:first-child,
+        .history-actions .btn > span:first-child {
+            display: inline-flex;
+            align-items: center;
+            line-height: 1;
+        }
+
+        .report-button .btn i,
+        .history-actions .btn i {
+            position: relative;
+            top: 0;
+            display: block;
+            line-height: 1;
         }
 
         .history-actions .btn,
@@ -1423,6 +1490,24 @@
                                 Laporan ini diterima grup Anda dari Regu {{ strtoupper((string) $report->group_name) ?: '-' }}, lalu akan dikirim ke manajer setelah tanda tangan dikonfirmasi.
                             </span>
                         </p>
+                        @if ($report->operationDecisions->isNotEmpty())
+                            <div class="sign-operation-summary">
+                                <span class="sign-operation-summary__title">Status operasi kapal yang Anda terima</span>
+                                @foreach ($report->operationDecisions as $decision)
+                                    @if ($decision->shipOperation)
+                                        <div class="sign-operation-summary__item">
+                                            <span class="sign-operation-summary__identity">
+                                                <strong>{{ $decision->shipOperation->ship_name }}</strong>
+                                                <small>{{ \App\Models\ShipOperation::typeLabel($decision->shipOperation->type) }}</small>
+                                            </span>
+                                            <span class="sign-operation-summary__status {{ $decision->status === \App\Models\ShipOperation::STATUS_COMPLETED ? 'sign-operation-summary__status--completed' : '' }}">
+                                                {{ \App\Models\ShipOperation::statusLabel($decision->status) }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
 
                     <div class="pop-up footer d-flex justify-content-end gap-10 flex-wrap">

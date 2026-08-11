@@ -35,8 +35,10 @@ use Illuminate\Support\Facades\DB;
 class OperationalPerformanceService
 {
     /**
-     * Status laporan yang ikut dihitung. Draft selalu dikecualikan karena masih
-     * bisa berubah; selebihnya mengikuti konvensi statistik dashboard yang lama.
+     * Status laporan yang ikut dihitung. Laporan terkirim tetap menjadi angka
+     * lapangan terkini karena keputusan status kapal sudah diwajibkan saat
+     * kirim; dashboard menandai bagian yang belum diserahterimakan sebagai
+     * sementara. Draft selalu dikecualikan karena masih dapat berubah.
      */
     public const COUNTED_STATUSES = [
         ReportStatus::Submitted->value,
@@ -497,6 +499,7 @@ class OperationalPerformanceService
                 deltaPrevious: $kpiPrevious,
             ),
             'reportCount' => $summary['reports'],
+            'provisionalReportCount' => $this->provisionalReportCount($filters),
             'trend' => $trend,
             'sparklines' => $this->sparklinesFor($trend, withShips: false),
             'trendMax' => max(1.0, max(array_column($trend, 'tonnage') ?: [0.0])),
@@ -3112,6 +3115,23 @@ class OperationalPerformanceService
         }
 
         return $query;
+    }
+
+    /**
+     * Laporan yang sudah dikirim tetapi belum diterima regu berikutnya tetap
+     * dihitung sebagai data lapangan, lalu ditandai sementara sampai serah-terima.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function provisionalReportCount(array $filters): int
+    {
+        return DailyReport::query()
+            ->where('status', ReportStatus::Submitted->value)
+            ->where('report_date', '>=', $filters['start']->toDateString())
+            ->where('report_date', '<', $filters['end']->copy()->addDay()->toDateString())
+            ->when(! empty($filters['group']), fn ($query) => $query->where('group_name', $filters['group']))
+            ->when(! empty($filters['shift']), fn ($query) => $query->where('shift', $filters['shift']))
+            ->count();
     }
 
     /**

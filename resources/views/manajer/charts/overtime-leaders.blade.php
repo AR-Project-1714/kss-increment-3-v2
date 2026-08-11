@@ -88,7 +88,7 @@
                                         @elseif ($movement === 'down')
                                             <i class="fi fi-rr-arrow-trend-down" aria-hidden="true"></i> {{ $movementValue }}
                                         @elseif ($movement === 'same')
-                                            <span aria-hidden="true">—</span>
+                                            <span aria-hidden="true">-</span>
                                         @else
                                             Baru
                                         @endif

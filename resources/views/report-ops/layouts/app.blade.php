@@ -51,10 +51,13 @@
 
     @stack('modals')
 
+    @include('partials.account-settings')
+
     <!-- LINK BOOTSTRAP 5 JS BUNDLE -->
     <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}" crossorigin="anonymous"></script>
 
     {{-- Javascript Interaktif --}}
+    <script src="{{ asset('js/components/report-number-locale.js') }}?v={{ @filemtime(public_path('js/components/report-number-locale.js')) }}"></script>
     <script src="{{ asset('js/layouts/report-ops.js') }}?v={{ @filemtime(public_path('js/layouts/report-ops.js')) }}"></script>
 
     @stack('scripts')

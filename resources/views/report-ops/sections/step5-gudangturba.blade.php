@@ -2,15 +2,13 @@
         <div class="header-form d-flex justify-content-between align-items-center align-self-stretch">
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-warehouse-alt"></i></span><span class="fw-600">Form Tracking</span>
+                <x-form-info-popover id="info-form-ops-tracking" label="Informasi Form Tracking">
+                    Lacak distribusi barang keluar per truck: lengkapi nomor <strong>DO/SO</strong>, marking, dan jumlah terkirim. Kolom <strong>Total</strong> dihitung otomatis (Sekarang + Lalu). Tambah baris untuk tiap truck.
+                </x-form-info-popover>
             </div>
             <div class="counter-form">Form 6 dari 8</div>
         </div>
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
-            <div class="step-info-note">
-                <i class="fi fi-rr-info"></i>
-                <span>Lacak distribusi barang keluar per truck: lengkapi nomor <strong>DO/SO</strong>, marking, dan jumlah terkirim. Kolom <strong>Total</strong> dihitung otomatis (Sekarang + Lalu). Tambah baris untuk tiap truck.</span>
-            </div>
-
             <div class="d-flex flex-column align-items-start align-self-stretch w-100" style="gap: 12px;">
                 <div class="form-grid">
                     <div class="form-group">

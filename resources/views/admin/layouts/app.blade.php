@@ -94,6 +94,8 @@
         </div>
     </div>
 
+    @include('partials.account-settings')
+
     {{-- Bootstrap JS --}}
     <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}" crossorigin="anonymous"></script>
 

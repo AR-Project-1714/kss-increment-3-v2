@@ -2,15 +2,13 @@
         <div class="header-form d-flex justify-content-between align-items-center align-self-stretch">
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-pulse"></i></span><span class="fw-600">Form Cek Unit</span>
+                <x-form-info-popover id="info-form-ops-cek-unit" label="Informasi Form Cek Unit">
+                    Periksa kondisi <strong>Unit Kendaraan</strong>, <strong>Inventaris</strong>, dan <strong>Lingkungan Shelter</strong> saat terima dan saat diserahkan. Klik <strong>Set Semua Baik</strong> untuk menandai sekaligus, lalu ubah item yang bermasalah.
+                </x-form-info-popover>
             </div>
             <div class="counter-form">Form 7 dari 8</div>
         </div>
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
-            <div class="step-info-note">
-                <i class="fi fi-rr-info"></i>
-                <span>Periksa kondisi <strong>Unit Kendaraan</strong>, <strong>Inventaris</strong>, dan <strong>Lingkungan Shelter</strong> saat terima dan saat diserahkan. Klik <strong>Set Semua Baik</strong> untuk menandai sekaligus, lalu ubah item yang bermasalah.</span>
-            </div>
-
             <!-- SUB TAB NAVIGATION (Kendaraan, Inventaris, Lingkungan) -->
             <div class="inspection-header d-flex justify-content-between align-items-end align-self-stretch mb-2">
                 <div class="tab-group unit">

@@ -29,6 +29,16 @@
             ])
         </div>
 
+        @if (($report['provisionalReportCount'] ?? 0) > 0)
+            <div class="performance-verification-note" role="status">
+                <i class="fi fi-rr-clock-three" aria-hidden="true"></i>
+                <span>
+                    <strong>{{ $report['provisionalReportCount'] }} laporan masih menunggu serah-terima.</strong>
+                    Rincian di bawah sudah mencakup laporan tersebut sebagai data lapangan sementara sampai diterima regu berikutnya.
+                </span>
+            </div>
+        @endif
+
         <div class="act-tabs" id="activityTabs" role="tablist" aria-label="Rincian per kegiatan">
             @foreach ($activities as $index => $activity)
                 @php($isActive = $activity['key'] === $activeActivity)

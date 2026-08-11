@@ -3,15 +3,14 @@
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-truck-loading"></i></span>
                 <span class="fw-600">Form Pemuatan Amoniak</span>
+                <x-form-info-popover id="info-form-ops-muat-amoniak" label="Informasi Form Pemuatan Amoniak">
+                    Catat pemuatan amoniak per kapal. Isi <strong>Laporan Harian</strong> tiap jam beserta <strong>COB</strong> (jumlah muat, dalam ton). Tandai status <strong>Selesai</strong> bila pekerjaan kapal sudah rampung.
+                </x-form-info-popover>
             </div>
             <div class="counter-form">Form 4 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
-            <div class="step-info-note">
-                <i class="fi fi-rr-info"></i>
-                <span>Catat pemuatan amoniak per kapal. Isi <strong>Laporan Harian</strong> tiap jam beserta <strong>COB</strong> (jumlah muat, dalam ton). Tandai status <strong>Selesai</strong> bila pekerjaan kapal sudah rampung.</span>
-            </div>
             <div class="form-muat-amoniak d-flex flex-column align-items-start align-self-stretch" style="gap: 25px;">
                 <div class="tab-activity d-flex align-items-center gap-10">
                     <button type="button" class="btn-activity active">Kegiatan 1</button>
@@ -67,12 +66,12 @@
                         Status pekerjaan kapal
                         <span class="status-info-icon" tabindex="0" role="button" aria-label="Info status pekerjaan kapal">
                             <i class="fi fi-rr-info"></i>
-                            <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung — saran ini akan hilang dari daftar.</span>
+                            <span class="status-info-tip" role="tooltip">Pilih "Masih Berjalan" agar kapal ini muncul sebagai saran otomatis pada laporan shift berikutnya. Pilih "Selesai" bila pekerjaan sudah rampung, saran ini akan hilang dari daftar.</span>
                         </span>
                     </span>
                     <div class="ship-operation-status-options">
                         <label>
-                            <input type="radio" name="ship_operation_ammonia_status_1" value="active" {{ old('ship_operation_ammonia_status_1', 'active') === 'active' ? 'checked' : '' }}>
+                            <input type="radio" name="ship_operation_ammonia_status_1" value="active" {{ old('ship_operation_ammonia_status_1') === 'active' ? 'checked' : '' }}>
                             <span>Masih Berjalan</span>
                         </label>
                         <label>

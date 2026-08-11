@@ -534,8 +534,8 @@
         'available' => false,
         'level' => 'unavailable',
         'level_label' => 'Tidak tersedia',
-        'credit_formatted' => '—',
-        'remaining_label' => '—',
+        'credit_formatted' => '-',
+        'remaining_label' => '-',
         'runway_percent' => 0,
         'message' => 'Informasi billing belum tersedia.',
         'reports' => [],
@@ -550,7 +550,7 @@
         'configured' => 'Konfigurasi manual',
         'invoice_history' => 'Histori invoice',
         'balance_trend' => 'Tren saldo',
-        default => '—',
+        default => '-',
     };
 
     $billingTabs = [
@@ -602,7 +602,7 @@
             <dl class="billing-profile__meta">
                 <div>
                     <dt>Billing Account</dt>
-                    <dd>{{ $billing['billing_account_id'] ?? '—' }}</dd>
+                    <dd>{{ $billing['billing_account_id'] ?? '-' }}</dd>
                 </div>
                 <div>
                     <dt>Status Layanan</dt>
@@ -616,7 +616,7 @@
                 </div>
                 <div>
                     <dt>Sumber Estimasi</dt>
-                    <dd>{{ $billing['available'] ? $estimateSourceLabel : '—' }}</dd>
+                    <dd>{{ $billing['available'] ? $estimateSourceLabel : '-' }}</dd>
                 </div>
                 <div>
                     <dt>Terakhir Diperbarui</dt>
@@ -624,7 +624,7 @@
                         @if ($billing['available'] && ! empty($billing['captured_iso']))
                             <time datetime="{{ $billing['captured_iso'] }}">{{ $billing['captured_label'] }}</time>
                         @else
-                            —
+                            -
                         @endif
                     </dd>
                 </div>
@@ -661,7 +661,7 @@
                     <span class="billing-metric__icon billing-metric__icon--cyan" aria-hidden="true"><i class="fi fi-rr-coins"></i></span>
                     <span class="billing-metric__label">Estimasi Biaya Harian</span>
                 </div>
-                <strong class="billing-metric__value">{{ $billing['daily_cost_formatted'] ?? '—' }}</strong>
+                <strong class="billing-metric__value">{{ $billing['daily_cost_formatted'] ?? '-' }}</strong>
                 <span class="billing-metric__note">
                     @if ($billing['available'] && ! empty($billing['daily_cost_formatted']))
                         Dasar perhitungan estimasi masa aktif.
@@ -676,7 +676,7 @@
                     <span class="billing-metric__icon billing-metric__icon--orange" aria-hidden="true"><i class="fi fi-rr-chart-histogram"></i></span>
                     <span class="billing-metric__label">Pemakaian Berjalan</span>
                 </div>
-                <strong class="billing-metric__value">{{ $billing['usage_total_formatted'] ?? '—' }}</strong>
+                <strong class="billing-metric__value">{{ $billing['usage_total_formatted'] ?? '-' }}</strong>
                 <span class="billing-metric__note">Akumulasi biaya periode berjalan.</span>
             </article>
         </div>

@@ -592,12 +592,241 @@
             color: var(--blue-main);
         }
 
+        .ship-operation-status-options input:focus-visible + span {
+            outline: 3px solid var(--blue-main-10);
+            outline-offset: 2px;
+            border-color: var(--blue-main);
+        }
+
         .ship-operation-status-options input[value="completed"]:checked + span {
             border-color: var(--success);
             background-color: var(--success);
             color: #fff;
             font-weight: 700;
             box-shadow: 0 4px 12px var(--success-40);
+        }
+
+        .ship-operation-handover {
+            display: grid;
+            grid-template-columns: 32px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 11px 12px;
+            border: 1px solid var(--blue-main-25);
+            border-radius: 12px;
+            background-color: var(--blue-main-5);
+            color: var(--dark-main);
+        }
+
+        .ship-operation-handover__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 32px;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+        }
+
+        .ship-operation-handover__copy {
+            display: flex;
+            flex: 1 1 auto;
+            min-width: 0;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 11px;
+            overflow-wrap: anywhere;
+        }
+
+        .ship-operation-handover__copy strong { font-size: 12px; }
+
+        .ship-operation-handover__state {
+            flex: 0 0 auto;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background-color: var(--orange-main-10);
+            color: var(--orange-main);
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .ship-operation-handover__state[data-state="active"] {
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+        }
+
+        .ship-operation-handover__state[data-state="completed"] {
+            background-color: var(--success-10);
+            color: var(--success);
+        }
+
+        .ship-operation-handover__actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .ship-operation-handover .ship-operation-status {
+            width: auto;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background-color: transparent;
+        }
+
+        .ship-operation-handover .ship-operation-status-label {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .ship-operation-handover .ship-operation-status-options {
+            flex-wrap: nowrap;
+        }
+
+        .ship-operation-handover .ship-operation-status-options span {
+            min-height: 30px;
+            padding: 6px 10px;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .ship-operation-review {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 12px;
+            background-color: var(--black-5);
+        }
+
+        .ship-operation-review__heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .ship-operation-review__heading > span:first-child {
+            color: var(--dark-main);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .ship-operation-review__count {
+            flex: 0 0 auto;
+            color: var(--dark-secondary);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .ship-operation-review__list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: min(320px, 42vh);
+            overflow-y: auto;
+        }
+
+        .ship-operation-review__item {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 10px;
+            background-color: var(--white);
+        }
+
+        .ship-operation-review__identity {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .ship-operation-review__identity strong {
+            color: var(--dark-main);
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .ship-operation-review__identity span {
+            color: var(--dark-secondary);
+            font-size: 10px;
+        }
+
+        .ship-operation-review__choices { display: flex; gap: 6px; }
+
+        .ship-operation-review__choice {
+            min-height: 32px;
+            padding: 6px 9px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 8px;
+            background-color: var(--white);
+            color: var(--dark-secondary);
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .ship-operation-review__choice:hover,
+        .ship-operation-review__choice:focus-visible {
+            border-color: var(--blue-main);
+            color: var(--blue-main);
+            outline: none;
+        }
+
+        .ship-operation-review__choice.is-active[data-operation-status="active"] {
+            border-color: var(--blue-main);
+            background-color: var(--blue-main-10);
+            color: var(--blue-main);
+        }
+
+        .ship-operation-review__choice.is-active[data-operation-status="completed"] {
+            border-color: var(--success);
+            background-color: var(--success-10);
+            color: var(--success);
+        }
+
+        .ship-operation-review__alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 7px;
+            color: var(--red-main);
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .ship-operation-review__empty {
+            color: var(--dark-secondary);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 900px) {
+            .ship-operation-handover {
+                grid-template-columns: 32px minmax(0, 1fr);
+                align-items: start;
+            }
+
+            .ship-operation-handover__actions {
+                grid-column: 2;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
         }
 
         /* MOBILE: rapikan status pekerjaan kapal (muat pupuk & urea) dan
@@ -611,6 +840,34 @@
             .ship-operation-status-options { width: 100%; }
             .ship-operation-status-options label { flex: 1 1 0; min-width: 0; }
             .ship-operation-status-options span { width: 100%; }
+            .ship-operation-handover {
+                grid-template-columns: 28px minmax(0, 1fr);
+                padding: 10px;
+            }
+            .ship-operation-handover__icon {
+                width: 28px;
+                height: 28px;
+                flex-basis: 28px;
+            }
+            .ship-operation-handover__actions {
+                grid-column: 1 / -1;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding-top: 2px;
+            }
+            .ship-operation-handover__state { align-self: flex-start; }
+            .ship-operation-handover .ship-operation-status { width: 100%; }
+            .ship-operation-handover .ship-operation-status-options {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                width: 100%;
+            }
+            .ship-operation-handover .ship-operation-status-options label { min-width: 0; }
+            .ship-operation-handover .ship-operation-status-options span { width: 100%; }
+            .ship-operation-review__item { grid-template-columns: 1fr; }
+            .ship-operation-review__choices { display: grid; grid-template-columns: 1fr 1fr; }
+            .ship-operation-review__choice { width: 100%; }
 
             /* Aktivitas tetap sebaris dengan input jam, mengisi sisa ruang. */
             .cob-line .activity-input { flex: 1 1 0 !important; min-width: 0 !important; }
@@ -641,6 +898,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const lastOp7Rosters = @json($lastOp7Rosters ?? []);
     const savedFormPayload = @json(old('form_payload') ? json_decode(old('form_payload'), true) : (isset($report) ? $report->payload : null));
     const currentReportId = @json(isset($report) ? $report->id : null);
+    const carryForwardOperations = @json($carryForwardOperations ?? []);
     const shipOperationSuggestUrl = @json(route('report-ops.ship-operations.suggestions'));
     let shipOperationSearchTimer = null;
     let shipOperationSearchController = null;
@@ -656,6 +914,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function unique(values) {
         return [...new Set(values.filter(Boolean).map(value => String(value).trim()).filter(Boolean))];
+    }
+
+    function reportNumericValue(value) {
+        if (typeof window.parseReportNumber === 'function') {
+            return window.parseReportNumber(value, 'locale') ?? 0;
+        }
+
+        const text = String(value ?? '').trim();
+        if (text === '') return 0;
+
+        const normalized = text.includes(',')
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text;
+
+        return Number(normalized) || 0;
+    }
+
+    function reportLocalizedNumber(value) {
+        if (value === '' || value === null || value === undefined) return '';
+        if (typeof window.formatReportNumber === 'function') {
+            return window.formatReportNumber(value, false, 'flexible');
+        }
+
+        return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 }).format(Number(value) || 0);
     }
 
     function createDatalist(id, values) {
@@ -1141,8 +1423,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setShipOperationStatus(root, config, status) {
-        const radio = Array.from((root || document).querySelectorAll(`[name="${config.statusName}"]`))
-            .find(input => input.value === status);
+        const radios = Array.from((root || document).querySelectorAll(`[name="${config.statusName}"]`));
+        radios.forEach(input => { input.checked = false; });
+
+        const radio = radios.find(input => input.value === status);
         if (radio) setControlValue(radio, status);
     }
 
@@ -1339,7 +1623,9 @@ document.addEventListener('DOMContentLoaded', function () {
             setNamedControlValue(pane, name, item[key] ?? '');
         });
 
-        setShipOperationStatus(pane, config, 'active');
+        // Memilih kapal hanya menentukan identitas pelayarannya. Keputusan
+        // berjalan/selesai harus dibuat ulang oleh petugas pada akhir laporan.
+        setShipOperationStatus(pane, config, '');
 
         pane.querySelectorAll('[name*="qty_current"], [name*="qty_prev"], [name*="_current_"], [name*="_prev_"]').forEach(updateAccumulation);
         input.dataset.applyingOperation = 'false';
@@ -1805,6 +2091,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (control.type === 'datetime-local') {
             control.value = normalizeDateTimeLocalValue(value);
             control.dispatchEvent(new Event('input', { bubbles: true }));
+            control.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+        }
+
+        if (control.dataset.localeNumber === 'true' && typeof window.setReportNumberValue === 'function') {
+            window.setReportNumberValue(control, value);
             control.dispatchEvent(new Event('change', { bubbles: true }));
             return;
         }
@@ -2793,7 +3085,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const row = input.closest('.body');
         const qty = row?.querySelector('input[name$="[qty_current]"]');
 
-        return Number(String(qty?.value ?? '').replace(',', '.')) !== 0;
+        return reportNumericValue(qty?.value) !== 0;
     }
 
     function validateContainerStatuses(options = {}) {
@@ -2890,6 +3182,11 @@ document.addEventListener('DOMContentLoaded', function () {
         delete row.dataset.replacementCreated;
         row.querySelector('.table-column.delete')?.style.removeProperty('visibility');
         row.querySelectorAll('.ship-operation-suggestions').forEach(dropdown => dropdown.remove());
+        row.querySelectorAll('.ship-operation-handover').forEach(notice => {
+            const status = notice.querySelector('.ship-operation-status');
+            if (status) row.prepend(status);
+            notice.remove();
+        });
         row.querySelectorAll('[data-user-adjusted]').forEach(el => el.removeAttribute('data-user-adjusted'));
         resetAccumulationSummaries(row);
 
@@ -2900,9 +3197,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (input.type === 'radio') {
-                input.checked = input.name.includes('ship_operation')
-                    ? input.value === 'active'
-                    : input.value === 'Baik';
+                input.checked = input.name.includes('ship_operation') ? false : input.value === 'Baik';
                 return;
             }
 
@@ -3004,14 +3299,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!row) return;
 
         const canAccumulate = hasBagLoadingDetails(row);
-        const current = canAccumulate ? Number(row.querySelector('[name*="qty_current"], [name*="_current_"]')?.value || 0) : 0;
-        const previous = canAccumulate ? Number(row.querySelector('[name*="qty_prev"], [name*="_prev_"]')?.value || 0) : 0;
+        const current = canAccumulate ? reportNumericValue(row.querySelector('[name*="qty_current"], [name*="_current_"]')?.value) : 0;
+        const previous = canAccumulate ? reportNumericValue(row.querySelector('[name*="qty_prev"], [name*="_prev_"]')?.value) : 0;
         const totalInput = row.querySelector('[name*="qty_total"], [name*="qty_accumulated"]');
         const summary = input.closest('.form-card')?.querySelector('.accumulated');
         const total = current + previous;
 
-        if (totalInput) totalInput.value = total || '';
-        if (summary) summary.textContent = total || 0;
+        if (totalInput) totalInput.value = total ? reportLocalizedNumber(total) : '';
+        if (summary) summary.textContent = total ? reportLocalizedNumber(total) : '0';
+        window.fitReportNumberDisplay?.(totalInput);
+        window.fitReportNumberDisplay?.(summary);
     }
 
     function replaceLastIndex(name, nextIndex) {
@@ -3425,11 +3722,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const qtyInput = wrapper.querySelector('.loading-qty-input');
         if (!receivedInput || !deliveredInput || !qtyInput) return;
 
-        const received = parseFloat(String(receivedInput.value).replace(',', '.')) || 0;
-        const delivered = parseFloat(String(deliveredInput.value).replace(',', '.')) || 0;
+        const received = reportNumericValue(receivedInput.value);
+        const delivered = reportNumericValue(deliveredInput.value);
         const qty = Math.max(0, delivered - received);
 
-        qtyInput.value = (receivedInput.value === '' && deliveredInput.value === '') ? '' : qty;
+        qtyInput.value = (receivedInput.value === '' && deliveredInput.value === '')
+            ? ''
+            : reportLocalizedNumber(qty);
+        window.fitReportNumberDisplay?.(qtyInput);
     }
 
     // COB pada Laporan Harian adalah pembacaan kumulatif — entri terakhir yang
@@ -3461,11 +3761,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function showActivity(section, sequence) {
-        section.querySelectorAll('.btn-activity').forEach(tab => tab.classList.toggle('active', Number(tab.dataset.sequence) === sequence));
+        section.querySelectorAll('.btn-activity').forEach(tab => {
+            const isActive = Number(tab.dataset.sequence) === sequence;
+            tab.classList.toggle('active', isActive);
+            tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            tab.tabIndex = isActive ? 0 : -1;
+        });
         section.querySelectorAll('.activity-pane').forEach(pane => {
             const isActive = Number(pane.dataset.sequence) === sequence;
             pane.classList.toggle('d-none', !isActive);
             pane.classList.toggle('d-flex', isActive);
+            pane.setAttribute('aria-hidden', isActive ? 'false' : 'true');
         });
     }
 
@@ -3475,9 +3781,29 @@ document.addEventListener('DOMContentLoaded', function () {
         button.className = 'btn-activity';
         button.dataset.sequence = sequence;
         button.textContent = `Kegiatan ${sequence}`;
+        button.setAttribute('role', 'tab');
+        button.setAttribute('aria-selected', 'false');
+        button.tabIndex = -1;
         button.addEventListener('click', () => showActivity(section, sequence));
         tabBar.insertBefore(button, plusMinus);
         return button;
+    }
+
+    function positionShipOperationStatus(pane) {
+        const status = pane?.querySelector('.ship-operation-status');
+        if (!status) return;
+
+        status.setAttribute('role', 'group');
+        status.setAttribute('aria-label', 'Status pekerjaan kapal');
+
+        const handoverActions = pane.querySelector('.ship-operation-handover__actions');
+        if (handoverActions) {
+            handoverActions.appendChild(status);
+        } else {
+            pane.prepend(status);
+        }
+
+        syncHandoverStatus(pane);
     }
 
     function initActivitySection(target) {
@@ -3512,7 +3838,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         content.insertBefore(pane, buttonRow);
         setSequence(pane, 1);
+        positionShipOperationStatus(pane);
         createActivityTab(section, tabBar, plusMinus, 1).classList.add('active');
+        showActivity(section, 1);
 
         addButton?.addEventListener('click', () => {
             const panes = section.querySelectorAll('.activity-pane');
@@ -3530,6 +3858,7 @@ document.addEventListener('DOMContentLoaded', function () {
             applyMasterDatalists(clone);
             prepareShipOperationFields(clone);
             initPickers(clone);
+            positionShipOperationStatus(clone);
             showActivity(section, sequence);
         });
 
@@ -3554,6 +3883,117 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             showActivity(section, Math.max(1, activeSequence - 1));
+        });
+    }
+
+    function carrySection(type) {
+        return {
+            muat_kantong: document.getElementById('step-muat-kantong'),
+            muat_curah: document.getElementById('step-muat-curah'),
+            muat_amoniak: document.getElementById('step-muat-amoniak'),
+            bongkar_bahan_baku: document.getElementById('section-bahan-baku'),
+            container: document.getElementById('section-container'),
+        }[type] || null;
+    }
+
+    function renderCarryForwardNotice(pane, item) {
+        if (!pane || !item?.handover) return;
+
+        pane.querySelector('.ship-operation-handover')?.remove();
+
+        const notice = document.createElement('div');
+        notice.className = 'ship-operation-handover';
+        notice.innerHTML = `
+            <span class="ship-operation-handover__icon"><i class="fi fi-rr-exchange"></i></span>
+            <span class="ship-operation-handover__copy">
+                <strong>Dibawa dari shift sebelumnya</strong>
+                <span>${escapeHtml(item.handover.document_id || 'Laporan sebelumnya')} &bull; Shift ${escapeHtml(item.handover.shift || '-')} &bull; Regu ${escapeHtml(item.handover.group || '-')}</span>
+            </span>
+            <div class="ship-operation-handover__actions">
+                <span class="ship-operation-handover__state" data-state="pending">Perlu dikonfirmasi</span>
+            </div>
+        `;
+        pane.prepend(notice);
+    }
+
+    function syncHandoverStatus(pane) {
+        const handover = pane?.querySelector('.ship-operation-handover');
+        const state = handover?.querySelector('.ship-operation-handover__state');
+        const checked = handover?.querySelector('.ship-operation-status input:checked');
+        if (!handover || !state) return;
+
+        const status = checked?.value || 'pending';
+        state.dataset.state = status;
+        state.textContent = status === 'active'
+            ? 'Masih berjalan'
+            : (status === 'completed' ? 'Selesai' : 'Perlu dikonfirmasi');
+    }
+
+    function hydrateSavedCarryForwardNotices() {
+        if (!savedFormPayload || !Array.isArray(carryForwardOperations) || carryForwardOperations.length === 0) return;
+
+        const operations = new Map(carryForwardOperations.map(item => [`${item.type}:${item.id}`, item]));
+
+        document.querySelectorAll('.activity-pane input[name^="ship_name_"]').forEach(input => {
+            const pane = input.closest('.activity-pane');
+            const config = shipOperationConfig(input);
+            const operationId = Number(namedControl(pane, config?.idName)?.value || 0);
+            const item = operations.get(`${config?.type}:${operationId}`);
+
+            if (!pane || !config || !item) return;
+
+            renderCarryForwardNotice(pane, item);
+            positionShipOperationStatus(pane);
+        });
+    }
+
+    function hydrateCarryForwardOperations() {
+        if (!Array.isArray(carryForwardOperations) || carryForwardOperations.length === 0 || savedFormPayload) return;
+
+        const positions = {};
+
+        carryForwardOperations.forEach(item => {
+            const section = carrySection(item.type);
+            if (!section) return;
+
+            const position = positions[item.type] || 0;
+            positions[item.type] = position + 1;
+
+            while (section.querySelectorAll('.activity-pane').length <= position) {
+                section.querySelector('.plus-minus-tab .btn.add')?.click();
+            }
+
+            const pane = section.querySelectorAll('.activity-pane')[position];
+            const input = Array.from(pane?.querySelectorAll('input[name^="ship_name_"]') || [])
+                .find(control => shipOperationConfig(control)?.type === item.type);
+
+            if (!input) return;
+
+            applyShipOperation(input, item);
+            renderCarryForwardNotice(pane, item);
+            positionShipOperationStatus(pane);
+        });
+    }
+
+    /**
+     * Penambahan pane saat memulihkan draft/handover sengaja membuka pane yang
+     * baru dibuat agar proses pengisian internalnya selesai. Setelah seluruh
+     * data terpasang, kembalikan tampilan awal ke Kegiatan 1. Perilaku tombol
+     * tambah manual tidak memakai fungsi ini, sehingga petugas tetap langsung
+     * diarahkan ke kegiatan baru yang hendak diisi.
+     */
+    function showFirstActivityOnInitialLoad() {
+        [
+            'step-muat-kantong',
+            'step-muat-curah',
+            'step-muat-amoniak',
+            'section-bahan-baku',
+            'section-container',
+        ].forEach(sectionId => {
+            const section = document.getElementById(sectionId);
+            if (!section || section.querySelectorAll('.activity-pane').length <= 1) return;
+
+            showActivity(section, 1);
         });
     }
 
@@ -3611,8 +4051,11 @@ document.addEventListener('DOMContentLoaded', function () {
     initActivitySection('step-muat-amoniak');
     initActivitySection(document.getElementById('section-bahan-baku'));
     initActivitySection(document.getElementById('section-container'));
+    hydrateCarryForwardOperations();
     document.querySelectorAll('.cob-received-input, .cob-delivered-input').forEach(updateLoadingQty);
     restoreSavedPayload();
+    hydrateSavedCarryForwardNotices();
+    showFirstActivityOnInitialLoad();
     applyAbsenceStateToEmployeeRows();
     syncOp7Replacements();
     syncPayload();
@@ -3640,6 +4083,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     saveDraftButton?.addEventListener('click', () => submitAs('draft'));
+
+    form?.addEventListener('change', event => {
+        if (event.target.matches('input[type="radio"][name*="ship_operation"][name*="status"]')) {
+            syncHandoverStatus(event.target.closest('.activity-pane'));
+        }
+    });
 
     form?.addEventListener('submit', () => {
         window.normalizeReportNumberInputs?.();
@@ -4002,6 +4451,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 <p class="fsize-12 text-muted m-0">
                     Laporan ini akan dikirim ke <span class="fw-600" data-finish-receiver-label>{{ $finishReceiverGroup !== '' ? 'Regu '.$finishReceiverGroup : 'regu penerima yang dipilih' }}</span> untuk diterima dan ditandatangani. Setelah diterima, laporan akan diteruskan ke manajer.
                 </p>
+                <section class="ship-operation-review" aria-labelledby="ship-operation-review-title">
+                    <div class="ship-operation-review__heading">
+                        <span id="ship-operation-review-title">Konfirmasi status operasi kapal</span>
+                        <span class="ship-operation-review__count" data-operation-review-count></span>
+                    </div>
+                    <div class="ship-operation-review__list" data-operation-review-list role="list"></div>
+                    <div class="ship-operation-review__empty d-none" data-operation-review-empty>
+                        Tidak ada kegiatan kapal pada laporan ini. Laporan dapat dikirim tanpa konfirmasi operasi kapal.
+                    </div>
+                    <div class="ship-operation-review__alert d-none" data-operation-review-alert role="alert" aria-live="polite">
+                        <i class="fi fi-rr-triangle-warning" aria-hidden="true"></i>
+                        <span>Konfirmasikan setiap kapal sebagai masih berjalan atau selesai sebelum mengirim laporan.</span>
+                    </div>
+                </section>
                 <div class="day-report-warning d-none" data-day-report-warning style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--warning,#f0ad4e);background:var(--warning-10,#fff7e6)">
                     <i class="fi fi-rr-triangle-warning" style="color:var(--warning,#f0ad4e);margin-top:2px"></i>
                     <span class="fsize-12" style="line-height:1.5" data-day-report-warning-text></span>

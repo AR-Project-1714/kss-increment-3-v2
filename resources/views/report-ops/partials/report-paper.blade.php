@@ -76,6 +76,10 @@
     ];
     $materialActivities = $report->materialActivity->sortBy('sequence')->values();
     $containerActivities = $report->containerActivity->sortBy('sequence')->values();
+    $operationDecisions = $report->operationDecisions
+        ->filter(fn ($decision) => $decision->shipOperation)
+        ->sortBy(fn ($decision) => sprintf('%s-%06d', $decision->shipOperation->type, $decision->ship_operation_id))
+        ->values();
     $turba = $report->turbaActivity;
     $turbaDeliveries = $turba ? $turba->deliveries->values() : collect();
 
@@ -298,6 +302,28 @@
         </tr>
     </table>
 
+    @if ($operationDecisions->isNotEmpty())
+        <div class="sec">Handover Operasi Kapal</div>
+        <table class="grid roomy">
+            <thead>
+                <tr>
+                    <th style="width:34%">Kegiatan</th>
+                    <th>Nama Kapal</th>
+                    <th style="width:24%">Status Setelah Shift</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($operationDecisions as $decision)
+                    <tr>
+                        <td>{{ \App\Models\ShipOperation::typeLabel($decision->shipOperation->type) }}</td>
+                        <td>{{ $decision->shipOperation->ship_name }}</td>
+                        <td><strong>{{ \App\Models\ShipOperation::statusLabel($decision->status) }}</strong></td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
     <div class="sec">I. Pemuatan Pupuk Kantong</div>
     @forelse ($loadingActivities as $activity)
         @php
@@ -413,11 +439,11 @@
                                 <tr><td class="label">Dermaga</td><td class="colon">:</td><td class="line-cell">{{ $bulk->jetty }}</td></tr>
                                 <tr><td class="label">Jenis Muatan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->commodity }}</td></tr>
                                 <tr><td class="label">Kapasitas</td><td class="colon">:</td><td class="line-cell">{{ $fmtQty($bulk->capacity, 'MT') }}</td></tr>
+                                <tr><td class="label">Sandar</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->berthing_time) }}</td></tr>
                             </table>
                         </td>
                         <td style="width:50%">
                             <table class="info">
-                                <tr><td class="label">Sandar</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->berthing_time) }}</td></tr>
                                 <tr><td class="label">Mulai Muat</td><td class="colon">:</td><td class="line-cell">{{ $fmtDateTime($bulk->start_loading_time) }}</td></tr>
                                 <tr><td class="label">Tujuan</td><td class="colon">:</td><td class="line-cell">{{ $bulk->destination }}</td></tr>
                                 <tr><td class="label">Petugas PBM</td><td class="colon">:</td><td class="line-cell">{{ $bulk->stevedoring }}</td></tr>

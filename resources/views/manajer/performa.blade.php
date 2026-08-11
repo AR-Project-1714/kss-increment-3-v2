@@ -48,6 +48,16 @@
             @include('manajer.partials.performance-toolbar', ['formRoute' => 'manajer.performa'])
         </div>
 
+        @if (($report['provisionalReportCount'] ?? 0) > 0)
+            <div class="performance-verification-note" role="status">
+                <i class="fi fi-rr-clock-three" aria-hidden="true"></i>
+                <span>
+                    <strong>{{ $report['provisionalReportCount'] }} laporan masih menunggu serah-terima.</strong>
+                    Angka utama sudah mencakup laporan tersebut sebagai data lapangan sementara sampai diterima regu berikutnya.
+                </span>
+            </div>
+        @endif
+
                 @include('manajer.partials.performance-activity-cards', [
                     'summary' => $report['activityRecap'] ?? [],
                     'comparisonCards' => $report['activityCards'] ?? [],

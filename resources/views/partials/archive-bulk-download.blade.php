@@ -536,7 +536,7 @@
 
                 if (panelTitle) panelTitle.textContent = 'Menyiapkan bundel di latar';
                 if (panelMeta) panelMeta.textContent = `${bundle.processed} / ${bundle.total} laporan · ${percent}%`;
-                if (panelHint) panelHint.textContent = 'Halaman ini boleh ditutup — progres tersimpan di server.';
+                if (panelHint) panelHint.textContent = 'Halaman ini boleh ditutup, progres tersimpan di server.';
             }
 
             async function downloadBundle() {

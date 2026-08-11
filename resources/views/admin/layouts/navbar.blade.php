@@ -13,8 +13,11 @@
         </div>
     </div>
     <div class="navbar-top__right">
-        <button class="btn-theme" id="btnTheme" title="Ganti Tema">
-            <i class="fi fi-rr-sun" id="themeIcon"></i>
-        </button>
+        <div class="kss-account-toolbar">
+            <button class="btn-theme" id="btnTheme" title="Ganti Tema">
+                <i class="fi fi-rr-sun" id="themeIcon"></i>
+            </button>
+            @include('partials.account-trigger')
+        </div>
     </div>
 </nav>

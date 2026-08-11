@@ -17,15 +17,14 @@
             <div class="title-form d-flex align-items-center gap-10">
                 <span class="icon-title-form"><i class="fi fi-sr-document"></i></span>
                 <span class="fw-600">Form Info Umum</span>
+                <x-form-info-popover id="info-form-ops-umum" label="Informasi Form Info Umum">
+                    Identitas laporan shift Anda. <strong>Regu Penerima</strong> adalah regu shift berikutnya yang akan menerima dan menandatangani laporan ini, wajib berbeda dari regu pengirim.
+                </x-form-info-popover>
             </div>
             <div class="counter-form">Form 1 dari 8</div>
         </div>
 
         <div class="content-form d-flex flex-column align-items-center align-self-stretch w-100">
-            <div class="step-info-note">
-                <i class="fi fi-rr-info"></i>
-                <span>Identitas laporan shift Anda. <strong>Regu Penerima</strong> adalah regu shift berikutnya yang akan menerima dan menandatangani laporan ini, wajib berbeda dari regu pengirim.</span>
-            </div>
             <div class="form-info-umum d-flex align-items-start align-content-center align-self-stretch flex-wrap gap-20">
                 <!-- 1. Hari / Tanggal -->
                 <div class="box-input-1">
