@@ -3188,6 +3188,10 @@ class OperationalPerformanceService
      *
      * Untuk baris lama yang belum punya nomor operasi, penggantinya adalah nama
      * KANONIK digabung waktu sandar/tiba — bukan nama mentah.
+     *
+     * Baris tanpa nomor operasi DAN tanpa nama sama sekali tidak punya identitas
+     * apa pun, sehingga hasilnya NULL dan COUNT(DISTINCT) melewatinya. Lihat
+     * shipIdentity().
      */
     private function visitIdentity(string $table, ?string $momentColumn = null): string
     {
@@ -3220,10 +3224,19 @@ class OperationalPerformanceService
      * Tanpa ini, "MV. Sumber Rezeki" dan "MV.SUMBER REZEKI" terhitung dua kapal
      * pada rekap bulanan dan muncul sebagai dua baris terpisah — masing-masing
      * hanya membawa sebagian tonasenya.
+     *
+     * Hasilnya NULL bila baris itu tidak menyimpan nama sama sekali. Form
+     * mengirim satu baris rincian kosong berisi angka nol ("0" dianggap terisi),
+     * sehingga kegiatan tanpa kapal pun tetap tersimpan sebagai satu baris
+     * kegiatan tanpa nama. Selama identitasnya berupa string kosong, seluruh
+     * baris semacam itu menyatu menjadi satu penanda '' yang ikut terhitung
+     * sebagai kapal — satu kapal hantu bertonase nol pada rekap. NULL membuat
+     * COUNT(DISTINCT) melewatinya, sedangkan GROUP BY tetap mengumpulkannya
+     * dalam satu kelompok yang sudah berlabel "Nama kapal belum diisi".
      */
     private function shipIdentity(string $table): string
     {
-        return 'COALESCE(NULLIF('.$table.".ship_name_key, ''), ".$table.".ship_name, '')";
+        return 'COALESCE(NULLIF('.$table.".ship_name_key, ''), NULLIF(".$table.".ship_name, ''))";
     }
 
     /**

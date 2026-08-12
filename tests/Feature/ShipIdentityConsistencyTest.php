@@ -147,6 +147,60 @@ class ShipIdentityConsistencyTest extends TestCase
     }
 
     /**
+     * Kegiatan tanpa nama kapal sama sekali bukanlah sebuah kapal.
+     *
+     * Form mengirim satu baris rincian kosong yang berisi angka nol, dan "0"
+     * dihitung sebagai terisi, sehingga blok yang tidak dipakai petugas tetap
+     * tersimpan sebagai satu kegiatan tanpa nama dan tanpa operasi kapal.
+     * Beberapa laporan semacam itu menyatu menjadi satu penanda kosong yang
+     * ikut terhitung — satu kapal hantu bertonase nol yang membuat rekap
+     * melaporkan dua kapal padahal yang bersandar hanya satu.
+     */
+    public function test_kegiatan_tanpa_nama_kapal_tidak_terhitung_sebagai_kapal(): void
+    {
+        $named = MaterialActivity::create([
+            'daily_report_id' => $this->report(0)->id,
+            'sequence' => 1,
+            'ship_name' => self::SPELLINGS[0],
+            'ship_name_key' => ShipNameNormalizer::key(self::SPELLINGS[0]),
+            'capacity' => 8000,
+        ]);
+
+        MaterialItem::create([
+            'material_activity_id' => $named->id,
+            'raw_material_type' => 'Clay JB',
+            'qty_current' => 1000,
+        ]);
+
+        // Dua laporan lain mengirim blok bahan baku yang seluruhnya kosong.
+        foreach ([1, 2] as $index) {
+            $blank = MaterialActivity::create([
+                'daily_report_id' => $this->report($index)->id,
+                'sequence' => 1,
+                'ship_name' => null,
+                'ship_name_key' => null,
+            ]);
+
+            MaterialItem::create([
+                'material_activity_id' => $blank->id,
+                'raw_material_type' => null,
+                'qty_current' => 0,
+                'qty_prev' => 0,
+            ]);
+        }
+
+        $recap = app(OperationalPerformanceService::class)->activityRecap($this->filters());
+        $rows = collect($recap['rows'])->keyBy('key');
+
+        $this->assertSame(
+            1,
+            (int) $rows['bongkar_bahan_baku']['total']['count'],
+            'Blok kegiatan tanpa nama kapal masih terhitung sebagai kapal tersendiri.',
+        );
+        $this->assertSame(1000.0, (float) $rows['bongkar_bahan_baku']['total']['value']);
+    }
+
+    /**
      * Muat kantong berbeda dari bongkar: ia punya operasi kapal, dan kolom
      * "Nilai Lalu" ikut terputus setiap kali identitasnya pecah. Panel
      * rincian harus tetap satu baris dengan akumulasi yang utuh.
