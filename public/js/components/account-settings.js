@@ -31,17 +31,23 @@
         var photoProgressValue = photoForm.querySelector('[data-account-photo-progress-value]');
         var photoProgressTrack = photoForm.querySelector('[data-account-photo-progress-track]');
         var photoProgressBar = photoForm.querySelector('[data-account-photo-progress-bar]');
+        var photoDeleteOpen = photoForm.querySelector('[data-account-photo-delete-open]');
+        var photoDeleteConfirm = photoForm.querySelector('[data-account-photo-delete-confirm]');
+        var photoDeleteCancel = photoForm.querySelector('[data-account-photo-delete-cancel]');
+        var photoDeleteButton = photoForm.querySelector('[data-account-photo-delete-confirm-button]');
+        var photoDeleteLabel = photoForm.querySelector('[data-account-photo-delete-label]');
 
         var passwordLastFocus = null;
         var photoLastFocus = null;
         var passwordSubmitting = false;
         var photoUploading = false;
+        var photoDeleting = false;
         var selectedPhoto = null;
         var previewObjectUrl = null;
         var currentPhotoUrl = photoPreview && !photoPreview.hidden ? photoPreview.src : '';
         var hoverCapable = window.matchMedia('(hover: hover) and (pointer: fine)');
         var allowedPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'];
-        var maximumPhotoSize = 2 * 1024 * 1024;
+        var maximumPhotoSize = 10 * 1024 * 1024;
 
         function syncThemeControls() {
             var isDark = document.body.classList.contains('dark-mode');
@@ -232,7 +238,17 @@
             photoProgressLabel.textContent = 'Mengunggah foto...';
             setPhotoProgress(0, false);
             photoSubmit.disabled = true;
+            setPhotoDeleteConfirm(false);
             showCurrentPhoto();
+        }
+
+        function setPhotoDeleteConfirm(active) {
+            photoDeleteConfirm.hidden = !active;
+            photoDeleteOpen.hidden = active || !currentPhotoUrl;
+            photoForm.querySelectorAll('[data-account-photo-close], [data-account-photo-submit]').forEach(function (button) {
+                button.hidden = active;
+            });
+            if (active) window.setTimeout(function () { photoDeleteCancel.focus(); }, 0);
         }
 
         function selectPhoto(file) {
@@ -251,7 +267,7 @@
             }
 
             if (file.size > maximumPhotoSize) {
-                setPhotoAlert('Ukuran foto melebihi 2 MB. Pilih foto yang lebih kecil.');
+                setPhotoAlert('Ukuran foto melebihi 10 MB. Pilih foto yang lebih kecil.');
                 return;
             }
 
@@ -276,7 +292,7 @@
         }
 
         function closePhotoModal() {
-            if (photoUploading) return;
+            if (photoUploading || photoDeleting) return;
             photoModal.classList.remove('is-open');
             photoModal.setAttribute('aria-hidden', 'true');
             resetPhotoForm();
@@ -299,6 +315,16 @@
             photoProgress.hidden = !active;
         }
 
+        function setPhotoDeleting(active) {
+            photoDeleting = active;
+            photoDeleteCancel.disabled = active;
+            photoDeleteButton.disabled = active;
+            photoDeleteButton.classList.toggle('is-loading', active);
+            photoDeleteLabel.textContent = active ? 'Menghapus...' : 'Ya, Hapus';
+            var icon = photoDeleteButton.querySelector('i');
+            if (icon) icon.className = active ? 'fi fi-rr-spinner' : 'fi fi-rr-trash';
+        }
+
         function updateAccountAvatars(photoUrl) {
             var versionedPhotoUrl = photoUrl + (photoUrl.includes('?') ? '&' : '?') + 'v=' + Date.now();
             currentPhotoUrl = versionedPhotoUrl;
@@ -312,6 +338,22 @@
             document.querySelectorAll('[data-account-photo-label]').forEach(function (label) {
                 label.textContent = 'Ganti Foto Profil';
             });
+        }
+
+        function clearAccountAvatars() {
+            currentPhotoUrl = '';
+            document.querySelectorAll('[data-account-avatar-image]').forEach(function (image) {
+                image.removeAttribute('src');
+                image.hidden = true;
+            });
+            document.querySelectorAll('[data-account-avatar-fallback]').forEach(function (fallback) {
+                fallback.hidden = false;
+            });
+            document.querySelectorAll('[data-account-photo-label]').forEach(function (label) {
+                label.textContent = 'Tambah Foto Profil';
+            });
+            photoDeleteOpen.hidden = true;
+            showCurrentPhoto();
         }
 
         function finishPhotoUpload(callback, startedAt) {
@@ -465,6 +507,43 @@
         photoDropzone.addEventListener('drop', function (event) {
             if (photoUploading) return;
             selectPhoto(event.dataTransfer?.files?.[0]);
+        });
+
+        photoDeleteOpen.addEventListener('click', function () {
+            if (!currentPhotoUrl || photoUploading || photoDeleting) return;
+            setPhotoDeleteConfirm(true);
+        });
+        photoDeleteCancel.addEventListener('click', function () { setPhotoDeleteConfirm(false); });
+        photoDeleteButton.addEventListener('click', function () {
+            if (!currentPhotoUrl || photoDeleting) return;
+            setPhotoAlert('');
+            setPhotoDeleting(true);
+
+            fetch(photoForm.dataset.accountPhotoDeleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': photoForm.querySelector('[name="_token"]').value
+                }
+            }).then(function (response) {
+                return response.json().catch(function () { return {}; }).then(function (payload) {
+                    if (!response.ok) throw { status: response.status, payload: payload };
+                    return payload;
+                });
+            }).then(function (payload) {
+                setPhotoDeleting(false);
+                clearAccountAvatars();
+                closePhotoModal();
+                showToast('success', 'Foto Profil Dihapus', payload.message || 'Foto profil berhasil dihapus.');
+            }).catch(function (error) {
+                setPhotoDeleting(false);
+                var message = error.status === 429
+                    ? 'Terlalu banyak percobaan. Tunggu sebentar lalu coba kembali.'
+                    : 'Foto belum dapat dihapus. Periksa koneksi lalu coba kembali.';
+                setPhotoAlert(message);
+                photoDeleteButton.focus();
+            });
         });
 
         photoPreview.addEventListener('error', function () {

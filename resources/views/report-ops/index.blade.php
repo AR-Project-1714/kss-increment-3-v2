@@ -14,54 +14,32 @@
 
         .sign-operation-summary {
             display: flex;
-            flex-direction: column;
-            gap: 7px;
-            padding: 11px;
-            border: 1px solid var(--smooth-border);
-            border-radius: 10px;
-            background-color: var(--black-5);
-        }
-
-        .sign-operation-summary__title {
-            color: var(--dark-main);
-            font-size: 11px;
-            font-weight: 700;
-        }
-
-        .sign-operation-summary__item {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
             align-items: center;
             gap: 10px;
-            padding: 7px 8px;
-            border-radius: 8px;
-            background-color: var(--white);
-        }
-
-        .sign-operation-summary__identity {
-            display: flex;
-            min-width: 0;
-            flex-direction: column;
-            gap: 1px;
+            padding: 11px 12px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 10px;
+            background-color: var(--blue-main-5);
             color: var(--dark-main);
-            font-size: 11px;
-            overflow-wrap: anywhere;
         }
 
-        .sign-operation-summary__identity small { color: var(--dark-secondary); font-size: 9px; }
-
-        .sign-operation-summary__status {
-            padding: 4px 8px;
-            border-radius: 999px;
+        .sign-operation-summary__icon {
+            display: inline-flex;
+            width: 32px;
+            height: 32px;
+            flex: 0 0 32px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
             background-color: var(--blue-main-10);
             color: var(--blue-main);
-            font-size: 9px;
-            font-weight: 700;
         }
 
-        .sign-operation-summary__status--completed {
-            background-color: var(--success-10);
-            color: var(--success);
+        .sign-operation-summary__text {
+            min-width: 0;
+            font-size: 11px;
+            line-height: 1.55;
+            overflow-wrap: anywhere;
         }
 
         .empty-state {
@@ -1491,21 +1469,18 @@
                             </span>
                         </p>
                         @if ($report->operationDecisions->isNotEmpty())
-                            <div class="sign-operation-summary">
-                                <span class="sign-operation-summary__title">Status operasi kapal yang Anda terima</span>
-                                @foreach ($report->operationDecisions as $decision)
-                                    @if ($decision->shipOperation)
-                                        <div class="sign-operation-summary__item">
-                                            <span class="sign-operation-summary__identity">
-                                                <strong>{{ $decision->shipOperation->ship_name }}</strong>
-                                                <small>{{ \App\Models\ShipOperation::typeLabel($decision->shipOperation->type) }}</small>
-                                            </span>
-                                            <span class="sign-operation-summary__status {{ $decision->status === \App\Models\ShipOperation::STATUS_COMPLETED ? 'sign-operation-summary__status--completed' : '' }}">
-                                                {{ \App\Models\ShipOperation::statusLabel($decision->status) }}
-                                            </span>
-                                        </div>
+                            @php($continuedOperationCount = $report->operationDecisions->where('status', \App\Models\ShipOperation::STATUS_ACTIVE)->count())
+                            <div class="sign-operation-summary" role="status">
+                                <span class="sign-operation-summary__icon" aria-hidden="true">
+                                    <i class="fi fi-rr-ship"></i>
+                                </span>
+                                <span class="sign-operation-summary__text">
+                                    @if ($continuedOperationCount > 0)
+                                        <strong>{{ $continuedOperationCount }} operasi kapal</strong> akan dilanjutkan ke laporan shift berikutnya.
+                                    @else
+                                        Tidak ada operasi kapal yang dilanjutkan ke laporan shift berikutnya.
                                     @endif
-                                @endforeach
+                                </span>
                             </div>
                         @endif
                     </div>

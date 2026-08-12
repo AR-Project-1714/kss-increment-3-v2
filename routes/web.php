@@ -27,6 +27,10 @@ Route::patch('/account/profile-photo', [AccountController::class, 'updateProfile
     ->middleware(['auth', 'throttle:10,1'])
     ->name('account.profile-photo.update');
 
+Route::delete('/account/profile-photo', [AccountController::class, 'deleteProfilePhoto'])
+    ->middleware(['auth', 'throttle:10,1'])
+    ->name('account.profile-photo.delete');
+
 Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
     Route::get('/', [SystemNotificationController::class, 'index'])->name('index');
     Route::patch('/read-all', [SystemNotificationController::class, 'markAllRead'])->name('read-all');

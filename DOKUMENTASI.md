@@ -37,6 +37,7 @@ Sistem dibangun dengan model pengembangan **inkremental**: setiap increment mena
 
 ### Backend
 - **PHP 8.3+**
+- **PHP GD** dengan dukungan JPEG, PNG, dan WebP untuk sanitasi serta konversi foto profil
 - **Laravel 13.8** — framework utama
 - **Eloquent ORM** dengan relasi `hasMany` / `hasOne` / `belongsTo`
 - **barryvdh/laravel-dompdf 3.1** — generasi PDF

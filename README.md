@@ -14,6 +14,7 @@ Aplikasi web internal untuk pencatatan laporan shift harian operasional KSS. Sis
 ## Stack
 
 - PHP 8.3+
+- PHP GD dengan dukungan JPEG, PNG, dan WebP
 - Laravel 13
 - Blade
 - SQLite untuk development
@@ -35,6 +36,12 @@ npm install
 npm run build
 php artisan serve
 ```
+
+Upload foto profil menerima file sampai 10 MB dan selalu membuat ulang hasilnya
+sebagai WebP maksimal 512 piksel. Untuk produksi, atur `upload_max_filesize` PHP
+minimal `10M`, `post_max_size` minimal `12M`, dan pada Nginx gunakan
+`client_max_body_size 12M`. Gunakan `memory_limit` minimal `256M` agar proses
+decode gambar beresolusi tinggi memiliki ruang memori yang cukup.
 
 URL default:
 
@@ -67,4 +74,3 @@ php artisan test
 - `/admin/datamaster` - data master.
 - `/admin/backup` - manajemen backup.
 - `/admin/help` - pusat bantuan admin.
-

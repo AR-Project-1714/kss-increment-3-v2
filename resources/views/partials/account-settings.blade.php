@@ -37,6 +37,7 @@
             method="POST"
             enctype="multipart/form-data"
             data-account-photo-form
+            data-account-photo-delete-url="{{ route('account.profile-photo.delete') }}"
             novalidate
         >
             @csrf
@@ -90,7 +91,8 @@
                 <div class="kss-account-photo__rules" id="accountPhotoRules">
                     <span><i class="fi fi-rr-picture" aria-hidden="true"></i> JPG, PNG, atau WebP</span>
                     <span><i class="fi fi-rr-resize" aria-hidden="true"></i> Minimal 96 × 96 piksel</span>
-                    <span><i class="fi fi-rr-file" aria-hidden="true"></i> Maksimal 2 MB</span>
+                    <span><i class="fi fi-rr-file" aria-hidden="true"></i> Maksimal 10 MB</span>
+                    <span><i class="fi fi-rr-shield-check" aria-hidden="true"></i> Otomatis diamankan &amp; diubah ke WebP</span>
                 </div>
 
                 <div class="kss-account-photo__progress" data-account-photo-progress aria-live="polite" hidden>
@@ -113,11 +115,32 @@
             </div>
 
             <div class="kss-account-modal__footer">
+                <button
+                    type="button"
+                    class="kss-account-button kss-account-button--danger-outline"
+                    data-account-photo-delete-open
+                    @if (! $accountSettingsPhotoUrl) hidden @endif
+                >
+                    <i class="fi fi-rr-trash" aria-hidden="true"></i>
+                    Hapus Foto
+                </button>
                 <button type="button" class="kss-account-button kss-account-button--secondary" data-account-photo-close>Batal</button>
                 <button type="submit" class="kss-account-button kss-account-button--primary" data-account-photo-submit disabled>
                     <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
                     <span data-account-photo-submit-label>Simpan Foto</span>
                 </button>
+
+                <div class="kss-account-photo__delete-confirm" data-account-photo-delete-confirm hidden>
+                    <span>
+                        <strong>Hapus foto profil?</strong>
+                        <small>Avatar akan kembali menjadi inisial nama.</small>
+                    </span>
+                    <button type="button" class="kss-account-button kss-account-button--secondary" data-account-photo-delete-cancel>Tidak</button>
+                    <button type="button" class="kss-account-button kss-account-button--danger" data-account-photo-delete-confirm-button>
+                        <i class="fi fi-rr-trash" aria-hidden="true"></i>
+                        <span data-account-photo-delete-label>Ya, Hapus</span>
+                    </button>
+                </div>
             </div>
         </form>
     </div>

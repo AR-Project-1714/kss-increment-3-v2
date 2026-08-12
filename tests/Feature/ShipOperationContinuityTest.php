@@ -101,6 +101,18 @@ class ShipOperationContinuityTest extends TestCase
             $carryForward->pluck('ship_name')->all(),
         );
 
+        $indexHtml = $this->actingAs($receiver)
+            ->get(route('report-ops.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString(
+            '<strong>2 operasi kapal</strong> akan dilanjutkan ke laporan shift berikutnya.',
+            $indexHtml,
+        );
+        $this->assertStringNotContainsString('Status operasi kapal yang Anda terima', $indexHtml);
+        $this->assertStringNotContainsString('sign-operation-summary__item', $indexHtml);
+
         $html = $response->getContent();
         $this->assertStringContainsString('positions[item.type]', $html);
         $this->assertStringContainsString("while (section.querySelectorAll('.activity-pane').length <= position)", $html);

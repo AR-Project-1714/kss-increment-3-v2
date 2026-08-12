@@ -927,6 +927,10 @@ body.dark-mode {
     transition: color .2s ease, background-color .2s ease, border-color .2s ease, transform .2s ease;
 }
 
+.kss-account-button[hidden] {
+    display: none;
+}
+
 .kss-account-button--secondary {
     color: var(--dark-secondary, var(--black-secondary));
     background-color: var(--white);
@@ -948,6 +952,59 @@ body.dark-mode {
     border-color: var(--blue-hover);
     background-color: var(--blue-hover);
     transform: translateY(-1px);
+}
+
+.kss-account-button--danger-outline {
+    margin-inline-end: auto;
+    color: var(--red-main);
+    border-color: var(--red-main-10);
+    background-color: var(--white);
+}
+
+.kss-account-button--danger-outline:hover:not(:disabled) {
+    color: var(--red-hover);
+    border-color: var(--red-main);
+    background-color: var(--red-main-5);
+}
+
+.kss-account-button--danger {
+    color: var(--button-color, var(--white-pure));
+    border-color: var(--red-main);
+    background-color: var(--red-main);
+}
+
+.kss-account-button--danger:hover:not(:disabled) {
+    border-color: var(--red-hover);
+    background-color: var(--red-hover);
+}
+
+.kss-account-photo__delete-confirm {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.kss-account-photo__delete-confirm[hidden] {
+    display: none;
+}
+
+.kss-account-photo__delete-confirm > span {
+    min-width: 0;
+    margin-inline-end: auto;
+    display: flex;
+    flex-direction: column;
+    color: var(--dark-main, var(--black));
+}
+
+.kss-account-photo__delete-confirm strong {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.kss-account-photo__delete-confirm small {
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 9px;
 }
 
 .kss-account-button:disabled {
@@ -987,6 +1044,20 @@ body.kss-account-modal-open {
 
     .kss-account-modal__footer {
         flex-direction: column-reverse;
+    }
+
+    .kss-account-button--danger-outline {
+        margin-inline-end: 0;
+    }
+
+    .kss-account-photo__delete-confirm {
+        flex-direction: column;
+    }
+
+    .kss-account-photo__delete-confirm > span {
+        width: 100%;
+        margin-inline-end: 0;
+        text-align: center;
     }
 
     .kss-account-button {

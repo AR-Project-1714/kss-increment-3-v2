@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdminActivityLog;
+use App\Services\ProfilePhotoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ class AccountController extends Controller
     /**
      * Menyimpan atau mengganti foto profil milik pengguna yang sedang masuk.
      */
-    public function updateProfilePhoto(Request $request): JsonResponse|RedirectResponse
+    public function updateProfilePhoto(Request $request, ProfilePhotoService $profilePhotos): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'profile_photo' => [
@@ -23,36 +24,24 @@ class AccountController extends Controller
                 'file',
                 'image',
                 'mimes:jpg,jpeg,png,webp',
-                'max:2048',
+                'mimetypes:image/jpeg,image/png,image/webp',
+                'extensions:jpg,jpeg,png,webp',
+                'max:'.ProfilePhotoService::MAX_UPLOAD_KILOBYTES,
                 'dimensions:min_width=96,min_height=96,max_width=4096,max_height=4096',
             ],
         ], [
             'profile_photo.required' => 'Pilih foto profil terlebih dahulu.',
             'profile_photo.image' => 'File yang dipilih harus berupa gambar.',
             'profile_photo.mimes' => 'Foto profil harus berformat JPG, PNG, atau WebP.',
-            'profile_photo.max' => 'Ukuran foto profil maksimal 2 MB.',
+            'profile_photo.mimetypes' => 'Isi file harus berupa gambar JPG, PNG, atau WebP yang valid.',
+            'profile_photo.extensions' => 'Ekstensi file foto harus JPG, JPEG, PNG, atau WebP.',
+            'profile_photo.max' => 'Ukuran foto profil maksimal 10 MB.',
             'profile_photo.dimensions' => 'Resolusi foto harus antara 96×96 dan 4096×4096 piksel.',
         ]);
 
         $user = $request->user();
-        $photo = $validated['profile_photo'];
-        $directory = public_path('profile-photos');
-
-        if (! File::isDirectory($directory)) {
-            File::makeDirectory($directory, 0755, true);
-        }
-
-        $filename = sprintf(
-            'profile-%s-%s-%s.%s',
-            Str::slug($user->username ?: $user->name) ?: 'user',
-            now()->format('YmdHis'),
-            Str::lower(Str::random(6)),
-            Str::lower($photo->extension() ?: 'jpg')
-        );
-
-        $photo->move($directory, $filename);
-        $newPath = 'profile-photos/'.$filename;
         $oldPath = $user->profile_photo_path;
+        $newPath = $profilePhotos->store($validated['profile_photo'], $user);
 
         try {
             $user->forceFill(['profile_photo_path' => $newPath])->save();
@@ -62,9 +51,7 @@ class AccountController extends Controller
             throw $exception;
         }
 
-        if ($oldPath && Str::startsWith($oldPath, 'profile-photos/')) {
-            File::delete(public_path($oldPath));
-        }
+        $profilePhotos->deleteStored($oldPath);
 
         AdminActivityLog::create([
             'user_id' => $user->id,
@@ -80,6 +67,41 @@ class AccountController extends Controller
             return response()->json([
                 'message' => $message,
                 'photo_url' => asset($newPath),
+            ]);
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Menghapus foto profil milik pengguna yang sedang masuk.
+     */
+    public function deleteProfilePhoto(Request $request, ProfilePhotoService $profilePhotos): JsonResponse|RedirectResponse
+    {
+        $user = $request->user();
+        $oldPath = $user->profile_photo_path;
+
+        if ($oldPath) {
+            $user->forceFill(['profile_photo_path' => null])->save();
+            $profilePhotos->deleteStored($oldPath);
+
+            AdminActivityLog::create([
+                'user_id' => $user->id,
+                'type' => 'update',
+                'description' => 'Foto profil akun dihapus oleh pemilik akun.',
+                'ip_address' => $request->ip(),
+                'properties' => ['event' => 'self_profile_photo_deleted'],
+            ]);
+        }
+
+        $message = $oldPath
+            ? 'Foto profil berhasil dihapus.'
+            : 'Akun belum memiliki foto profil.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'photo_url' => null,
             ]);
         }
 
