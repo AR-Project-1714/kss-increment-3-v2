@@ -1523,9 +1523,23 @@ class ReportOpsController extends Controller
         );
 
         for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
-            if (! $this->hasAny($request, [
+            // Baris rincian dinilai lebih dulu dengan aturan isi yang sebenarnya,
+            // lalu daftar hasilnya dipakai ulang saat menyimpan. Kunci
+            // unloading_materials sengaja TIDAK ikut hasAny(): larik baris
+            // siap-isi selalu terkirim, sehingga gerbangnya akan selalu terbuka
+            // dan bagian yang tidak pernah disentuh petugas ikut tersimpan.
+            $materialRows = array_filter(
+                $this->rows($request->input("unloading_materials_{$i}", [])),
+                fn (array $material): bool => $this->rowHasContent(
+                    $material,
+                    ['raw_material_type'],
+                    ['qty_current', 'qty_prev', 'qty_total'],
+                )
+            );
+
+            if ($materialRows === [] && ! $this->hasAny($request, [
                 "ship_name_material_{$i}", "agent_material_{$i}", "jetty_material_{$i}", "capacity_material_{$i}",
-                "unloading_materials_{$i}", "tally_kapal_{$i}", "opr_forklift_{$i}", "no_forklift_bb_{$i}", "tally_pengiriman_{$i}",
+                "tally_kapal_{$i}", "opr_forklift_{$i}", "no_forklift_bb_{$i}", "tally_pengiriman_{$i}",
                 "driver_petugas_bb_{$i}", "truck_petugas_bb_{$i}", "material_work_start_{$i}", "material_work_end_{$i}",
             ])) {
                 continue;
@@ -1555,24 +1569,26 @@ class ReportOpsController extends Controller
                 'working_hours' => $this->timeRange($request, "material_work_start_{$i}", "material_work_end_{$i}", "material_working_hours_{$i}"),
             ]);
 
-            foreach ($this->rows($request->input("unloading_materials_{$i}", [])) as $material) {
-                if ($this->rowHasAny($material, ['raw_material_type', 'qty_current', 'qty_prev', 'qty_total'])) {
-                    $materialActivity->items()->create([
-                        'raw_material_type' => $this->string($material['raw_material_type'] ?? null),
-                        'qty_current' => $this->decimal($material['qty_current'] ?? null),
-                        'qty_prev' => $this->decimal($material['qty_prev'] ?? null),
-                        'qty_total' => $this->decimal($material['qty_total'] ?? null),
-                    ]);
-                }
+            foreach ($materialRows as $material) {
+                $materialActivity->items()->create([
+                    'raw_material_type' => $this->string($material['raw_material_type'] ?? null),
+                    'qty_current' => $this->decimal($material['qty_current'] ?? null),
+                    'qty_prev' => $this->decimal($material['qty_prev'] ?? null),
+                    'qty_total' => $this->decimal($material['qty_total'] ?? null),
+                ]);
             }
         }
 
         for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
-            $containerRows = $this->rows($request->input("unloading_containers_{$i}", []));
-            $hasContainerRows = array_filter(
-                $containerRows,
-                fn (array $container): bool => $this->rowHasAny($container, ['time', 'time_text', 'status', 'qty_current', 'qty_prev', 'qty_total'])
-            ) !== [];
+            $containerRows = array_filter(
+                $this->rows($request->input("unloading_containers_{$i}", [])),
+                fn (array $container): bool => $this->rowHasContent(
+                    $container,
+                    ['time', 'time_text', 'status'],
+                    ['qty_current', 'qty_prev', 'qty_total'],
+                )
+            );
+            $hasContainerRows = $containerRows !== [];
 
             if (! $this->hasAny($request, [
                 "ship_name_container_{$i}", "agent_container_{$i}", "jetty_container_{$i}", "capacity_container_{$i}", "capacity_full_container_{$i}",
@@ -1608,23 +1624,32 @@ class ReportOpsController extends Controller
             ]);
 
             foreach ($containerRows as $container) {
-                if ($this->rowHasAny($container, ['time', 'time_text', 'status', 'qty_current', 'qty_prev', 'qty_total'])) {
-                    $containerActivity->items()->create([
-                        'time' => $this->time($container['time'] ?? null),
-                        'time_text' => $this->string($container['time_text'] ?? null),
-                        // Sudah diseragamkan sebelum validasi; diulang di sini
-                        // supaya jalur non-HTTP (seeder, uji, impor) tidak bisa
-                        // menyelipkan penanda bebas ke kolom pemisah kegiatan.
-                        'status' => ContainerStatusNormalizer::normalize($container['status'] ?? null),
-                        'qty_current' => $this->decimal($container['qty_current'] ?? null),
-                        'qty_prev' => $this->decimal($container['qty_prev'] ?? null),
-                        'qty_total' => $this->decimal($container['qty_total'] ?? null),
-                    ]);
-                }
+                $containerActivity->items()->create([
+                    'time' => $this->time($container['time'] ?? null),
+                    'time_text' => $this->string($container['time_text'] ?? null),
+                    // Sudah diseragamkan sebelum validasi; diulang di sini
+                    // supaya jalur non-HTTP (seeder, uji, impor) tidak bisa
+                    // menyelipkan penanda bebas ke kolom pemisah kegiatan.
+                    'status' => ContainerStatusNormalizer::normalize($container['status'] ?? null),
+                    'qty_current' => $this->decimal($container['qty_current'] ?? null),
+                    'qty_prev' => $this->decimal($container['qty_prev'] ?? null),
+                    'qty_total' => $this->decimal($container['qty_total'] ?? null),
+                ]);
             }
         }
 
-        if ($this->hasAny($request, ['tally_gudang_names', 'turba_tally_gudang_terima', 'turba_fl_no', 'turba_trl_no', 'turba_forklift_operator', 'turba_driver_names', 'turba_working_hours', 'turba_work_start', 'turba_work_end', 'turba_ship_name', 'turba_agent', 'turba_jetty', 'turba_deliveries'])) {
+        // Trucking dicacah per baris — satu baris sama dengan satu rit — sehingga
+        // baris hampa langsung menggelembungkan jumlah Rit pada rekap.
+        $turbaRows = array_filter(
+            $this->rows($request->input('turba_deliveries', [])),
+            fn (array $delivery): bool => $this->rowHasContent(
+                $delivery,
+                ['truck_name', 'do_so_number', 'marking_type'],
+                ['capacity', 'qty_current', 'qty_prev', 'qty_accumulated'],
+            )
+        );
+
+        if ($turbaRows !== [] || $this->hasAny($request, ['tally_gudang_names', 'turba_tally_gudang_terima', 'turba_fl_no', 'turba_trl_no', 'turba_forklift_operator', 'turba_driver_names', 'turba_working_hours', 'turba_work_start', 'turba_work_end', 'turba_ship_name', 'turba_agent', 'turba_jetty'])) {
             $turba = $report->turbaActivity()->create([
                 'tally_gudang_names' => $this->string($request->input('tally_gudang_names')),
                 'tally_gudang_terima' => $this->string($request->input('turba_tally_gudang_terima')),
@@ -1635,18 +1660,16 @@ class ReportOpsController extends Controller
                 'working_hours' => $this->timeRange($request, 'turba_work_start', 'turba_work_end', 'turba_working_hours'),
             ]);
 
-            foreach ($this->rows($request->input('turba_deliveries', [])) as $delivery) {
-                if ($this->rowHasAny($delivery, ['truck_name', 'do_so_number', 'capacity', 'marking_type', 'qty_current', 'qty_prev', 'qty_accumulated'])) {
-                    $turba->deliveries()->create([
-                        'truck_name' => $this->string($delivery['truck_name'] ?? null),
-                        'do_so_number' => $this->string($delivery['do_so_number'] ?? null),
-                        'capacity' => $this->decimal($delivery['capacity'] ?? null),
-                        'marking_type' => $this->string($delivery['marking_type'] ?? null),
-                        'qty_current' => $this->decimal($delivery['qty_current'] ?? null),
-                        'qty_prev' => $this->decimal($delivery['qty_prev'] ?? null),
-                        'qty_accumulated' => $this->decimal($delivery['qty_accumulated'] ?? null),
-                    ]);
-                }
+            foreach ($turbaRows as $delivery) {
+                $turba->deliveries()->create([
+                    'truck_name' => $this->string($delivery['truck_name'] ?? null),
+                    'do_so_number' => $this->string($delivery['do_so_number'] ?? null),
+                    'capacity' => $this->decimal($delivery['capacity'] ?? null),
+                    'marking_type' => $this->string($delivery['marking_type'] ?? null),
+                    'qty_current' => $this->decimal($delivery['qty_current'] ?? null),
+                    'qty_prev' => $this->decimal($delivery['qty_prev'] ?? null),
+                    'qty_accumulated' => $this->decimal($delivery['qty_accumulated'] ?? null),
+                ]);
             }
         }
 
@@ -2901,6 +2924,45 @@ class ReportOpsController extends Controller
     {
         foreach ($keys as $key) {
             if ($this->filled($row[$key] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Apakah satu baris rincian benar-benar berisi.
+     *
+     * Berbeda dari rowHasAny(), angka NOL tidak dianggap sebagai isian. Form
+     * selalu menyediakan satu baris siap-isi, dan kolom angkanya terkirim
+     * sebagai "0" — nilai yang lolos filled(). Akibatnya bagian yang tidak
+     * pernah disentuh petugas tetap tersimpan sebagai satu baris rincian
+     * hampa, lengkap dengan kegiatan induknya yang tanpa nama kapal. Pada
+     * rekap, kegiatan tanpa nama itu ikut terhitung sebagai satu kapal
+     * bertonase nol.
+     *
+     * Baris dianggap berisi bila salah satu kolom KETERANGAN-nya terisi, atau
+     * salah satu kolom ANGKA-nya bukan nol. Petugas yang memang mencatat nol
+     * selalu menyebut apa yang nol — jenis bahan, jam, atau status — sehingga
+     * catatan semacam itu tetap tersimpan.
+     *
+     * Nilai angka dibaca lewat decimal(), yaitu pembaca yang sama dengan yang
+     * menyimpannya, supaya "baris ini kosong" dan "baris ini tersimpan nol"
+     * tidak pernah dinilai oleh dua aturan yang berbeda.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<int, string>  $textKeys
+     * @param  array<int, string>  $numericKeys
+     */
+    private function rowHasContent(array $row, array $textKeys, array $numericKeys): bool
+    {
+        if ($this->rowHasAny($row, $textKeys)) {
+            return true;
+        }
+
+        foreach ($numericKeys as $key) {
+            if ($this->decimal($row[$key] ?? null) > 0.0) {
                 return true;
             }
         }

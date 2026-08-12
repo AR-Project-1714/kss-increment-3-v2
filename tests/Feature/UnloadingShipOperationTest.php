@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\ContainerActivity;
+use App\Models\ContainerItem;
 use App\Models\MaterialActivity;
+use App\Models\MaterialItem;
 use App\Models\ShipOperation;
+use App\Models\TurbaDelivery;
 use App\Models\User;
 use App\Support\ShipNameNormalizer;
 use Carbon\Carbon;
@@ -158,6 +161,70 @@ class UnloadingShipOperationTest extends TestCase
             [2, 1],
             $operations->map(fn (ShipOperation $o): int => MaterialActivity::where('ship_operation_id', $o->id)->count())->all(),
         );
+    }
+
+    /**
+     * Bagian yang tidak pernah disentuh petugas tidak boleh ikut tersimpan.
+     *
+     * Form menyediakan satu baris rincian siap-isi yang kolom angkanya
+     * terkirim sebagai "0". Selama nol dianggap isian, bagian Bahan Baku yang
+     * kosong tetap tersimpan sebagai kegiatan tanpa nama kapal — dan pada
+     * rekap bulanan kegiatan tanpa nama itu ikut terhitung sebagai satu kapal
+     * bertonase nol. Persis yang terjadi pada laporan 4, 5, dan 6 Agustus 2026,
+     * yang membuat Bongkar Bahan Baku melaporkan dua kapal padahal yang
+     * bersandar hanya satu.
+     */
+    public function test_bagian_kosong_tidak_tersimpan_sebagai_kegiatan(): void
+    {
+        $this->submit('2026-05-19', 'Pagi', 'A', [
+            // Bahan Baku: tidak disentuh sama sekali, hanya baris siap-isi.
+            'ship_name_material_1' => '',
+            'agent_material_1' => '',
+            'unloading_materials_1' => [
+                ['raw_material_type' => '', 'qty_current' => '0', 'qty_prev' => '0', 'qty_total' => ''],
+            ],
+
+            // Trucking: juga tidak disentuh.
+            'turba_deliveries' => [
+                ['truck_name' => '', 'do_so_number' => '', 'qty_current' => '0', 'qty_prev' => '0'],
+            ],
+
+            // Container: benar-benar dikerjakan, harus tetap tersimpan utuh.
+            'ship_name_container_1' => 'KM. Ayer Mas',
+            'capacity_container_1' => '120',
+            'unloading_containers_1' => [
+                ['status' => 'Empty', 'qty_current' => '20'],
+                ['status' => '', 'qty_current' => '0', 'qty_prev' => '0', 'qty_total' => ''],
+            ],
+        ]);
+
+        $this->assertSame(0, MaterialActivity::count(), 'Bagian Bahan Baku yang kosong ikut tersimpan.');
+        $this->assertSame(0, MaterialItem::count());
+        $this->assertSame(0, TurbaDelivery::count(), 'Rit hampa ikut tersimpan dan menggelembungkan jumlah Rit.');
+
+        $this->assertSame(1, ContainerActivity::count(), 'Bagian yang benar-benar dikerjakan justru ikut terbuang.');
+        $this->assertSame(1, ContainerItem::count(), 'Hanya baris yang berisi yang boleh tersimpan.');
+        $this->assertSame(20.0, (float) ContainerItem::firstOrFail()->qty_current);
+    }
+
+    /**
+     * Nol yang memang dicatat petugas tetap tersimpan. Pembedanya adalah
+     * keterangan: baris yang menyebut APA yang nol jelas sebuah catatan,
+     * sedangkan baris tanpa keterangan dan tanpa angka bukan apa-apa.
+     */
+    public function test_nol_yang_diberi_keterangan_tetap_tersimpan(): void
+    {
+        $this->submit('2026-05-19', 'Pagi', 'A', [
+            'ship_name_material_1' => 'MV. Sumber Rezeki',
+            'capacity_material_1' => '8000',
+            'unloading_materials_1' => [
+                ['raw_material_type' => 'Limestone', 'qty_current' => '0', 'qty_prev' => '439', 'qty_total' => '439'],
+                ['raw_material_type' => 'Clay JB', 'qty_current' => '0', 'qty_prev' => '0', 'qty_total' => '0'],
+            ],
+        ]);
+
+        $this->assertSame(1, MaterialActivity::count());
+        $this->assertSame(2, MaterialItem::count(), 'Catatan nol yang menyebut jenis bahannya ikut terbuang.');
     }
 
     /**
