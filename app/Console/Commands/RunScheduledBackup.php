@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\AdminActivityLog;
 use App\Services\SystemBackupService;
+use App\Services\SystemNotificationService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -14,12 +15,14 @@ class RunScheduledBackup extends Command
 
     protected $description = 'Membuat snapshot backup data sistem (dipakai penjadwal backup otomatis).';
 
-    public function handle(SystemBackupService $backup): int
+    public function handle(SystemBackupService $backup, SystemNotificationService $notifications): int
     {
         try {
             $filename = $backup->createSnapshot('otomatis');
         } catch (Throwable $exception) {
             $this->error('Backup otomatis gagal: '.$exception->getMessage());
+
+            $notifications->backupFailed(true);
 
             AdminActivityLog::create([
                 'type' => 'error',
@@ -37,6 +40,8 @@ class RunScheduledBackup extends Command
             'description' => 'Backup otomatis terjadwal berhasil dibuat: '.$filename,
             'properties' => ['file' => $filename, 'trigger' => 'schedule', 'pruned_old' => $pruned],
         ]);
+
+        $notifications->backupSucceeded($filename, true);
 
         $this->info('Backup otomatis dibuat: '.$filename.($pruned > 0 ? " (menghapus {$pruned} backup lama)" : ''));
 

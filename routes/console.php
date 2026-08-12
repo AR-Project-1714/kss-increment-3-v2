@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\SystemNotification;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -20,6 +21,19 @@ Artisan::command('inspire', function () {
 // Bersihkan draft & saran operasi kapal kadaluarsa setiap hari, sehingga tetap
 // terjadi walau tidak ada yang membuka halaman (pembersihan on-request tetap ada).
 Schedule::command('reports:prune-stale')->dailyAt('01:30');
+
+// Kotak notifikasi hanya menampilkan item aktif. Baris yang sudah selesai atau
+// kedaluwarsa dipertahankan 30 hari untuk diagnosis, lalu dibuang agar tabel
+// tidak tumbuh tanpa batas.
+Schedule::call(function (): void {
+    $cutoff = now()->subDays(30);
+
+    SystemNotification::query()
+        ->where(fn ($query) => $query
+            ->where('resolved_at', '<=', $cutoff)
+            ->orWhere('expires_at', '<=', $cutoff))
+        ->delete();
+})->dailyAt('01:20')->name('notifications:prune');
 
 // Tonase muat curah adalah SELISIH antar pembacaan COB sepanjang satu
 // pelayaran, bukan jumlah pembacaannya. Selisih itu sudah dihitung ulang tiap

@@ -25,6 +25,7 @@ use App\Services\ArchiveMetricsService;
 use App\Services\IdcloudhostBillingService;
 use App\Services\SystemBackupService;
 use App\Services\SystemMetricsService;
+use App\Services\SystemNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -1283,10 +1284,19 @@ class AdminV2Controller extends Controller
         ];
     }
 
-    public function generateBackup(Request $request, SystemBackupService $backup)
+    public function generateBackup(Request $request, SystemBackupService $backup, SystemNotificationService $notifications)
     {
-        $filename = $backup->createSnapshot('manual', $request->user()?->only(['id', 'name', 'username']));
+        try {
+            $filename = $backup->createSnapshot('manual', $request->user()?->only(['id', 'name', 'username']));
+        } catch (\Throwable $exception) {
+            report($exception);
+            $notifications->backupFailed(false);
+
+            return back()->with('error', 'Backup manual gagal dibuat. Periksa kapasitas penyimpanan dan log sistem.');
+        }
+
         $this->recordActivity($request, 'backup', 'Membuat backup manual '.$filename);
+        $notifications->backupSucceeded($filename, false);
 
         return back()->with('success', 'Backup manual berhasil dibuat.');
     }

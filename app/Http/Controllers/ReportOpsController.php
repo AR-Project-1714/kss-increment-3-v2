@@ -17,6 +17,7 @@ use App\Models\ShipOperation;
 use App\Models\ShipOperationDecision;
 use App\Models\UnitCheckLog;
 use App\Services\BulkTonnageService;
+use App\Services\SystemNotificationService;
 use App\Support\ContainerStatusNormalizer;
 use App\Support\ShipNameNormalizer;
 use App\Support\TonnageNumber;
@@ -435,6 +436,10 @@ class ReportOpsController extends Controller
             return $this->autosaveResponse($report, 'report-ops.update');
         }
 
+        if ($status === ReportStatus::Submitted->value) {
+            app(SystemNotificationService::class)->operationalSubmitted($report->fresh());
+        }
+
         $message = $status === ReportStatus::Draft->value
             ? 'Draft laporan berhasil disimpan.'
             : 'Laporan operasional berhasil dikirim.';
@@ -515,6 +520,7 @@ class ReportOpsController extends Controller
         // Draft hasil reservasi form baru: simpan pertama ini "disimpan", bukan
         // "diperbarui" — dicatat sebelum update karena setelahnya tak kosong lagi.
         $wasBlank = $report->isBlankDraft();
+        $wasDraft = $report->status === ReportStatus::Draft;
 
         try {
             DB::transaction(function () use ($request, $report, $validated, $payload): void {
@@ -556,6 +562,10 @@ class ReportOpsController extends Controller
 
         if ($this->isAutosaveRequest($request)) {
             return $this->autosaveResponse($report, 'report-ops.update');
+        }
+
+        if ($wasDraft && $status === ReportStatus::Submitted->value) {
+            app(SystemNotificationService::class)->operationalSubmitted($report->fresh());
         }
 
         $message = $status === ReportStatus::Draft->value
@@ -613,6 +623,8 @@ class ReportOpsController extends Controller
                     'received_by_user_id' => $user->id,
                     'received_at' => now(),
                 ]);
+
+                app(SystemNotificationService::class)->operationalAcknowledged($report->fresh());
 
                 return back()->with('success', 'Laporan berhasil diterima dan ditanda tangani.');
             }

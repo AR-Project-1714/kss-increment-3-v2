@@ -21,28 +21,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // 2. DARK MODE TOGGLE
-        const themeBtn = document.getElementById('themeToggle');
-        const themeIcon = document.getElementById('themeIcon');
-        const body = document.body;
-        let isDark = localStorage.getItem('theme') === 'dark';
-        if (isDark && themeIcon) themeIcon.className = 'fi fi-rr-moon';
-        if (themeBtn && themeIcon) {
-            themeBtn.addEventListener('click', () => {
-                isDark = !isDark;
-                themeIcon.classList.add(isDark ? 'animate-out-up' : 'animate-out-down');
-                setTimeout(() => {
-                    body.classList.toggle('dark-mode', isDark);
-                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                    themeIcon.className = isDark ? 'fi fi-rr-moon' : 'fi fi-rr-sun';
-                    themeIcon.classList.remove('animate-out-up', 'animate-out-down');
-                    themeIcon.classList.add(isDark ? 'prepare-from-bottom' : 'prepare-from-top');
-                    void themeIcon.offsetWidth;
-                    themeIcon.classList.remove('prepare-from-bottom', 'prepare-from-top');
-                }, 200);
-            });
-        }
-
         // 3. TOAST — ditangani komponen bersama (partials/toast.blade.php).
         //    window.showReportToast tersedia sebagai alias dari window.kssToast.
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\ManajerController;
 use App\Http\Controllers\ReportMaintenanceController;
 use App\Http\Controllers\ReportOpsController;
 use App\Http\Controllers\ReportSafetyController;
+use App\Http\Controllers\SystemNotificationController;
 use App\Models\Role;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,12 @@ Route::patch('/account/password', [AccountController::class, 'updatePassword'])
 Route::patch('/account/profile-photo', [AccountController::class, 'updateProfilePhoto'])
     ->middleware(['auth', 'throttle:10,1'])
     ->name('account.profile-photo.update');
+
+Route::middleware('auth')->prefix('notifications')->name('notifications.')->group(function () {
+    Route::get('/', [SystemNotificationController::class, 'index'])->name('index');
+    Route::patch('/read-all', [SystemNotificationController::class, 'markAllRead'])->name('read-all');
+    Route::patch('/{notification}/read', [SystemNotificationController::class, 'markRead'])->name('read');
+});
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN])->group(function () {
     Route::get('/', [AdminV2Controller::class, 'index'])->name('index');

@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\ResolvesSafetyMeta;
 use App\Models\MasterSafetyItem;
 use App\Models\MasterSafetyLocation;
 use App\Models\SafetyReport;
+use App\Services\SystemNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -71,7 +72,7 @@ class ReportSafetyController extends Controller
         // seluruh penyimpanan berikutnya menimpa baris ini, bukan bikin duplikat.
         $reservedReport = $this->reserveDraftReport(SafetyReport::class, [
             'created_by' => auth()->id(),
-            'status'     => SafetyStatus::Draft->value,
+            'status' => SafetyStatus::Draft->value,
         ]);
 
         return view('report-safety.create', array_merge($this->formData(), [
@@ -103,10 +104,10 @@ class ReportSafetyController extends Controller
         try {
             DB::transaction(function () use ($request, $validated, $status, &$report): void {
                 $report = SafetyReport::create([
-                    'report_date'  => $validated['report_date'] ?? null,
-                    'time_range'   => $this->workTimeRange($request),
-                    'status'       => $status,
-                    'created_by'   => $request->user()->id,
+                    'report_date' => $validated['report_date'] ?? null,
+                    'time_range' => $this->workTimeRange($request),
+                    'status' => $status,
+                    'created_by' => $request->user()->id,
                     'submitted_at' => $status === SafetyStatus::Submitted->value ? now() : null,
                 ]);
 
@@ -125,6 +126,10 @@ class ReportSafetyController extends Controller
             return $this->autosaveResponse($report, 'safety.update');
         }
 
+        if ($status === SafetyStatus::Submitted->value) {
+            app(SystemNotificationService::class)->safetySubmitted($report->fresh());
+        }
+
         return redirect()->route('safety.index')->with(
             'success',
             $status === SafetyStatus::Draft->value
@@ -138,10 +143,10 @@ class ReportSafetyController extends Controller
         abort_unless($this->canAccess($report, auth()->user()), 403);
 
         return view('report-safety.viewpdf', [
-            'report'  => $this->loadSafetyReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadSafetyReport($report),
+            'isPdf' => false,
             'backUrl' => route('safety.index'),
-            'pdfUrl'  => route('safety.pdf', $report),
+            'pdfUrl' => route('safety.pdf', $report),
         ]);
     }
 
@@ -171,13 +176,14 @@ class ReportSafetyController extends Controller
         // Draft hasil reservasi form baru: simpan pertama ini "disimpan", bukan
         // "diperbarui" — dicatat sebelum update karena setelahnya tak kosong lagi.
         $wasBlank = $report->isBlankDraft();
+        $wasDraft = $report->status === SafetyStatus::Draft;
 
         try {
             DB::transaction(function () use ($request, $report, $validated, $status): void {
                 $report->update([
-                    'report_date'  => $validated['report_date'] ?? null,
-                    'time_range'   => $this->workTimeRange($request),
-                    'status'       => $status,
+                    'report_date' => $validated['report_date'] ?? null,
+                    'time_range' => $this->workTimeRange($request),
+                    'status' => $status,
                     'submitted_at' => $status === SafetyStatus::Submitted->value ? ($report->submitted_at ?? now()) : null,
                 ]);
 
@@ -187,8 +193,8 @@ class ReportSafetyController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal memperbarui laporan K3.', [
                 'report_id' => $report->id,
-                'user_id'   => $request->user()?->id,
-                'message'   => $exception->getMessage(),
+                'user_id' => $request->user()?->id,
+                'message' => $exception->getMessage(),
             ]);
 
             return back()->withInput()->with('error', 'Laporan belum bisa diperbarui. Silakan periksa data lalu coba lagi.');
@@ -196,6 +202,10 @@ class ReportSafetyController extends Controller
 
         if ($this->isAutosaveRequest($request)) {
             return $this->autosaveResponse($report, 'safety.update');
+        }
+
+        if ($wasDraft && $status === SafetyStatus::Submitted->value) {
+            app(SystemNotificationService::class)->safetySubmitted($report->fresh());
         }
 
         return redirect()->route('safety.index')->with(
@@ -215,7 +225,7 @@ class ReportSafetyController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal menghapus draft laporan K3.', [
                 'report_id' => $report->id,
-                'message'   => $exception->getMessage(),
+                'message' => $exception->getMessage(),
             ]);
 
             return back()->with('error', 'Draft belum bisa dihapus. Silakan coba lagi.');
@@ -242,22 +252,22 @@ class ReportSafetyController extends Controller
 
         if (! class_exists(Pdf::class)) {
             return view('report-safety.viewpdf', [
-                'report'  => $this->loadSafetyReport($report),
-                'isPdf'   => false,
+                'report' => $this->loadSafetyReport($report),
+                'isPdf' => false,
                 'backUrl' => route('safety.index'),
-                'pdfUrl'  => null,
+                'pdfUrl' => null,
             ]);
         }
 
         $pdf = Pdf::loadView('report-safety.pdf', [
             'report' => $this->loadSafetyReport($report),
-            'isPdf'  => true,
+            'isPdf' => true,
         ]);
         $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
         $pdf->setOption('isRemoteEnabled', true);
 
         return response($pdf->output(), 200, [
-            'Content-Type'        => 'application/pdf',
+            'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$this->safetyFileName($report, 'pdf').'"',
         ]);
     }
@@ -292,14 +302,14 @@ class ReportSafetyController extends Controller
                 }
 
                 $report->inspections()->create([
-                    'location_id'            => $locationId,
-                    'item_id'                => $itemId,
+                    'location_id' => $locationId,
+                    'item_id' => $itemId,
                     'location_name_snapshot' => $locationName,
-                    'item_name_snapshot'     => $itemName,
-                    'qty'                    => $this->qty($itemRow['qty'] ?? null),
-                    'condition'              => $this->condition($itemRow['condition'] ?? null),
-                    'recommendation'         => $this->string($itemRow['recommendation'] ?? null),
-                    'sort_order'             => $sort++,
+                    'item_name_snapshot' => $itemName,
+                    'qty' => $this->qty($itemRow['qty'] ?? null),
+                    'condition' => $this->condition($itemRow['condition'] ?? null),
+                    'recommendation' => $this->string($itemRow['recommendation'] ?? null),
+                    'sort_order' => $sort++,
                 ]);
             }
         }
@@ -326,10 +336,10 @@ class ReportSafetyController extends Controller
 
             $report->operationLogs()->create([
                 'activity_name' => $name,
-                'condition'     => $condition,
-                'action'        => $action,
-                'notes'         => $notes,
-                'sort_order'    => $sort++,
+                'condition' => $condition,
+                'action' => $action,
+                'notes' => $notes,
+                'sort_order' => $sort++,
             ]);
         }
     }
@@ -350,10 +360,10 @@ class ReportSafetyController extends Controller
 
             $report->incidentLogs()->create([
                 'description' => $description,
-                'condition'   => $condition,
-                'action'      => $action,
-                'notes'       => $notes,
-                'sort_order'  => $sort++,
+                'condition' => $condition,
+                'action' => $action,
+                'notes' => $notes,
+                'sort_order' => $sort++,
             ]);
         }
     }
@@ -411,8 +421,8 @@ class ReportSafetyController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'is_countable'])
             ->map(fn (MasterSafetyItem $item): array => [
-                'id'           => $item->id,
-                'name'         => $item->name,
+                'id' => $item->id,
+                'name' => $item->name,
                 'is_countable' => (bool) $item->is_countable,
             ])
             ->values()
@@ -420,10 +430,10 @@ class ReportSafetyController extends Controller
 
         return [
             'locationGroups' => $report ? $this->locationGroupsFromReport($report) : $this->locationGroupsFromTemplate(),
-            'operationRows'  => $report ? $this->operationRowsFromReport($report) : $this->defaultOperationRows(),
-            'incidentRows'   => $report ? $this->incidentRowsFromReport($report) : [],
-            'catalogItems'   => $catalogItems,
-            'conditions'     => self::CONDITIONS,
+            'operationRows' => $report ? $this->operationRowsFromReport($report) : $this->defaultOperationRows(),
+            'incidentRows' => $report ? $this->incidentRowsFromReport($report) : [],
+            'catalogItems' => $catalogItems,
+            'conditions' => self::CONDITIONS,
             'previousReportPeek' => $this->previousReportPeek($report),
         ];
     }
@@ -470,14 +480,14 @@ class ReportSafetyController extends Controller
             ->orderBy('id')
             ->get()
             ->map(fn (MasterSafetyLocation $location): array => [
-                'location_id'   => $location->id,
+                'location_id' => $location->id,
                 'location_name' => $location->name,
-                'items'         => $location->items->map(fn (MasterSafetyItem $item): array => [
-                    'item_id'        => $item->id,
-                    'item_name'      => $item->name,
-                    'is_countable'   => (bool) $item->is_countable,
-                    'qty'            => $item->pivot->default_qty,
-                    'condition'      => '',
+                'items' => $location->items->map(fn (MasterSafetyItem $item): array => [
+                    'item_id' => $item->id,
+                    'item_name' => $item->name,
+                    'is_countable' => (bool) $item->is_countable,
+                    'qty' => $item->pivot->default_qty,
+                    'condition' => '',
                     'recommendation' => '',
                 ])->values()->all(),
             ])
@@ -494,18 +504,18 @@ class ReportSafetyController extends Controller
 
             if (! isset($groups[$key])) {
                 $groups[$key] = [
-                    'location_id'   => $inspection->location_id,
+                    'location_id' => $inspection->location_id,
                     'location_name' => $inspection->location_name_snapshot,
-                    'items'         => [],
+                    'items' => [],
                 ];
             }
 
             $groups[$key]['items'][] = [
-                'item_id'        => $inspection->item_id,
-                'item_name'      => $inspection->item_name_snapshot,
-                'is_countable'   => $inspection->qty !== null || (bool) ($inspection->item?->is_countable),
-                'qty'            => $inspection->qty,
-                'condition'      => $inspection->condition ?? '',
+                'item_id' => $inspection->item_id,
+                'item_name' => $inspection->item_name_snapshot,
+                'is_countable' => $inspection->qty !== null || (bool) ($inspection->item?->is_countable),
+                'qty' => $inspection->qty,
+                'condition' => $inspection->condition ?? '',
                 'recommendation' => $inspection->recommendation ?? '',
             ];
         }
@@ -517,9 +527,9 @@ class ReportSafetyController extends Controller
     {
         return array_map(fn (string $name): array => [
             'activity_name' => $name,
-            'condition'     => 'Aman',
-            'action'        => '',
-            'notes'         => '',
+            'condition' => 'Aman',
+            'action' => '',
+            'notes' => '',
         ], self::DEFAULT_ACTIVITIES);
     }
 
@@ -531,9 +541,9 @@ class ReportSafetyController extends Controller
 
         return $report->operationLogs->map(fn ($log): array => [
             'activity_name' => $log->activity_name,
-            'condition'     => $log->condition ?? '',
-            'action'        => $log->action ?? '',
-            'notes'         => $log->notes ?? '',
+            'condition' => $log->condition ?? '',
+            'action' => $log->action ?? '',
+            'notes' => $log->notes ?? '',
         ])->values()->all();
     }
 
@@ -541,9 +551,9 @@ class ReportSafetyController extends Controller
     {
         return $report->incidentLogs->map(fn ($log): array => [
             'description' => $log->description ?? '',
-            'condition'   => $log->condition ?? '',
-            'action'      => $log->action ?? '',
-            'notes'       => $log->notes ?? '',
+            'condition' => $log->condition ?? '',
+            'action' => $log->action ?? '',
+            'notes' => $log->notes ?? '',
         ])->values()->all();
     }
 
@@ -576,7 +586,7 @@ class ReportSafetyController extends Controller
         $requiredWhenSubmit = $isDraft ? 'nullable' : 'required';
 
         return [
-            'status'      => ['required', Rule::in([SafetyStatus::Draft->value, SafetyStatus::Submitted->value])],
+            'status' => ['required', Rule::in([SafetyStatus::Draft->value, SafetyStatus::Submitted->value])],
             'report_date' => [
                 $requiredWhenSubmit,
                 'date',
@@ -607,18 +617,18 @@ class ReportSafetyController extends Controller
                 },
             ],
             'work_time_start' => [$requiredWhenSubmit, 'string', 'max:10'],
-            'work_time_end'   => ['nullable', 'string', 'max:10'],
-            'locations'   => ['nullable', 'array'],
-            'operations'  => ['nullable', 'array'],
-            'incidents'   => ['nullable', 'array'],
+            'work_time_end' => ['nullable', 'string', 'max:10'],
+            'locations' => ['nullable', 'array'],
+            'operations' => ['nullable', 'array'],
+            'incidents' => ['nullable', 'array'],
         ];
     }
 
     private function attributes(): array
     {
         return [
-            'report_date'      => 'tanggal',
-            'work_time_start'  => 'jam mulai kerja',
+            'report_date' => 'tanggal',
+            'work_time_start' => 'jam mulai kerja',
         ];
     }
 

@@ -40,13 +40,21 @@ class CommonUiTest extends BlackBoxTestCase
 
     public function test_tc_ui_03_mode_gelap_tersedia(): void
     {
-        $admin = $this->admin();
+        $penggunaDanHalaman = [
+            [$this->admin(), route('admin.index')],
+            [$this->manager(), route('manajer.index')],
+        ];
 
-        $this->actingAs($admin)
-            ->get(route('admin.index'))
-            ->assertOk()
-            ->assertSee('btn-theme', false)
-            ->assertSee('dark-mode', false);
+        foreach ($penggunaDanHalaman as [$pengguna, $halaman]) {
+            $this->actingAs($pengguna)
+                ->get($halaman)
+                ->assertOk()
+                ->assertSee('kss-account__profile-card', false)
+                ->assertSee('data-account-theme-toggle', false)
+                ->assertSee('dark-mode', false)
+                ->assertDontSee('id="btnTheme"', false)
+                ->assertDontSee('kss-account__menu-item--danger', false);
+        }
     }
 
     public function test_tc_ui_04_layout_responsif_memiliki_sidebar_geser(): void
@@ -111,6 +119,29 @@ class CommonUiTest extends BlackBoxTestCase
             $this->assertFileExists($path);
         } finally {
             @unlink($path);
+        }
+    }
+
+    public function test_logout_petugas_berada_di_dropdown_profil(): void
+    {
+        $petugasDanHalaman = [
+            [$this->operator('A'), route('report-ops.index')],
+            [$this->maintenance(), route('pemeliharaan.index')],
+            [$this->safety(), route('safety.index')],
+        ];
+
+        foreach ($petugasDanHalaman as [$petugas, $halaman]) {
+            $this->actingAs($petugas)
+                ->get($halaman)
+                ->assertOk()
+                ->assertSee('data-account-popover', false)
+                ->assertSee('kss-account__profile-card', false)
+                ->assertSee('data-account-theme-toggle', false)
+                ->assertSee('kss-account__menu-item--danger', false)
+                ->assertSee('Keluar', false)
+                ->assertDontSee('id="themeToggle"', false)
+                ->assertDontSee('kss-account-toolbar__divider', false)
+                ->assertDontSee('btn-logout', false);
         }
     }
 }

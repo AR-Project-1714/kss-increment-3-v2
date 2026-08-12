@@ -9,24 +9,14 @@
                 <span class="role align-self-stretch fsize-9 text-secondary fw-300">{{ auth()->user()->jobTitle() }}</span>
             </div>
         </div>
-        <div class="header-right d-flex justify-content-center align-items-center gap-20">
+        <div class="header-right d-flex justify-content-center align-items-center gap-10">
+            @include('partials.notification-center')
             <div class="kss-account-toolbar">
-                <button class="btn-theme br-10" id="themeToggle" title="Ganti Tema">
-                    <div class="icon-container">
-                        <i class="fi fi-rr-sun" id="themeIcon"></i>
-                    </div>
-                </button>
-                @include('partials.account-trigger')
+                @include('partials.account-trigger', [
+                    'showLogout' => true,
+                    'showProfileMenu' => true,
+                    'showThemeToggle' => true,
+                ])
             </div>
-            <div class="divider-vertical"></div>
-            <form action="{{ route('logout') }}" method="POST" class="m-0">
-                @csrf
-                <button type="submit" class="btn-logout d-flex align-items-center br-6">
-                <div class="icon-logout fsize-10">
-                    <i class="fi fi-br-exit"></i>
-                </div>
-                <span class="text fw-500 fsize-12">Logout</span>
-                </button>
-            </form>
         </div>
 </header>

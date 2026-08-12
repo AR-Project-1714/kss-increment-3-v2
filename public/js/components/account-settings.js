@@ -43,6 +43,25 @@
         var allowedPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'];
         var maximumPhotoSize = 2 * 1024 * 1024;
 
+        function syncThemeControls() {
+            var isDark = document.body.classList.contains('dark-mode');
+            document.documentElement.classList.toggle('kss-dark-theme', isDark);
+
+            document.querySelectorAll('[data-account-theme-toggle]').forEach(function (control) {
+                control.checked = isDark;
+                control.setAttribute('aria-label', isDark ? 'Nonaktifkan mode gelap' : 'Aktifkan mode gelap');
+                var status = control.closest('.kss-account__theme-row')?.querySelector('[data-account-theme-status]');
+                if (status) status.textContent = isDark ? 'Aktif' : 'Nonaktif';
+            });
+        }
+
+        function setTheme(isDark) {
+            document.body.classList.toggle('dark-mode', isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            syncThemeControls();
+            document.dispatchEvent(new CustomEvent('kss:theme-change', { detail: { dark: isDark } }));
+        }
+
         function setBodyModalState() {
             var hasOpenModal = document.querySelector('.kss-account-modal.is-open');
             document.body.classList.toggle('kss-account-modal-open', Boolean(hasOpenModal));
@@ -58,7 +77,9 @@
             popover.classList.toggle('is-open', open);
 
             if (open && focusFirstItem) {
-                window.setTimeout(function () { popover.querySelector('[role="menuitem"]')?.focus(); }, 20);
+                window.setTimeout(function () {
+                    popover.querySelector('[data-account-initial-focus], [role="menuitem"], button, input')?.focus();
+                }, 20);
             }
         }
 
@@ -303,6 +324,7 @@
             var popover = root.querySelector('[data-account-popover]');
             var passwordOpen = root.querySelector('[data-account-open]');
             var photoOpen = root.querySelector('[data-account-photo-open]');
+            var themeToggle = root.querySelector('[data-account-theme-toggle]');
             var hoverCloseTimer = null;
 
             trigger?.addEventListener('click', function () {
@@ -331,6 +353,12 @@
 
             passwordOpen?.addEventListener('click', function () { openPasswordModal(passwordOpen); });
             photoOpen?.addEventListener('click', function () { openPhotoModal(photoOpen); });
+            themeToggle?.addEventListener('change', function () { setTheme(themeToggle.checked); });
+        });
+
+        syncThemeControls();
+        window.addEventListener('storage', function (event) {
+            if (event.key === 'theme') setTheme(event.newValue === 'dark');
         });
 
         document.addEventListener('click', function (event) {

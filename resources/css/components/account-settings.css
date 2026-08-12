@@ -1,4 +1,14 @@
 /* Pengaturan akun bersama untuk seluruh shell aplikasi. */
+:root {
+    --kss-popover-shadow-near: rgb(15 23 42 / 7%);
+    --kss-popover-shadow-far: rgb(15 23 42 / 11%);
+}
+
+body.dark-mode {
+    --kss-popover-shadow-near: rgb(2 6 23 / 24%);
+    --kss-popover-shadow-far: rgb(2 6 23 / 28%);
+}
+
 .kss-account {
     position: relative;
     min-width: 0;
@@ -8,10 +18,17 @@
 .kss-account-toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
 }
 
-.kss-account-toolbar > .btn-theme,
+.kss-account-toolbar::before {
+    content: "";
+    width: 1px;
+    height: 24px;
+    flex: 0 0 1px;
+    background-color: var(--smooth-border);
+}
+
 .kss-account__trigger {
     width: 36px;
     height: 36px;
@@ -42,6 +59,8 @@
 
 .kss-account__trigger:focus-visible,
 .kss-account__menu-item:focus-visible,
+.kss-account__profile-card:focus-visible,
+.kss-account__theme-switch:focus-visible,
 .kss-account-modal button:focus-visible,
 .kss-account-field input:focus-visible,
 .kss-account-photo__dropzone:focus-visible {
@@ -60,7 +79,7 @@
     border-radius: 8px;
     color: var(--blue-main);
     background-color: var(--blue-main-10);
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
 }
 
@@ -100,11 +119,13 @@
     right: 0;
     left: auto;
     width: min(290px, calc(100vw - 24px));
-    padding: 8px;
+    padding: 8px 8px 5px;
     border: 1px solid var(--smooth-border);
     border-radius: 14px;
     background-color: var(--white);
-    box-shadow: 0 18px 42px color-mix(in srgb, var(--dark-main, var(--black)) 18%, transparent);
+    box-shadow:
+        0 3px 10px var(--kss-popover-shadow-near),
+        0 18px 44px var(--kss-popover-shadow-far);
     opacity: 0;
     visibility: hidden;
     transform: translateY(-8px) scale(.98);
@@ -127,6 +148,11 @@
     transform: translateY(0) scale(1);
 }
 
+.kss-account__popover--profile {
+    width: min(312px, calc(100vw - 24px));
+    padding: 10px 10px 7px;
+}
+
 @media (hover: hover) and (pointer: fine) {
     .kss-account:hover .kss-account__popover {
         opacity: 1;
@@ -142,6 +168,59 @@
     padding: 8px;
 }
 
+.kss-account__menu-heading--profile {
+    padding: 2px 4px 7px;
+}
+
+.kss-account__profile-card {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 30px;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--smooth-border);
+    border-radius: 11px;
+    color: var(--dark-main, var(--black));
+    background-color: var(--main-bg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: color .2s ease, border-color .2s ease, background-color .2s ease, transform .2s ease;
+}
+
+.kss-account__profile-card:hover {
+    color: var(--blue-main);
+    border-color: var(--blue-main-25);
+    background-color: var(--blue-main-5);
+    transform: translateY(-1px);
+}
+
+.kss-account__avatar--profile {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    border-radius: 10px;
+    font-size: 16px;
+}
+
+.kss-account__profile-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    color: var(--blue-main);
+    background-color: var(--white);
+    font-size: 13px;
+}
+
+.kss-account__profile-action i {
+    position: relative;
+    top: 1px;
+}
+
 .kss-account__avatar {
     display: inline-flex;
     align-items: center;
@@ -153,7 +232,7 @@
     border-radius: 10px;
     color: var(--blue-main);
     background-color: var(--blue-main-10);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
 }
 
@@ -164,6 +243,8 @@
 }
 
 .kss-account__summary-copy strong,
+.kss-account__profile-card strong,
+.kss-account__theme-row strong,
 .kss-account__menu-item strong {
     overflow: hidden;
     color: var(--dark-main, var(--black));
@@ -176,6 +257,7 @@
 
 .kss-account__summary-copy small,
 .kss-account__summary-copy > span,
+.kss-account__theme-row small,
 .kss-account__menu-item small {
     overflow: hidden;
     color: var(--dark-secondary, var(--black-secondary));
@@ -228,11 +310,139 @@
 
 .kss-account__popover form {
     width: 100%;
+    margin: 0;
 }
 
 .kss-account__menu-item:hover {
     color: var(--blue-main);
     background-color: var(--blue-main-5);
+}
+
+.kss-account__action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.kss-account__popover--profile .kss-account__menu-item,
+.kss-account__theme-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    min-height: 46px;
+    padding: 8px;
+}
+
+.kss-account__popover--profile .kss-account__menu-icon {
+    width: 30px;
+    height: 30px;
+    color: var(--dark-secondary, var(--black-secondary));
+    background-color: transparent;
+    font-size: 16px;
+}
+
+.kss-account__theme-row {
+    display: grid;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    border-radius: 9px;
+    color: var(--dark-main, var(--black));
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease;
+}
+
+.kss-account__theme-row:hover {
+    color: var(--blue-main);
+    background-color: var(--blue-main-5);
+}
+
+.kss-account__theme-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kss-account__theme-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1px solid var(--smooth-border);
+    border-radius: 999px;
+    background-color: var(--main-bg);
+    cursor: pointer;
+    transition: border-color .2s ease, background-color .2s ease;
+}
+
+.kss-account__theme-switch::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: var(--muted);
+    transition: transform .22s cubic-bezier(.22, 1, .36, 1), background-color .2s ease;
+}
+
+.kss-account__theme-switch:checked {
+    border-color: var(--blue-main);
+    background-color: var(--blue-main);
+}
+
+.kss-account__theme-switch:checked::before {
+    background-color: var(--button-color, var(--white-pure));
+    transform: translateX(16px);
+}
+
+.kss-account__popover--profile .kss-account__divider {
+    margin: 7px 2px;
+}
+
+.kss-account__menu-item--danger {
+    grid-template-columns: 32px minmax(0, 1fr);
+    min-height: 44px;
+    padding-block: 6px;
+}
+
+.kss-account__popover--profile .kss-account__menu-item--danger {
+    grid-template-columns: 30px minmax(0, 1fr);
+}
+
+.kss-account__popover--profile .kss-account__menu-item--danger .kss-account__menu-icon {
+    color: var(--red-main);
+}
+
+.kss-account__menu-item--danger .kss-account__menu-icon {
+    color: var(--red-main);
+    background-color: var(--red-main-10);
+}
+
+.kss-account__menu-item--danger .kss-account__menu-icon i {
+    top: 0;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.kss-account__menu-item--danger strong {
+    color: var(--red-main);
+}
+
+.kss-account__menu-item--danger:hover {
+    color: var(--red-hover);
+    background-color: var(--red-main-5);
+}
+
+.kss-account__menu-item--danger:hover .kss-account__menu-icon {
+    color: var(--red-hover);
+    background-color: var(--red-main-10);
+}
+
+.kss-account__menu-item--danger:hover strong {
+    color: var(--red-hover);
 }
 
 .kss-account__menu-item:disabled {
@@ -645,12 +855,11 @@
     background-color: transparent;
     transform: translateY(-50%);
     cursor: pointer;
-    transition: color .2s ease, background-color .2s ease;
+    transition: color .2s ease;
 }
 
 .kss-account-field__control button:hover {
     color: var(--blue-main);
-    background-color: var(--blue-main-5);
 }
 
 .kss-account-field__error {
@@ -800,7 +1009,6 @@ body.kss-account-modal-open {
 }
 
 @media (pointer: coarse), (max-width: 480px) {
-    .kss-account-toolbar > .btn-theme,
     .kss-account__trigger {
         width: 40px;
         height: 40px;

@@ -1,6 +1,7 @@
 @import '../components/charts.css';
 @import '../components/pagination.css';
 @import '../components/account-settings.css';
+@import '../components/notification-center.css';
 
 /* =============================================
            CSS VARIABLES — Light Mode
@@ -47,11 +48,6 @@
             --main-bg:         #F8FAFC;
             --white:           #FFFFFF;
             --white-pure:      #FFFFFF;
-
-            /* Theme button */
-            --btn-theme-bg:     var(--white);
-            --btn-theme-icon:   var(--black);
-            --btn-theme-border: rgba(0,0,0,0.10);
 
             /* Layout */
             --sidebar-width:     234px;
@@ -108,9 +104,6 @@
             --red-main-10: rgba(239,68,68,0.10);
             --red-main-5:  rgba(239,68,68,0.05);
 
-            --btn-theme-bg:     #334155;
-            --btn-theme-icon:   #F1F5F9;
-            --btn-theme-border: rgba(255,255,255,0.10);
         }
 
         /* =============================================
@@ -655,32 +648,6 @@
 
         .navbar-top__right { display: flex; align-items: center; gap: 12px; }
 
-        /* Theme toggle */
-        .btn-theme {
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--btn-theme-bg);
-            border: .5px solid var(--btn-theme-border);
-            border-radius: 8px;
-            cursor: pointer;
-            color: var(--btn-theme-icon);
-            font-size: 16px;
-            overflow: hidden;
-            position: relative;
-            transition: border-color 0.2s ease, background-color 0.3s ease;
-        }
-
-        .btn-theme:hover { border-color: var(--blue-main); }
-
-        .btn-theme i {
-            position: relative;
-            top: 3px;
-            transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
-        }
-
         /* =============================================
            PAGE CONTENT SCROLL AREA
            ============================================= */
@@ -833,7 +800,7 @@
 
         .stat-card__icon i {
             position: relative;
-            top: 2px;
+            top: 1.2px;
             line-height: 1;
         }
 

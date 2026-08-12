@@ -20,6 +20,7 @@ use App\Services\ArchiveBundleService;
 use App\Services\ArchiveMetricsService;
 use App\Services\OperationalPerformanceService;
 use App\Services\PerformanceExportService;
+use App\Services\SystemNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -193,6 +194,8 @@ class ManajerController extends Controller
                 'approved_by' => $request->user()->id,
                 'approved_at' => now(),
             ]);
+
+            app(SystemNotificationService::class)->operationalApproved($report->fresh());
 
             $this->forgetManagerStatsCache();
             $this->cacheApprovedPdf($report->fresh());
@@ -703,6 +706,8 @@ class ManajerController extends Controller
                 'approved_at' => now(),
             ]);
 
+            app(SystemNotificationService::class)->maintenanceApproved($report->fresh());
+
             $this->forgetManagerStatsCache();
             $this->cacheApprovedMaintenancePdf($report->fresh());
         } catch (Throwable $exception) {
@@ -804,6 +809,8 @@ class ManajerController extends Controller
                 'approved_at' => now(),
                 'approver_signature_path' => $request->user()->signature_path,
             ]);
+
+            app(SystemNotificationService::class)->safetyApproved($report->fresh());
 
             $this->forgetManagerStatsCache();
             $this->cacheApprovedSafetyPdf($report->fresh());

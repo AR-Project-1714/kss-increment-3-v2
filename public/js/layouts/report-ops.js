@@ -30,65 +30,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
 
-                // ==========================================
-                // 2. DARK MODE TOGGLE LOGIC
-                // ==========================================
-                const themeBtn = document.getElementById('themeToggle');
-                const themeIcon = document.getElementById('themeIcon');
-                const body = document.body;
-                let isDarkMode = localStorage.getItem('theme') === 'dark';
-
-                if (isDarkMode) enableDarkMode(false);
-
-                if(themeBtn && themeIcon) {
-                    themeBtn.addEventListener('click', () => {
-                        isDarkMode = !isDarkMode;
-                        if (isDarkMode) {
-                            themeIcon.classList.add('animate-out-up');
-                            setTimeout(() => {
-                                enableDarkMode(true);
-                                localStorage.setItem('theme', 'dark');
-                            }, 200);
-                        } else {
-                            themeIcon.classList.add('animate-out-down');
-                            setTimeout(() => {
-                                disableDarkMode(true);
-                                localStorage.setItem('theme', 'light');
-                            }, 200);
-                        }
-                    });
-                }
-
-                function enableDarkMode(animate) {
-                    body.classList.add('dark-mode');
-                    if(animate && themeIcon) {
-                        themeIcon.className = 'fi fi-rr-moon';
-                        themeIcon.classList.remove('animate-out-up', 'animate-out-down');
-                        themeIcon.style.transition = 'none';
-                        themeIcon.classList.add('prepare-from-bottom');
-                        void themeIcon.offsetWidth;
-                        themeIcon.style.transition = '';
-                        themeIcon.classList.remove('prepare-from-bottom');
-                    } else if (themeIcon) {
-                        themeIcon.className = 'fi fi-rr-moon';
-                    }
-                }
-
-                function disableDarkMode(animate) {
-                    body.classList.remove('dark-mode');
-                    if(animate && themeIcon) {
-                        themeIcon.className = 'fi fi-rr-sun';
-                        themeIcon.classList.remove('animate-out-up', 'animate-out-down');
-                        themeIcon.style.transition = 'none';
-                        themeIcon.classList.add('prepare-from-top');
-                        void themeIcon.offsetWidth;
-                        themeIcon.style.transition = '';
-                        themeIcon.classList.remove('prepare-from-top');
-                    } else if (themeIcon) {
-                        themeIcon.className = 'fi fi-rr-sun';
-                    }
-                }
-
                 // 2B. TOAST MESSAGE — ditangani komponen bersama (partials/toast.blade.php).
                 //     window.showReportToast tersedia sebagai alias dari window.kssToast.
 

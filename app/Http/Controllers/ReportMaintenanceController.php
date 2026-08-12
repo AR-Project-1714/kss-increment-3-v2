@@ -10,6 +10,7 @@ use App\Models\MaintenanceUnitCondition;
 use App\Models\MaintenanceWorkItem;
 use App\Models\MasterEmployee;
 use App\Models\MasterUnit;
+use App\Services\SystemNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -64,7 +65,7 @@ class ReportMaintenanceController extends Controller
         // seluruh penyimpanan berikutnya menimpa baris ini, bukan bikin duplikat.
         $reservedReport = $this->reserveDraftReport(MaintenanceReport::class, [
             'created_by' => auth()->id(),
-            'status'     => MaintenanceStatus::Draft->value,
+            'status' => MaintenanceStatus::Draft->value,
         ]);
 
         return view('pemeliharaan.create', array_merge($this->masterData(), [
@@ -98,15 +99,15 @@ class ReportMaintenanceController extends Controller
                 $reportDate = $validated['report_date'] ?? null;
 
                 $report = MaintenanceReport::create([
-                    'report_date'            => $reportDate,
-                    'day_name'               => $this->dayName($reportDate),
-                    'status'                 => $status,
-                    'created_by'             => $request->user()->id,
-                    'submitted_at'           => $status === MaintenanceStatus::Submitted->value ? now() : null,
+                    'report_date' => $reportDate,
+                    'day_name' => $this->dayName($reportDate),
+                    'status' => $status,
+                    'created_by' => $request->user()->id,
+                    'submitted_at' => $status === MaintenanceStatus::Submitted->value ? now() : null,
                     'karu_pemeliharaan_name' => $this->string($request->input('karu_pemeliharaan_name')),
-                    'karu_peralatan_name'    => $this->string($request->input('karu_peralatan_name')),
-                    'work_time_start'        => $this->string($request->input('work_time_start')),
-                    'work_time_end'          => $this->string($request->input('work_time_end')),
+                    'karu_peralatan_name' => $this->string($request->input('karu_peralatan_name')),
+                    'work_time_start' => $this->string($request->input('work_time_start')),
+                    'work_time_end' => $this->string($request->input('work_time_end')),
                 ]);
 
                 $this->storeDetails($report, $request);
@@ -124,6 +125,10 @@ class ReportMaintenanceController extends Controller
             return $this->autosaveResponse($report, 'pemeliharaan.update');
         }
 
+        if ($status === MaintenanceStatus::Submitted->value) {
+            app(SystemNotificationService::class)->maintenanceSubmitted($report->fresh());
+        }
+
         return redirect()->route('pemeliharaan.index')->with(
             'success',
             $status === MaintenanceStatus::Draft->value
@@ -137,10 +142,10 @@ class ReportMaintenanceController extends Controller
         abort_unless($this->canAccess($report, auth()->user()), 403);
 
         return view('pemeliharaan.viewpdf', [
-            'report'  => $this->loadMaintenanceReport($report),
-            'isPdf'   => false,
+            'report' => $this->loadMaintenanceReport($report),
+            'isPdf' => false,
             'backUrl' => route('pemeliharaan.index'),
-            'pdfUrl'  => route('pemeliharaan.pdf', $report),
+            'pdfUrl' => route('pemeliharaan.pdf', $report),
         ]);
     }
 
@@ -170,20 +175,21 @@ class ReportMaintenanceController extends Controller
         // Draft hasil reservasi form baru: simpan pertama ini "disimpan", bukan
         // "diperbarui" — dicatat sebelum update karena setelahnya tak kosong lagi.
         $wasBlank = $report->isBlankDraft();
+        $wasDraft = $report->status === MaintenanceStatus::Draft;
 
         try {
             DB::transaction(function () use ($request, $report, $validated, $status): void {
                 $reportDate = $validated['report_date'] ?? null;
 
                 $report->update([
-                    'report_date'            => $reportDate,
-                    'day_name'               => $this->dayName($reportDate),
-                    'status'                 => $status,
-                    'submitted_at'           => $status === MaintenanceStatus::Submitted->value ? ($report->submitted_at ?? now()) : null,
+                    'report_date' => $reportDate,
+                    'day_name' => $this->dayName($reportDate),
+                    'status' => $status,
+                    'submitted_at' => $status === MaintenanceStatus::Submitted->value ? ($report->submitted_at ?? now()) : null,
                     'karu_pemeliharaan_name' => $this->string($request->input('karu_pemeliharaan_name')),
-                    'karu_peralatan_name'    => $this->string($request->input('karu_peralatan_name')),
-                    'work_time_start'        => $this->string($request->input('work_time_start')),
-                    'work_time_end'          => $this->string($request->input('work_time_end')),
+                    'karu_peralatan_name' => $this->string($request->input('karu_peralatan_name')),
+                    'work_time_start' => $this->string($request->input('work_time_start')),
+                    'work_time_end' => $this->string($request->input('work_time_end')),
                 ]);
 
                 $this->deleteDetails($report);
@@ -192,8 +198,8 @@ class ReportMaintenanceController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal memperbarui laporan pemeliharaan.', [
                 'report_id' => $report->id,
-                'user_id'   => $request->user()?->id,
-                'message'   => $exception->getMessage(),
+                'user_id' => $request->user()?->id,
+                'message' => $exception->getMessage(),
             ]);
 
             return back()->withInput()->with('error', 'Laporan belum bisa diperbarui. Silakan periksa data lalu coba lagi.');
@@ -201,6 +207,10 @@ class ReportMaintenanceController extends Controller
 
         if ($this->isAutosaveRequest($request)) {
             return $this->autosaveResponse($report, 'pemeliharaan.update');
+        }
+
+        if ($wasDraft && $status === MaintenanceStatus::Submitted->value) {
+            app(SystemNotificationService::class)->maintenanceSubmitted($report->fresh());
         }
 
         return redirect()->route('pemeliharaan.index')->with(
@@ -222,7 +232,7 @@ class ReportMaintenanceController extends Controller
         } catch (Throwable $exception) {
             Log::error('Gagal menghapus draft laporan pemeliharaan.', [
                 'report_id' => $report->id,
-                'message'   => $exception->getMessage(),
+                'message' => $exception->getMessage(),
             ]);
 
             return back()->with('error', 'Draft belum bisa dihapus. Silakan coba lagi.');
@@ -249,21 +259,21 @@ class ReportMaintenanceController extends Controller
 
         if (! class_exists(Pdf::class)) {
             return view('pemeliharaan.viewpdf', [
-                'report'  => $this->loadMaintenanceReport($report),
-                'isPdf'   => false,
+                'report' => $this->loadMaintenanceReport($report),
+                'isPdf' => false,
                 'backUrl' => route('pemeliharaan.index'),
-                'pdfUrl'  => null,
+                'pdfUrl' => null,
             ]);
         }
 
         $pdf = Pdf::loadView('pemeliharaan.pdf', [
             'report' => $this->loadMaintenanceReport($report),
-            'isPdf'  => true,
+            'isPdf' => true,
         ]);
         $pdf->setPaper([0, 0, 612.00, 936.00], 'portrait');
 
         return response($pdf->output(), 200, [
-            'Content-Type'        => 'application/pdf',
+            'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$this->maintenanceFileName($report, 'pdf').'"',
         ]);
     }
@@ -300,15 +310,15 @@ class ReportMaintenanceController extends Controller
             }
 
             $report->workItems()->create([
-                'work_type'           => $workType,
-                'work_group'          => $workGroup,
-                'master_unit_id'      => $unitId,
-                'unit_label'          => $unitLabel,
-                'description'         => $description,
-                'assignee'            => $assignee,
-                'is_completed'        => $this->boolean($row['is_completed'] ?? null),
-                'notes'               => $notes,
-                'sort_order'          => $sort++,
+                'work_type' => $workType,
+                'work_group' => $workGroup,
+                'master_unit_id' => $unitId,
+                'unit_label' => $unitLabel,
+                'description' => $description,
+                'assignee' => $assignee,
+                'is_completed' => $this->boolean($row['is_completed'] ?? null),
+                'notes' => $notes,
+                'sort_order' => $sort++,
             ]);
         }
     }
@@ -332,10 +342,10 @@ class ReportMaintenanceController extends Controller
             $condition = strtolower((string) ($row['condition'] ?? 'ready')) === 'rusak' ? 'rusak' : 'ready';
 
             $report->unitConditions()->create([
-                'master_unit_id'      => $unitId,
-                'unit_label'          => $unit->maintenance_name,
-                'condition'           => $condition,
-                'notes'               => $this->string($row['notes'] ?? null),
+                'master_unit_id' => $unitId,
+                'unit_label' => $unit->maintenance_name,
+                'condition' => $condition,
+                'notes' => $this->string($row['notes'] ?? null),
             ]);
 
             $seen[$unitId] = true;
@@ -361,13 +371,13 @@ class ReportMaintenanceController extends Controller
             }
 
             $report->attendances()->create([
-                'master_employee_id'      => $employeeId,
-                'employee_name'           => $name,
-                'position'                => $this->string($row['position'] ?? null),
-                'time_in'                 => $this->time($row['time_in'] ?? null),
-                'time_out'                => $this->time($row['time_out'] ?? null),
-                'notes'                   => $this->string($row['notes'] ?? null),
-                'sort_order'              => $sort++,
+                'master_employee_id' => $employeeId,
+                'employee_name' => $name,
+                'position' => $this->string($row['position'] ?? null),
+                'time_in' => $this->time($row['time_in'] ?? null),
+                'time_out' => $this->time($row['time_out'] ?? null),
+                'notes' => $this->string($row['notes'] ?? null),
+                'sort_order' => $sort++,
             ]);
         }
     }
@@ -417,9 +427,9 @@ class ReportMaintenanceController extends Controller
                 ->orderBy('unit_number')
                 ->get()
                 ->map(fn (MasterUnit $unit): array => [
-                    'id'             => $unit->id,
-                    'label'          => $unit->maintenance_name,
-                    'code'           => $unit->maintenance_code,
+                    'id' => $unit->id,
+                    'label' => $unit->maintenance_name,
+                    'code' => $unit->maintenance_code,
                     'macro_category' => $unit->macro_category,
                 ])
                 ->toArray()
@@ -436,10 +446,10 @@ class ReportMaintenanceController extends Controller
         );
 
         return [
-            'units'      => $units,
+            'units' => $units,
             'unitsTruck' => array_values(array_filter($units, fn ($u) => $u['macro_category'] === 'truck')),
             'unitsHeavy' => array_values(array_filter($units, fn ($u) => $u['macro_category'] === 'heavy')),
-            'employees'  => $employees,
+            'employees' => $employees,
             'workGroups' => self::WORK_GROUPS,
             'latestUnitConditions' => $this->latestUnitConditions($report),
             // Carry-over hanya untuk laporan baru; saat edit, setiap baris
@@ -524,12 +534,12 @@ class ReportMaintenanceController extends Controller
             ->orderBy('id')
             ->get()
             ->map(fn (MaintenanceWorkItem $item): array => [
-                'unit_id'     => $item->master_unit_id,
-                'unit_label'  => $item->unit_label,
-                'work_group'  => $item->work_group,
+                'unit_id' => $item->master_unit_id,
+                'unit_label' => $item->unit_label,
+                'work_group' => $item->work_group,
                 'description' => $item->description,
-                'assignee'    => $item->assignee,
-                'notes'       => $item->notes,
+                'assignee' => $item->assignee,
+                'notes' => $item->notes,
                 'source_date' => $sourceDate,
             ])
             ->values();
@@ -587,8 +597,8 @@ class ReportMaintenanceController extends Controller
         $requiredWhenSubmit = $isDraft ? 'nullable' : 'required';
 
         return [
-            'status'                 => ['required', Rule::in([MaintenanceStatus::Draft->value, MaintenanceStatus::Submitted->value])],
-            'report_date'            => [
+            'status' => ['required', Rule::in([MaintenanceStatus::Draft->value, MaintenanceStatus::Submitted->value])],
+            'report_date' => [
                 $requiredWhenSubmit,
                 'date',
                 function (string $attribute, mixed $value, callable $fail) use ($isDraft): void {
@@ -617,23 +627,23 @@ class ReportMaintenanceController extends Controller
                     }
                 },
             ],
-            'work_time_start'        => [$requiredWhenSubmit, 'string', 'max:10'],
-            'work_time_end'          => ['nullable', 'string', 'max:10'],
+            'work_time_start' => [$requiredWhenSubmit, 'string', 'max:10'],
+            'work_time_end' => ['nullable', 'string', 'max:10'],
             'karu_pemeliharaan_name' => ['nullable', 'string', 'max:255'],
-            'karu_peralatan_name'    => ['nullable', 'string', 'max:255'],
-            'main_items'             => ['nullable', 'array'],
-            'main_items.*.unit_id'    => ['nullable', 'integer', Rule::exists('master_units', 'id')],
-            'priority_items'         => ['nullable', 'array'],
+            'karu_peralatan_name' => ['nullable', 'string', 'max:255'],
+            'main_items' => ['nullable', 'array'],
+            'main_items.*.unit_id' => ['nullable', 'integer', Rule::exists('master_units', 'id')],
+            'priority_items' => ['nullable', 'array'],
             'priority_items.*.unit_id' => ['nullable', 'integer', Rule::exists('master_units', 'id')],
-            'conditions'             => ['nullable', 'array'],
-            'attendances'            => ['nullable', 'array'],
+            'conditions' => ['nullable', 'array'],
+            'attendances' => ['nullable', 'array'],
         ];
     }
 
     private function attributes(): array
     {
         return [
-            'report_date'     => 'hari/tanggal',
+            'report_date' => 'hari/tanggal',
             'work_time_start' => 'jam mulai kerja',
         ];
     }

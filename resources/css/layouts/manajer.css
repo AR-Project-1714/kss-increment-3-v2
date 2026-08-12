@@ -1,5 +1,6 @@
 @import '../components/charts.css';
 @import '../components/account-settings.css';
+@import '../components/notification-center.css';
 
 /* =============================================
            CSS VARIABLES — Light Mode
@@ -46,11 +47,6 @@
             --main-bg:         #F8FAFC;
             --white:           #FFFFFF;
             --white-pure:      #FFFFFF;
-
-            /* Theme button */
-            --btn-theme-bg:     var(--white);
-            --btn-theme-icon:   var(--black);
-            --btn-theme-border: rgba(0,0,0,0.10);
 
             /* Layout */
             --sidebar-width:     234px;
@@ -107,9 +103,6 @@
             --red-main-10: rgba(239,68,68,0.10);
             --red-main-5:  rgba(239,68,68,0.05);
 
-            --btn-theme-bg:     #334155;
-            --btn-theme-icon:   #F1F5F9;
-            --btn-theme-border: rgba(255,255,255,0.10);
         }
 
         /* =============================================
@@ -607,32 +600,6 @@
 
         .navbar-top__right { display: flex; align-items: center; gap: 12px; }
 
-        /* Theme toggle */
-        .btn-theme {
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--btn-theme-bg);
-            border: .5px solid var(--btn-theme-border);
-            border-radius: 8px;
-            cursor: pointer;
-            color: var(--btn-theme-icon);
-            font-size: 16px;
-            overflow: hidden;
-            position: relative;
-            transition: border-color 0.2s ease, background-color 0.3s ease;
-        }
-
-        .btn-theme:hover { border-color: var(--blue-main); }
-
-        .btn-theme i {
-            position: relative;
-            top: 3px;
-            transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
-        }
-
         /* =============================================
            PAGE CONTENT SCROLL AREA
            ============================================= */
@@ -724,7 +691,7 @@
 
         .stat-card__icon i {
             position: relative;
-            top: 2px;
+            top: 1.5px;
             line-height: 1;
         }
 
@@ -1037,6 +1004,11 @@
             height: 28px;
             border-radius: 8px;
             font-size: 12px;
+        }
+
+        .operation-summary-group--card .operation-summary-group__icon i {
+            position:relative;
+            top:2px;
         }
 
         .operation-summary-group--card .operation-summary-group__title {
@@ -1379,7 +1351,7 @@
             font-size: 14px;
         }
 
-        .performance-activity-card__icon i { position: relative; top: 1px; }
+        .performance-activity-card__icon i { position: relative; top: 2.4px; }
 
         .performance-activity-card__title {
             margin: 0;
@@ -1409,12 +1381,11 @@
             font-weight: 600;
             line-height: 1;
             text-decoration: none;
-            transition: color 0.2s ease, background-color 0.2s ease;
+            transition: color 0.2s ease;
         }
 
         .performance-activity-card__link:hover {
             color: var(--blue-main-hover);
-            background-color: var(--blue-main-10);
         }
 
         .performance-activity-card__link:focus-visible {
@@ -3736,7 +3707,8 @@
     align-items: flex-start;
     gap: 10px;
     width: 100%;
-    margin-bottom: 15px;
+    /* .page-content sudah mengatur jarak antar blok melalui gap. */
+    margin-bottom: 0;
     padding: 11px 13px;
     border: 1px solid var(--orange-main-10);
     border-radius: 10px;
@@ -3753,3 +3725,9 @@
 }
 
 .performance-verification-note strong { color: var(--black); }
+
+/* Notifikasi dan konten tindak lanjut adalah satu kelompok informasi. */
+.performance-verification-note + .act-tabs,
+.performance-verification-note + .performance-activity-overview {
+    margin-top: -2px;
+}

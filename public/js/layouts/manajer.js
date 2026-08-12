@@ -163,61 +163,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             // ==========================================
-            // 3. DARK MODE TOGGLE
-            // ==========================================
-            const btnTheme = document.getElementById('btnTheme');
-            const themeIcon = document.getElementById('themeIcon');
-            let isDarkMode = localStorage.getItem('theme') === 'dark';
-
-            function enableDarkMode(animate) {
-                body.classList.add('dark-mode');
-                if (animate) {
-                    themeIcon.className = 'fi fi-rr-moon';
-                    themeIcon.classList.add('prepare-from-bottom');
-                    void themeIcon.offsetWidth;
-                    themeIcon.classList.remove('prepare-from-bottom');
-                } else {
-                    themeIcon.className = 'fi fi-rr-moon';
-                }
-            }
-
-            function disableDarkMode(animate) {
-                body.classList.remove('dark-mode');
-                if (animate) {
-                    themeIcon.className = 'fi fi-rr-sun';
-                    themeIcon.classList.add('prepare-from-top');
-                    void themeIcon.offsetWidth;
-                    themeIcon.classList.remove('prepare-from-top');
-                } else {
-                    themeIcon.className = 'fi fi-rr-sun';
-                }
-            }
-
-            if (isDarkMode) enableDarkMode(false);
-
-            if (btnTheme) {
-                btnTheme.addEventListener('click', function () {
-                    isDarkMode = !isDarkMode;
-                    if (isDarkMode) {
-                        themeIcon.classList.add('animate-out-up');
-                        setTimeout(function () {
-                            themeIcon.classList.remove('animate-out-up');
-                            enableDarkMode(true);
-                            localStorage.setItem('theme', 'dark');
-                        }, 200);
-                    } else {
-                        themeIcon.classList.add('animate-out-down');
-                        setTimeout(function () {
-                            themeIcon.classList.remove('animate-out-down');
-                            disableDarkMode(true);
-                            localStorage.setItem('theme', 'light');
-                        }, 200);
-                    }
-                });
-            }
-
-            // ==========================================
-            // 4. MODAL LOGIC
+            // 3. MODAL LOGIC
             // ==========================================
 
             // Open modal

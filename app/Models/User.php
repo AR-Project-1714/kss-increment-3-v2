@@ -38,6 +38,11 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function systemNotifications()
+    {
+        return $this->hasMany(SystemNotification::class);
+    }
+
     /**
      * Jabatan yang ditampilkan di header petugas — bukan sekadar nama peran.
      * Operasional: "Kepala Regu {Regu}" atau "Wakil Kepala Regu {Regu}"

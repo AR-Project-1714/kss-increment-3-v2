@@ -13,11 +13,12 @@
         </div>
     </div>
     <div class="navbar-top__right">
+        @include('partials.notification-center')
         <div class="kss-account-toolbar">
-            <button class="btn-theme" id="btnTheme" title="Ganti Tema">
-                <i class="fi fi-rr-sun" id="themeIcon"></i>
-            </button>
-            @include('partials.account-trigger')
+            @include('partials.account-trigger', [
+                'showProfileMenu' => true,
+                'showThemeToggle' => true,
+            ])
         </div>
     </div>
 </nav>
