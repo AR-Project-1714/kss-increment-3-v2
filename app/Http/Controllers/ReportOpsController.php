@@ -65,6 +65,24 @@ class ReportOpsController extends Controller
      */
     private const NIGHT_SHIFT_CUTOFF_HOUR = 12;
 
+    /**
+     * Jeda maksimum untuk menyambung kembali operasi kapal yang sudah ditandai
+     * selesai.
+     *
+     * Petugas kadang menandai "Selesai" sebelum kapalnya benar-benar berangkat —
+     * shift Sore menutup pekerjaan, lalu shift Malam masih membongkar. Karena
+     * operasi selesai dikeluarkan dari kandidat pencocokan, laporan lanjutan itu
+     * membentuk operasi BARU untuk kapal yang sama, dan rekap menghitungnya
+     * sebagai dua kapal padahal yang bersandar hanya satu.
+     *
+     * Ambangnya sengaja jauh lebih pendek daripada VOYAGE_GAP_DAYS (7 hari) yang
+     * memisahkan dua pelayaran. Kapal yang benar-benar berangkat lalu kembali
+     * dalam dua hari praktis tidak ada, sehingga jeda sependek ini hampir pasti
+     * berarti tanda selesai yang kelewat cepat — bukan kunjungan baru. Jeda yang
+     * lebih panjang tetap diperlakukan sebagai kunjungan baru.
+     */
+    private const REOPEN_COMPLETED_WITHIN_DAYS = 2;
+
     public function index()
     {
         $user = auth()->user();
@@ -2076,7 +2094,12 @@ class ReportOpsController extends Controller
             ? ShipOperation::where('type', $type)->whereKey($operationId)->first()
             : null;
 
-        $operation ??= $this->matchShipOperation($type, $shipName, $data);
+        $operation ??= $this->matchShipOperation(
+            $type,
+            $shipName,
+            $data,
+            $report->report_date ? Carbon::parse($report->report_date) : null,
+        );
 
         $requestedStatus = $hasExplicitStatus
             ? $statusInput
@@ -2314,18 +2337,41 @@ class ReportOpsController extends Controller
      *
      * @param  array<string, mixed>  $data
      */
-    private function matchShipOperation(string $type, string $shipName, array $data): ?ShipOperation
+    private function matchShipOperation(string $type, string $shipName, array $data, ?Carbon $at = null): ?ShipOperation
     {
+        // Operasi yang baru saja ditandai selesai tetap boleh dicocokkan, selama
+        // laporan terakhirnya hanya berjarak beberapa hari dari laporan ini.
+        // Lihat REOPEN_COMPLETED_WITHIN_DAYS.
+        $reopenFrom = $at?->copy()->subDays(self::REOPEN_COMPLETED_WITHIN_DAYS)->toDateString();
+        $reopenUntil = $at?->copy()->addDays(self::REOPEN_COMPLETED_WITHIN_DAYS)->toDateString();
+
         // Kapal terarsip ikut dicocokkan agar operasi yang jeda lama otomatis
         // tersambung kembali (status aktif di-set ulang saat disimpan).
         $candidates = ShipOperation::query()
             ->where('type', $type)
-            ->whereIn('status', [ShipOperation::STATUS_ACTIVE, ShipOperation::STATUS_INACTIVE])
+            ->where(function ($query) use ($reopenFrom, $reopenUntil): void {
+                $query->whereIn('status', [ShipOperation::STATUS_ACTIVE, ShipOperation::STATUS_INACTIVE]);
+
+                if ($reopenFrom === null) {
+                    return;
+                }
+
+                $query->orWhere(fn ($completed) => $completed
+                    ->where('status', ShipOperation::STATUS_COMPLETED)
+                    ->whereNotNull('last_report_date')
+                    ->whereBetween('last_report_date', [$reopenFrom, $reopenUntil]));
+            })
             ->when(
                 $type === ShipOperation::TYPE_BAG_LOADING && $this->string($data['wo_number'] ?? null) !== null,
                 fn ($query) => $query->where('wo_number', $this->string($data['wo_number'])),
             )
-            ->orderByRaw("CASE WHEN status = '".ShipOperation::STATUS_ACTIVE."' THEN 0 ELSE 1 END")
+            // Operasi yang masih berjalan selalu menang atas yang sudah ditandai
+            // selesai, supaya menyambung kembali hanya terjadi bila memang tidak
+            // ada pelayaran berjalan yang cocok.
+            ->orderByRaw(
+                "CASE status WHEN '".ShipOperation::STATUS_ACTIVE."' THEN 0"
+                ." WHEN '".ShipOperation::STATUS_COMPLETED."' THEN 2 ELSE 1 END"
+            )
             ->orderByDesc('last_report_date')
             ->orderByDesc('id')
             ->get();
@@ -2337,7 +2383,7 @@ class ReportOpsController extends Controller
         $exact = $candidates->firstWhere('ship_name', $shipName);
 
         if ($exact) {
-            return $exact;
+            return $this->noteReopenedOperation($exact, $type, $shipName);
         }
 
         $key = ShipNameNormalizer::key($shipName);
@@ -2351,7 +2397,7 @@ class ReportOpsController extends Controller
         );
 
         if ($canonical) {
-            return $canonical;
+            return $this->noteReopenedOperation($canonical, $type, $shipName);
         }
 
         $best = null;
@@ -2381,6 +2427,27 @@ class ReportOpsController extends Controller
         }
 
         return $best;
+    }
+
+    /**
+     * Catat ke log bila yang tersambung ternyata operasi yang sudah ditandai
+     * selesai. Statusnya akan kembali berjalan begitu laporan ini disimpan,
+     * jadi jejaknya perlu ada — inilah satu-satunya tempat keputusan "Selesai"
+     * milik petugas dianulir oleh sistem.
+     */
+    private function noteReopenedOperation(ShipOperation $operation, string $type, string $shipName): ShipOperation
+    {
+        if ($operation->status === ShipOperation::STATUS_COMPLETED) {
+            Log::info('Operasi kapal yang baru ditandai selesai disambung kembali.', [
+                'type' => $type,
+                'diketik' => $shipName,
+                'tersimpan' => $operation->ship_name,
+                'ship_operation_id' => $operation->id,
+                'laporan_terakhir' => $operation->last_report_date,
+            ]);
+        }
+
+        return $operation;
     }
 
     /**

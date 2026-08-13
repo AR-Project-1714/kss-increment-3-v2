@@ -94,6 +94,12 @@ class UnloadingShipOperationTest extends TestCase
     /**
      * Kapal yang ditandai "Selesai" tidak lagi ikut dicocokkan, sehingga
      * kunjungan berikutnya menjadi operasi kapal yang baru.
+     *
+     * Jedanya sengaja melewati REOPEN_COMPLETED_WITHIN_DAYS. Di dalam ambang itu
+     * tanda selesai dianggap kelewat cepat dan operasinya justru disambung
+     * kembali — lihat test_selesai_yang_kelewat_cepat_tidak_memecah_satu_kunjungan.
+     * Tes ini menjaga sisi seberangnya: sehari lewat ambang, kapal yang sudah
+     * berangkat tidak boleh lagi menarik kunjungan berikutnya.
      */
     public function test_kapal_yang_sudah_selesai_tidak_menarik_kunjungan_berikutnya(): void
     {
@@ -104,7 +110,7 @@ class UnloadingShipOperationTest extends TestCase
             'unloading_containers_1' => [['status' => 'Empty', 'qty_current' => '20']],
         ]);
 
-        $this->submit('2026-05-20', 'Pagi', 'C', [
+        $this->submit('2026-05-22', 'Pagi', 'C', [
             'ship_name_container_1' => 'KM. Ayer Mas',
             'capacity_container_1' => '120',
             'unloading_containers_1' => [['status' => 'Empty', 'qty_current' => '15']],
@@ -225,6 +231,49 @@ class UnloadingShipOperationTest extends TestCase
 
         $this->assertSame(1, MaterialActivity::count());
         $this->assertSame(2, MaterialItem::count(), 'Catatan nol yang menyebut jenis bahannya ikut terbuang.');
+    }
+
+    /**
+     * Tanda "Selesai" yang kelewat cepat tidak boleh memecah satu kunjungan.
+     *
+     * Shift Sore menutup pekerjaan, lalu shift Malam hari yang sama ternyata
+     * masih membongkar. Selama operasi selesai dikeluarkan dari kandidat
+     * pencocokan, laporan lanjutan itu membentuk operasi BARU untuk kapal yang
+     * sama — dan rekap melaporkan dua kapal padahal yang bersandar satu.
+     * Persis yang terjadi pada KM. Hasil Bahari 8, 12-13 Agustus 2026.
+     */
+    public function test_selesai_yang_kelewat_cepat_tidak_memecah_satu_kunjungan(): void
+    {
+        $this->submit('2026-05-19', 'Pagi', 'A', [
+            'ship_name_material_1' => 'KM. Hasil Bahari 8',
+            'capacity_material_1' => '4750',
+            'unloading_materials_1' => [['raw_material_type' => 'Clay', 'qty_current' => '110']],
+        ]);
+
+        // Shift Sore menandai selesai — padahal bongkarnya belum rampung.
+        $this->submit('2026-05-19', 'Sore', 'B', [
+            'ship_name_material_1' => 'KM. Hasil Bahari 8',
+            'capacity_material_1' => '4750',
+            'ship_operation_material_status_1' => ShipOperation::STATUS_COMPLETED,
+            'unloading_materials_1' => [['raw_material_type' => 'Clay', 'qty_current' => '130']],
+        ]);
+
+        $this->assertSame(1, ShipOperation::where('type', ShipOperation::TYPE_MATERIAL_UNLOADING)->count());
+
+        // Shift Malam meneruskan, mengetik namanya dengan ejaan lain dan tanpa
+        // memilih dari saran — persis seperti di lapangan.
+        $this->submit('2026-05-19', 'Malam', 'C', [
+            'ship_name_material_1' => 'KM.HASIL BAHARI.8',
+            'capacity_material_1' => '4750',
+            'unloading_materials_1' => [['raw_material_type' => 'Mgo', 'qty_current' => '4700']],
+        ]);
+
+        $operations = ShipOperation::where('type', ShipOperation::TYPE_MATERIAL_UNLOADING)->get();
+
+        $this->assertCount(1, $operations, 'Satu kunjungan kapal terpecah menjadi dua operasi.');
+        $this->assertSame(ShipOperation::STATUS_ACTIVE, $operations->first()->status, 'Operasi harus kembali berjalan.');
+        $this->assertNull($operations->first()->completed_at);
+        $this->assertSame(3, MaterialActivity::where('ship_operation_id', $operations->first()->id)->count());
     }
 
     /**
