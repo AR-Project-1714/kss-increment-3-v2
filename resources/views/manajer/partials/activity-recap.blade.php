@@ -23,6 +23,7 @@
     ));
 
     $fmt = fn ($value, int $decimals = 0) => number_format((float) $value, $decimals, ',', '.');
+    $volumeDecimals = fn (string $unit): int => in_array($unit, ['Teus', 'Bag'], true) ? 0 : 2;
 
     // Periode yang seluruhnya berada di satu bulan tidak punya pembanding, dan
     // akumulasinya sama persis dengan bulan berjalan. Satu kelompok kolom saja,
@@ -77,7 +78,7 @@
                                 {{ $fmt($cell['count']) }}<span class="perf-table__unit">{{ $row['countLabel'] }}</span>
                             </td>
                             <td class="perf-table__num">
-                                {{ $fmt($cell['value'], 2) }}<span class="perf-table__unit">{{ $row['unit'] }}</span>
+                                {{ $fmt($cell['value'], $volumeDecimals($row['unit'])) }}<span class="perf-table__unit">{{ $row['unit'] }}</span>
                             </td>
                         @endforeach
                     </tr>

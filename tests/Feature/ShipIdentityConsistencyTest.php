@@ -55,7 +55,9 @@ class ShipIdentityConsistencyTest extends TestCase
         $detail = app(OperationalPerformanceService::class)->activityDetail('bongkar_bahan_baku', $this->filters());
 
         $this->assertCount(1, $detail['table']['rows'], 'Tiga ejaan satu kapal harus menjadi satu baris.');
-        $this->assertSame(3000.0, $this->cell($detail, 0, 'Bongkar'), 'Tonasenya harus utuh, bukan terbagi tiga.');
+        // Baris uji ini sengaja tanpa kemasan, sama seperti data sebelum
+        // pemisahan kemasan: nilainya memang sudah berupa Ton.
+        $this->assertSame(3000.0, $this->cell($detail, 0, 'Setara Tonase'), 'Tonasenya harus utuh, bukan terbagi tiga.');
         $this->assertSame(1, $this->metric($detail, 'Kapal dilayani'));
     }
 

@@ -1,4 +1,6 @@
 @php
+    use App\Models\Role;
+
     $accountSettingsUser = auth()->user();
     $accountSettingsInitials = collect(preg_split('/\s+/', trim((string) ($accountSettingsUser->name ?? 'Pengguna'))))
         ->filter()
@@ -8,6 +10,8 @@
     $accountSettingsPhotoUrl = $accountSettingsUser->profile_photo_path
         ? asset($accountSettingsUser->profile_photo_path)
         : '';
+    $accountSettingsRole = Role::normalize($accountSettingsUser->role->name ?? null);
+    $accountSettingsCanChangePassword = $accountSettingsRole === Role::ADMIN;
 @endphp
 
 <div class="kss-account-modal kss-account-photo" id="accountPhotoModal" data-account-photo-modal aria-hidden="true">
@@ -146,6 +150,7 @@
     </div>
 </div>
 
+@if ($accountSettingsCanChangePassword)
 <div class="kss-account-modal" id="accountPasswordModal" data-account-modal aria-hidden="true">
     <div
         class="kss-account-modal__panel"
@@ -263,5 +268,78 @@
         </form>
     </div>
 </div>
+@else
+<div class="kss-account-modal kss-account-help" id="accountHelpModal" data-account-help-modal aria-hidden="true">
+    <div
+        class="kss-account-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="accountHelpTitle"
+        aria-describedby="accountHelpSubtitle"
+        tabindex="-1"
+    >
+        <div class="kss-account-modal__header">
+            <span class="kss-account-modal__icon" aria-hidden="true">
+                <i class="fi fi-rr-shield-check"></i>
+            </span>
+            <span class="kss-account-modal__heading">
+                <strong id="accountHelpTitle">Bantuan Akun</strong>
+                <small id="accountHelpSubtitle">Panduan mendapatkan bantuan untuk akses akun Anda.</small>
+            </span>
+            <button type="button" class="kss-account-modal__close" data-account-help-close aria-label="Tutup bantuan akun">
+                <i class="fi fi-rr-cross-small"></i>
+            </button>
+        </div>
+
+        <div class="kss-account-modal__body kss-account-help__body">
+            <div class="kss-account-help__notice">
+                <span class="kss-account-help__notice-icon" aria-hidden="true">
+                    <i class="fi fi-rr-key"></i>
+                </span>
+                <span>
+                    <strong>Password dikelola oleh admin</strong>
+                    <small>Perubahan dan reset password akun petugas hanya dapat dilakukan oleh admin KSS.</small>
+                </span>
+            </div>
+
+            <dl class="kss-account-help__identity" aria-label="Identitas akun untuk disampaikan kepada admin">
+                <div>
+                    <dt>Nama</dt>
+                    <dd>{{ $accountSettingsUser->name ?? 'Pengguna' }}</dd>
+                </div>
+                <div>
+                    <dt>Username</dt>
+                    <dd>{{ '@'.($accountSettingsUser->username ?? 'pengguna') }}</dd>
+                </div>
+                <div>
+                    <dt>Role</dt>
+                    <dd>{{ Role::displayName($accountSettingsRole) }}</dd>
+                </div>
+            </dl>
+
+            <div class="kss-account-help__steps">
+                <strong>Jika lupa atau perlu mengganti password:</strong>
+                <ol>
+                    <li>Hubungi admin KSS dan sampaikan identitas akun di atas.</li>
+                    <li>Admin akan memverifikasi identitas sebelum melakukan reset.</li>
+                    <li>Terima password baru melalui saluran komunikasi yang aman.</li>
+                </ol>
+            </div>
+
+            <p class="kss-account-help__warning">
+                <i class="fi fi-rr-shield-exclamation" aria-hidden="true"></i>
+                <span>Jangan membagikan password baru kepada pengguna lain.</span>
+            </p>
+        </div>
+
+        <div class="kss-account-modal__footer">
+            <button type="button" class="kss-account-button kss-account-button--primary" data-account-help-close data-account-help-primary>
+                <i class="fi fi-rr-check" aria-hidden="true"></i>
+                Mengerti
+            </button>
+        </div>
+    </div>
+</div>
+@endif
 
 <script src="{{ asset('js/components/account-settings.js') }}?v={{ @filemtime(public_path('js/components/account-settings.js')) }}"></script>

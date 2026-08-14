@@ -40,7 +40,7 @@
                     'field' => 'value',
                     'label' => $row['valueLabel'],
                     'unit' => $row['unit'],
-                    'decimals' => $row['unit'] === 'Teus' ? 0 : 2,
+                    'decimals' => in_array($row['unit'], ['Teus', 'Bag'], true) ? 0 : 2,
                 ];
 
                 if ($row['hasDamage']) {

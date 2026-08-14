@@ -1,5 +1,6 @@
 @import '../components/account-settings.css';
 @import '../components/notification-center.css';
+@import '../components/report-table.css';
 
 /* =========================================
            VARIABLES (COLOR PALETTE & THEME)
@@ -1868,6 +1869,31 @@
             background-color: var(--white); border: 1px solid var(--divider); width: 100%; font-size: 12px; outline: none; box-sizing: border-box;
         }
         .table-column input.form-control-custom:focus { border-color: var(--blue-main); box-shadow: 0 0 0 2px var(--blue-main-10); }
+        .quantity-measure {
+            display: flex;
+            width: 100%;
+            min-width: 0;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .quantity-input {
+            position: relative;
+            width: 100%;
+            min-width: 0;
+        }
+        .quantity-input input.form-control-custom { padding-right: 38px; font-variant-numeric: tabular-nums; }
+        .quantity-input--teus input.form-control-custom { padding-right: 46px; }
+        .quantity-input__unit {
+            position: absolute;
+            top: 50%;
+            right: 11px;
+            transform: translateY(-50%);
+            color: var(--dark-secondary);
+            font-size: 9px;
+            font-weight: 600;
+            line-height: 1;
+            pointer-events: none;
+        }
         .material .table-column input.form-control-custom:disabled { background-color: var(--blue-bg); color: var(--blue-main); border-color: var(--divider); }
         .container-content .table-column input.form-control-custom:disabled { background-color: var(--orange-main-10); color: var(--orange-main); border-color: var(--divider); }
 
@@ -1890,6 +1916,288 @@
         .material .btn-tambah-baris { border: 1.5px dashed var(--blue-main-40); }
         .container-content .btn-tambah-baris { border: 1.5px dashed var(--orange-main-40); }
         .btn-tambah-baris.red {border: 1.5px dashed var(--red-main-40);}
+
+        /* Bongkar bahan baku: dua ledger kemasan, mengikuti format operasional.
+           Pemisahan memakai garis dan ritme, bukan tumpukan card di dalam card. */
+
+        .material-package-ledger { display: flex; flex-direction: column; gap: 24px; }
+        .material-package-group {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--blue-main-25);
+            border-radius: 12px;
+            background: var(--white);
+        }
+        .material-package-group__header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--divider);
+            background: var(--main-bg);
+        }
+        /* Kepala kelompok merangkap pemicu buka/tutup: seluruh area kosongnya
+           dapat diklik, sama seperti akordeon lokasi pada Inspeksi K3. */
+        .material-package-group__header { cursor: pointer; }
+        .material-package-group__toggle {
+            display: inline-flex;
+            width: 30px;
+            height: 30px;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 8px;
+            background: var(--blue-main-10);
+            color: var(--blue-main);
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform .25s ease, background-color .2s ease;
+        }
+        .material-package-group__toggle:hover { background: var(--blue-main-25); }
+        .material-package-group__toggle i { position: relative; top: 1px; }
+        .material-package-group.is-collapsed .material-package-group__toggle { transform: rotate(-90deg); }
+        .material-package-group.is-collapsed .material-package-group__body { display: none; }
+        .material-package-group.is-collapsed .material-package-group__header { border-bottom-color: transparent; }
+
+        /* Ringkasan pengganti tabel saat kelompok ditutup. */
+        .material-package-group__summary { display: none; align-items: center; gap: 10px; margin-inline-start: auto; }
+        .material-package-group.is-collapsed .material-package-group__summary { display: flex; }
+        .material-package-group__rows {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border: 1px solid var(--blue-main-10);
+            border-radius: 999px;
+            background: var(--white);
+            color: var(--dark-secondary);
+            font-size: 10px;
+            white-space: nowrap;
+        }
+        .material-package-group__rows i { position: relative; top: 1px; color: var(--blue-main); }
+        .material-package-group__rows b { color: var(--dark-main); font-weight: 600; }
+        .material-package-group__figure {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 5px;
+            color: var(--dark-secondary);
+            font-size: 10px;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        .material-package-group__figure small { color: var(--muted); font-size: 9px; }
+        .material-package-group__figure b { color: var(--blue-main); font-size: 13px; font-weight: 700; }
+        .material-package-group__figure i { color: var(--divider); font-style: normal; }
+
+        .material-package-group__identity { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; gap: 12px; }
+        .material-package-group__identity > div { min-width: 0; }
+        .material-package-group__icon {
+            display: inline-flex;
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: var(--blue-main-10);
+            color: var(--blue-main);
+            font-size: 16px;
+        }
+        /* Pemilih kemasan memakai kontrol select yang sama dengan isian lain
+           pada form ini; hanya lebarnya yang dibatasi agar muat di header. */
+        /* Pil konversi berdampingan dengan pemilih kemasan; hanya pada layar
+           sempit ia turun baris. */
+        .material-package-group__picker { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; min-width: 0; }
+        /* Batas bawahnya penting: tanpa itu pemilih kemasan tergencet menjadi
+           beberapa piksel pada layar sempit, dan pil konversinya ikut meluber
+           keluar kartu alih-alih turun baris. */
+        .material-package-group__field { flex: 0 0 250px; max-width: 250px; }
+        .material-package-group__field .custom-input { min-height: 38px; padding-block: 8px; font-weight: 600; }
+        /* Kemasan yang sudah dipakai kelompok lain tetap terbaca, tetapi jelas
+           tidak dapat dipilih lagi. */
+        .material-package-group__field .custom-option.is-disabled { color: var(--muted); cursor: not-allowed; }
+        .material-package-group__field .custom-option.is-disabled:hover { background-color: transparent; color: var(--muted); }
+        .material-package-group__field .custom-option.is-new {
+            margin-top: 4px;
+            border-top: 1px solid var(--divider);
+            color: var(--blue-main);
+            font-weight: 500;
+        }
+        .material-package-group__hint {
+            display: inline-flex;
+            flex: 0 0 auto;
+            align-items: center;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: var(--blue-main-10);
+            color: var(--blue-main);
+            font-size: 9px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        /* Anatomi tombol hapus mengikuti hapus lokasi pada Inspeksi K3:
+           ikon saja, kotak membulat bernada merah. */
+        .material-package-group__remove {
+            display: inline-flex;
+            width: 32px;
+            height: 32px;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 8px;
+            background: var(--red-main-10);
+            color: var(--red-main);
+            cursor: pointer;
+            transition: .2s ease-out;
+        }
+        .material-package-group__remove i { position: relative; top: 2px; }
+        .material-package-group__remove:hover { background: var(--red-main-25); transform: translateY(-1px); }
+        .material-package-ledger[data-material-package-single] .material-package-group__remove { display: none; }
+        .material-package-add {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px dashed var(--blue-main-40);
+            border-radius: 10px;
+            background: var(--blue-main-5);
+            color: var(--blue-main);
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .material-package-add[hidden] { display: none; }
+        .material-package-add:hover { background: var(--blue-main-10); }
+        .material-package-add .icon { display: inline-flex; align-items: center; font-size: 14px; }
+
+        /* Pop-up kemasan tambahan. Lebar kartunya mengikuti aturan pop-up
+           bersama, termasuk penyesuaian layar kecilnya. */
+        .material-package-ratio { display: flex; align-items: center; gap: 10px; }
+        .material-package-ratio .input-wrapper { flex: 1 1 0; min-width: 0; }
+        .material-package-ratio .custom-input { padding-right: 46px; text-align: center; }
+        .material-package-ratio .input-icon { font-size: 11px; color: var(--dark-secondary); }
+        .material-package-ratio__equals { flex: 0 0 auto; color: var(--dark-secondary); font-size: 14px; font-weight: 600; }
+        .material-package-ratio__help { margin: 8px 0 0; color: var(--dark-secondary); font-size: 10px; line-height: 1.5; }
+        .material-package-ratio__help strong { color: var(--dark-main); font-weight: 600; }
+        .material-package-preview {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1px solid var(--blue-main-10);
+            border-radius: 12px;
+            background: var(--blue-main-5);
+            color: var(--dark-secondary);
+            font-size: 11px;
+        }
+        .material-package-preview strong { color: var(--blue-main); font-size: 15px; font-variant-numeric: tabular-nums; }
+        .material-package-scope { margin: 0; color: var(--dark-secondary); font-size: 10px; line-height: 1.5; }
+        .material-package-error {
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: var(--red-main-10);
+            color: var(--red-main);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .material-package-group .table-wrapper { border-radius: 0; border: 0; }
+        .material-package-group .table-input { min-width: 760px; }
+        .material-package-group .table-input .head { border-radius: 0; }
+        .material-package-group .head .table-column span { line-height: 1.25; }
+        .material-package-group .head .table-column small,
+        .container-content .head .table-column small { display: block; margin-top: 2px; color: var(--button-color); font-size: 8px; font-weight: 500; opacity: .82; }
+        .material-package-scroll-hint {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 16px;
+            border-top: 1px solid var(--divider);
+            color: var(--dark-secondary);
+            font-size: 9px;
+            line-height: 1.4;
+        }
+        .material-package-scroll-hint i { position: relative; top: 1px; color: var(--blue-main); }
+        .material-package-subtotal {
+            display: grid;
+            grid-template-columns: minmax(190px, 1fr) repeat(3, minmax(120px, auto));
+            align-items: center;
+            gap: 16px;
+            padding: 13px 20px;
+            border-top: 1px solid var(--divider);
+            background: var(--blue-main-5);
+        }
+        .material-package-subtotal__label { color: var(--dark-main); font-size: 11px; font-weight: 700; }
+        .material-package-subtotal > span:not(.material-package-subtotal__label) {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            justify-content: end;
+            text-align: right;
+        }
+        .material-package-subtotal small { color: var(--dark-secondary); font-size: 8px; font-style: normal; font-weight: 500; }
+        .material-package-subtotal__value {
+            display: inline-flex;
+            align-items: baseline;
+            justify-content: flex-end;
+            gap: 4px;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+        .material-package-subtotal__pair { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+        .material-package-subtotal__value strong { color: var(--blue-main); font-size: 16px; line-height: 1; }
+        .material-package-subtotal__value b { color: var(--dark-main); font-size: 11px; font-weight: 700; }
+        .material-package-subtotal__value em { color: var(--dark-secondary); font-size: 8px; font-style: normal; }
+        .material-package-subtotal__value i { color: var(--divider); font-size: 14px; font-style: normal; font-weight: 400; }
+
+        @media (max-width: 920px) {
+            .material-package-scroll-hint { display: flex; }
+        }
+
+        @media (max-width: 720px) {
+            .material-package-ledger { gap: 18px; }
+            .material-package-group__header { align-items: flex-start; flex-wrap: wrap; gap: 12px; padding: 15px 16px; }
+            .material-package-group__picker { flex-wrap: wrap; }
+            .material-package-group__field { flex: 1 1 200px; min-width: 150px; }
+            .material-package-group__remove { margin-inline-start: 50px; }
+            .material-package-group .btn-tambah-baris {
+                position: sticky;
+                left: 15px;
+                width: calc(100vw - 92px);
+                max-width: calc(100% - 30px);
+            }
+            .material-package-subtotal {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                padding: 12px 16px;
+            }
+            .material-package-subtotal__label { grid-column: 1 / -1; }
+            .material-package-subtotal > span:not(.material-package-subtotal__label) { justify-content: start; text-align: left; }
+            .material-package-subtotal__value { justify-content: flex-start; }
+        }
+
+        @media (max-width: 420px) {
+            .material-package-group__remove { margin-inline-start: 0; }
+            .material-package-subtotal { column-gap: 6px; padding-inline: 12px; }
+            .material-package-subtotal__value strong { font-size: 14px; }
+            /* Jumlah Bag kemasan kecil bisa mencapai lima digit; pasangan
+               angka-satuan dibiarkan turun baris daripada terpotong. */
+            .material-package-subtotal__value { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
+        }
+
+        @media (forced-colors: active) {
+            .material-package-group,
+            .material-package-add,
+            .material-package-group__select,
+            .material-package-group__remove { border-color: CanvasText; }
+            .material-package-group__icon { outline: 1px solid CanvasText; }
+        }
 
         /* =========================================
            SUB-TAB SEGMENTED CONTROL ("island" + pill meluncur)
@@ -1983,6 +2291,12 @@
         .rentang-jam-wrapper .input-icon i {
             position: static !important;
             line-height: 1;
+        }
+
+        @media (max-width: 420px) {
+            .rentang-jam-group { min-width: 0; width: 100%; flex-basis: 100%; }
+            .rentang-jam-wrapper { min-width: 0; gap: 8px; }
+            .rentang-jam-wrapper .input-wrapper { min-width: 0; }
         }
 
         button.set-all-good { display: flex; padding: 6px 12px; align-items: center; gap: 10px; border-radius: 8px; background-color: var(--success); border: none; font-size: 12px; font-weight: 600; color: var(--button-color); }

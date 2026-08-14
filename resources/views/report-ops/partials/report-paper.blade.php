@@ -20,6 +20,17 @@
         return trim($text.' '.$suffix);
     };
     $sumQty = fn ($a, $b) => (float) ($a ?? 0) + (float) ($b ?? 0);
+    // Faktor konversi dibaca dari baris laporan, bukan dari nama kemasannya,
+    // supaya perubahan katalog kemasan tidak menggeser angka laporan lama.
+    // Baris yang dibuat sebelum kolom kemasan ada tidak punya faktor: nilainya
+    // memang sudah berupa Ton dan tidak boleh dikonversi ulang.
+    $materialFactor = static function ($item): ?float {
+        if ($item->packaging_factor !== null && $item->packaging_factor !== '') {
+            return (float) $item->packaging_factor;
+        }
+
+        return \App\Support\MaterialPackaging::factorFor($item->packaging_code, $item->packaging_type);
+    };
     $statusValue = $report->status instanceof ReportStatus ? $report->status->value : (string) $report->status;
 
     $imgSrc = function ($path) use ($isPdf) {
@@ -76,10 +87,6 @@
     ];
     $materialActivities = $report->materialActivity->sortBy('sequence')->values();
     $containerActivities = $report->containerActivity->sortBy('sequence')->values();
-    $operationDecisions = $report->operationDecisions
-        ->filter(fn ($decision) => $decision->shipOperation)
-        ->sortBy(fn ($decision) => sprintf('%s-%06d', $decision->shipOperation->type, $decision->ship_operation_id))
-        ->values();
     $turba = $report->turbaActivity;
     $turbaDeliveries = $turba ? $turba->deliveries->values() : collect();
 
@@ -216,6 +223,9 @@
     .report-paper .metric td { padding: 1px 3px; }
     .report-paper .c { text-align: center; }
     .report-paper .r { text-align: right; }
+    .report-paper .material-report-grid { table-layout: fixed; }
+    .report-paper .material-report-grid .material-report-total td { font-weight: bold; }
+    .report-paper .material-report-grid .material-qty { white-space: nowrap; }
     .report-paper .b { font-weight: bold; }
     .report-paper .muted { color: #444; }
     .report-paper .empty-note { text-align: center; font-style: italic; color: #555; padding: 6px; }
@@ -301,28 +311,6 @@
             </td>
         </tr>
     </table>
-
-    @if ($operationDecisions->isNotEmpty())
-        <div class="sec">Handover Operasi Kapal</div>
-        <table class="grid roomy">
-            <thead>
-                <tr>
-                    <th style="width:34%">Kegiatan</th>
-                    <th>Nama Kapal</th>
-                    <th style="width:24%">Status Setelah Shift</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($operationDecisions as $decision)
-                    <tr>
-                        <td>{{ \App\Models\ShipOperation::typeLabel($decision->shipOperation->type) }}</td>
-                        <td>{{ $decision->shipOperation->ship_name }}</td>
-                        <td><strong>{{ \App\Models\ShipOperation::statusLabel($decision->status) }}</strong></td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    @endif
 
     <div class="sec">I. Pemuatan Pupuk Kantong</div>
     @forelse ($loadingActivities as $activity)
@@ -475,9 +463,7 @@
         @endforelse
     @endforeach
 
-    <table class="pair">
-        <tr>
-            <td class="pair-left">
+    <div>
                 <div class="sec">IV. Bongkar Bahan Baku</div>
                 @forelse ($materialActivities as $material)
                     <div class="panel">
@@ -492,18 +478,64 @@
                                 <td><span class="b">Jam Kerja:</span> {{ $material->working_hours }}</td>
                             </tr>
                         </table>
-                        <table class="grid compact">
-                            <thead><tr><th>JENIS</th><th style="width:18%">SEKARANG</th><th style="width:18%">LALU</th><th style="width:18%">TOTAL</th></tr></thead>
+                        <table class="grid compact material-report-grid">
+                            <thead>
+                                <tr>
+                                    <th colspan="2" rowspan="2" style="width:25%">JENIS</th>
+                                    <th rowspan="2" style="width:15%">KEMASAN</th>
+                                    <th colspan="2">SEKARANG</th>
+                                    <th colspan="2">LALU</th>
+                                    <th colspan="2">AKUMULASI</th>
+                                </tr>
+                                <tr>
+                                    <th>BAG</th><th>TON</th>
+                                    <th>BAG</th><th>TON</th>
+                                    <th>BAG</th><th>TON</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                @forelse ($material->items as $item)
-                                    <tr>
-                                        <td>{{ $item->raw_material_type }}</td>
-                                        <td class="r">{{ $fmtQty($item->qty_current) }}</td>
-                                        <td class="r">{{ $fmtQty($item->qty_prev) }}</td>
-                                        <td class="r">{{ $fmtQty($item->qty_total) }}</td>
+                                @php
+                                    $materialPackages = $material->items
+                                        ->groupBy(fn ($item) => \App\Support\MaterialPackaging::labelFor($item->packaging_code, $item->packaging_type))
+                                        ->sortBy(fn ($items) => \App\Support\MaterialPackaging::orderFor(
+                                            $items->first()->packaging_code,
+                                            $items->first()->packaging_type,
+                                        ));
+                                @endphp
+                                @forelse ($materialPackages as $packageName => $packageItems)
+                                    @php
+                                        $packageFactor = $materialFactor($packageItems->first());
+                                        $hasBags = $packageFactor !== null;
+                                    @endphp
+                                    @foreach ($packageItems as $item)
+                                        <tr>
+                                            <td class="c" style="width:4%">{{ $loop->iteration }}</td>
+                                            <td>{{ $item->raw_material_type }}</td>
+                                            <td class="c">{{ $packageName }}</td>
+                                            @foreach ([$item->qty_current, $item->qty_prev, $item->qty_total] as $quantity)
+                                                <td class="r material-qty">
+                                                    {{ $hasBags ? $fmtQty($quantity) : '—' }}
+                                                </td>
+                                                <td class="r material-qty">
+                                                    {{ $fmtQty($hasBags ? (float) ($quantity ?? 0) * $packageFactor : $quantity) }}
+                                                </td>
+                                            @endforeach
+                                        </tr>
+                                    @endforeach
+                                    <tr class="material-report-total">
+                                        <td colspan="3" class="c">JUMLAH</td>
+                                        @foreach (['qty_current', 'qty_prev', 'qty_total'] as $quantityField)
+                                            @php $packageQuantity = $packageItems->sum($quantityField); @endphp
+                                            <td class="r material-qty">
+                                                {{ $hasBags ? $fmtQty($packageQuantity) : '—' }}
+                                            </td>
+                                            <td class="r material-qty">
+                                                {{ $fmtQty($hasBags ? $packageQuantity * $packageFactor : $packageQuantity) }}
+                                            </td>
+                                        @endforeach
                                     </tr>
                                 @empty
-                                    <tr><td colspan="4" class="empty-note">Tidak ada rincian bahan baku.</td></tr>
+                                    <tr><td colspan="9" class="empty-note">Tidak ada rincian bahan baku.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -525,8 +557,8 @@
                 @empty
                     <table class="grid"><tr><td class="empty-note">Tidak ada data bongkar bahan baku.</td></tr></table>
                 @endforelse
-            </td>
-            <td class="pair-right">
+    </div>
+    <div>
                 <div class="sec">Bongkar / Muat Container</div>
                 @forelse ($containerActivities as $container)
                     @php
@@ -578,9 +610,7 @@
                 @empty
                     <table class="grid"><tr><td class="empty-note">Tidak ada data bongkar / muat container.</td></tr></table>
                 @endforelse
-            </td>
-        </tr>
-    </table>
+    </div>
 
     <div class="sec">V. Tracking Pengiriman Pupuk Kantong</div>
     <table class="grid">

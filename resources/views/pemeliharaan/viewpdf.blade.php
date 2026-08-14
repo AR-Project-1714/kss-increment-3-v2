@@ -147,7 +147,7 @@
     @endif
 
     @if ($signAction ?? null)
-        @include('components.kss-sign-fab', ['signAction' => $signAction, 'signMessage' => $signMessage ?? null])
+        @include('components.kss-sign-fab', ['signAction' => $signAction, 'signMessage' => $signMessage ?? null, 'redirectToDashboard' => true])
     @endif
 </body>
 </html>

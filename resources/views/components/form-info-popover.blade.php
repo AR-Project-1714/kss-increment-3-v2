@@ -89,8 +89,13 @@
                 flex-direction: column;
                 gap: 10px;
                 border-radius: 12px;
-                background: var(--white);
-                box-shadow: 0 18px 44px var(--black-25);
+                background: color-mix(in srgb, var(--white) 82%, transparent);
+                backdrop-filter: blur(14px) saturate(160%);
+                -webkit-backdrop-filter: blur(14px) saturate(160%);
+                border: 1px solid color-mix(in srgb, var(--white) 40%, transparent);
+                box-shadow:
+                    0 3px 10px var(--kss-popover-shadow-near),
+                    0 18px 44px var(--kss-popover-shadow-far);
                 color: var(--dark-main);
                 opacity: 0;
                 pointer-events: none;

@@ -342,6 +342,32 @@ class OperationalReportTest extends BlackBoxTestCase
         ]);
     }
 
+    public function test_tc_ops_11_tanda_tangan_dari_pratinjau_kembali_ke_dashboard(): void
+    {
+        $sender = $this->operator('B');
+        $receiver = $this->operator('A');
+
+        $incoming = DailyReport::create([
+            'user_id' => $sender->id,
+            'created_by' => $sender->id,
+            'report_date' => '2026-05-20',
+            'shift' => 'Pagi',
+            'group_name' => 'B',
+            'received_by_group' => 'A',
+            'time_range' => '07:00 - 15:00',
+            'status' => ReportStatus::Submitted,
+        ]);
+
+        $this->actingAs($receiver)
+            ->get(route('report-ops.show', $incoming))
+            ->assertOk()
+            ->assertSee('name="redirect_to_dashboard" value="1"', false);
+
+        $this->actingAs($receiver)
+            ->post(route('report-ops.sign', $incoming), ['redirect_to_dashboard' => '1'])
+            ->assertRedirect(route('report-ops.index'));
+    }
+
     public function test_tc_ops_12_riwayat_unduh_pdf(): void
     {
         $operator = $this->operator('A');

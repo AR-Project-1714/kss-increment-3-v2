@@ -806,6 +806,9 @@
             </button>
             <form method="POST" action="{{ $signAction }}" class="sign-modal-form" id="signModalForm">
                 @csrf
+                @if ($redirectToDashboard ?? false)
+                    <input type="hidden" name="redirect_to_dashboard" value="1">
+                @endif
                 <button type="submit" class="sign-modal-btn sign-modal-btn--confirm" id="signModalConfirm">
                     <i class="{{ $confirmIcon }}"></i>
                     {{ $confirmLabel }}

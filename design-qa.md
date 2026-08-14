@@ -25,7 +25,7 @@ The profile block is the dominant row, with a 44 px avatar, three levels of iden
 - Spacing: 10 px panel inset, 46 px action rows, 44 px profile avatar, and consistent 7 px group dividers.
 - Color and theme: existing KSS tokens drive surfaces, borders, foregrounds, hover states, danger states, and dark mode.
 - Assets: the incumbent Flaticon icon set is used; no emoji, placeholder icon, custom SVG, or CSS-drawn icon was introduced.
-- Copy: only Profil Pengguna, Ubah Password, Mode Gelap, and Keluar are exposed.
+- Copy: Profil Pengguna, Mode Gelap, dan Keluar tersedia untuk semua role. Admin melihat Ubah Password; role lain melihat Bantuan Akun.
 
 ## Findings
 
@@ -36,13 +36,13 @@ The profile block is the dominant row, with a 44 px avatar, three levels of iden
 ## Interaction and accessibility checks
 
 - Profile card opens the existing photo-management modal.
-- Ubah Password opens the existing password modal.
+- Ubah Password membuka modal password hanya untuk admin. Bantuan Akun membuka panduan reset melalui admin untuk role non-admin.
 - The theme control is a real checkbox with `role="switch"`, dynamic label/status, localStorage persistence, and light/dark synchronization.
 - Dark-state inspection confirmed the checked switch, `Aktif` status, dark KSS surfaces, and no horizontal overflow.
 - Logout remains a POST form with CSRF protection.
 - Trigger/popover ARIA state, visible keyboard focus styles, Escape close behavior, and outside-click close behavior remain present.
 - Browser console contained no errors.
-- Feature test result: 9 passed, 49 assertions.
+- Feature test result: 17 passed, 150 assertions.
 
 ## Comparison history
 
@@ -53,7 +53,7 @@ The profile block is the dominant row, with a 44 px avatar, three levels of iden
 ## Implementation checklist
 
 - [x] Profile identity is the first and most prominent block.
-- [x] Change-password action is retained.
+- [x] Change-password action is retained for admin; non-admin receives Bantuan Akun with the admin-reset flow.
 - [x] Dark mode moved into the dropdown as a working switch.
 - [x] Logout is the final, separated destructive action.
 - [x] External petugas theme/logout controls were removed from the header.

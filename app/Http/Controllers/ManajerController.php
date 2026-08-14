@@ -210,7 +210,7 @@ class ManajerController extends Controller
         }
 
         return redirect()
-            ->route('manajer.archive')
+            ->route($request->boolean('redirect_to_dashboard') ? 'manajer.index' : 'manajer.archive')
             ->with('success', 'Laporan berhasil ditanda tangani dan masuk ke arsip.');
     }
 

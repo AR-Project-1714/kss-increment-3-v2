@@ -4,18 +4,20 @@
     function initAccountSettings() {
         var passwordModal = document.querySelector('[data-account-modal]');
         var passwordForm = document.querySelector('[data-account-form]');
+        var helpModal = document.querySelector('[data-account-help-modal]');
         var photoModal = document.querySelector('[data-account-photo-modal]');
         var photoForm = document.querySelector('[data-account-photo-form]');
-        if (!passwordModal || !passwordForm || !photoModal || !photoForm || passwordModal.dataset.initialized === 'true') return;
-        passwordModal.dataset.initialized = 'true';
+        if (!photoModal || !photoForm || photoModal.dataset.initialized === 'true') return;
+        photoModal.dataset.initialized = 'true';
 
-        var passwordPanel = passwordModal.querySelector('.kss-account-modal__panel');
-        var passwordSubmit = passwordForm.querySelector('[data-account-submit]');
-        var passwordSubmitLabel = passwordForm.querySelector('[data-account-submit-label]');
-        var passwordAlert = passwordForm.querySelector('[data-account-alert]');
-        var currentInput = passwordForm.querySelector('[name="current_password"]');
-        var passwordInput = passwordForm.querySelector('[name="password"]');
-        var confirmationInput = passwordForm.querySelector('[name="password_confirmation"]');
+        var passwordPanel = passwordModal?.querySelector('.kss-account-modal__panel');
+        var passwordSubmit = passwordForm?.querySelector('[data-account-submit]');
+        var passwordSubmitLabel = passwordForm?.querySelector('[data-account-submit-label]');
+        var passwordAlert = passwordForm?.querySelector('[data-account-alert]');
+        var currentInput = passwordForm?.querySelector('[name="current_password"]');
+        var passwordInput = passwordForm?.querySelector('[name="password"]');
+        var confirmationInput = passwordForm?.querySelector('[name="password_confirmation"]');
+        var helpPanel = helpModal?.querySelector('.kss-account-modal__panel');
 
         var photoPanel = photoModal.querySelector('.kss-account-modal__panel');
         var photoInput = photoForm.querySelector('[data-account-photo-input]');
@@ -38,6 +40,7 @@
         var photoDeleteLabel = photoForm.querySelector('[data-account-photo-delete-label]');
 
         var passwordLastFocus = null;
+        var helpLastFocus = null;
         var photoLastFocus = null;
         var passwordSubmitting = false;
         var photoUploading = false;
@@ -131,6 +134,7 @@
         }
 
         function updatePasswordState() {
+            if (!passwordForm || !currentInput || !passwordInput || !confirmationInput || !passwordSubmit) return;
             var current = currentInput.value;
             var password = passwordInput.value;
             var confirmation = confirmationInput.value;
@@ -145,6 +149,7 @@
         }
 
         function resetPasswordForm() {
+            if (!passwordForm) return;
             passwordForm.reset();
             clearPasswordErrors();
             passwordForm.querySelectorAll('[data-password-toggle]').forEach(function (button) {
@@ -158,9 +163,14 @@
         }
 
         function openPasswordModal(opener) {
+            if (!passwordModal || !passwordForm || !currentInput) return;
             closeMenus();
             photoModal.classList.remove('is-open');
             photoModal.setAttribute('aria-hidden', 'true');
+            if (helpModal) {
+                helpModal.classList.remove('is-open');
+                helpModal.setAttribute('aria-hidden', 'true');
+            }
             passwordLastFocus = opener || document.activeElement;
             resetPasswordForm();
             passwordModal.classList.add('is-open');
@@ -170,6 +180,7 @@
         }
 
         function closePasswordModal() {
+            if (!passwordModal) return;
             if (passwordSubmitting) return;
             passwordModal.classList.remove('is-open');
             passwordModal.setAttribute('aria-hidden', 'true');
@@ -179,6 +190,7 @@
         }
 
         function setPasswordSubmitting(active) {
+            if (!passwordForm || !passwordSubmit || !passwordSubmitLabel) return;
             passwordSubmitting = active;
             passwordSubmit.classList.toggle('is-loading', active);
             passwordSubmitLabel.textContent = active ? 'Menyimpan...' : 'Simpan Password';
@@ -188,6 +200,32 @@
                 if (control !== passwordSubmit) control.disabled = active;
             });
             updatePasswordState();
+        }
+
+        function openHelpModal(opener) {
+            if (!helpModal || !helpPanel) return;
+            closeMenus();
+            photoModal.classList.remove('is-open');
+            photoModal.setAttribute('aria-hidden', 'true');
+            if (passwordModal) {
+                passwordModal.classList.remove('is-open');
+                passwordModal.setAttribute('aria-hidden', 'true');
+            }
+            helpLastFocus = opener || document.activeElement;
+            helpModal.classList.add('is-open');
+            helpModal.setAttribute('aria-hidden', 'false');
+            setBodyModalState();
+            window.setTimeout(function () {
+                helpModal.querySelector('[data-account-help-primary], [data-account-help-close]')?.focus();
+            }, 30);
+        }
+
+        function closeHelpModal() {
+            if (!helpModal) return;
+            helpModal.classList.remove('is-open');
+            helpModal.setAttribute('aria-hidden', 'true');
+            setBodyModalState();
+            if (helpLastFocus && document.contains(helpLastFocus)) helpLastFocus.focus();
         }
 
         function formatFileSize(bytes) {
@@ -281,8 +319,14 @@
 
         function openPhotoModal(opener) {
             closeMenus();
-            passwordModal.classList.remove('is-open');
-            passwordModal.setAttribute('aria-hidden', 'true');
+            if (passwordModal) {
+                passwordModal.classList.remove('is-open');
+                passwordModal.setAttribute('aria-hidden', 'true');
+            }
+            if (helpModal) {
+                helpModal.classList.remove('is-open');
+                helpModal.setAttribute('aria-hidden', 'true');
+            }
             photoLastFocus = opener || document.activeElement;
             resetPhotoForm();
             photoModal.classList.add('is-open');
@@ -365,6 +409,7 @@
             var trigger = root.querySelector('[data-account-trigger]');
             var popover = root.querySelector('[data-account-popover]');
             var passwordOpen = root.querySelector('[data-account-open]');
+            var helpOpen = root.querySelector('[data-account-help-open]');
             var photoOpen = root.querySelector('[data-account-photo-open]');
             var themeToggle = root.querySelector('[data-account-theme-toggle]');
             var hoverCloseTimer = null;
@@ -394,6 +439,7 @@
             });
 
             passwordOpen?.addEventListener('click', function () { openPasswordModal(passwordOpen); });
+            helpOpen?.addEventListener('click', function () { openHelpModal(helpOpen); });
             photoOpen?.addEventListener('click', function () { openPhotoModal(photoOpen); });
             themeToggle?.addEventListener('change', function () { setTheme(themeToggle.checked); });
         });
@@ -407,77 +453,89 @@
             if (!event.target.closest('[data-account-root]')) closeMenus();
         });
 
-        passwordModal.querySelectorAll('[data-account-modal-close]').forEach(function (button) {
-            button.addEventListener('click', closePasswordModal);
-        });
-
-        passwordModal.addEventListener('mousedown', function (event) {
-            if (event.target === passwordModal) closePasswordModal();
-        });
-
-        passwordModal.querySelectorAll('[data-password-toggle]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                var input = button.closest('.kss-account-field__control')?.querySelector('input');
-                if (!input) return;
-                var show = input.type === 'password';
-                input.type = show ? 'text' : 'password';
-                button.setAttribute('aria-pressed', show ? 'true' : 'false');
-                button.setAttribute('aria-label', (show ? 'Sembunyikan ' : 'Tampilkan ') + input.closest('.kss-account-field').querySelector('label').textContent.toLowerCase());
-                var icon = button.querySelector('i');
-                if (icon) icon.className = show ? 'fi fi-rr-eye-crossed' : 'fi fi-rr-eye';
-                input.focus();
+        if (passwordModal && passwordForm) {
+            passwordModal.querySelectorAll('[data-account-modal-close]').forEach(function (button) {
+                button.addEventListener('click', closePasswordModal);
             });
-        });
 
-        passwordForm.querySelectorAll('[data-account-input]').forEach(function (input) {
-            input.addEventListener('input', function () {
-                clearPasswordError(input.dataset.accountInput);
-                if (input.name === 'password' || input.name === 'password_confirmation') clearPasswordError('password_confirmation');
-                updatePasswordState();
+            passwordModal.addEventListener('mousedown', function (event) {
+                if (event.target === passwordModal) closePasswordModal();
             });
-        });
 
-        passwordForm.addEventListener('submit', function (event) {
-            event.preventDefault();
-            if (passwordSubmit.disabled || passwordSubmitting) return;
-            clearPasswordErrors();
-            setPasswordSubmitting(true);
-
-            fetch(passwordForm.action, {
-                method: 'POST',
-                body: new FormData(passwordForm),
-                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-            }).then(function (response) {
-                return response.json().catch(function () { return {}; }).then(function (payload) {
-                    if (!response.ok) throw { status: response.status, payload: payload };
-                    return payload;
+            passwordModal.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var input = button.closest('.kss-account-field__control')?.querySelector('input');
+                    if (!input) return;
+                    var show = input.type === 'password';
+                    input.type = show ? 'text' : 'password';
+                    button.setAttribute('aria-pressed', show ? 'true' : 'false');
+                    button.setAttribute('aria-label', (show ? 'Sembunyikan ' : 'Tampilkan ') + input.closest('.kss-account-field').querySelector('label').textContent.toLowerCase());
+                    var icon = button.querySelector('i');
+                    if (icon) icon.className = show ? 'fi fi-rr-eye-crossed' : 'fi fi-rr-eye';
+                    input.focus();
                 });
-            }).then(function (payload) {
-                setPasswordSubmitting(false);
-                closePasswordModal();
-                showToast('success', 'Password Diperbarui', payload.message || 'Password berhasil diperbarui.');
-            }).catch(function (error) {
-                setPasswordSubmitting(false);
-                var errors = error.payload?.errors || {};
-                var firstInput = null;
-
-                Object.keys(errors).forEach(function (name) {
-                    var targetName = name === 'password' && String(errors[name][0]).toLowerCase().includes('konfirmasi')
-                        ? 'password_confirmation'
-                        : name;
-                    setPasswordError(targetName, errors[name][0]);
-                    firstInput = firstInput || passwordForm.querySelector('[name="' + targetName + '"]');
-                });
-
-                if (!Object.keys(errors).length) {
-                    passwordAlert.textContent = error.status === 429
-                        ? 'Terlalu banyak percobaan. Tunggu sebentar lalu coba kembali.'
-                        : 'Password belum dapat diperbarui. Periksa koneksi lalu coba kembali.';
-                    passwordAlert.hidden = false;
-                }
-                (firstInput || passwordAlert).focus?.();
             });
-        });
+
+            passwordForm.querySelectorAll('[data-account-input]').forEach(function (input) {
+                input.addEventListener('input', function () {
+                    clearPasswordError(input.dataset.accountInput);
+                    if (input.name === 'password' || input.name === 'password_confirmation') clearPasswordError('password_confirmation');
+                    updatePasswordState();
+                });
+            });
+
+            passwordForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                if (passwordSubmit.disabled || passwordSubmitting) return;
+                clearPasswordErrors();
+                setPasswordSubmitting(true);
+
+                fetch(passwordForm.action, {
+                    method: 'POST',
+                    body: new FormData(passwordForm),
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(function (response) {
+                    return response.json().catch(function () { return {}; }).then(function (payload) {
+                        if (!response.ok) throw { status: response.status, payload: payload };
+                        return payload;
+                    });
+                }).then(function (payload) {
+                    setPasswordSubmitting(false);
+                    closePasswordModal();
+                    showToast('success', 'Password Diperbarui', payload.message || 'Password berhasil diperbarui.');
+                }).catch(function (error) {
+                    setPasswordSubmitting(false);
+                    var errors = error.payload?.errors || {};
+                    var firstInput = null;
+
+                    Object.keys(errors).forEach(function (name) {
+                        var targetName = name === 'password' && String(errors[name][0]).toLowerCase().includes('konfirmasi')
+                            ? 'password_confirmation'
+                            : name;
+                        setPasswordError(targetName, errors[name][0]);
+                        firstInput = firstInput || passwordForm.querySelector('[name="' + targetName + '"]');
+                    });
+
+                    if (!Object.keys(errors).length) {
+                        passwordAlert.textContent = error.status === 429
+                            ? 'Terlalu banyak percobaan. Tunggu sebentar lalu coba kembali.'
+                            : 'Password belum dapat diperbarui. Periksa koneksi lalu coba kembali.';
+                        passwordAlert.hidden = false;
+                    }
+                    (firstInput || passwordAlert).focus?.();
+                });
+            });
+        }
+
+        if (helpModal) {
+            helpModal.querySelectorAll('[data-account-help-close]').forEach(function (button) {
+                button.addEventListener('click', closeHelpModal);
+            });
+
+            helpModal.addEventListener('mousedown', function (event) {
+                if (event.target === helpModal) closeHelpModal();
+            });
+        }
 
         photoModal.querySelectorAll('[data-account-photo-close]').forEach(function (button) {
             button.addEventListener('click', closePhotoModal);
@@ -626,7 +684,7 @@
         });
 
         function trapFocus(event, modal, panel) {
-            if (event.key !== 'Tab' || !modal.classList.contains('is-open')) return false;
+            if (!modal || !panel || event.key !== 'Tab' || !modal.classList.contains('is-open')) return false;
             var focusable = Array.from(panel.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'));
             if (!focusable.length) return false;
             var first = focusable[0];
@@ -644,15 +702,17 @@
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 if (photoModal.classList.contains('is-open')) closePhotoModal();
-                else if (passwordModal.classList.contains('is-open')) closePasswordModal();
+                else if (passwordModal?.classList.contains('is-open')) closePasswordModal();
+                else if (helpModal?.classList.contains('is-open')) closeHelpModal();
                 else closeMenus();
                 return;
             }
             if (trapFocus(event, photoModal, photoPanel)) return;
-            trapFocus(event, passwordModal, passwordPanel);
+            if (trapFocus(event, passwordModal, passwordPanel)) return;
+            trapFocus(event, helpModal, helpPanel);
         });
 
-        updatePasswordState();
+        if (passwordForm) updatePasswordState();
         resetPhotoForm();
     }
 

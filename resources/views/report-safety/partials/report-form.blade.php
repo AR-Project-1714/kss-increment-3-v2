@@ -95,8 +95,23 @@
     .loc-remove { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:8px; background:var(--red-main-10); color:var(--red-main); cursor:pointer; transition:.2s ease-out; flex:0 0 auto; }
     .loc-remove:hover { background:var(--red-main-25); transform:translateY(-1px); }
     .loc-remove i { position: relative; top:2px; }
-    .loc-body { padding:14px 16px; display:none; }
+    .loc-body { padding:0; display:none; }
     .loc-accordion.open .loc-body { display:block; }
+
+    /* Tabel inspeksi mengisi penuh tepi card lokasi, mengikuti pola
+       .material-package-group pada Bongkar Bahan Baku: border dan sudut membulat
+       cukup diwakili oleh .loc-accordion (yang sudah overflow:hidden), sehingga
+       tabel di dalamnya tidak menggambar border/radius sendiri dan header birunya
+       rata dengan tepi card.
+
+       Semua selektor di bawah sengaja dikurung #step-inspeksi .loc-body agar tidak
+       mungkin menyentuh tabel di seksi Kegiatan maupun Kejadian, yang tetap memakai
+       .table-wrapper bawaan (border + radius 10px). */
+    #step-inspeksi .loc-body .table-wrapper.insp-table { border:0; border-radius:0; background:transparent; }
+    #step-inspeksi .loc-body .insp-table .table-input .head { border-radius:0; }
+    /* Baris terakhir tidak perlu garis bawah: area tombol "Tambah Item" sudah jadi
+       penutup visual tabel. */
+    #step-inspeksi .loc-body .insp-rows .insp-row:last-child { border-bottom:0; }
 
     /* Kolom tabel inspeksi */
     .table-column.insp-no { width:50px; text-align:center; justify-content:center; font-weight:600; font-size:13px; flex-shrink:0; }

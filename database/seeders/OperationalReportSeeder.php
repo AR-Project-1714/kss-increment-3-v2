@@ -10,6 +10,7 @@ use App\Models\MasterUnit;
 use App\Models\ShipOperation;
 use App\Models\User;
 use App\Services\BulkTonnageService;
+use App\Support\MaterialPackaging;
 use App\Support\ShipNameNormalizer;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\GuardsSampleData;
@@ -675,13 +676,23 @@ class OperationalReportSeeder extends Seeder
             ]);
 
             $items = [];
+            $packages = MaterialPackaging::active();
 
             foreach (self::RAW_MATERIALS as $index => $type) {
-                $current = (int) round((95 + $index * 27 + ($slot % 4) * 8) * $factor / $activityCount);
+                // Contoh data memakai seluruh kemasan katalog secara bergiliran.
+                // Tonasenya dipertahankan setara data lama, lalu dibalik menjadi
+                // jumlah Bag sesuai kemasannya supaya angka pada dasbor tetap
+                // masuk akal untuk semua ukuran kemasan.
+                $package = $packages[$index % count($packages)];
+                $tonnage = (95 + $index * 27 + ($slot % 4) * 8) * $factor / $activityCount;
+                $current = (int) round($tonnage / $package['tonPerBag']);
                 $previous = (int) round($current * (1.5 + (($slot + $index) % 3)));
 
                 $items[] = [
                     'raw_material_type' => $type,
+                    'packaging_type' => $package['label'],
+                    'packaging_code' => $package['code'],
+                    'packaging_factor' => $package['tonPerBag'],
                     'qty_current' => $current,
                     'qty_prev' => $previous,
                     'qty_total' => $current + $previous,

@@ -328,7 +328,8 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->actingAs($manager)
             ->get(route('manajer.reports.show', $report))
             ->assertOk()
-            ->assertSee('Laporan Operasi Harian', false);
+            ->assertSee('Laporan Operasi Harian', false)
+            ->assertSee('name="redirect_to_dashboard" value="1"', false);
     }
 
     public function test_tc_mgr_04_menandatangani_laporan_masuk_mengarsipkan(): void
@@ -346,6 +347,17 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $this->assertSame(ReportStatus::Approved, $fresh->status);
         $this->assertSame($manager->id, $fresh->approved_by);
         $this->assertNotNull($fresh->approved_at);
+    }
+
+    public function test_tc_mgr_04_tanda_tangan_dari_pratinjau_kembali_ke_dashboard(): void
+    {
+        $manager = $this->manager();
+        $operator = $this->operator('A');
+        $report = $this->acknowledgedOpsReport($operator);
+
+        $this->actingAs($manager)
+            ->post(route('manajer.reports.approve', $report), ['redirect_to_dashboard' => '1'])
+            ->assertRedirect(route('manajer.index'));
     }
 
     public function test_tc_mgr_05_laporan_ops_belum_diterima_tidak_muncul(): void

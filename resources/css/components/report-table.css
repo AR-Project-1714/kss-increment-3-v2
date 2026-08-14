@@ -1,0 +1,241 @@
+/* =========================================================================
+   REPORT TABLE — kontrak kolom tabel laporan
+   Dipakai oleh: Riwayat Laporan (Operasi, Keselamatan/K3, Pemeliharaan)
+                 dan Laporan Diterima (Operasi).
+
+   Tabel laporan memakai baris flex, bukan grid tabel bawaan, sehingga lebar
+   kolom tidak bisa diserahkan ke algoritma <table>. Karena itu setiap kolom
+   punya SATU token lebar yang dipakai bersama oleh header dan sel isinya —
+   header dan isi tidak akan pernah bergeser satu sama lain.
+
+   Halaman cukup menimpa token lewat class varian (mis. .report-table--ops-history)
+   dan tidak perlu menulis ulang aturan kolom. Lebar minimum tabel dihitung
+   dari jumlah token, jadi scroll horizontal muncul tepat saat memang kurang
+   ruang, bukan pada angka tebakan.
+   ========================================================================= */
+
+.report-table {
+    /* Lebar kolom (urutan sama dengan urutan kolom di markup). */
+    --col-no: 38px;
+    --col-doc: 176px;        /* kolom fleksibel: nilai ini lebar minimumnya */
+    --col-date: 212px;
+    --col-context-1: 108px;  /* Shift (Operasi) / Hari (K3 & Pemeliharaan) */
+    --col-context-2: 116px;  /* Group (Operasi) / Jam Kerja (K3 & Pemeliharaan) */
+    --col-status: 116px;
+    --col-action: 288px;
+
+    --cell-pad: 8px;
+    --col-gap: 4px;
+    --action-btn-height: 30px;
+    --action-icon-size: 28px;
+
+    width: 100%;
+    margin: 0;
+}
+
+/* Lebar minimum = jumlah seluruh kolom + jarak antar kolom. Ditulis dengan
+   selector sekuat aturan bawaan `.table-responsive-wrapper table` agar tidak
+   tertimpa nilai tebakan (900px/1000px) dari stylesheet layout. */
+.table-responsive-wrapper table.report-table,
+table.report-table {
+    min-width: calc(
+        var(--col-no) + var(--col-doc) + var(--col-date) + var(--col-context-1)
+        + var(--col-context-2) + var(--col-status) + var(--col-action)
+        + 6 * var(--col-gap)
+    );
+}
+
+/* ===== Baris ===== */
+
+.report-table .thead,
+.report-table .tbody {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    column-gap: var(--col-gap);
+    align-self: stretch;
+}
+
+/* ===== Sel: satu kotak yang sama untuk header dan isi ===== */
+
+.report-table .thead th,
+.report-table .tbody td {
+    display: flex;
+    align-items: center;
+    min-width: 0;          /* wajib: tanpa ini sel flex menolak menyusut */
+    padding: 0 var(--cell-pad);
+    overflow: hidden;
+}
+
+.report-table .thead th {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;   /* judul kolom selalu satu baris */
+}
+
+.report-table .tbody td {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* ===== Lebar per kolom: satu aturan mengunci header + isi ===== */
+
+.report-table .thead th.col-no,
+.report-table .tbody td.col-no {
+    flex: 0 0 var(--col-no);
+    width: var(--col-no);
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Satu-satunya kolom yang tumbuh saat layar lebih lega. */
+.report-table .thead th.col-doc,
+.report-table .tbody td.col-doc {
+    flex: 1 1 var(--col-doc);
+    min-width: var(--col-doc);
+}
+
+.report-table .thead th.col-date,
+.report-table .tbody td.col-date {
+    flex: 0 0 var(--col-date);
+    width: var(--col-date);
+}
+
+.report-table .thead th.col-shift,
+.report-table .tbody td.col-shift,
+.report-table .thead th.col-day,
+.report-table .tbody td.col-day {
+    flex: 0 0 var(--col-context-1);
+    width: var(--col-context-1);
+}
+
+.report-table .thead th.col-group,
+.report-table .tbody td.col-group,
+.report-table .thead th.col-time,
+.report-table .tbody td.col-time {
+    flex: 0 0 var(--col-context-2);
+    width: var(--col-context-2);
+}
+
+.report-table .thead th.col-status,
+.report-table .tbody td.col-status {
+    flex: 0 0 var(--col-status);
+    width: var(--col-status);
+}
+
+.report-table .thead th.col-action,
+.report-table .tbody td.col-action {
+    flex: 0 0 var(--col-action);
+    width: var(--col-action);
+    margin-left: auto;      /* kolom aksi tetap menempel kanan */
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: var(--col-gap);
+    padding-right: 0;
+}
+
+/* ===== Isi sel ===== */
+
+/* Sel dua baris: nilai utama di atas, metadata di bawahnya. */
+.report-table .tbody td.cell-stack {
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+/* Teks nilai dan metadata selalu satu baris; kelebihannya dipotong rapi
+   alih-alih membungkus dan menaikkan tinggi baris. */
+.report-table .cell-title,
+.report-table .cell-meta {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* Badge/pill konteks: tidak pernah pecah dua baris. */
+.report-table .tbody td .status,
+.report-table .tbody td .shift,
+.report-table .tbody td .day-badge,
+.report-table .tbody td .time-badge,
+.report-table .tbody td .report-group {
+    flex: 0 0 auto;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+/* ===== Tombol aksi ===== */
+
+.report-table .tbody td.col-action .btn {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    height: var(--action-btn-height);
+    min-height: var(--action-btn-height);
+    padding: 0 8px;
+    gap: 4px;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.report-table .tbody td.col-action .btn > span {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+
+.report-table .tbody td.col-action .btn i {
+    position: static;
+    display: block;
+    font-size: 10px;
+    line-height: 1;
+}
+
+/* Tombol ikon-saja (cetak, hapus): bujur sangkar, tanpa label. */
+.report-table .tbody td.col-action .btn.print-report,
+.report-table .tbody td.col-action .btn.delete-icon {
+    width: var(--action-icon-size);
+    min-width: var(--action-icon-size);
+    padding: 0;
+}
+
+/* Baris kosong / hasil pencarian kosong memakai lebar penuh tabel. */
+.report-table .row-full td {
+    display: table-cell;
+    padding: 0;
+    border: 0;
+}
+
+/* ===== Varian per tabel =====
+   Hanya lebar kolom aksi dan kolom konteks yang berbeda, karena jumlah
+   tombol dan isi badge-nya memang berbeda. */
+
+/* Riwayat Operasi: Lihat, PDF, Excel, Edit (kondisional), Cetak, Hapus (kondisional)
+   = 282px saat keenam tombol muncul. */
+.report-table--ops-history {
+    --col-action: 288px;
+}
+
+/* Laporan Diterima: Lihat, PDF, Excel, Cetak = 198px. */
+.report-table--ops-received {
+    --col-action: 206px;
+}
+
+/* Riwayat K3 & Pemeliharaan: Lihat, PDF, Edit (kondisional), Cetak = 196px. */
+.report-table--daily-history {
+    --col-doc: 190px;
+    --col-context-1: 96px;   /* Hari */
+    --col-context-2: 124px;  /* Jam Kerja */
+    --col-action: 206px;
+}

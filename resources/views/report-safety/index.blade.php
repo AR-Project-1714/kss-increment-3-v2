@@ -2,40 +2,15 @@
 
 @push('styles')
 <style>
-    #content-riwayat .table-responsive-wrapper { overflow-x: visible; }
-    #content-riwayat .table-responsive-wrapper table { min-width: 0; width: 100%; }
-    #content-riwayat .thead th,
-    #content-riwayat .tbody td { padding-left: 8px; padding-right: 8px; }
-    #content-riwayat th.nomor,
-    #content-riwayat td.nomor { width: 42px; }
-    #content-riwayat .thead th.column-1,
-    #content-riwayat .tbody td.column-2,
-    #content-riwayat .tbody td.column-3 { min-width: 0; }
-    .thead th.col-doc, .tbody td.col-doc { flex: 1 1 230px !important; min-width: 210px; max-width: 250px; }
-    .tbody td.col-doc .doc-title { white-space: nowrap; }
-    #content-riwayat .thead th:nth-child(3),
-    #content-riwayat .tbody td:nth-child(3) { flex: 0 1 190px; min-width: 165px; }
-    #content-riwayat .thead th:nth-child(4),
-    #content-riwayat .tbody td:nth-child(4) { flex: 0 1 120px; min-width: 100px; }
-    #content-riwayat .thead th:nth-child(5),
-    #content-riwayat .tbody td:nth-child(5) { flex: 0 0 155px; min-width: 155px; }
+    /* Lebar kolom tabel riwayat diatur oleh kontrak bersama
+       resources/css/components/report-table.css (varian .report-table--daily-history).
+       Di sini hanya badge khas modul K3 dan warna tombol cetak. */
     .day-badge { display:inline-flex; min-height:20px; padding:2px 8px; align-items:center; gap:4px; border-radius:10px; font-size:10px; font-weight:500; line-height:1; background-color:var(--blue-main-10); color:var(--blue-main); }
     .day-badge i { display:block; font-size:10px; line-height:1; }
-    .thead th.col-status, .tbody td.col-status { flex: 0 0 145px !important; min-width: 145px; }
-    .tbody td.col-status .status { white-space: nowrap; }
-    .thead th.col-aksi { flex: 0 0 250px !important; min-width: 250px; justify-content: flex-end; }
-    .tbody td.col-aksi { flex: 0 0 250px !important; min-width: 250px; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
-    .tbody td.col-aksi .btn { white-space: nowrap; }
-    .tbody td.col-aksi .btn > span:first-child { display: inline-flex; align-items: center; line-height: 1; }
-    .tbody td.col-aksi .btn i { position: relative; top: 0; display: block; line-height: 1; }
-    .tbody td.col-aksi .btn.print-report { background-color: var(--cyan-main); color: #fff; justify-content: center; padding: 6px 9px; }
-    .tbody td.col-aksi .btn.print-report:hover { filter: brightness(.93); transform: translateY(-1px); }
     .time-badge { display:inline-flex; min-height:20px; padding:2px 8px; align-items:center; gap:4px; border-radius:10px; font-size:10px; font-weight:500; line-height:1; background-color:var(--success-10); color:var(--success); white-space:nowrap; }
     .time-badge i { display:block; font-size:10px; line-height:1; }
-    @media (max-width: 1100px) {
-        #content-riwayat .table-responsive-wrapper { overflow-x: auto; }
-        #content-riwayat .table-responsive-wrapper table { min-width: 1000px; }
-    }
+    .report-table .tbody td.col-action .btn.print-report { background-color: var(--cyan-main); color: #fff; }
+    .report-table .tbody td.col-action .btn.print-report:hover { filter: brightness(.93); transform: translateY(-1px); }
 </style>
 @endpush
 
@@ -174,41 +149,41 @@
             {{-- ===== TAB RIWAYAT ===== --}}
             <div id="content-riwayat" class="w-100 {{ $activeTab === 'riwayat' ? '' : 'd-none' }}">
                 <div class="table-responsive-wrapper">
-                    <table class="w-100">
-                        <tr class="thead d-flex justify-content-between align-items-center bg-blue br-4 align-self-stretch">
-                            <th class="nomor">No</th>
-                            <th class="column-1 col-doc">Info Dokumen</th>
-                            <th class="column-1">Tanggal Laporan</th>
-                            <th class="column-1">Hari</th>
-                            <th class="column-1">Jam Kerja</th>
-                            <th class="column-1 col-status">Status</th>
-                            <th class="column-1 col-aksi">Aksi</th>
+                    <table class="w-100 report-table report-table--daily-history" role="table">
+                        <tr class="thead d-flex align-items-center bg-blue br-4 align-self-stretch" role="row">
+                            <th class="col-no" scope="col" role="columnheader">No</th>
+                            <th class="col-doc" scope="col" role="columnheader">Info Dokumen</th>
+                            <th class="col-date" scope="col" role="columnheader">Tanggal Laporan</th>
+                            <th class="col-day" scope="col" role="columnheader">Hari</th>
+                            <th class="col-time" scope="col" role="columnheader">Jam Kerja</th>
+                            <th class="col-status" scope="col" role="columnheader">Status</th>
+                            <th class="col-action" scope="col" role="columnheader">Aksi</th>
                         </tr>
                         @forelse ($historyReports as $report)
                             @php($status = $statusMeta($report->status))
-                            <tr class="tbody d-flex justify-content-between align-items-center align-self-stretch" style="padding:6px 0;">
-                                <td class="nomor">{{ $historyFirstItem + $loop->index }}</td>
-                                <td class="column-2 col-doc">
-                                    <span class="doc-title">Laporan Harian K3</span>
-                                    <span class="fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
+                            <tr class="tbody d-flex align-items-center align-self-stretch" role="row">
+                                <td class="col-no" role="cell">{{ $historyFirstItem + $loop->index }}</td>
+                                <td class="col-doc cell-stack" role="cell">
+                                    <span class="cell-title">Laporan Harian K3</span>
+                                    <span class="cell-meta fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
                                 </td>
-                                <td class="column-2">
-                                    <span>{{ $formatDate($report->report_date) }}</span>
-                                    <span class="fsize-10 fw-400 text-muted">Diperbarui: {{ $formatDiff($report->updated_at) }}</span>
+                                <td class="col-date cell-stack" role="cell">
+                                    <span class="cell-title">{{ $formatDate($report->report_date) }}</span>
+                                    <span class="cell-meta fsize-10 fw-400 text-muted">Diperbarui: {{ $formatDiff($report->updated_at) }}</span>
                                 </td>
-                                <td class="column-3">
+                                <td class="col-day" role="cell">
                                     <div class="day-badge"><i class="fi fi-rr-calendar"></i><span>{{ $formatDay($report->report_date) }}</span></div>
                                 </td>
-                                <td class="column-3">
+                                <td class="col-time" role="cell">
                                     <div class="time-badge"><i class="fi fi-rr-clock"></i><span>{{ $report->time_range ?: '-' }}</span></div>
                                 </td>
-                                <td class="column-3 col-status">
+                                <td class="col-status" role="cell">
                                     <div class="status {{ $status['class'] }}">
                                         <span class="icon-status"><i class="{{ $status['icon'] }}"></i></span>
                                         <span class="text">{{ $status['label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="aksi col-aksi">
+                                <td class="aksi col-action" role="cell">
                                     <a href="{{ route('safety.show', $report) }}" class="btn see" target="_blank" rel="noopener">
                                         <span><i class="fi fi-rr-eye"></i></span><span>Lihat</span>
                                     </a>
@@ -226,7 +201,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="row-full">
                                 <td colspan="7" class="border-0 p-0">
                                     <div class="empty-state d-flex flex-column align-items-center justify-content-center align-self-stretch gap-10 w-100">
                                         <span class="icon-empty"><i class="fi fi-rr-folder-open"></i></span>

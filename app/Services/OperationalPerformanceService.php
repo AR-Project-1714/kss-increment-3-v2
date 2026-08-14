@@ -6,6 +6,7 @@ use App\Enums\ReportStatus;
 use App\Models\BulkLoadingActivity;
 use App\Models\DailyReport;
 use App\Support\ContainerStatusNormalizer;
+use App\Support\MaterialPackaging;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -23,10 +24,10 @@ use Illuminate\Support\Facades\DB;
  * kolom current di rentang tanggal tidak menghitung ganda meskipun satu kapal
  * muncul pada banyak laporan.
  *
- * Catatan penting soal satuan: container dicatat dalam Teus (jumlah box), bukan
- * ton, sehingga tidak boleh ikut dijumlahkan ke Total Tonase. Penandanya ada di
- * activityCatalog() lewat `countsToTonnage`, bukan di masing-masing pemanggil,
- * supaya kekeliruan satuan tidak bisa terulang saat kegiatan baru ditambahkan.
+ * Catatan penting soal satuan: container dicatat dalam Teus (jumlah box),
+ * sedangkan bongkar bahan baku diinput sebagai Bag lalu dikonversi menurut
+ * kemasannya. Penandanya ada di activityCatalog() lewat `countsToTonnage`,
+ * bukan di masing-masing pemanggil, supaya kekeliruan satuan tidak terulang.
  *
  * Catatan penting soal jumlah query: seluruh rincian per regu dan per shift
  * diambil dari satu query beragregasi per sumber, bukan satu query per regu.
@@ -70,7 +71,7 @@ class OperationalPerformanceService
      * Lima jenis kegiatan operasi beserta asal datanya.
      *
      * `countsToTonnage` menandai kegiatan yang boleh dijumlahkan ke Total Tonase.
-     * Container bernilai false karena satuannya Teus.
+     * Container bernilai false karena Teus bukan satuan massa Ton/MT.
      *
      * `showOnPerformance` dan `showOnActivityDetail` menentukan kegiatan mana
      * yang muncul di tiap menu. Ditulis sekali di sini supaya service,
@@ -84,6 +85,8 @@ class OperationalPerformanceService
      */
     public function activityCatalog(): array
     {
+        $materialTonnage = $this->materialTonnageExpression();
+
         return [
             'muat_kantong' => [
                 'label' => 'Pemuatan Pupuk Kantong',
@@ -180,7 +183,7 @@ class OperationalPerformanceService
                 'showOnPerformance' => true,
                 'showOnActivityDetail' => true,
                 'from' => 'material_items',
-                'column' => 'material_items.qty_current',
+                'column' => $materialTonnage,
                 'joins' => [
                     ['material_activities', 'material_items.material_activity_id', 'material_activities.id'],
                 ],
@@ -325,6 +328,34 @@ class OperationalPerformanceService
     }
 
     /**
+     * Petugas mengisi jumlah kemasan dalam Bag, dan faktor Ton per Bag ikut
+     * disimpan pada barisnya saat laporan dibuat. Perhitungan di sini memakai
+     * faktor itu, bukan nama kemasannya, sehingga kemasan baru langsung
+     * terhitung tanpa menyentuh kueri ini dan tonase laporan lama tidak
+     * bergeser bila katalog kemasan disunting.
+     *
+     * Baris lama yang belum memiliki jenis kemasan tetap dibaca sebagai Ton
+     * karena sebelum pemisahan kemasan kolom ini memang diisi sebagai tonase.
+     */
+    private function materialTonnageExpression(string $column = 'material_items.qty_current'): string
+    {
+        return "CASE
+            WHEN material_items.packaging_factor IS NOT NULL
+                THEN COALESCE({$column}, 0) * material_items.packaging_factor
+            ELSE COALESCE({$column}, 0)
+        END";
+    }
+
+    /** Jumlah Bag hanya tersedia pada baris yang sudah punya kemasan. */
+    private function materialBagExpression(string $column = 'material_items.qty_current'): string
+    {
+        return "CASE
+            WHEN material_items.packaging_code IS NOT NULL THEN COALESCE({$column}, 0)
+            ELSE 0
+        END";
+    }
+
+    /**
      * Kegiatan bermassa menurut satuan sumbernya. Ton dipakai kegiatan umum,
      * sedangkan MT dipakai pembacaan COB curah dan amoniak. Keduanya tetap
      * masuk total tonase, tetapi dipisah pada grafik agar labelnya jujur.
@@ -349,7 +380,7 @@ class OperationalPerformanceService
     {
         return array_keys(array_filter(
             $this->activityCatalog(),
-            static fn (array $activity): bool => ! $activity['countsToTonnage']
+            static fn (array $activity): bool => $activity['unit'] === 'Teus'
         ));
     }
 
@@ -1354,8 +1385,8 @@ class OperationalPerformanceService
         $previous = $this->summaryFrom($matrix, 'lalu', $filters);
         $catalog = $this->activityCatalog();
 
-        // Komposisi hanya membandingkan nilai bersatuan sama: Ton dijumlahkan
-        // antar empat kegiatan, Teus berdiri sendiri.
+        // Komposisi hanya membandingkan nilai bersatuan massa: termasuk bahan
+        // baku yang sudah dikonversi dari Bag ke Ton. Teus berdiri sendiri.
         $unitTotals = [];
 
         foreach ($catalog as $key => $activity) {
@@ -2171,8 +2202,9 @@ class OperationalPerformanceService
     }
 
     /**
-     * Bongkar bahan baku: nilai tambah panelnya adalah komposisi menurut jenis
-     * bahan baku, yang tidak terlihat di halaman utama.
+     * Bongkar bahan baku: komposisi dipisahkan menurut jenis bahan sekaligus
+     * kemasannya. Bahan yang sama dalam dua kemasan tidak boleh melebur karena
+     * subtotal operasionalnya memang berbeda.
      *
      * @param  array<string, mixed>  $activity
      * @param  array<string, mixed>  $filters
@@ -2180,13 +2212,20 @@ class OperationalPerformanceService
      */
     private function materialDetail(array $activity, array $filters, int $limit): array
     {
+        $tonnageExpression = $this->materialTonnageExpression();
+        $bagExpression = $this->materialBagExpression();
+
         $breakdown = $this->scopedSourceQuery($activity, $filters)
-            ->groupBy('material_items.raw_material_type')
-            ->selectRaw('material_items.raw_material_type as name')
-            ->selectRaw('COALESCE(SUM(material_items.qty_current), 0) as total')
+            ->groupBy('material_items.packaging_type', 'material_items.raw_material_type')
+            ->selectRaw('material_items.packaging_type as packaging_type')
+            ->selectRaw('material_items.raw_material_type as raw_material_type')
+            ->selectRaw("COALESCE(SUM({$tonnageExpression}), 0) as total")
             ->get()
             ->map(fn (object $row): array => [
-                'name' => $row->name ?: 'Tidak diisi',
+                'name' => collect([
+                    $row->raw_material_type ?: 'Jenis belum diisi',
+                    $row->packaging_type ?: MaterialPackaging::UNRECORDED_LABEL,
+                ])->implode(' · '),
                 'value' => (float) $row->total,
             ])
             ->filter(fn (array $row): bool => $row['value'] > 0)
@@ -2198,14 +2237,15 @@ class OperationalPerformanceService
             ->leftJoin('material_items', 'material_items.material_activity_id', '=', 'material_activities.id')
             // Dikelompokkan menurut nama kanonik, bukan nama mentah: satu kapal
             // yang ejaannya berbeda antar shift harus tetap satu baris dengan
-            // tonase yang utuh.
+            // jumlah bag yang utuh.
             ->groupBy(DB::raw($this->visitIdentity('material_activities')))
             ->selectRaw('MAX(material_activities.ship_name) as ship_name')
             ->selectRaw('MAX(material_activities.agent) as agent')
             ->selectRaw('MAX(material_activities.jetty) as jetty')
             ->selectRaw('MAX(material_activities.capacity) as capacity')
             ->selectRaw('MAX(material_activities.working_hours) as working_hours')
-            ->selectRaw('COALESCE(SUM(material_items.qty_current), 0) as loaded')
+            ->selectRaw("COALESCE(SUM({$bagExpression}), 0) as bags")
+            ->selectRaw("COALESCE(SUM({$tonnageExpression}), 0) as loaded")
             ->selectRaw('COUNT(DISTINCT material_activities.id) as activities')
             ->get()
             ->sortByDesc('loaded')
@@ -2214,6 +2254,7 @@ class OperationalPerformanceService
                 $row->agent ?: '-',
                 $row->jetty ?: '-',
                 (float) $row->capacity,
+                (float) $row->bags,
                 (float) $row->loaded,
                 $this->realization((float) $row->loaded, (float) $row->capacity),
                 (int) $row->activities,
@@ -2234,8 +2275,8 @@ class OperationalPerformanceService
             'value' => $total,
             'metrics' => [
                 ['label' => 'Kapal dilayani', 'value' => count($rows), 'unit' => 'kapal', 'decimals' => 0],
-                ['label' => 'Jenis bahan baku', 'value' => count($breakdown), 'unit' => 'jenis', 'decimals' => 0],
-                ['label' => 'Kegiatan tercatat', 'value' => array_sum(array_column($rows, 6)), 'unit' => 'kegiatan', 'decimals' => 0],
+                ['label' => 'Bahan / kemasan', 'value' => count($breakdown), 'unit' => 'kombinasi', 'decimals' => 0],
+                ['label' => 'Kegiatan tercatat', 'value' => array_sum(array_column($rows, 7)), 'unit' => 'kegiatan', 'decimals' => 0],
                 ['label' => 'Rata-rata per kapal', 'value' => $rows === [] ? 0.0 : $total / count($rows), 'unit' => 'Ton', 'decimals' => 1],
             ],
             'table' => $this->detailTable([
@@ -2243,13 +2284,19 @@ class OperationalPerformanceService
                 ['label' => 'Agen', 'type' => 'muted'],
                 ['label' => 'Dermaga', 'type' => 'muted'],
                 ['label' => 'Kapasitas', 'type' => 'number', 'decimals' => 0, 'unit' => 'Ton'],
-                ['label' => 'Bongkar', 'type' => 'number', 'decimals' => 1, 'unit' => 'Ton'],
+                ['label' => 'Jumlah Kemasan', 'type' => 'number', 'decimals' => 0, 'unit' => 'Bag'],
+                ['label' => 'Setara Tonase', 'type' => 'number', 'decimals' => 2, 'unit' => 'Ton'],
                 ['label' => 'Realisasi', 'type' => 'ratio'],
                 ['label' => 'Kegiatan', 'type' => 'number', 'decimals' => 0],
                 ['label' => 'Jam Kerja', 'type' => 'muted'],
             ], $rows, $limit),
             'breakdown' => $breakdown,
-            'breakdownTitle' => 'Komposisi menurut Jenis Bahan Baku',
+            'breakdownTitle' => 'Komposisi Tonase menurut Bahan dan Kemasan',
+            'note' => 'Jumlah Bag dikonversi otomatis sesuai kemasannya — '
+                .collect(MaterialPackaging::active())
+                    ->map(fn (array $package): string => $package['label'].': '.$package['hint'])
+                    ->implode('; ')
+                .'. Data lama tanpa kategori kemasan tetap dibaca sesuai satuan Ton yang digunakan saat pencatatan.',
         ];
     }
 

@@ -20,7 +20,7 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [LoginV2Controller::class, 'logout'])->middleware('auth')->name('logout');
 
 Route::patch('/account/password', [AccountController::class, 'updatePassword'])
-    ->middleware(['auth', 'throttle:6,1'])
+    ->middleware(['auth', 'role:'.Role::ADMIN, 'throttle:6,1'])
     ->name('account.password.update');
 
 Route::patch('/account/profile-photo', [AccountController::class, 'updateProfilePhoto'])

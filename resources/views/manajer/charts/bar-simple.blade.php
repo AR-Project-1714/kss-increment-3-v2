@@ -7,7 +7,7 @@
 
      Parameter:
        $rows       [['name' => string, 'value' => float, 'share' => float, ...]]
-       $unit       satuan nilai (Ton / Teus)
+       $unit       satuan nilai (Ton / MT / Teus / Bag)
        $prefix     awalan nama, mis. "Regu" (opsional)
        $emptyText  teks saat tidak ada data
 --}}
@@ -18,6 +18,7 @@
     $emptyText = $emptyText ?? 'Belum ada data pada periode ini.';
 
     $fmt = fn ($value, int $decimals = 1) => number_format((float) $value, $decimals, ',', '.');
+    $valueDecimals = in_array($unit, ['Teus', 'Bag'], true) ? 0 : 1;
 
     // Peringkat teratas hijau, terbawah oranye — sama seperti perbandingan regu
     // di halaman utama, supaya cara bacanya tidak berubah antar panel.
@@ -43,7 +44,7 @@
                 $color = $rankColor($index, count($rows));
                 $name = trim($prefix.' '.$row['name']);
                 $tipRows = array_values(array_filter([
-                    ['label' => 'Nilai', 'value' => $fmt($row['value']).' '.$unit, 'color' => $color],
+                    ['label' => 'Nilai', 'value' => $fmt($row['value'], $valueDecimals).' '.$unit, 'color' => $color],
                     isset($row['contribution']) ? ['label' => 'Porsi', 'value' => $fmt($row['contribution']).'%'] : null,
                     isset($row['trips']) ? ['label' => 'Rit', 'value' => $row['trips']] : null,
                 ]));
@@ -57,7 +58,7 @@
                     @elseif (isset($row['contribution']))
                         <span class="rank-bar__meta">{{ $fmt($row['contribution']) }}% dari total</span>
                     @endif
-                    <span class="rank-bar__value">{{ $fmt($row['value']) }} {{ $unit }}</span>
+                    <span class="rank-bar__value">{{ $fmt($row['value'], $valueDecimals) }} {{ $unit }}</span>
                 </div>
 
                 <div class="rank-bar__track"

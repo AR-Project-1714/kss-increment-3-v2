@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Database\Seeders\MasterEmployeeSeeder;
 use Database\Seeders\OperationalReportSeeder;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -325,7 +326,7 @@ class OperationalReportSeederTest extends TestCase
             } else {
                 $this->assertFalse(
                     $composition->has($key),
-                    "Kegiatan {$key} bersatuan Teus tidak boleh masuk komposisi tonase."
+                    "Kegiatan {$key} yang bukan satuan massa tidak boleh masuk komposisi tonase."
                 );
             }
         }
@@ -451,7 +452,7 @@ class OperationalReportSeederTest extends TestCase
     /**
      * Definisi tabel mentah untuk satu kegiatan.
      *
-     * @return array{0: Builder, 1: string, 2: string}
+     * @return array{0: Builder, 1: string|Expression, 2: string}
      */
     private function rawActivityQuery(string $key): array
     {
@@ -478,11 +479,14 @@ class OperationalReportSeederTest extends TestCase
                 'bulk_loading_logs.cob_delta',
                 'bulk_loading_activities.daily_report_id',
             ],
+            // Bahan baku dicatat dalam Bag, jadi pembandingnya harus ikut
+            // dikalikan faktor kemasan yang tersimpan pada barisnya. Baris tanpa
+            // kemasan memang sudah berupa Ton.
             'bongkar_bahan_baku' => [
                 DB::table('material_items')
                     ->join('material_activities', 'material_activities.id', '=', 'material_items.material_activity_id')
                     ->join('daily_reports', 'daily_reports.id', '=', 'material_activities.daily_report_id'),
-                'material_items.qty_current',
+                DB::raw('COALESCE(material_items.qty_current, 0) * COALESCE(material_items.packaging_factor, 1)'),
                 'material_activities.daily_report_id',
             ],
             'bongkar_container' => [

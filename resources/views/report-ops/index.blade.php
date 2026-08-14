@@ -82,31 +82,19 @@
             transform: translateY(-2px);
         }
 
-        .history-actions {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: nowrap;
-            justify-content: flex-end;
-            width: 100%;
-        }
-
-        .report-button .btn > span:first-child,
-        .history-actions .btn > span:first-child {
+        .report-button .btn > span:first-child {
             display: inline-flex;
             align-items: center;
             line-height: 1;
         }
 
-        .report-button .btn i,
-        .history-actions .btn i {
+        .report-button .btn i {
             position: relative;
             top: 0;
             display: block;
             line-height: 1;
         }
 
-        .history-actions .btn,
         .report-button .btn,
         .draft-button .btn-draft-edit,
         .draft-button .btn-delete {
@@ -114,120 +102,6 @@
             white-space: nowrap;
         }
 
-        .table-responsive-wrapper table.history-table,
-        .history-table {
-            min-width: 960px;
-            max-width: 100%;
-            margin-left: 0;
-            margin-right: auto;
-        }
-
-        .history-table .thead,
-        .history-table .tbody {
-            justify-content: flex-start !important;
-            column-gap: 4px;
-        }
-
-        .history-table th.action-column,
-        .history-table td.aksi {
-            margin-left: auto;
-        }
-
-        .history-table th.column-1,
-        .history-table .tbody td.column-2:not(.date-column):not(.shift-column):not(.status-column):not(.receiver-column) {
-            flex: 0 0 165px !important;
-            max-width: 165px;
-        }
-
-        .history-table .thead th,
-        .history-table .tbody td {
-            padding-left: 6px;
-            padding-right: 6px;
-        }
-
-        .history-table th.nomor,
-        .history-table td.nomor {
-            width: 38px;
-        }
-
-        .history-table th.column-1,
-        .history-table .tbody td.column-2:not(.date-column):not(.shift-column):not(.status-column):not(.receiver-column) {
-            min-width: 150px;
-        }
-
-        .history-table th.receiver-column,
-        .history-table td.receiver-column {
-            flex: 0 0 112px;
-            max-width: 112px;
-            min-width: 112px;
-        }
-
-        .history-table .thead th.date-column,
-        .history-table .tbody td.date-column {
-            flex: 0 0 180px;
-            max-width: 185px;
-            min-width: 180px;
-        }
-
-        .history-table .thead th.status-column,
-        .history-table .tbody td.status-column {
-            flex: 0 0 128px;
-            max-width: 132px;
-            min-width: 128px;
-        }
-
-        .history-table .tbody td.status-column .status {
-            white-space: nowrap;
-        }
-
-        .history-table .thead th.shift-column,
-        .history-table .tbody td.shift-column {
-            flex: 0 0 108px;
-            max-width: 112px;
-            min-width: 108px;
-        }
-
-        .history-table .tbody td.shift-column .shift {
-            white-space: nowrap;
-        }
-
-        .history-table th.action-column,
-        .history-table td.aksi {
-            flex: 0 0 245px;
-            max-width: 245px;
-            min-width: 245px;
-        }
-
-        .history-table th.action-column {
-            justify-content: flex-end;
-            padding-left: 0;
-        }
-
-        .history-table td.aksi {
-            justify-content: flex-end;
-        }
-
-        .history-table .history-actions {
-            gap: 3px;
-        }
-
-        .history-table td.aksi .btn {
-            padding: 5px 7px;
-            gap: 4px;
-            font-size: 10px;
-        }
-
-        .history-table td.aksi .btn.print-report {
-            width: 28px;
-            min-width: 28px;
-            padding-left: 0;
-            padding-right: 0;
-        }
-
-        .history-table td.aksi .btn .button-icon i,
-        .history-table td.aksi .btn i {
-            font-size: 10px;
-        }
 
         .history-searchbar {
             display: flex;
@@ -605,49 +479,48 @@
             transform: translateY(-2px);
         }
 
-        .history-actions .btn.print-report {
+        /* Warna tombol aksi tabel; ukuran & ritmenya dari kontrak report-table.css. */
+        .report-table .tbody td.col-action .btn.print-report {
             background-color: var(--cyan-main);
             color: #ffffff;
-            justify-content: center;
         }
 
-        .history-actions .btn.print-report:hover {
+        .report-table .tbody td.col-action .btn.print-report:hover {
             background-color: #0284c7;
             transform: translateY(-2px);
         }
 
-        .history-actions .btn.delete-icon {
+        .report-table .tbody td.col-action .btn.delete-icon {
             background-color: var(--red-main);
             color: #ffffff;
-            justify-content: center;
         }
 
-        .history-actions .btn.delete-icon:hover {
+        .report-table .tbody td.col-action .btn.delete-icon:hover {
             background-color: var(--red-hover);
             transform: translateY(-2px);
         }
 
-        .history-actions .btn.export-pdf {
+        .report-table .tbody td.col-action .btn.export-pdf {
             background-color: #ef4444;
             color: #ffffff;
         }
 
-        .history-actions .btn.export-pdf:hover {
+        .report-table .tbody td.col-action .btn.export-pdf:hover {
             background-color: #dc2626;
             transform: translateY(-2px);
         }
 
-        .history-actions .btn.export-excel {
+        .report-table .tbody td.col-action .btn.export-excel {
             background-color: #16a34a;
             color: #ffffff;
         }
 
-        .history-actions .btn.export-excel:hover {
+        .report-table .tbody td.col-action .btn.export-excel:hover {
             background-color: #15803d;
             transform: translateY(-2px);
         }
 
-        .history-actions .btn .spinner-icon {
+        .report-table .tbody td.col-action .btn .spinner-icon {
             display: none;
             width: 12px;
             height: 12px;
@@ -657,14 +530,15 @@
             animation: exportSpin .7s linear infinite;
         }
 
-        .history-actions .btn.is-loading .button-icon {
+        .report-table .tbody td.col-action .btn.is-loading .button-icon {
             display: none;
         }
 
-        .history-actions .btn.is-loading .spinner-icon {
+        .report-table .tbody td.col-action .btn.is-loading .spinner-icon {
             display: inline-flex;
             flex: 0 0 auto;
         }
+
 
         @keyframes exportSpin {
             to {
@@ -1044,15 +918,15 @@
                 @endif
 
                 <div class="table-responsive-wrapper">
-                    <table class="w-100 history-table">
-                        <tr class="thead d-flex justify-content-between align-items-center bg-blue br-4 align-self-stretch">
-                            <th class="nomor">No</th>
-                            <th class="column-1">Info Dokumen</th>
-                            <th class="column-1 date-column">Tanggal Laporan</th>
-                            <th class="shift-column">Shift</th>
-                            <th class="receiver-column">Group Penerima</th>
-                            <th class="status-column">Status</th>
-                            <th class="action-column">Aksi</th>
+                    <table class="w-100 report-table report-table--ops-history" role="table">
+                        <tr class="thead d-flex align-items-center bg-blue br-4 align-self-stretch" role="row">
+                            <th class="col-no" scope="col" role="columnheader">No</th>
+                            <th class="col-doc" scope="col" role="columnheader">Info Dokumen</th>
+                            <th class="col-date" scope="col" role="columnheader">Tanggal Laporan</th>
+                            <th class="col-shift" scope="col" role="columnheader">Shift</th>
+                            <th class="col-group" scope="col" role="columnheader">Group Penerima</th>
+                            <th class="col-status" scope="col" role="columnheader">Status</th>
+                            <th class="col-action" scope="col" role="columnheader">Aksi</th>
                         </tr>
                         @forelse ($historyReports as $report)
                             @php($shift = $shiftMeta($report->shift))
@@ -1080,73 +954,71 @@
                                 );
                             ?>
                             <tr
-                                class="tbody d-flex justify-content-between align-items-center align-self-stretch"
-                                style="padding: 6px 0;"
+                                class="tbody d-flex align-items-center align-self-stretch"
+                                role="row"
                                 data-history-row
                                 data-history-search="{{ $historySearchText }}"
                             >
-                                <td class="nomor">{{ $historyFirstItem ? $historyFirstItem + $loop->index : $loop->iteration }}</td>
-                                <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
+                                <td class="col-no" role="cell">{{ $historyFirstItem ? $historyFirstItem + $loop->index : $loop->iteration }}</td>
+                                <td class="col-doc cell-stack" role="cell">
+                                    <span class="cell-title">Laporan Operasi Harian</span>
+                                    <span class="cell-meta fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
                                 </td>
-                                <td class="column-2 date-column">
-                                    <span>{{ $formatDate($report->report_date) }}</span>
-                                    <span class="fsize-10 fw-400 text-muted">Terakhir diedit: {{ $formatDiff($report->updated_at) }}</span>
+                                <td class="col-date cell-stack" role="cell">
+                                    <span class="cell-title">{{ $formatDate($report->report_date) }}</span>
+                                    <span class="cell-meta fsize-10 fw-400 text-muted">Terakhir diedit: {{ $formatDiff($report->updated_at) }}</span>
                                 </td>
-                                <td class="column-3 shift-column">
+                                <td class="col-shift" role="cell">
                                     <div class="shift {{ $shift['class'] }}">
                                         <span class="icon-shift"><i class="{{ $shift['icon'] }}"></i></span>
                                         <span class="text">{{ $shift['label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="column-3 receiver-column">
+                                <td class="col-group" role="cell">
                                     <div class="report-group d-flex align-items-center gap-6 br-20 white-bg">
                                         <div class="letter-group in">{{ strtoupper((string) $report->received_by_group) ?: '-' }}</div>
                                         <span class="text fsize-10 fw-600">Regu {{ strtoupper((string) $report->received_by_group) ?: '-' }}</span>
                                     </div>
                                 </td>
-                                <td class="column-3 status-column">
+                                <td class="col-status" role="cell">
                                     <div class="status {{ $status['class'] }}">
                                         <span class="icon-status"><i class="{{ $status['icon'] }}"></i></span>
                                         <span class="text">{{ $status['label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="aksi">
-                                    <div class="history-actions">
-                                        <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
-                                            <span><i class="fi fi-rr-eye"></i></span>
-                                            <span>Lihat</span>
-                                        </a>
-                                        <a href="{{ route('report-ops.pdf', $report) }}" class="btn export-pdf action-link" data-export-loading>
-                                            <span class="button-icon"><i class="fi fi-rr-file-pdf"></i></span>
-                                            <span class="spinner-icon" aria-hidden="true"></span>
-                                            <span>PDF</span>
-                                        </a>
-                                        <a href="{{ route('report-ops.excel', $report) }}" class="btn export-excel action-link" data-export-loading>
-                                            <span class="button-icon"><i class="fi fi-rr-file-excel"></i></span>
-                                            <span class="spinner-icon" aria-hidden="true"></span>
-                                            <span>Excel</span>
-                                        </a>
-                                        @if ($canEdit($report))
-                                            <button type="button" class="btn edit action-link action-modal-trigger" data-open-modal="edit-report-modal-{{ $report->id }}">
-                                                <span><i class="fi fi-rr-pencil"></i></span>
-                                                <span>Edit</span>
-                                            </button>
-                                        @endif
-                                        <a href="{{ route('report-ops.show', $report) }}?print=1" class="btn print-report action-link" target="_blank" rel="noopener" title="Print laporan" aria-label="Print laporan">
-                                            <span><i class="fi fi-rr-print"></i></span>
-                                        </a>
-                                        @if ($canDelete($report))
-                                            <button type="button" class="btn delete-icon action-modal-trigger" data-open-modal="delete-draft-modal-{{ $report->id }}" title="Hapus laporan" aria-label="Hapus laporan">
-                                                <i class="fi fi-rr-trash"></i>
-                                            </button>
-                                        @endif
-                                    </div>
+                                <td class="aksi col-action" role="cell">
+                                    <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
+                                        <span><i class="fi fi-rr-eye"></i></span>
+                                        <span>Lihat</span>
+                                    </a>
+                                    <a href="{{ route('report-ops.pdf', $report) }}" class="btn export-pdf action-link" data-export-loading>
+                                        <span class="button-icon"><i class="fi fi-rr-file-pdf"></i></span>
+                                        <span class="spinner-icon" aria-hidden="true"></span>
+                                        <span>PDF</span>
+                                    </a>
+                                    <a href="{{ route('report-ops.excel', $report) }}" class="btn export-excel action-link" data-export-loading>
+                                        <span class="button-icon"><i class="fi fi-rr-file-excel"></i></span>
+                                        <span class="spinner-icon" aria-hidden="true"></span>
+                                        <span>Excel</span>
+                                    </a>
+                                    @if ($canEdit($report))
+                                        <button type="button" class="btn edit action-link action-modal-trigger" data-open-modal="edit-report-modal-{{ $report->id }}">
+                                            <span><i class="fi fi-rr-pencil"></i></span>
+                                            <span>Edit</span>
+                                        </button>
+                                    @endif
+                                    <a href="{{ route('report-ops.show', $report) }}?print=1" class="btn print-report action-link" target="_blank" rel="noopener" title="Print laporan" aria-label="Print laporan">
+                                        <span><i class="fi fi-rr-print"></i></span>
+                                    </a>
+                                    @if ($canDelete($report))
+                                        <button type="button" class="btn delete-icon action-modal-trigger" data-open-modal="delete-draft-modal-{{ $report->id }}" title="Hapus laporan" aria-label="Hapus laporan">
+                                            <i class="fi fi-rr-trash"></i>
+                                        </button>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="row-full">
                                 <td colspan="7" class="border-0 p-0">
                                     <div class="empty-laporan d-flex flex-column align-items-center justify-content-center align-self-stretch p-empty gap-10 w-100">
                                         <span class="icon-empty"><i class="{{ $historySearch !== '' ? 'fi fi-rr-search-alt' : 'fi fi-rr-folder-open' }}"></i></span>
@@ -1167,7 +1039,7 @@
                             </tr>
                         @endforelse
                         @if ($historyReports->count() > 0)
-                            <tr id="history-search-empty" class="history-search-empty d-none">
+                            <tr id="history-search-empty" class="history-search-empty row-full d-none">
                                 <td colspan="7" class="border-0 p-0">
                                     <div class="empty-laporan d-flex flex-column align-items-center justify-content-center align-self-stretch p-empty gap-10 w-100">
                                         <span class="icon-empty"><i class="fi fi-rr-search-alt"></i></span>
@@ -1263,15 +1135,15 @@
                 @endif
 
                 <div class="table-responsive-wrapper">
-                    <table class="w-100 history-table">
-                        <tr class="thead d-flex justify-content-between align-items-center bg-blue br-4 align-self-stretch">
-                            <th class="nomor">No</th>
-                            <th class="column-1">Info Dokumen</th>
-                            <th class="column-1 date-column">Tanggal Laporan</th>
-                            <th class="shift-column">Shift</th>
-                            <th class="receiver-column">Group Pengirim</th>
-                            <th class="status-column">Status</th>
-                            <th class="action-column">Aksi</th>
+                    <table class="w-100 report-table report-table--ops-received" role="table">
+                        <tr class="thead d-flex align-items-center bg-blue br-4 align-self-stretch" role="row">
+                            <th class="col-no" scope="col" role="columnheader">No</th>
+                            <th class="col-doc" scope="col" role="columnheader">Info Dokumen</th>
+                            <th class="col-date" scope="col" role="columnheader">Tanggal Laporan</th>
+                            <th class="col-shift" scope="col" role="columnheader">Shift</th>
+                            <th class="col-group" scope="col" role="columnheader">Group Pengirim</th>
+                            <th class="col-status" scope="col" role="columnheader">Status</th>
+                            <th class="col-action" scope="col" role="columnheader">Aksi</th>
                         </tr>
                         @forelse ($receivedReports as $report)
                             @php($shift = $shiftMeta($report->shift))
@@ -1297,62 +1169,60 @@
                                 );
                             ?>
                             <tr
-                                class="tbody d-flex justify-content-between align-items-center align-self-stretch"
-                                style="padding: 6px 0;"
+                                class="tbody d-flex align-items-center align-self-stretch"
+                                role="row"
                                 data-received-row
-                                data-received-search="{{ $receivedSearchText }}"
+                                data-history-search="{{ $receivedSearchText }}"
                             >
-                                <td class="nomor">{{ $receivedFirstItem ? $receivedFirstItem + $loop->index : $loop->iteration }}</td>
-                                <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
+                                <td class="col-no" role="cell">{{ $receivedFirstItem ? $receivedFirstItem + $loop->index : $loop->iteration }}</td>
+                                <td class="col-doc cell-stack" role="cell">
+                                    <span class="cell-title">Laporan Operasi Harian</span>
+                                    <span class="cell-meta fsize-10 fw-400 text-muted">ID: {{ $documentId($report) }}</span>
                                 </td>
-                                <td class="column-2 date-column">
-                                    <span>{{ $formatDate($report->report_date) }}</span>
-                                    <span class="fsize-10 fw-400 text-muted">Terakhir diedit: {{ $formatDiff($report->updated_at) }}</span>
+                                <td class="col-date cell-stack" role="cell">
+                                    <span class="cell-title">{{ $formatDate($report->report_date) }}</span>
+                                    <span class="cell-meta fsize-10 fw-400 text-muted">Terakhir diedit: {{ $formatDiff($report->updated_at) }}</span>
                                 </td>
-                                <td class="column-3 shift-column">
+                                <td class="col-shift" role="cell">
                                     <div class="shift {{ $shift['class'] }}">
                                         <span class="icon-shift"><i class="{{ $shift['icon'] }}"></i></span>
                                         <span class="text">{{ $shift['label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="column-3 receiver-column">
+                                <td class="col-group" role="cell">
                                     <div class="report-group d-flex align-items-center gap-6 br-20 white-bg">
                                         <div class="letter-group out">{{ strtoupper((string) $report->group_name) ?: '-' }}</div>
                                         <span class="text fsize-10 fw-600">Regu {{ strtoupper((string) $report->group_name) ?: '-' }}</span>
                                     </div>
                                 </td>
-                                <td class="column-3 status-column">
+                                <td class="col-status" role="cell">
                                     <div class="status {{ $status['class'] }}">
                                         <span class="icon-status"><i class="{{ $status['icon'] }}"></i></span>
                                         <span class="text">{{ $status['label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="aksi">
-                                    <div class="history-actions">
-                                        <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
-                                            <span><i class="fi fi-rr-eye"></i></span>
-                                            <span>Lihat</span>
-                                        </a>
-                                        <a href="{{ route('report-ops.pdf', $report) }}" class="btn export-pdf action-link" data-export-loading>
-                                            <span class="button-icon"><i class="fi fi-rr-file-pdf"></i></span>
-                                            <span class="spinner-icon" aria-hidden="true"></span>
-                                            <span>PDF</span>
-                                        </a>
-                                        <a href="{{ route('report-ops.excel', $report) }}" class="btn export-excel action-link" data-export-loading>
-                                            <span class="button-icon"><i class="fi fi-rr-file-excel"></i></span>
-                                            <span class="spinner-icon" aria-hidden="true"></span>
-                                            <span>Excel</span>
-                                        </a>
-                                        <a href="{{ route('report-ops.show', $report) }}?print=1" class="btn print-report action-link" target="_blank" rel="noopener" title="Print laporan" aria-label="Print laporan">
-                                            <span><i class="fi fi-rr-print"></i></span>
-                                        </a>
-                                    </div>
+                                <td class="aksi col-action" role="cell">
+                                    <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
+                                        <span><i class="fi fi-rr-eye"></i></span>
+                                        <span>Lihat</span>
+                                    </a>
+                                    <a href="{{ route('report-ops.pdf', $report) }}" class="btn export-pdf action-link" data-export-loading>
+                                        <span class="button-icon"><i class="fi fi-rr-file-pdf"></i></span>
+                                        <span class="spinner-icon" aria-hidden="true"></span>
+                                        <span>PDF</span>
+                                    </a>
+                                    <a href="{{ route('report-ops.excel', $report) }}" class="btn export-excel action-link" data-export-loading>
+                                        <span class="button-icon"><i class="fi fi-rr-file-excel"></i></span>
+                                        <span class="spinner-icon" aria-hidden="true"></span>
+                                        <span>Excel</span>
+                                    </a>
+                                    <a href="{{ route('report-ops.show', $report) }}?print=1" class="btn print-report action-link" target="_blank" rel="noopener" title="Print laporan" aria-label="Print laporan">
+                                        <span><i class="fi fi-rr-print"></i></span>
+                                    </a>
                                 </td>
                             </tr>
                         @empty
-                            <tr>
+                            <tr class="row-full">
                                 <td colspan="7" class="border-0 p-0">
                                     <div class="empty-laporan d-flex flex-column align-items-center justify-content-center align-self-stretch p-empty gap-10 w-100">
                                         <span class="icon-empty"><i class="{{ $receivedSearch !== '' ? 'fi fi-rr-search-alt' : 'fi fi-rr-inbox' }}"></i></span>
@@ -1367,7 +1237,7 @@
                             </tr>
                         @endforelse
                         @if ($receivedReports->count() > 0)
-                            <tr id="received-search-empty" class="history-search-empty d-none">
+                            <tr id="received-search-empty" class="history-search-empty row-full d-none">
                                 <td colspan="7" class="border-0 p-0">
                                     <div class="empty-laporan d-flex flex-column align-items-center justify-content-center align-self-stretch p-empty gap-10 w-100">
                                         <span class="icon-empty"><i class="fi fi-rr-search-alt"></i></span>
@@ -1730,7 +1600,7 @@
 
                     if (isMatch) {
                         visibleCount += 1;
-                        const numberCell = row.querySelector('.nomor');
+                        const numberCell = row.querySelector('.col-no');
                         if (numberCell) numberCell.textContent = historyPageStart + visibleCount - 1;
                     }
                 });
@@ -2048,7 +1918,7 @@
 
                         if (isMatch) {
                             visibleCount += 1;
-                            const numberCell = row.querySelector('.nomor');
+                            const numberCell = row.querySelector('.col-no');
                             if (numberCell) numberCell.textContent = receivedPageStart + visibleCount - 1;
                         }
                     });

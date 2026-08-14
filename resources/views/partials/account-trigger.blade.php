@@ -1,4 +1,6 @@
 @php
+    use App\Models\Role;
+
     $accountUser = auth()->user();
     $accountInitials = collect(preg_split('/\s+/', trim((string) ($accountUser->name ?? 'Pengguna'))))
         ->filter()
@@ -7,6 +9,7 @@
         ->implode('');
     $accountPhotoUrl = $accountUser->profile_photo_path ? asset($accountUser->profile_photo_path) : '';
     $profileAccountMenu = (bool) ($showProfileMenu ?? false);
+    $canChangeOwnPassword = Role::normalize($accountUser->role->name ?? null) === Role::ADMIN;
 @endphp
 
 <div class="kss-account" data-account-root>
@@ -71,16 +74,29 @@
             <div class="kss-account__divider"></div>
 
             <div class="kss-account__action-list">
-                <button type="button" class="kss-account__menu-item" data-account-open>
-                    <span class="kss-account__menu-icon" aria-hidden="true">
-                        <i class="fi fi-rr-key"></i>
-                    </span>
-                    <span>
-                        <strong>Ubah Password</strong>
-                        <small>Perbarui keamanan akun</small>
-                    </span>
-                    <i class="fi fi-rr-angle-small-right kss-account__menu-arrow" aria-hidden="true"></i>
-                </button>
+                @if ($canChangeOwnPassword)
+                    <button type="button" class="kss-account__menu-item" data-account-open>
+                        <span class="kss-account__menu-icon" aria-hidden="true">
+                            <i class="fi fi-rr-key"></i>
+                        </span>
+                        <span>
+                            <strong>Ubah Password</strong>
+                            <small>Perbarui keamanan akun</small>
+                        </span>
+                        <i class="fi fi-rr-angle-small-right kss-account__menu-arrow" aria-hidden="true"></i>
+                    </button>
+                @else
+                    <button type="button" class="kss-account__menu-item" data-account-help-open>
+                        <span class="kss-account__menu-icon" aria-hidden="true">
+                            <i class="fi fi-rr-shield-check"></i>
+                        </span>
+                        <span>
+                            <strong>Bantuan Akun</strong>
+                            <small>Password dikelola oleh admin</small>
+                        </span>
+                        <i class="fi fi-rr-angle-small-right kss-account__menu-arrow" aria-hidden="true"></i>
+                    </button>
+                @endif
 
                 @if ($showThemeToggle ?? false)
                     <label class="kss-account__theme-row">
@@ -149,16 +165,29 @@
             <i class="fi fi-rr-angle-small-right kss-account__menu-arrow" aria-hidden="true"></i>
         </button>
 
-        <button type="button" class="kss-account__menu-item" data-account-open role="menuitem">
-            <span class="kss-account__menu-icon" aria-hidden="true">
-                <i class="fi fi-rr-lock"></i>
-            </span>
-            <span>
-                <strong>Ubah Password</strong>
-                <small>Perbarui keamanan akun</small>
-            </span>
-            <i class="fi fi-rr-angle-small-right kss-account__menu-arrow" aria-hidden="true"></i>
-        </button>
+        @if ($canChangeOwnPassword)
+            <button type="button" class="kss-account__menu-item" data-account-open role="menuitem">
+                <span class="kss-account__menu-icon" aria-hidden="true">
+                    <i class="fi fi-rr-lock"></i>
+                </span>
+                <span>
+                    <strong>Ubah Password</strong>
+                    <small>Perbarui keamanan akun</small>
+                </span>
+                <i class="fi fi-rr-angle-small-right kss-account__menu-arrow" aria-hidden="true"></i>
+            </button>
+        @else
+            <button type="button" class="kss-account__menu-item" data-account-help-open role="menuitem">
+                <span class="kss-account__menu-icon" aria-hidden="true">
+                    <i class="fi fi-rr-shield-check"></i>
+                </span>
+                <span>
+                    <strong>Bantuan Akun</strong>
+                    <small>Password dikelola oleh admin</small>
+                </span>
+                <i class="fi fi-rr-angle-small-right kss-account__menu-arrow" aria-hidden="true"></i>
+            </button>
+        @endif
 
         @if ($showLogout ?? false)
             <div class="kss-account__divider"></div>

@@ -4,7 +4,7 @@
                 <span class="icon-title-form"><i class="fi fi-sr-box-open"></i></span>
                 <span class="fw-600">Form Bongkar</span>
                 <x-form-info-popover id="info-form-ops-bongkar" label="Informasi Form Bongkar">
-                    Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya; nilai ini masih dapat diubah manual bila perlu, dan <strong>Total</strong> akan dihitung sendiri. Pada tabel container, kolom <strong>Empty / Full</strong> wajib diisi untuk setiap baris yang ada jumlahnya: <strong>Empty</strong> berarti bongkar, <strong>Full</strong> berarti muat. Isian itulah yang menentukan baris masuk ke <strong>Bongkar Container</strong> atau <strong>Muat Container</strong> pada laporan kinerja.
+                    Pilih jenis kegiatan: <strong>Bongkar Bahan Baku</strong> atau <strong>Bongkar/Muat Container</strong>. Gunakan tab <strong>Kegiatan</strong> bila menangani lebih dari satu kapal/kegiatan. Bongkar bahan baku dicatat per <strong>kelompok kemasan</strong>. Pilih kemasan pada tiap kelompok, lalu isi jenis bahan dan jumlah <strong>Bag</strong>; konversi ke Ton dihitung sistem sesuai kemasan yang dipilih. Gunakan <strong>Tambah Kelompok Kemasan</strong> bila satu kapal membongkar lebih dari satu jenis kemasan, dan hapus kelompok yang tidak terpakai. Bila kemasannya belum ada pada daftar, pilih <strong>Tambah Kemasan Baru</strong> di bagian bawah dropdown lalu isi nama dan perbandingan Bag ke Ton-nya; kemasan itu berlaku untuk laporan ini saja. Kolom <strong>Lalu</strong> terisi otomatis dari shift sebelumnya dan <strong>Akumulasi</strong> dihitung sistem. Pada tabel container, kolom <strong>Empty / Full</strong> wajib diisi untuk setiap baris yang ada jumlahnya: <strong>Empty</strong> berarti bongkar, <strong>Full</strong> berarti muat. Isian itulah yang menentukan baris masuk ke <strong>Bongkar Container</strong> atau <strong>Muat Container</strong> pada laporan kinerja.
                 </x-form-info-popover>
             </div>
             <div class="counter-form">Form 5 dari 8</div>
@@ -71,28 +71,133 @@
                         </div>
                     </div>
 
-                    <div class="table-wrapper w-100 material">
-                        <div class="table-input material w-100">
-                            <div class="head">
-                                <div class="table-column no"><span>No</span></div>
-                                <div class="table-column main"><span>Jenis</span></div>
-                                <div class="table-column small"><span>Sekarang</span></div>
-                                <div class="table-column small"><span>Lalu</span></div>
-                                <div class="table-column small"><span>Total</span></div>
-                                <div class="table-column delete"><span>Hapus</span></div>
-                            </div>
-                            <div class="body">
-                                <div class="table-column no"><span>1</span></div>
-                                <div class="table-column main">
-                                    <div class="table-input-wrapper"><span class="icon"><i class="fi fi-sr-marker"></i></span><input type="text" name="unloading_materials_1[0][raw_material_type]" placeholder="Tujuan"></div>
+                    @php
+                        $materialPackageOptions = \App\Support\MaterialPackaging::active();
+                        $materialPackageDefaults = \App\Support\MaterialPackaging::defaults();
+                    @endphp
+
+                    <div class="material-package-ledger w-100" data-material-package-ledger data-material-package-defaults="{{ collect($materialPackageDefaults)->pluck('code')->implode(',') }}">
+                        @foreach ($materialPackageDefaults as $index => $package)
+                            <section class="material-package-group" data-material-package-group data-material-package-code="{{ $package['code'] }}" data-material-package-type="{{ $package['label'] }}" data-material-tonnage-factor="{{ $package['tonPerBag'] }}" aria-label="Kelompok kemasan bahan baku">
+                                {{-- Kepala kelompok merangkap pemicu buka/tutup, mengikuti pola
+                                     akordeon lokasi pada Inspeksi K3. Kontrol di dalamnya
+                                     (pemilih kemasan, tombol hapus) ditandai data-noprop agar
+                                     kliknya tidak ikut menutup kelompok. --}}
+                                <div class="material-package-group__header" data-material-package-head>
+                                    <button type="button" class="material-package-group__toggle" data-material-package-toggle data-noprop aria-expanded="true" aria-label="Sembunyikan rincian kemasan">
+                                        <i class="fi fi-rr-angle-small-down" aria-hidden="true"></i>
+                                    </button>
+                                    <div class="material-package-group__identity">
+                                        <span class="material-package-group__icon" aria-hidden="true"><i class="fi fi-sr-box"></i></span>
+                                        <div class="material-package-group__picker" data-noprop>
+                                            <div class="input-wrapper material-package-group__field">
+                                                {{-- Bukan `native-select`: dropdown ini isinya berubah-ubah
+                                                     (kemasan tambahan, kemasan yang sudah dipakai kelompok
+                                                     lain), jadi kontrol kustomnya disusun ulang sendiri
+                                                     dengan anatomi yang sama seperti dropdown lain. --}}
+                                                <select class="custom-input material-package-native-select" data-material-package-select aria-label="Jenis kemasan">
+                                                    @foreach ($materialPackageOptions as $option)
+                                                        <option value="{{ $option['code'] }}"
+                                                            data-package-label="{{ $option['label'] }}"
+                                                            data-package-factor="{{ $option['tonPerBag'] }}"
+                                                            data-package-hint="{{ $option['hint'] }}"
+                                                            @selected($option['code'] === $package['code'])>Kemasan {{ $option['label'] }}</option>
+                                                    @endforeach
+                                                    {{-- Jalan keluar untuk kemasan yang belum pernah tercatat:
+                                                         petugas mendaftarkannya sendiri lewat pop-up, berlaku
+                                                         untuk laporan yang sedang diisi saja. --}}
+                                                    <option value="__new__" data-material-package-new>+ Tambah Kemasan Baru…</option>
+                                                </select>
+                                                <i class="fi fi-rr-angle-small-down input-icon"></i>
+                                            </div>
+                                            <span class="material-package-group__hint" data-material-package-hint>{{ $package['hint'] }}</span>
+                                        </div>
+                                    </div>
+                                    {{-- Ringkasan hanya muncul ketika kelompok ditutup: saat terbuka,
+                                         angkanya sudah ada pada baris Subtotal di bawah tabel. --}}
+                                    <div class="material-package-group__summary" data-material-package-summary aria-live="polite">
+                                        <span class="material-package-group__rows">
+                                            <i class="fi fi-rr-list-check" aria-hidden="true"></i>
+                                            <b data-material-package-rowcount>1</b> bahan
+                                        </span>
+                                        <span class="material-package-group__figure">
+                                            <small>Sekarang</small>
+                                            <span><b data-material-summary-bag>0</b> Bag</span>
+                                            <i aria-hidden="true">/</i>
+                                            <span><b data-material-summary-tonnage>0</b> Ton</span>
+                                        </span>
+                                    </div>
+                                    <button type="button" class="material-package-group__remove" data-material-package-remove data-noprop aria-label="Hapus kelompok kemasan ini" title="Hapus kelompok kemasan ini">
+                                        <i class="fi fi-rr-trash" aria-hidden="true"></i>
+                                    </button>
                                 </div>
-                                <div class="table-column small"><input type="number" name="unloading_materials_1[0][qty_current]" class="form-control-custom" placeholder="0"></div>
-                                <div class="table-column small"><input type="number" name="unloading_materials_1[0][qty_prev]" class="form-control-custom" placeholder="0"></div>
-                                <div class="table-column small"><input type="number" name="unloading_materials_1[0][qty_total]" class="form-control-custom" placeholder="0" readonly></div>
-                                <div class="table-column delete"><button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button></div>
-                            </div>
-                            <button type="button" class="btn-tambah-baris"><i class="fi fi-rr-plus-small"></i> Tambah Baris</button>
-                        </div>
+
+                                <div class="material-package-group__body" data-material-package-body>
+                                <div class="table-wrapper w-100 material">
+                                    <div class="table-input material w-100">
+                                        <div class="head">
+                                            <div class="table-column no"><span>No</span></div>
+                                            <div class="table-column main"><span>Jenis Bahan Baku</span></div>
+                                            <div class="table-column small"><span>Sekarang</span></div>
+                                            <div class="table-column small"><span>Lalu</span></div>
+                                            <div class="table-column small"><span>Akumulasi</span></div>
+                                            <div class="table-column delete"><span>Hapus</span></div>
+                                        </div>
+                                        <div class="body">
+                                            {{-- Kode kemasan adalah penentu konversi di server; label ikut
+                                                 dikirim hanya sebagai teks pencarian laporan. --}}
+                                            <input type="hidden" name="unloading_materials_1[{{ $index }}][packaging_code]" value="{{ $package['code'] }}">
+                                            <input type="hidden" name="unloading_materials_1[{{ $index }}][packaging_type]" value="{{ $package['label'] }}">
+                                            {{-- Terisi hanya untuk kemasan tambahan; kemasan katalog selalu
+                                                 memakai faktor dari server. --}}
+                                            <input type="hidden" name="unloading_materials_1[{{ $index }}][packaging_factor]" value="">
+                                            <div class="table-column no"><span>1</span></div>
+                                            <div class="table-column main">
+                                                <div class="table-input-wrapper"><span class="icon"><i class="fi fi-sr-marker"></i></span><input type="text" name="unloading_materials_1[{{ $index }}][raw_material_type]" maxlength="150" placeholder="Masukkan jenis bahan baku"></div>
+                                            </div>
+                                            @foreach (['current' => 'Sekarang', 'prev' => 'Lalu', 'total' => 'Akumulasi'] as $field => $fieldLabel)
+                                                <div class="table-column small">
+                                                    <div class="quantity-measure">
+                                                        <div class="quantity-input">
+                                                            <input type="number" min="0" step="1" name="unloading_materials_1[{{ $index }}][qty_{{ $field }}]" class="form-control-custom" placeholder="0" inputmode="numeric" aria-label="{{ $fieldLabel }} dalam Bag" @readonly($field === 'total')>
+                                                            <span class="quantity-input__unit">Bag</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                            <div class="table-column delete"><button type="button" class="btn-trash-row" aria-label="Hapus baris bahan baku"><i class="fi fi-rr-trash"></i></button></div>
+                                        </div>
+                                        <button type="button" class="btn-tambah-baris"><i class="fi fi-rr-plus-small"></i> Tambah Bahan</button>
+                                    </div>
+                                </div>
+                                <div class="material-package-scroll-hint" aria-hidden="true"><i class="fi fi-rr-arrow-small-right"></i> Geser tabel untuk melihat seluruh kolom</div>
+
+                                <div class="material-package-subtotal" aria-live="polite">
+                                    <span class="material-package-subtotal__label">Subtotal <span data-material-package-title>{{ $package['label'] }}</span></span>
+                                    @foreach (['current' => 'Sekarang', 'previous' => 'Lalu', 'total' => 'Akumulasi'] as $subtotalKey => $subtotalLabel)
+                                        <span>
+                                            <small>{{ $subtotalLabel }}</small>
+                                            {{-- Angka dan satuannya dipasangkan agar keduanya tidak pernah
+                                                 terpisah baris saat subtotal dibungkus di layar sempit.
+                                                 Kemasan 25 Kg menghasilkan jumlah Bag berdigit banyak. --}}
+                                            <span class="material-package-subtotal__value">
+                                                <span class="material-package-subtotal__pair"><strong data-material-subtotal="{{ $subtotalKey }}">0</strong><em>Bag</em></span>
+                                                <i aria-hidden="true">/</i>
+                                                <span class="material-package-subtotal__pair"><b data-material-subtotal-tonnage="{{ $subtotalKey }}">0</b><em>Ton</em></span>
+                                            </span>
+                                        </span>
+                                    @endforeach
+                                </div>
+                                </div>
+                            </section>
+                        @endforeach
+
+                        {{-- Menambah kelompok, bukan menambah jenis kemasan. Jenis baru
+                             didaftarkan lewat pilihan terakhir pada dropdown kemasan. --}}
+                        <button type="button" class="material-package-add" data-material-package-add>
+                            <span class="icon" aria-hidden="true"><i class="fi fi-rr-plus-small"></i></span>
+                            <span>Tambah Kelompok Kemasan</span>
+                        </button>
                     </div>
                     <div class="petugas-card w-100 material">
                         <h5 class="card-title">Petugas</h5>
@@ -216,9 +321,9 @@
                             <div class="head">
                                 <div class="table-column no"><span>No</span></div>
                                 <div class="table-column main"><span>Jam</span></div>
-                                <div class="table-column small"><span>Sekarang</span></div>
-                                <div class="table-column small"><span>Lalu</span></div>
-                                <div class="table-column small"><span>Total</span></div>
+                                <div class="table-column small"><span>Sekarang <small>Teus</small></span></div>
+                                <div class="table-column small"><span>Lalu <small>Teus</small></span></div>
+                                <div class="table-column small"><span>Akumulasi <small>Teus</small></span></div>
                                 <div class="table-column small"><span>Keterangan</span></div>
                                 <div class="table-column delete"><span>Hapus</span></div>
                             </div>
@@ -227,9 +332,14 @@
                                 <div class="table-column main">
                                     <div class="table-input-wrapper"><span class="icon"><i class="fi fi-rr-clock"></i></span><input type="text" name="unloading_containers_1[0][time_text]" class="time-range-input" placeholder="00:00 - 00:00" autocomplete="off" inputmode="numeric" maxlength="13"></div>
                                 </div>
-                                <div class="table-column small"><input type="number" name="unloading_containers_1[0][qty_current]" class="form-control-custom" placeholder="0"></div>
-                                <div class="table-column small"><input type="number" name="unloading_containers_1[0][qty_prev]" class="form-control-custom" placeholder="0"></div>
-                                <div class="table-column small"><input type="number" name="unloading_containers_1[0][qty_total]" class="form-control-custom" placeholder="0" readonly></div>
+                                @foreach (['current' => 'Sekarang', 'prev' => 'Lalu', 'total' => 'Akumulasi'] as $field => $fieldLabel)
+                                    <div class="table-column small">
+                                        <div class="quantity-input quantity-input--teus">
+                                            <input type="number" min="0" step="1" name="unloading_containers_1[0][qty_{{ $field }}]" class="form-control-custom" placeholder="0" inputmode="numeric" aria-label="{{ $fieldLabel }} container dalam Teus" @readonly($field === 'total')>
+                                            <span class="quantity-input__unit">Teus</span>
+                                        </div>
+                                    </div>
+                                @endforeach
                                 {{-- Isian ini yang memisahkan baris menjadi kegiatan
                                      Bongkar Container atau Muat Container di laporan
                                      manajer: Empty berarti bongkar, Full berarti muat.

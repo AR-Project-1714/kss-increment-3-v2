@@ -17,6 +17,7 @@
 --}}
 @php
     $fmt = fn ($value, int $decimals = 0) => number_format((float) $value, $decimals, ',', '.');
+    $quantityDecimals = in_array($detail['unit'] ?? '', ['Teus', 'Bag'], true) ? 0 : 2;
 
     $trend = $detail['trend'] ?? [];
     $trendTotal = array_sum(array_column($trend, 'value'));
@@ -113,7 +114,7 @@
         @if (isset($detail['value']))
             <div class="act-panel__metric">
                 <span class="act-panel__figure">
-                    {{ $fmt($detail['value'], 2) }}<span>{{ $detail['unit'] }}</span>
+                    {{ $fmt($detail['value'], $quantityDecimals) }}<span>{{ $detail['unit'] }}</span>
                 </span>
 
                 {{-- Sparkline enam bulan tepat di bawah satuannya. Warnanya
@@ -125,7 +126,7 @@
                      data-chart-tip
                      data-tip-title="Tren 6 bulan · {{ $detail['label'] }}"
                      data-tip-rows="{{ json_encode(array_values(array_filter([
-                        ['label' => 'Periode ini', 'value' => $fmt($detail['value'], 1).' '.$detail['unit'], 'color' => 'var(--chart-1)'],
+                        ['label' => 'Periode ini', 'value' => $fmt($detail['value'], $quantityDecimals).' '.$detail['unit'], 'color' => 'var(--chart-1)'],
                         ['label' => $trendDelta['available'] ? $trendDeltaWord : 'Pembanding', 'value' => $trendDelta['text'] ?? '-', 'color' => $trendToneColor],
                      ]))) }}">
                     @include('charts.sparkline', [

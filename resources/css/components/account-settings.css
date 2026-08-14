@@ -597,6 +597,134 @@ body.dark-mode {
     line-height: 1.5;
 }
 
+.kss-account-help__body {
+    gap: 16px;
+}
+
+.kss-account-help__notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 12px;
+    border-radius: 10px;
+    color: var(--dark-main, var(--black));
+    background-color: var(--blue-main-5);
+}
+
+.kss-account-help__notice-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 8px;
+    color: var(--blue-main);
+    background-color: var(--white);
+    font-size: 13px;
+}
+
+.kss-account-help__notice > span:last-child {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kss-account-help__notice strong,
+.kss-account-help__steps > strong {
+    color: var(--dark-main, var(--black));
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.kss-account-help__notice small {
+    margin-top: 2px;
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    line-height: 1.55;
+}
+
+.kss-account-help__identity {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--smooth-border);
+    border-radius: 10px;
+}
+
+.kss-account-help__identity > div {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 12px;
+    padding: 9px 11px;
+    border-bottom: 1px solid var(--smooth-border);
+}
+
+.kss-account-help__identity > div:last-child {
+    border-bottom: 0;
+}
+
+.kss-account-help__identity dt,
+.kss-account-help__identity dd {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.kss-account-help__identity dt {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.kss-account-help__identity dd {
+    overflow-wrap: anywhere;
+    color: var(--dark-main, var(--black));
+    font-weight: 600;
+}
+
+.kss-account-help__steps {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.kss-account-help__steps ol {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding-inline-start: 20px;
+    color: var(--dark-secondary, var(--black-secondary));
+    font-size: 10px;
+    line-height: 1.55;
+}
+
+.kss-account-help__steps li::marker {
+    color: var(--blue-main);
+    font-weight: 600;
+}
+
+.kss-account-help__warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 9px 11px;
+    border-radius: 8px;
+    color: var(--dark-secondary, var(--black-secondary));
+    background-color: var(--orange-main-10);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.kss-account-help__warning i {
+    position: relative;
+    top: 2px;
+    flex: 0 0 auto;
+    color: var(--orange-main);
+}
+
 .kss-account-photo__panel {
     width: min(480px, calc(100vw - 32px));
 }
@@ -1076,6 +1204,10 @@ body.kss-account-modal-open {
         width: 64px;
         height: 64px;
         flex-basis: 64px;
+    }
+
+    .kss-account-help__identity > div {
+        grid-template-columns: 74px minmax(0, 1fr);
     }
 }
 

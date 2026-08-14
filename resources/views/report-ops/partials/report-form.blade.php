@@ -836,7 +836,19 @@
                 flex-direction: column;
                 align-items: stretch;
                 gap: 10px;
+                min-width: 0;
+                max-width: 100%;
             }
+            .ship-operation-status-label { min-width: 0; }
+            .status-info-icon .status-info-tip {
+                left: auto;
+                right: -48px;
+                width: min(200px, calc(100vw - 64px));
+                transform: translateY(4px);
+            }
+            .status-info-icon:hover .status-info-tip,
+            .status-info-icon:focus-visible .status-info-tip { transform: translateY(0); }
+            .status-info-icon .status-info-tip::after { left: auto; right: 51px; transform: none; }
             .ship-operation-status-options { width: 100%; }
             .ship-operation-status-options label { flex: 1 1 0; min-width: 0; }
             .ship-operation-status-options span { width: 100%; }
@@ -1623,6 +1635,13 @@ document.addEventListener('DOMContentLoaded', function () {
             setNamedControlValue(pane, name, item[key] ?? '');
         });
 
+        // Bongkar bahan baku memakai satu kapal lintas shift dengan jenis bahan
+        // dan kemasan yang sama, jadi rinciannya ikut diteruskan — bukan hanya
+        // keterangan kapalnya.
+        if (config.type === 'bongkar_bahan_baku') {
+            applyMaterialCarryForward(pane, item.accumulation?.materials || []);
+        }
+
         // Memilih kapal hanya menentukan identitas pelayarannya. Keputusan
         // berjalan/selesai harus dibuat ulang oleh petugas pada akhir laporan.
         setShipOperationStatus(pane, config, '');
@@ -2010,7 +2029,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function ensureTableRowsForName(name) {
-        if (/^(timesheets|bulk_logs|ammonia_logs)\[/.test(name)) return;
+        if (/^(timesheets|bulk_logs|ammonia_logs)\[/.test(name) || /^unloading_materials_/.test(name)) return;
 
         const match = name.match(/^([^\[]+)\[(\d+)]/);
         if (!match || controlsByName(name).length > 0) return;
@@ -2027,6 +2046,846 @@ document.addEventListener('DOMContentLoaded', function () {
         while (rowsOf(tableInput).length <= targetIndex) {
             addTableRow(addButton);
         }
+    }
+
+    function materialPackageGroups(root) {
+        return Array.from(root?.querySelectorAll('[data-material-package-group]') || []);
+    }
+
+    // Ledger = wadah seluruh kelompok kemasan pada satu kegiatan. Dipakai
+    // sebagai titik pijak karena jumlah kelompoknya sekarang bisa berubah.
+    function materialPackageLedgerOf(node) {
+        if (!node) return null;
+        if (node.matches?.('[data-material-package-ledger]')) return node;
+
+        return node.closest?.('[data-material-package-ledger]')
+            || node.querySelector?.('[data-material-package-ledger]')
+            || null;
+    }
+
+    // Penomoran ulang butuh pane karena nomor kegiatan ada di sana. Sebelum
+    // pane terbentuk (saat form pertama disusun), ledger dipakai sebagai
+    // gantinya dan nomor kegiatannya jatuh ke 1.
+    function materialPackageScopeOf(node) {
+        return node?.closest?.('.activity-pane') || materialPackageLedgerOf(node);
+    }
+
+    const MATERIAL_PACKAGE_CUSTOM_CODE = 'custom';
+
+    function isMaterialPackageNewOption(option) {
+        return option?.hasAttribute('data-material-package-new') === true;
+    }
+
+    function materialPackageOptionEntry(option) {
+        return {
+            value: option.value,
+            // Kemasan katalog memakai kodenya sebagai value; kemasan tambahan
+            // memakai value unik supaya beberapa kemasan buatan petugas dapat
+            // dibedakan walau kodenya sama-sama "custom".
+            code: option.dataset.packageCode || option.value,
+            label: option.dataset.packageLabel || option.text,
+            factor: Number(option.dataset.packageFactor || 0) || 0,
+            hint: option.dataset.packageHint || '',
+        };
+    }
+
+    function materialPackageOptionsOf(ledger) {
+        const select = ledger?.querySelector('[data-material-package-select]');
+
+        return Array.from(select?.options || [])
+            .filter(option => ! isMaterialPackageNewOption(option))
+            .map(materialPackageOptionEntry);
+    }
+
+    // Pemicu hasil penggandaan kelompok membawa tampilan lamanya tetapi tidak
+    // membawa event listener-nya. Penanda ini yang membedakan pemicu yang
+    // benar-benar hidup dari salinan mati, karena atribut ikut tersalin.
+    const materialPackageLiveTriggers = new WeakSet();
+
+    function closeMaterialPackageDropdowns() {
+        document.querySelectorAll('.custom-options-container.open').forEach(list => list.classList.remove('open'));
+        document.querySelectorAll('.custom-input.focus-active').forEach(trigger => trigger.classList.remove('focus-active'));
+    }
+
+    /**
+     * Dropdown kemasan memakai anatomi kontrol kustom yang sama dengan isian
+     * lain pada form ini, tetapi disusun ulang di sini karena daftarnya hidup:
+     * kemasan tambahan bisa muncul kapan saja dan kemasan yang sudah dipakai
+     * kelompok lain harus tampil non-aktif.
+     */
+    function renderMaterialPackageDropdown(group) {
+        const select = group?.querySelector('[data-material-package-select]');
+        const field = select?.closest('.input-wrapper');
+        if (!select || !field) return;
+
+        select.style.display = 'none';
+
+        let trigger = field.querySelector(':scope > .custom-input[role="button"]');
+        let list = field.querySelector(':scope > .custom-options-container');
+
+        if (trigger && ! materialPackageLiveTriggers.has(trigger)) {
+            trigger.remove();
+            trigger = null;
+        }
+
+        if (!trigger) {
+            trigger = document.createElement('div');
+            trigger.className = 'custom-input d-flex align-items-center';
+            trigger.tabIndex = 0;
+            trigger.setAttribute('role', 'button');
+            trigger.appendChild(document.createElement('span'));
+            field.insertBefore(trigger, select.nextSibling);
+
+            trigger.addEventListener('click', event => {
+                // Penutup global menutup seluruh dropdown pada setiap klik;
+                // klik pada pemicunya sendiri dikecualikan.
+                event.stopPropagation();
+
+                const shouldOpen = ! list.classList.contains('open');
+                closeMaterialPackageDropdowns();
+                list.classList.toggle('open', shouldOpen);
+                trigger.classList.toggle('focus-active', shouldOpen);
+            });
+
+            trigger.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeMaterialPackageDropdowns();
+
+                    return;
+                }
+
+                if (! ['Enter', ' '].includes(event.key)) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+                trigger.click();
+            });
+
+            materialPackageLiveTriggers.add(trigger);
+        }
+
+        if (!list) {
+            list = document.createElement('div');
+            list.className = 'custom-options-container';
+            field.appendChild(list);
+        }
+
+        const selected = select.options[select.selectedIndex] || null;
+        trigger.querySelector('span').textContent = selected ? selected.text : '';
+        trigger.setAttribute('aria-label', `Jenis kemasan: ${selected ? selected.text : 'belum dipilih'}`);
+
+        list.textContent = '';
+        Array.from(select.options).forEach(option => {
+            const item = document.createElement('div');
+            item.className = 'custom-option';
+            item.textContent = option.text;
+            item.dataset.value = option.value;
+            item.classList.toggle('selected', option.selected);
+            // Kemasan yang sudah dipakai kelompok lain tetap terlihat agar
+            // petugas tahu kemasannya ada, tetapi tidak dapat dipilih dua kali.
+            item.classList.toggle('is-disabled', option.disabled);
+            if (isMaterialPackageNewOption(option)) item.classList.add('is-new');
+
+            item.addEventListener('click', event => {
+                event.stopPropagation();
+                closeMaterialPackageDropdowns();
+                if (option.disabled) return;
+
+                select.value = option.value;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+
+            list.appendChild(item);
+        });
+    }
+
+    function reindexMaterialPackageTables(pane) {
+        if (!pane) return;
+
+        const sequence = Number(pane.dataset?.sequence || 1);
+        let globalIndex = 0;
+
+        materialPackageGroups(pane).forEach(group => {
+            const tableInput = group.querySelector('.table-input.material');
+            rowsOf(tableInput).forEach((row, localIndex) => {
+                row.querySelectorAll('.table-column.no span').forEach(span => {
+                    span.textContent = localIndex + 1;
+                });
+                row.querySelectorAll('[name^="unloading_materials_"]').forEach(input => {
+                    input.name = input.name.replace(
+                        /unloading_materials_\d+\[\d+]/,
+                        `unloading_materials_${sequence}[${globalIndex}]`,
+                    );
+                });
+                globalIndex += 1;
+            });
+        });
+    }
+
+    function updateMaterialPackageSubtotal(group) {
+        if (!group) return;
+
+        // Faktor berasal dari atribut konfigurasi dengan notasi desimal baku
+        // (0.05), bukan angka lokal yang diketik petugas. Number() mencegah
+        // titik dibaca sebagai pemisah ribuan oleh parser angka Indonesia.
+        const tonnageFactor = Number(group.dataset.materialTonnageFactor || 0) || 0;
+        const rows = rowsOf(group.querySelector('.table-input.material'));
+        let current = 0;
+        let previous = 0;
+        let total = 0;
+
+        rows.forEach(row => {
+            const rowValues = {
+                current: reportNumericValue(row.querySelector('[name$="[qty_current]"]')?.value),
+                previous: reportNumericValue(row.querySelector('[name$="[qty_prev]"]')?.value),
+                total: reportNumericValue(row.querySelector('[name$="[qty_total]"]')?.value),
+            };
+
+            current += rowValues.current;
+            previous += rowValues.previous;
+            total += rowValues.total;
+        });
+
+        const values = { current, previous, total };
+        Object.entries(values).forEach(([key, value]) => {
+            const target = group.querySelector(`[data-material-subtotal="${key}"]`);
+            const tonnageTarget = group.querySelector(`[data-material-subtotal-tonnage="${key}"]`);
+
+            if (target) {
+                target.textContent = value ? reportLocalizedNumber(value) : '0';
+                window.fitReportNumberDisplay?.(target);
+            }
+            if (tonnageTarget) {
+                tonnageTarget.textContent = value ? reportLocalizedNumber(value * tonnageFactor) : '0';
+                window.fitReportNumberDisplay?.(tonnageTarget);
+            }
+        });
+
+        // Ringkasan kepala kelompok — satu-satunya angka yang terlihat ketika
+        // kelompoknya ditutup, jadi harus ikut diperbarui di sini.
+        const rowCount = group.querySelector('[data-material-package-rowcount]');
+        if (rowCount) rowCount.textContent = String(rows.length);
+
+        const summaryBag = group.querySelector('[data-material-summary-bag]');
+        const summaryTonnage = group.querySelector('[data-material-summary-tonnage]');
+        if (summaryBag) summaryBag.textContent = current ? reportLocalizedNumber(current) : '0';
+        if (summaryTonnage) summaryTonnage.textContent = current ? reportLocalizedNumber(current * tonnageFactor) : '0';
+    }
+
+    /**
+     * Buka/tutup rincian satu kelompok kemasan. Tiap kelompok berdiri sendiri,
+     * seperti akordeon lokasi pada Inspeksi K3.
+     */
+    function setMaterialPackageCollapsed(group, collapsed) {
+        if (!group) return;
+
+        group.classList.toggle('is-collapsed', collapsed);
+
+        const toggle = group.querySelector('[data-material-package-toggle]');
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            toggle.setAttribute('aria-label', collapsed ? 'Tampilkan rincian kemasan' : 'Sembunyikan rincian kemasan');
+        }
+
+        // Daftar kemasan yang sedang terbuka ikut ditutup supaya tidak
+        // menggantung di atas kelompok yang barusan diciutkan.
+        if (collapsed) closeMaterialPackageDropdowns();
+    }
+
+    function toggleMaterialPackageGroup(group) {
+        setMaterialPackageCollapsed(group, !group?.classList.contains('is-collapsed'));
+    }
+
+    /**
+     * Menyalin kemasan yang sedang dipilih ke seluruh baris kelompok. Kode
+     * kemasan inilah yang dibaca server; labelnya ikut dikirim hanya sebagai
+     * teks pencarian, dan faktor konversi tidak pernah dikirim sama sekali.
+     */
+    function syncMaterialPackageGroup(group) {
+        if (!group) return;
+
+        const select = group.querySelector('[data-material-package-select]');
+        const option = select?.options[select.selectedIndex] || null;
+
+        // Pilihan "Tambah Kemasan Baru" bukan kemasan; kelompoknya menunggu
+        // isian pop-up dan tidak boleh menimpa kemasan yang sedang dipakai.
+        if (isMaterialPackageNewOption(option)) return;
+
+        const entry = option ? materialPackageOptionEntry(option) : null;
+        const code = entry?.code || group.dataset.materialPackageCode || '';
+        const label = entry?.label || group.dataset.materialPackageType || '';
+        const factor = entry ? entry.factor : Number(group.dataset.materialTonnageFactor || 0) || 0;
+
+        if (!code && !label) return;
+
+        group.dataset.materialPackageValue = entry?.value || code;
+        group.dataset.materialPackageCode = code;
+        group.dataset.materialPackageType = label;
+        group.dataset.materialTonnageFactor = String(factor);
+
+        group.querySelectorAll('[name$="[packaging_code]"]').forEach(input => {
+            input.value = code;
+        });
+        group.querySelectorAll('[name$="[packaging_type]"]').forEach(input => {
+            input.value = label;
+        });
+        // Faktor hanya dikirim untuk kemasan tambahan. Kemasan katalog memakai
+        // faktor milik server, jadi kolomnya sengaja dikosongkan.
+        group.querySelectorAll('[name$="[packaging_factor]"]').forEach(input => {
+            input.value = code === MATERIAL_PACKAGE_CUSTOM_CODE ? String(factor) : '';
+        });
+        group.querySelectorAll('[data-material-package-title]').forEach(element => {
+            element.textContent = label;
+        });
+
+        const hint = group.querySelector('[data-material-package-hint]');
+        if (hint && entry?.hint) hint.textContent = entry.hint;
+
+        renderMaterialPackageDropdown(group);
+        updateMaterialPackageSubtotal(group);
+    }
+
+    /**
+     * Satu kemasan hanya boleh dipakai satu kelompok dalam satu kegiatan.
+     * Dua kelompok berkemasan sama membuat subtotalnya terbaca ganda di
+     * laporan, jadi pilihan yang sudah terpakai dimatikan di kelompok lain.
+     */
+    function refreshMaterialPackageOptions(node) {
+        const ledger = materialPackageLedgerOf(node);
+        if (!ledger) return;
+
+        const groups = materialPackageGroups(ledger);
+        const used = groups.map(group => group.dataset.materialPackageValue || group.dataset.materialPackageCode || '');
+
+        groups.forEach((group, index) => {
+            const select = group.querySelector('[data-material-package-select]');
+            Array.from(select?.options || []).forEach(option => {
+                if (isMaterialPackageNewOption(option)) return;
+
+                option.disabled = option.value !== used[index] && used.includes(option.value);
+            });
+        });
+
+        groups.forEach(group => renderMaterialPackageDropdown(group));
+
+        ledger.toggleAttribute('data-material-package-single', groups.length <= 1);
+
+        const addButton = ledger.querySelector('[data-material-package-add]');
+        if (addButton) addButton.hidden = groups.length >= materialPackageOptionsOf(ledger).length;
+    }
+
+    function addMaterialPackageGroup(node, preferredValue = null) {
+        const ledger = materialPackageLedgerOf(node);
+        const groups = materialPackageGroups(ledger);
+        const source = groups[groups.length - 1];
+        if (!ledger || !source) return null;
+
+        const used = groups.map(group => group.dataset.materialPackageValue || group.dataset.materialPackageCode || '');
+        const available = materialPackageOptionsOf(ledger)
+            .map(option => option.value)
+            .filter(value => !used.includes(value));
+
+        const nextCode = available.includes(preferredValue) ? preferredValue : available[0];
+        if (!nextCode) return null;
+
+        const clone = source.cloneNode(true);
+        const tableInput = clone.querySelector('.table-input.material');
+        rowsOf(tableInput).slice(1).forEach(row => row.remove());
+        rowsOf(tableInput).forEach(row => clearRow(row));
+        resetTableSelectHydration(clone);
+
+        const select = clone.querySelector('[data-material-package-select]');
+        if (select) select.value = nextCode;
+
+        // Kelompok yang baru ditambah selalu terbuka, walau kelompok sumbernya
+        // sedang diciutkan.
+        setMaterialPackageCollapsed(clone, false);
+
+        ledger.insertBefore(clone, ledger.querySelector('[data-material-package-add]'));
+        syncMaterialPackageGroup(clone);
+        reindexMaterialPackageTables(materialPackageScopeOf(ledger));
+        refreshMaterialPackageOptions(ledger);
+        applyMasterDatalists(clone);
+        hydrateTableSelects(clone);
+        initPickers(clone);
+
+        return clone;
+    }
+
+    function removeMaterialPackageGroup(group) {
+        const ledger = materialPackageLedgerOf(group);
+        if (!ledger || materialPackageGroups(ledger).length <= 1) return;
+
+        const scope = materialPackageScopeOf(group);
+        group.remove();
+        reindexMaterialPackageTables(scope === group ? ledger : scope);
+        refreshMaterialPackageOptions(ledger);
+    }
+
+    function initializeMaterialPackageGroups(root = document) {
+        root.querySelectorAll('[data-material-package-group]').forEach(group => {
+            syncMaterialPackageGroup(group);
+            setMaterialPackageCollapsed(group, group.classList.contains('is-collapsed'));
+        });
+        root.querySelectorAll('[data-material-package-ledger]').forEach(ledger => {
+            refreshMaterialPackageOptions(ledger);
+        });
+    }
+
+    // ==========================================
+    // KEMASAN TAMBAHAN (didaftarkan petugas)
+    // ==========================================
+
+    let materialPackageCustomSequence = 0;
+    let materialPackageTargetGroup = null;
+
+    function materialPackageModalElement() {
+        return document.getElementById('materialPackageModal');
+    }
+
+    function materialPackageNumberText(value) {
+        return (Math.round(value * 100) / 100).toLocaleString('id-ID', { maximumFractionDigits: 2 });
+    }
+
+    /** Keterangan konversi dibaca dari arah yang paling wajar untuk kemasannya. */
+    function materialPackageHintText(factor) {
+        return factor >= 1
+            ? `1 Bag = ${materialPackageNumberText(factor)} Ton`
+            : `${materialPackageNumberText(1 / factor)} Bag = 1 Ton`;
+    }
+
+    /** Daftarkan kemasan baru ke seluruh dropdown supaya kelompok lain juga bisa memakainya. */
+    function registerCustomMaterialPackage(label, factor) {
+        const value = `${MATERIAL_PACKAGE_CUSTOM_CODE}:${++materialPackageCustomSequence}`;
+        const hint = materialPackageHintText(factor);
+
+        document.querySelectorAll('[data-material-package-select]').forEach(select => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = `Kemasan ${label}`;
+            option.dataset.packageCode = MATERIAL_PACKAGE_CUSTOM_CODE;
+            option.dataset.packageLabel = label;
+            option.dataset.packageFactor = String(factor);
+            option.dataset.packageHint = hint;
+            select.insertBefore(option, select.querySelector('[data-material-package-new]'));
+        });
+
+        // Seluruh kelompok — termasuk pada kegiatan lain — ikut menampilkan
+        // kemasan yang baru didaftarkan.
+        document.querySelectorAll('[data-material-package-group]').forEach(group => {
+            renderMaterialPackageDropdown(group);
+        });
+
+        return value;
+    }
+
+    function applyMaterialPackageValue(group, value) {
+        const select = group?.querySelector('[data-material-package-select]');
+        if (!select || !value) return;
+
+        select.value = value;
+        syncMaterialPackageGroup(group);
+        refreshMaterialPackageOptions(group);
+        syncPayload();
+    }
+
+    function setMaterialPackageError(message) {
+        const box = materialPackageModalElement()?.querySelector('[data-material-package-error]');
+        if (!box) return;
+
+        box.textContent = message || '';
+        box.classList.toggle('d-none', !message);
+    }
+
+    function materialPackageRatioInputs() {
+        return {
+            name: document.getElementById('materialPackageName'),
+            bags: document.getElementById('materialPackageBags'),
+            tons: document.getElementById('materialPackageTons'),
+        };
+    }
+
+    function updateMaterialPackagePreview() {
+        const preview = materialPackageModalElement()?.querySelector('[data-material-package-preview-value]');
+        const { bags, tons } = materialPackageRatioInputs();
+        if (!preview) return;
+
+        const bagCount = Number(bags?.value);
+        const tonCount = Number(tons?.value);
+
+        preview.textContent = bagCount > 0 && tonCount > 0
+            ? `${materialPackageNumberText(tonCount / bagCount)} Ton`
+            : '—';
+    }
+
+    function openMaterialPackageModal(group) {
+        const modal = materialPackageModalElement();
+        const { name, bags, tons } = materialPackageRatioInputs();
+        if (!modal || !group) return;
+
+        materialPackageTargetGroup = group;
+        if (name) name.value = '';
+        if (bags) bags.value = '1';
+        if (tons) tons.value = '1';
+        setMaterialPackageError('');
+        updateMaterialPackagePreview();
+        modal.classList.add('show');
+        setTimeout(() => name?.focus(), 60);
+    }
+
+    /**
+     * Menutup pop-up. Selama kemasannya belum tersimpan, pilihan dropdown
+     * dikembalikan ke kemasan sebelumnya supaya kelompok tidak tertinggal
+     * dalam keadaan "Tambah Kemasan Baru".
+     */
+    function closeMaterialPackageModal({ restore = true } = {}) {
+        const modal = materialPackageModalElement();
+        const group = materialPackageTargetGroup;
+        materialPackageTargetGroup = null;
+        modal?.classList.remove('show');
+
+        if (!restore || !group) return;
+
+        const select = group.querySelector('[data-material-package-select]');
+        if (!select) return;
+
+        select.value = group.dataset.materialPackageValue || group.dataset.materialPackageCode || '';
+        select.focus();
+    }
+
+    /**
+     * Kendali pop-up diikat langsung ke tombolnya, bukan lewat delegasi di
+     * document: skrip modal bersama menghentikan propagasi setiap klik di
+     * dalam kartu pop-up, sehingga klik tidak pernah sampai ke document.
+     */
+    function initMaterialPackageModal() {
+        const modal = materialPackageModalElement();
+        if (!modal || modal.dataset.materialPackageReady === 'true') return;
+
+        modal.dataset.materialPackageReady = 'true';
+
+        modal.querySelector('[data-material-package-save]')?.addEventListener('click', event => {
+            event.preventDefault();
+            saveCustomMaterialPackage();
+        });
+
+        modal.querySelectorAll('.btn-close-modal').forEach(button => {
+            button.addEventListener('click', () => closeMaterialPackageModal());
+        });
+
+        modal.addEventListener('click', event => {
+            if (event.target === modal) closeMaterialPackageModal();
+        });
+
+        const { name, bags, tons } = materialPackageRatioInputs();
+
+        [bags, tons].forEach(input => {
+            input?.addEventListener('input', () => {
+                setMaterialPackageError('');
+                updateMaterialPackagePreview();
+            });
+        });
+
+        name?.addEventListener('input', () => setMaterialPackageError(''));
+
+        // Enter pada isian nama langsung menyimpan, seperti kebiasaan form
+        // pendek lain.
+        [name, bags, tons].forEach(input => {
+            input?.addEventListener('keydown', event => {
+                if (event.key !== 'Enter') return;
+
+                event.preventDefault();
+                saveCustomMaterialPackage();
+            });
+        });
+    }
+
+    function saveCustomMaterialPackage() {
+        const group = materialPackageTargetGroup;
+        const ledger = materialPackageLedgerOf(group);
+        const { name, bags, tons } = materialPackageRatioInputs();
+        if (!group || !ledger) return;
+
+        const label = String(name?.value || '').replace(/\s+/g, ' ').trim();
+        const bagCount = Number(bags?.value);
+        const tonCount = Number(tons?.value);
+
+        if (label === '') {
+            setMaterialPackageError('Isi nama kemasannya lebih dulu.');
+            name?.focus();
+
+            return;
+        }
+
+        if (!(bagCount > 0) || !(tonCount > 0)) {
+            setMaterialPackageError('Jumlah Bag dan Ton harus lebih besar dari nol.');
+
+            return;
+        }
+
+        const factor = Math.round((tonCount / bagCount) * 10000) / 10000;
+
+        // Batas yang sama dengan server, supaya salah ketik ketahuan di sini
+        // dan bukan setelah laporan dikirim.
+        if (factor < 0.0001 || factor > 100) {
+            setMaterialPackageError('Perbandingan Bag dan Ton berada di luar batas wajar. Periksa kembali angkanya.');
+
+            return;
+        }
+
+        const normalized = label.toLocaleLowerCase('id-ID');
+        const existing = materialPackageOptionsOf(ledger)
+            .find(option => option.label.toLocaleLowerCase('id-ID') === normalized);
+
+        if (existing) {
+            setMaterialPackageError(`Kemasan ${existing.label} sudah ada pada daftar. Pilih langsung dari dropdown.`);
+
+            return;
+        }
+
+        applyMaterialPackageValue(group, registerCustomMaterialPackage(label, factor));
+        closeMaterialPackageModal({ restore: false });
+    }
+
+    /**
+     * Dipakai saat kegiatan baru digandakan dari kegiatan yang sedang tampil.
+     * Susunan kelompoknya dikembalikan ke kemasan bawaan, karena kegiatan baru
+     * belum tentu membongkar kemasan yang sama dengan kegiatan sebelumnya.
+     */
+    function resetMaterialPackageRows(pane) {
+        const ledger = materialPackageLedgerOf(pane);
+        if (!ledger) return;
+
+        const defaults = String(ledger.dataset.materialPackageDefaults || '')
+            .split(',')
+            .map(code => code.trim())
+            .filter(Boolean);
+
+        materialPackageGroups(ledger).forEach((group, index) => {
+            if (defaults.length > 0 && index >= defaults.length) {
+                group.remove();
+                return;
+            }
+
+            // Kegiatan baru selalu dimulai dalam keadaan terbuka.
+            setMaterialPackageCollapsed(group, false);
+
+            const tableInput = group.querySelector('.table-input.material');
+            rowsOf(tableInput).slice(1).forEach(row => row.remove());
+
+            const select = group.querySelector('[data-material-package-select]');
+            if (select && defaults[index]) select.value = defaults[index];
+        });
+
+        // Kegiatan sumber boleh saja menyisakan kurang dari jumlah kemasan
+        // bawaan bila petugasnya menghapus kelompok.
+        defaults.slice(materialPackageGroups(ledger).length).forEach(code => {
+            addMaterialPackageGroup(ledger, code);
+        });
+
+        reindexMaterialPackageTables(pane);
+        initializeMaterialPackageGroups(pane);
+    }
+
+    /**
+     * Terjemahkan kemasan yang tersimpan di draf menjadi kode katalog. Draf
+     * lama hanya menyimpan label, dan label "Jumbo Bag" dari sebelum ukuran
+     * 1,5 Ton ada harus tetap jatuh ke Jumbo Bag 1 Ton.
+     */
+    function draftMaterialPackageValue(ledger, record) {
+        const options = materialPackageOptionsOf(ledger);
+
+        const normalize = value => String(value || '')
+            .replace(/,/g, '.')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLocaleLowerCase('id-ID');
+
+        const label = normalize(record.label);
+
+        // Kemasan tambahan tidak ada pada dropdown bawaan, jadi didaftarkan
+        // ulang dari draf beserta faktornya.
+        if (record.code === MATERIAL_PACKAGE_CUSTOM_CODE) {
+            const known = options.find(option => normalize(option.label) === label);
+            if (known) return known.value;
+
+            const factor = Number(record.factor);
+            if (!label || !(factor > 0)) return '';
+
+            return registerCustomMaterialPackage(String(record.label).replace(/\s+/g, ' ').trim(), factor);
+        }
+
+        if (record.code && options.some(option => option.value === record.code)) return record.code;
+
+        if (!label) return '';
+
+        const exact = options.find(option => normalize(option.label) === label);
+        if (exact) return exact.value;
+
+        const size = label.match(/\d+(\.\d+)?/);
+        const isJumbo = label.includes('jumbo');
+        const guess = options.find(option => {
+            const candidate = normalize(option.label);
+            if (candidate.includes('jumbo') !== isJumbo) return false;
+
+            return !size || candidate.includes(size[0]);
+        });
+
+        return guess?.value || '';
+    }
+
+    /**
+     * Menyusun ulang kelompok kemasan saat draf dipulihkan: jumlah kelompok,
+     * kemasan tiap kelompok, dan jumlah barisnya mengikuti isi draf.
+     */
+    function ensureMaterialPackageRows(fields) {
+        const records = new Map();
+
+        fields.forEach(field => {
+            const match = fieldName(field).match(/^unloading_materials_(\d+)\[(\d+)]\[([^\]]+)]$/);
+            if (!match) return;
+
+            const sequence = Number(match[1]);
+            const itemIndex = Number(match[2]);
+            const key = `${sequence}:${itemIndex}`;
+            const record = records.get(key) || { sequence, itemIndex, code: '', label: '', factor: '' };
+            if (match[3] === 'packaging_code') record.code = fieldValue(field).trim();
+            if (match[3] === 'packaging_type') record.label = fieldValue(field).trim();
+            if (match[3] === 'packaging_factor') record.factor = fieldValue(field).trim();
+            records.set(key, record);
+        });
+
+        const bySequence = new Map();
+        Array.from(records.values())
+            .sort((a, b) => a.sequence - b.sequence || a.itemIndex - b.itemIndex)
+            .forEach(record => {
+                const sequenceRecords = bySequence.get(record.sequence) || [];
+                sequenceRecords.push(record);
+                bySequence.set(record.sequence, sequenceRecords);
+            });
+
+        bySequence.forEach((sequenceRecords, sequence) => {
+            const pane = document.querySelector(`#section-bahan-baku .activity-pane[data-sequence="${sequence}"]`);
+            const ledger = materialPackageLedgerOf(pane);
+            if (!ledger) return;
+
+            // Baris draf tersimpan berurutan per kelompok, sehingga urutan
+            // kemunculan kemasan sekaligus menjadi urutan kelompoknya.
+            const wanted = [];
+            sequenceRecords.forEach(record => {
+                const value = draftMaterialPackageValue(ledger, record);
+                const existing = wanted.find(item => item.value === value);
+
+                if (existing) {
+                    existing.rows += 1;
+
+                    return;
+                }
+
+                wanted.push({ value, rows: 1 });
+            });
+
+            applyMaterialPackageLayout(pane, wanted);
+        });
+    }
+
+    /**
+     * Menyusun kelompok kemasan beserta jumlah barisnya sesuai daftar yang
+     * diminta. Dipakai pemulihan draf maupun penerusan rincian dari regu
+     * sebelumnya, supaya keduanya menghasilkan susunan yang sama persis.
+     *
+     * @param wanted [{ value, rows }] urut sesuai urutan kelompok yang diinginkan
+     */
+    function applyMaterialPackageLayout(pane, wanted) {
+        const ledger = materialPackageLedgerOf(pane);
+        if (!ledger || !Array.isArray(wanted) || wanted.length === 0) return;
+
+        while (materialPackageGroups(ledger).length > wanted.length) {
+            const groups = materialPackageGroups(ledger);
+            if (groups.length <= 1) break;
+
+            groups[groups.length - 1].remove();
+        }
+
+        while (materialPackageGroups(ledger).length < wanted.length) {
+            if (!addMaterialPackageGroup(ledger)) break;
+        }
+
+        materialPackageGroups(ledger).forEach((group, groupIndex) => {
+            const target = wanted[groupIndex];
+            if (!target) return;
+
+            const select = group.querySelector('[data-material-package-select]');
+            if (select && target.value && Array.from(select.options).some(option => option.value === target.value)) {
+                select.value = target.value;
+            }
+
+            const tableInput = group.querySelector('.table-input.material');
+            const addButton = tableInput?.querySelector('.btn-tambah-baris');
+            if (!tableInput || !addButton) return;
+
+            const targetRows = Math.max(1, target.rows);
+            while (rowsOf(tableInput).length < targetRows) addTableRow(addButton);
+            rowsOf(tableInput).slice(targetRows).forEach(row => row.remove());
+        });
+
+        reindexMaterialPackageTables(pane);
+        initializeMaterialPackageGroups(pane);
+    }
+
+    /**
+     * Meneruskan rincian bahan baku dari laporan terakhir kapal yang dipilih:
+     * jenis bahan dan kemasannya disalin apa adanya, sedangkan akumulasi
+     * terakhirnya menjadi nilai "Lalu". Kolom "Sekarang" sengaja dikosongkan
+     * karena itulah yang harus diisi regu yang sedang bertugas.
+     */
+    function applyMaterialCarryForward(pane, rows) {
+        const ledger = materialPackageLedgerOf(pane);
+        if (!ledger || !Array.isArray(rows) || rows.length === 0) return;
+
+        const buckets = [];
+        rows.forEach(row => {
+            const value = draftMaterialPackageValue(ledger, {
+                code: String(row.packaging_code || ''),
+                label: String(row.packaging_type || ''),
+                factor: row.packaging_factor,
+            });
+
+            const bucket = buckets.find(item => item.value === value);
+
+            if (bucket) {
+                bucket.items.push(row);
+
+                return;
+            }
+
+            buckets.push({ value, items: [row] });
+        });
+
+        applyMaterialPackageLayout(pane, buckets.map(bucket => ({ value: bucket.value, rows: bucket.items.length })));
+
+        materialPackageGroups(ledger).forEach((group, groupIndex) => {
+            const items = buckets[groupIndex]?.items || [];
+
+            rowsOf(group.querySelector('.table-input.material')).forEach((row, rowIndex) => {
+                const data = items[rowIndex];
+                if (!data) return;
+
+                const type = row.querySelector('[name$="[raw_material_type]"]');
+                const previous = row.querySelector('[name$="[qty_prev]"]');
+                const current = row.querySelector('[name$="[qty_current]"]');
+
+                if (type) setControlValue(type, String(data.raw_material_type ?? ''));
+                if (current) setControlValue(current, '');
+                if (previous) {
+                    const value = Number(data.qty_prev) || 0;
+                    setControlValue(previous, value ? reportLocalizedNumber(value) : '');
+                    updateAccumulation(previous);
+                }
+            });
+
+            updateMaterialPackageSubtotal(group);
+        });
     }
 
     function ensureTimesheetRowsForName(name) {
@@ -2054,6 +2913,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function ensureControlsForFields(fields) {
         ensureActivityPanes(fields);
+        ensureMaterialPackageRows(fields);
 
         fields.forEach(field => {
             const name = fieldName(field);
@@ -2130,6 +2990,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         hydrateTableSelects();
         document.querySelectorAll('[name*="qty_current"], [name*="qty_prev"], [name*="_current_"], [name*="_prev_"]').forEach(updateAccumulation);
+        initializeMaterialPackageGroups();
         syncPayload();
     }
 
@@ -3237,6 +4098,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function reindexTable(tableInput) {
+        const materialPane = tableInput?.closest('#section-bahan-baku .activity-pane');
+        if (materialPane && tableInput.closest('[data-material-package-group]')) {
+            reindexMaterialPackageTables(materialPane);
+            return;
+        }
+
         rowsOf(tableInput).forEach((row, index) => {
             row.querySelectorAll('.table-column.no span').forEach(span => {
                 span.textContent = index + 1;
@@ -3258,6 +4125,7 @@ document.addEventListener('DOMContentLoaded', function () {
         resetTableSelectHydration(clone);
         tableInput.insertBefore(clone, button);
         reindexTable(tableInput);
+        syncMaterialPackageGroup(tableInput.closest('[data-material-package-group]'));
         applyMasterDatalists(clone);
         hydrateTableSelects(clone);
         initPickers(clone);
@@ -3285,12 +4153,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const rows = rowsOf(tableInput);
         if (rows.length <= 1) {
             clearRow(row);
+            syncMaterialPackageGroup(tableInput.closest('[data-material-package-group]'));
             if (isOp7Source) syncOp7Replacements();
             return;
         }
 
         row.remove();
         reindexTable(tableInput);
+        syncMaterialPackageGroup(tableInput.closest('[data-material-package-group]'));
         if (isOp7Source) syncOp7Replacements();
     }
 
@@ -3309,6 +4179,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (summary) summary.textContent = total ? reportLocalizedNumber(total) : '0';
         window.fitReportNumberDisplay?.(totalInput);
         window.fitReportNumberDisplay?.(summary);
+        updateMaterialPackageSubtotal(row.closest('[data-material-package-group]'));
     }
 
     function replaceLastIndex(name, nextIndex) {
@@ -3838,6 +4709,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         content.insertBefore(pane, buttonRow);
         setSequence(pane, 1);
+        reindexMaterialPackageTables(pane);
         positionShipOperationStatus(pane);
         createActivityTab(section, tabBar, plusMinus, 1).classList.add('active');
         showActivity(section, 1);
@@ -3851,6 +4723,7 @@ document.addEventListener('DOMContentLoaded', function () {
             clearRow(clone);
             resetTimesheetContent(clone);
             setSequence(clone, sequence);
+            resetMaterialPackageRows(clone);
             clone.classList.add('d-none');
             clone.classList.remove('d-flex');
             content.insertBefore(clone, buttonRow);
@@ -3858,6 +4731,7 @@ document.addEventListener('DOMContentLoaded', function () {
             applyMasterDatalists(clone);
             prepareShipOperationFields(clone);
             initPickers(clone);
+            initializeMaterialPackageGroups(clone);
             positionShipOperationStatus(clone);
             showActivity(section, sequence);
         });
@@ -3875,6 +4749,7 @@ document.addEventListener('DOMContentLoaded', function () {
             remainingPanes.forEach((paneItem, index) => {
                 const newSequence = index + 1;
                 setSequence(paneItem, newSequence);
+                reindexMaterialPackageTables(paneItem);
                 const tab = section.querySelectorAll('.btn-activity')[index];
                 if (tab) {
                     tab.dataset.sequence = newSequence;
@@ -4054,6 +4929,8 @@ document.addEventListener('DOMContentLoaded', function () {
     hydrateCarryForwardOperations();
     document.querySelectorAll('.cob-received-input, .cob-delivered-input').forEach(updateLoadingQty);
     restoreSavedPayload();
+    initializeMaterialPackageGroups();
+    initMaterialPackageModal();
     hydrateSavedCarryForwardNotices();
     showFirstActivityOnInitialLoad();
     applyAbsenceStateToEmployeeRows();
@@ -4091,6 +4968,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     form?.addEventListener('submit', () => {
+        initializeMaterialPackageGroups();
         window.normalizeReportNumberInputs?.();
         syncPayload();
     });
@@ -4103,6 +4981,37 @@ document.addEventListener('DOMContentLoaded', function () {
         if (event.target.matches('input') && shipOperationConfig(event.target)) {
             operationDropdownFor(event.target);
             fetchShipOperationSuggestions(event.target);
+            return;
+        }
+
+        const packageToggle = event.target.closest('[data-material-package-toggle]');
+        if (packageToggle) {
+            event.preventDefault();
+            toggleMaterialPackageGroup(packageToggle.closest('[data-material-package-group]'));
+            return;
+        }
+
+        // Area kosong kepala kelompok ikut menjadi pemicu; kontrol di dalamnya
+        // sudah ditandai data-noprop.
+        const packageHead = event.target.closest('[data-material-package-head]');
+        if (packageHead && ! event.target.closest('[data-noprop]')) {
+            toggleMaterialPackageGroup(packageHead.closest('[data-material-package-group]'));
+            return;
+        }
+
+        const addPackageButton = event.target.closest('[data-material-package-add]');
+        if (addPackageButton) {
+            event.preventDefault();
+            addMaterialPackageGroup(addPackageButton);
+            syncPayload();
+            return;
+        }
+
+        const removePackageButton = event.target.closest('[data-material-package-remove]');
+        if (removePackageButton) {
+            event.preventDefault();
+            removeMaterialPackageGroup(removePackageButton.closest('[data-material-package-group]'));
+            syncPayload();
             return;
         }
 
@@ -4218,6 +5127,19 @@ document.addEventListener('DOMContentLoaded', function () {
             validateReportGroupRoute({ enforce: false, showToast: true });
         }
 
+        if (event.target.matches('[data-material-package-select]')) {
+            const group = event.target.closest('[data-material-package-group]');
+
+            if (isMaterialPackageNewOption(event.target.options[event.target.selectedIndex])) {
+                openMaterialPackageModal(group);
+
+                return;
+            }
+
+            syncMaterialPackageGroup(group);
+            refreshMaterialPackageOptions(group);
+        }
+
         if (isBagLoadingDetailControl(event.target)) {
             refreshPaneAccumulations(event.target.closest('.activity-pane'));
         }
@@ -4246,6 +5168,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (event.target.matches('[name^="op7_logs"][name$="[description]"]')) {
             syncOp7Replacements();
         }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        if (!materialPackageModalElement()?.classList.contains('show')) return;
+
+        event.preventDefault();
+        closeMaterialPackageModal();
     });
 
     document.addEventListener('input', function (event) {
@@ -4429,6 +5359,59 @@ document.addEventListener('DOMContentLoaded', function () {
 @endsection
 
 @push('modals')
+    {{-- KEMASAN TAMBAHAN — didaftarkan petugas saat kemasan yang dibongkar
+         belum ada pada katalog. Berlaku untuk laporan yang sedang diisi saja,
+         jadi tidak ada data master yang berubah dari sini. --}}
+    <div class="modal-overlay" id="materialPackageModal" role="dialog" aria-modal="true" aria-labelledby="materialPackageModalTitle">
+        <div class="pop-up signed d-flex flex-column gap-20">
+            <div class="pop-up-header d-flex justify-content-between align-items-center">
+                <span class="fw-600 fsize-16" id="materialPackageModalTitle">Tambah Kemasan Baru</span>
+                <button type="button" class="btn-close-modal border-0 bg-transparent text-muted" aria-label="Tutup"><i class="fi fi-br-cross fsize-10"></i></button>
+            </div>
+
+            <div class="pop-up-content d-flex flex-column gap-15">
+                <div class="box-input-1">
+                    <div class="box-label-1"><label for="materialPackageName">Nama Kemasan</label></div>
+                    <div class="input-wrapper">
+                        <input type="text" id="materialPackageName" class="custom-input" maxlength="100" placeholder="Contoh: Bag 40 Kg" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="box-input-1">
+                    <div class="box-label-1"><label for="materialPackageBags">Perbandingan Bag dan Ton</label></div>
+                    <div class="material-package-ratio">
+                        <div class="input-wrapper">
+                            <input type="number" id="materialPackageBags" class="custom-input" min="0" step="any" inputmode="decimal" value="1" aria-label="Jumlah Bag">
+                            <span class="input-icon">Bag</span>
+                        </div>
+                        <span class="material-package-ratio__equals" aria-hidden="true">=</span>
+                        <div class="input-wrapper">
+                            <input type="number" id="materialPackageTons" class="custom-input" min="0" step="any" inputmode="decimal" value="1" aria-label="Jumlah Ton">
+                            <span class="input-icon">Ton</span>
+                        </div>
+                    </div>
+                    <p class="material-package-ratio__help">Contoh: <strong>40 Bag = 1 Ton</strong> untuk kemasan kecil, atau <strong>1 Bag = 1,5 Ton</strong> untuk jumbo bag.</p>
+                </div>
+
+                <div class="material-package-preview" data-material-package-preview aria-live="polite">
+                    <span>Setiap 1 Bag dihitung</span>
+                    <strong data-material-package-preview-value>1 Ton</strong>
+                </div>
+
+                <p class="material-package-scope">Kemasan ini dipakai pada laporan yang sedang diisi saja dan tidak menambah daftar kemasan tetap.</p>
+
+                <div class="material-package-error d-none" role="alert" data-material-package-error></div>
+            </div>
+
+            <div class="pop-up footer d-flex justify-content-end gap-10">
+                <button type="button" class="btn cancel btn-close-modal">Batal</button>
+                <button type="button" class="btn confirm" data-material-package-save>
+                    <i class="fi fi-rr-box-open me-1"></i> Simpan Kemasan
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL KONFIRMASI (REFERENSI GAYA DASHBOARD) -->
     @php
         $finishReceiverGroup = strtoupper((string) old('received_by_group', isset($report) ? $report->received_by_group : ''));

@@ -19,6 +19,7 @@ use App\Models\UnitCheckLog;
 use App\Services\BulkTonnageService;
 use App\Services\SystemNotificationService;
 use App\Support\ContainerStatusNormalizer;
+use App\Support\MaterialPackaging;
 use App\Support\ShipNameNormalizer;
 use App\Support\TonnageNumber;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -624,7 +625,7 @@ class ReportOpsController extends Controller
             ->with('success', 'Masa simpan draft diperpanjang '.DailyReport::DRAFT_TTL_DAYS.' hari sejak sekarang.');
     }
 
-    public function sign(DailyReport $report)
+    public function sign(Request $request, DailyReport $report)
     {
         $user = auth()->user();
 
@@ -644,7 +645,11 @@ class ReportOpsController extends Controller
 
                 app(SystemNotificationService::class)->operationalAcknowledged($report->fresh());
 
-                return back()->with('success', 'Laporan berhasil diterima dan ditanda tangani.');
+                $response = $request->boolean('redirect_to_dashboard')
+                    ? redirect()->route('report-ops.index')
+                    : back();
+
+                return $response->with('success', 'Laporan berhasil diterima dan ditanda tangani.');
             }
         } catch (Throwable $exception) {
             Log::error('Gagal menandatangani laporan operasional.', [
@@ -931,7 +936,11 @@ class ReportOpsController extends Controller
             foreach ($material->items->values()->take(3) as $index => $item) {
                 $row = 85 + $index;
 
-                $this->setExcelText($sheet, 'B'.$row, $item->raw_material_type);
+                $materialLabel = collect([$item->raw_material_type, $item->packaging_type])
+                    ->filter(fn ($value): bool => filled($value))
+                    ->implode(' / ');
+
+                $this->setExcelText($sheet, 'B'.$row, $materialLabel);
                 $this->setExcelNumber($sheet, 'F'.$row, $item->qty_current);
                 $this->setExcelNumber($sheet, 'J'.$row, $item->qty_prev);
                 $this->setExcelNumber($sheet, 'N'.$row, $item->qty_total);
@@ -1323,6 +1332,7 @@ class ReportOpsController extends Controller
             'ammonia_logs' => ['nullable', 'array'],
             'unloading_materials' => ['nullable', 'array'],
             'unloading_containers' => ['nullable', 'array'],
+            ...$this->materialPackagingRules($isDraft),
             ...$this->containerStatusRules(),
             ...$this->shipOperationStatusRules($isDraft, $request),
             'turba_deliveries' => ['nullable', 'array'],
@@ -1336,6 +1346,101 @@ class ReportOpsController extends Controller
             'replacement_logs' => ['nullable', 'array'],
             'other_activity_logs' => ['nullable', 'array'],
         ];
+    }
+
+    /**
+     * Setiap baris bahan baku harus berada pada salah satu kemasan katalog,
+     * karena kemasan itulah yang menentukan konversi Bag ke Ton. Jumlah
+     * kemasan yang dipakai satu kegiatan dibebaskan: sebuah shift boleh
+     * membongkar satu kemasan saja, boleh pula keempat-empatnya.
+     *
+     * Draft boleh belum lengkap.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function materialPackagingRules(bool $isDraft): array
+    {
+        $rules = [];
+
+        for ($i = 1; $i <= self::MAX_ACTIVITY_SEQUENCE; $i++) {
+            $attribute = "unloading_materials_{$i}";
+            $rules[$attribute] = [
+                'nullable',
+                'array',
+                function (string $attribute, mixed $value, callable $fail) use ($isDraft): void {
+                    if ($isDraft) {
+                        return;
+                    }
+
+                    $rows = $this->rows($value);
+
+                    // Laporan lama dibuat sebelum kolom kemasan tersedia. Tetap
+                    // dapat diperbarui oleh integrasi lama; form baru selalu
+                    // mengirim kunci ini (termasuk ketika nilainya masih kosong).
+                    if (! collect($rows)->contains(fn (array $row): bool => array_key_exists('packaging_code', $row)
+                        || array_key_exists('packaging_type', $row))) {
+                        return;
+                    }
+
+                    $contentRows = array_values(array_filter(
+                        $rows,
+                        fn (array $row): bool => $this->rowHasContent(
+                            $row,
+                            ['raw_material_type'],
+                            ['qty_current', 'qty_prev', 'qty_total'],
+                        ),
+                    ));
+
+                    if ($contentRows === []) {
+                        return;
+                    }
+
+                    $sequence = [];
+                    foreach ($contentRows as $row) {
+                        $package = MaterialPackaging::fromSubmission($row);
+
+                        if ($package === null) {
+                            $fail(MaterialPackaging::isCustom($row['packaging_code'] ?? null)
+                                ? 'Kemasan tambahan harus mempunyai nama beserta perbandingan Bag dan Ton yang wajar. Periksa kembali kemasan yang Anda tambahkan sendiri.'
+                                : 'Setiap bahan baku harus berada pada salah satu kelompok kemasan. Muat ulang form bila pilihan kemasan tidak tampil dengan benar.');
+
+                            return;
+                        }
+
+                        $key = MaterialPackaging::groupKey($package);
+
+                        // Form mengirim baris berurutan per kelompok, sehingga
+                        // kemasan yang sama muncul berdampingan. Kemasan yang
+                        // muncul lagi setelah kemasan lain berarti ada dua
+                        // kelompok dengan kemasan sama — subtotalnya akan
+                        // terbaca ganda di laporan.
+                        if ($sequence !== [] && end($sequence) === $key) {
+                            continue;
+                        }
+
+                        if (in_array($key, $sequence, true)) {
+                            $fail('Kemasan '.$package['label'].' dipakai lebih dari satu kelompok pada kegiatan yang sama. Gabungkan barisnya ke dalam satu kelompok.');
+
+                            return;
+                        }
+
+                        $sequence[] = $key;
+                    }
+                },
+            ];
+            $rules["{$attribute}.*.packaging_code"] = ['nullable', 'string', Rule::in(MaterialPackaging::submittableCodes())];
+            $rules["{$attribute}.*.packaging_type"] = ['nullable', 'string', 'max:100'];
+            // Faktor kiriman hanya berarti untuk kemasan buatan petugas, dan
+            // tetap dibatasi di sini supaya angka mustahil ditolak lebih awal
+            // dengan pesan per baris.
+            $rules["{$attribute}.*.packaging_factor"] = ['nullable', 'numeric', 'min:0.0001', 'max:100'];
+            $rules["{$attribute}.*.raw_material_type"] = ['nullable', 'string', 'max:150'];
+            $rules["{$attribute}.*.qty_current"] = ['nullable', 'integer', 'min:0'];
+            $rules["{$attribute}.*.qty_prev"] = ['nullable', 'integer', 'min:0'];
+            $rules["{$attribute}.*.qty_total"] = ['nullable', 'integer', 'min:0'];
+        }
+
+        return $rules;
     }
 
     /**
@@ -1358,6 +1463,9 @@ class ReportOpsController extends Controller
                 'nullable',
                 Rule::in([ContainerStatusNormalizer::EMPTY_STATUS, ContainerStatusNormalizer::FULL_STATUS]),
             ];
+            $rules["unloading_containers_{$i}.*.qty_current"] = ['nullable', 'integer', 'min:0'];
+            $rules["unloading_containers_{$i}.*.qty_prev"] = ['nullable', 'integer', 'min:0'];
+            $rules["unloading_containers_{$i}.*.qty_total"] = ['nullable', 'integer', 'min:0'];
         }
 
         return $rules;
@@ -1588,8 +1696,19 @@ class ReportOpsController extends Controller
             ]);
 
             foreach ($materialRows as $material) {
+                // Kemasan katalog selalu memakai label dan faktor katalog,
+                // tidak pernah kiriman form. Hanya kemasan tambahan — yang
+                // memang diketik petugas — yang faktornya berasal dari form,
+                // dan itu pun sudah dibatasi rentangnya. Faktor disimpan per
+                // baris supaya laporan lama kebal terhadap penyuntingan
+                // katalog di kemudian hari.
+                $package = MaterialPackaging::fromSubmission($material);
+
                 $materialActivity->items()->create([
                     'raw_material_type' => $this->string($material['raw_material_type'] ?? null),
+                    'packaging_type' => $package['label'] ?? $this->string($material['packaging_type'] ?? null),
+                    'packaging_code' => $package['code'] ?? null,
+                    'packaging_factor' => $package['tonPerBag'] ?? null,
                     'qty_current' => $this->decimal($material['qty_current'] ?? null),
                     'qty_prev' => $this->decimal($material['qty_prev'] ?? null),
                     'qty_total' => $this->decimal($material['qty_total'] ?? null),
@@ -2021,6 +2140,10 @@ class ReportOpsController extends Controller
 
     private function shipOperationAccumulation(ShipOperation $operation, ?int $excludeReportId = null): array
     {
+        if ($operation->type === ShipOperation::TYPE_MATERIAL_UNLOADING) {
+            return ['materials' => $this->materialCarryForwardRows($operation, $excludeReportId)];
+        }
+
         if ($operation->type !== ShipOperation::TYPE_BAG_LOADING) {
             return [];
         }
@@ -2051,6 +2174,54 @@ class ReportOpsController extends Controller
             'qty_loading_prev' => (float) $latest->qty_loading_current + (float) $latest->qty_loading_prev,
             'qty_damage_prev' => (float) $latest->qty_damage_current + (float) $latest->qty_damage_prev,
         ];
+    }
+
+    /**
+     * Rincian bahan baku dari laporan terakhir kapal ini, untuk diteruskan ke
+     * regu berikutnya.
+     *
+     * Satu kapal dibongkar lintas shift, dan jenis bahan beserta kemasannya
+     * tidak berubah di tengah pembongkaran. Tanpa penerusan ini regu berikutnya
+     * mengetik ulang seluruh barisnya — beserta risiko salah ketik jenis bahan
+     * dan salah pilih kemasan, yang membuat akumulasi kapal terputus.
+     *
+     * Nilai "Lalu" memakai akumulasi terakhir (Sekarang + Lalu), sama seperti
+     * penerusan muat kantong, sehingga isian Lalu pada laporan pertama ikut
+     * terbawa.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function materialCarryForwardRows(ShipOperation $operation, ?int $excludeReportId = null): array
+    {
+        $latest = $operation->materialActivities()
+            ->when(
+                $excludeReportId,
+                fn ($query) => $query->where('material_activities.daily_report_id', '!=', $excludeReportId)
+            )
+            ->join('daily_reports', 'daily_reports.id', '=', 'material_activities.daily_report_id')
+            ->orderByDesc('daily_reports.report_date')
+            ->orderByDesc('material_activities.id')
+            ->select('material_activities.*')
+            ->with('items')
+            ->first();
+
+        if (! $latest) {
+            return [];
+        }
+
+        return $latest->items
+            ->filter(fn ($item): bool => filled($item->raw_material_type)
+                || (float) $item->qty_current > 0
+                || (float) $item->qty_prev > 0)
+            ->map(fn ($item): array => [
+                'packaging_code' => $item->packaging_code,
+                'packaging_type' => $item->packaging_type,
+                'packaging_factor' => $item->packaging_factor !== null ? (float) $item->packaging_factor : null,
+                'raw_material_type' => $item->raw_material_type,
+                'qty_prev' => (float) $item->qty_current + (float) $item->qty_prev,
+            ])
+            ->values()
+            ->all();
     }
 
     private function resolveShipOperation(DailyReport $report, Request $request, string $type, int $sequence, array $data): ?ShipOperation
