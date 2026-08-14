@@ -2083,10 +2083,30 @@ document.addEventListener('DOMContentLoaded', function () {
             // memakai value unik supaya beberapa kemasan buatan petugas dapat
             // dibedakan walau kodenya sama-sama "custom".
             code: option.dataset.packageCode || option.value,
+            family: option.dataset.packageFamily || '',
             label: option.dataset.packageLabel || option.text,
             factor: Number(option.dataset.packageFactor || 0) || 0,
             hint: option.dataset.packageHint || '',
         };
+    }
+
+    function materialPackageFamilyOf(group) {
+        if (!group) return '';
+
+        const selected = group.querySelector('[data-material-package-select]')?.selectedOptions?.[0];
+
+        return group.dataset.materialPackageFamily
+            || selected?.dataset.packageFamily
+            || '';
+    }
+
+    function materialPackageOptionMatchesFamily(group, option) {
+        if (isMaterialPackageNewOption(option)) return true;
+
+        const groupFamily = materialPackageFamilyOf(group);
+        const optionFamily = option?.dataset.packageFamily || '';
+
+        return ! groupFamily || ! optionFamily || groupFamily === optionFamily;
     }
 
     function materialPackageOptionsOf(ledger) {
@@ -2105,6 +2125,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeMaterialPackageDropdowns() {
         document.querySelectorAll('.custom-options-container.open').forEach(list => list.classList.remove('open'));
         document.querySelectorAll('.custom-input.focus-active').forEach(trigger => trigger.classList.remove('focus-active'));
+        document.querySelectorAll('.material-package-group.is-dropdown-open').forEach(group => group.classList.remove('is-dropdown-open'));
     }
 
     /**
@@ -2145,6 +2166,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 closeMaterialPackageDropdowns();
                 list.classList.toggle('open', shouldOpen);
                 trigger.classList.toggle('focus-active', shouldOpen);
+                group.classList.toggle('is-dropdown-open', shouldOpen);
             });
 
             trigger.addEventListener('keydown', event => {
@@ -2176,6 +2198,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         list.textContent = '';
         Array.from(select.options).forEach(option => {
+            const matchesFamily = materialPackageOptionMatchesFamily(group, option);
+            option.hidden = ! matchesFamily;
+            if (! matchesFamily) return;
+
             const item = document.createElement('div');
             item.className = 'custom-option';
             item.textContent = option.text;
@@ -2313,12 +2339,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const entry = option ? materialPackageOptionEntry(option) : null;
         const code = entry?.code || group.dataset.materialPackageCode || '';
+        const family = entry?.family || group.dataset.materialPackageFamily || '';
         const label = entry?.label || group.dataset.materialPackageType || '';
         const factor = entry ? entry.factor : Number(group.dataset.materialTonnageFactor || 0) || 0;
 
         if (!code && !label) return;
 
         group.dataset.materialPackageValue = entry?.value || code;
+        group.dataset.materialPackageFamily = family;
         group.dataset.materialPackageCode = code;
         group.dataset.materialPackageType = label;
         group.dataset.materialTonnageFactor = String(factor);
@@ -2454,24 +2482,26 @@ document.addEventListener('DOMContentLoaded', function () {
             : `${materialPackageNumberText(1 / factor)} Bag = 1 Ton`;
     }
 
-    /** Daftarkan kemasan baru ke seluruh dropdown supaya kelompok lain juga bisa memakainya. */
-    function registerCustomMaterialPackage(label, factor) {
+    /** Daftarkan kemasan baru ke keluarga dropdown tempat petugas membuatnya. */
+    function registerCustomMaterialPackage(label, factor, family = '') {
         const value = `${MATERIAL_PACKAGE_CUSTOM_CODE}:${++materialPackageCustomSequence}`;
         const hint = materialPackageHintText(factor);
+        const packageFamily = family || (factor >= 1 ? 'jumbo' : 'bag');
 
         document.querySelectorAll('[data-material-package-select]').forEach(select => {
             const option = document.createElement('option');
             option.value = value;
             option.textContent = `Kemasan ${label}`;
             option.dataset.packageCode = MATERIAL_PACKAGE_CUSTOM_CODE;
+            option.dataset.packageFamily = packageFamily;
             option.dataset.packageLabel = label;
             option.dataset.packageFactor = String(factor);
             option.dataset.packageHint = hint;
             select.insertBefore(option, select.querySelector('[data-material-package-new]'));
         });
 
-        // Seluruh kelompok — termasuk pada kegiatan lain — ikut menampilkan
-        // kemasan yang baru didaftarkan.
+        // Seluruh kegiatan menerima opsi barunya, tetapi render dropdown hanya
+        // menampilkannya pada keluarga Jumbo atau Bag yang sesuai.
         document.querySelectorAll('[data-material-package-group]').forEach(group => {
             renderMaterialPackageDropdown(group);
         });
@@ -2643,7 +2673,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        applyMaterialPackageValue(group, registerCustomMaterialPackage(label, factor));
+        applyMaterialPackageValue(group, registerCustomMaterialPackage(label, factor, materialPackageFamilyOf(group)));
         closeMaterialPackageModal({ restore: false });
     }
 

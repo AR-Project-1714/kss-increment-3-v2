@@ -43,7 +43,7 @@ Kemasan yang belum pernah tercatat tidak boleh menahan laporan sampai rilis beri
 - **Nama Kemasan** — bebas, maksimal 100 karakter.
 - **Perbandingan Bag dan Ton** — dua isian, misalnya `25 Bag = 1 Ton` atau `1 Bag = 1,5 Ton`. Hasil konversinya ditampilkan langsung sebelum disimpan.
 
-Kemasan itu tersimpan pada barisnya dengan kode `custom`, nama sesuai isian, dan faktor hasil perbandingan. Ia langsung tersedia pada seluruh kelompok di laporan yang sedang diisi, tetapi **tidak menambah katalog tetap** — laporan berikutnya memulai lagi dari daftar yang sama.
+Kemasan itu tersimpan pada barisnya dengan kode `custom`, nama sesuai isian, dan faktor hasil perbandingan. Ia langsung tersedia pada kelompok lain dengan keluarga kemasan yang sama di laporan yang sedang diisi, tetapi **tidak menambah katalog tetap** — laporan berikutnya memulai lagi dari daftar yang sama.
 
 Penjagaannya:
 
@@ -73,8 +73,9 @@ Form bongkar bahan baku terdiri dari **kelompok kemasan** yang jumlahnya mengiku
 
 - Form kosong terbuka dengan dua kelompok bawaan, yaitu **Jumbo Bag 1 Ton** dan **Bag 50 Kg**, dua kemasan yang paling sering dibongkar.
 - Kemasan tiap kelompok dipilih lewat dropdown pada judul kelompok, memakai kontrol dropdown yang sama dengan isian lain pada form ini. Pil konversi di sampingnya ikut berubah mengikuti pilihan.
+- Dropdown dipisahkan berdasarkan keluarga kemasan: kelompok Jumbo hanya menampilkan **Jumbo Bag 1 Ton**, **Jumbo Bag 1,5 Ton**, dan **Tambah Kemasan Baru**; kelompok Bag hanya menampilkan **Bag 50 Kg**, **Bag 25 Kg**, dan **Tambah Kemasan Baru**.
 - Tombol **Tambah Kelompok Kemasan** menambah kelompok baru, dan tombol hapus berikon di kepala kelompok — anatominya sama dengan hapus lokasi pada Inspeksi K3 — menghapus kelompok yang tidak terpakai. Minimal satu kelompok harus tersisa.
-- Kemasan yang sudah dipakai satu kelompok tetap tampil pada kelompok lain tetapi tidak dapat dipilih, supaya satu kegiatan tidak punya dua kelompok berkemasan sama.
+- Kemasan yang sudah dipakai satu kelompok tetap tampil tetapi tidak dapat dipilih pada kelompok lain dalam keluarga yang sama, supaya satu kegiatan tidak punya dua kelompok berkemasan sama.
 - Pilihan terakhir dropdown, **Tambah Kemasan Baru**, membuka pop-up pendaftaran kemasan di luar katalog.
 - Tiap kelompok dapat diciutkan lewat tombol panah atau dengan mengeklik area kosong kepalanya, mengikuti akordeon lokasi pada Inspeksi K3. Seluruh kelompok terbuka saat form dibuka, tiap kelompok berdiri sendiri, dan kelompok yang baru ditambah selalu terbuka.
 - Saat diciutkan, kepala kelompok menampilkan jumlah bahan beserta subtotal **Sekarang** dalam Bag dan Ton, sehingga angkanya tetap dapat dipindai tanpa membuka tabelnya. Ringkasan itu hanya muncul dalam keadaan tertutup karena saat terbuka angkanya sudah ada pada baris Subtotal.
@@ -154,6 +155,7 @@ Contoh subtotal:
 - Header menggunakan warna abu-abu standar laporan, tanpa warna kuning.
 - Baris **JUMLAH** menggunakan latar putih dan teks tebal, tanpa warna kuning.
 - Tabel menggunakan dua tingkat header untuk membedakan periode dan satuan.
+- Kolom nomor urut ditetapkan selebar 4% agar kolom nama bahan baku mendapat ruang lebih besar.
 - Tampilan pratinjau tetap menyesuaikan layar ponsel tanpa menimbulkan scroll horizontal pada dokumen.
 
 ## Kompatibilitas Data Lama
@@ -217,6 +219,7 @@ Perubahan telah diverifikasi melalui:
 - Pengujian bahwa faktor kiriman form diabaikan dan faktor katalog yang dipakai.
 - Pengujian migrasi pengisian data lama beserta tonasenya yang tidak bergeser.
 - Pengujian struktur kolom Bag dan Ton beserta subtotal terpisah pada laporan.
+- Pemeriksaan bahwa dropdown Jumbo dan Bag hanya menampilkan pilihan dari keluarganya masing-masing, sementara **Tambah Kemasan Baru** tetap tersedia.
 - Pemeriksaan langsung pada aplikasi: pergantian kemasan, penambahan dan penghapusan kelompok, penonaktifan kemasan ganda, penggandaan kegiatan, serta pemulihan draf lama maupun draf berkemasan tidak baku.
 - Build aset produksi.
 - Pemeriksaan visual pada tampilan desktop dan layar 320 piksel.

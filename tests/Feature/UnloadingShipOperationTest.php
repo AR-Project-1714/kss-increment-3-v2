@@ -295,6 +295,10 @@ class UnloadingShipOperationTest extends TestCase
             'name="ship_operation_container_status_1"',
             'data-material-package-code="jumbo_1000"',
             'data-material-package-code="bag_50"',
+            'data-material-package-family="jumbo"',
+            'data-material-package-family="bag"',
+            'data-package-family="jumbo"',
+            'data-package-family="bag"',
             'name="unloading_materials_1[0][packaging_code]"',
             'name="unloading_materials_1[1][packaging_code]"',
             'name="unloading_materials_1[0][packaging_type]"',
@@ -488,7 +492,9 @@ class UnloadingShipOperationTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('material-report-grid', $html);
-        $this->assertStringContainsString('colspan="2" rowspan="2" style="width:25%">JENIS', $html);
+        $this->assertStringContainsString('colspan="2" rowspan="2">JENIS', $html);
+        $this->assertStringContainsString('material-report-col--number" style="width:4%"', $html);
+        $this->assertStringContainsString('material-report-col--name" style="width:27%"', $html);
         $this->assertStringContainsString('<th colspan="2">SEKARANG</th>', $html);
         $this->assertStringContainsString('<th>BAG</th><th>TON</th>', $html);
         $this->assertStringContainsString('Jumbo Bag 1 Ton', $html);

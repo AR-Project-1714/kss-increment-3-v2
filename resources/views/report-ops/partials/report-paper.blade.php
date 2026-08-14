@@ -479,10 +479,18 @@
                             </tr>
                         </table>
                         <table class="grid compact material-report-grid">
+                            <colgroup>
+                                <col class="material-report-col material-report-col--number" style="width:4%">
+                                <col class="material-report-col material-report-col--name" style="width:27%">
+                                <col class="material-report-col material-report-col--package" style="width:15%">
+                                @for ($column = 0; $column < 6; $column++)
+                                    <col class="material-report-col material-report-col--quantity" style="width:9%">
+                                @endfor
+                            </colgroup>
                             <thead>
                                 <tr>
-                                    <th colspan="2" rowspan="2" style="width:25%">JENIS</th>
-                                    <th rowspan="2" style="width:15%">KEMASAN</th>
+                                    <th colspan="2" rowspan="2">JENIS</th>
+                                    <th rowspan="2">KEMASAN</th>
                                     <th colspan="2">SEKARANG</th>
                                     <th colspan="2">LALU</th>
                                     <th colspan="2">AKUMULASI</th>
@@ -509,7 +517,7 @@
                                     @endphp
                                     @foreach ($packageItems as $item)
                                         <tr>
-                                            <td class="c" style="width:4%">{{ $loop->iteration }}</td>
+                                            <td class="c">{{ $loop->iteration }}</td>
                                             <td>{{ $item->raw_material_type }}</td>
                                             <td class="c">{{ $packageName }}</td>
                                             @foreach ([$item->qty_current, $item->qty_prev, $item->qty_total] as $quantity)

@@ -74,11 +74,12 @@
                     @php
                         $materialPackageOptions = \App\Support\MaterialPackaging::active();
                         $materialPackageDefaults = \App\Support\MaterialPackaging::defaults();
+                        $materialPackageFamily = static fn (string $code): string => str_starts_with($code, 'jumbo_') ? 'jumbo' : 'bag';
                     @endphp
 
                     <div class="material-package-ledger w-100" data-material-package-ledger data-material-package-defaults="{{ collect($materialPackageDefaults)->pluck('code')->implode(',') }}">
                         @foreach ($materialPackageDefaults as $index => $package)
-                            <section class="material-package-group" data-material-package-group data-material-package-code="{{ $package['code'] }}" data-material-package-type="{{ $package['label'] }}" data-material-tonnage-factor="{{ $package['tonPerBag'] }}" aria-label="Kelompok kemasan bahan baku">
+                            <section class="material-package-group" data-material-package-group data-material-package-family="{{ $materialPackageFamily($package['code']) }}" data-material-package-code="{{ $package['code'] }}" data-material-package-type="{{ $package['label'] }}" data-material-tonnage-factor="{{ $package['tonPerBag'] }}" aria-label="Kelompok kemasan bahan baku">
                                 {{-- Kepala kelompok merangkap pemicu buka/tutup, mengikuti pola
                                      akordeon lokasi pada Inspeksi K3. Kontrol di dalamnya
                                      (pemilih kemasan, tombol hapus) ditandai data-noprop agar
@@ -98,6 +99,7 @@
                                                 <select class="custom-input material-package-native-select" data-material-package-select aria-label="Jenis kemasan">
                                                     @foreach ($materialPackageOptions as $option)
                                                         <option value="{{ $option['code'] }}"
+                                                            data-package-family="{{ $materialPackageFamily($option['code']) }}"
                                                             data-package-label="{{ $option['label'] }}"
                                                             data-package-factor="{{ $option['tonPerBag'] }}"
                                                             data-package-hint="{{ $option['hint'] }}"

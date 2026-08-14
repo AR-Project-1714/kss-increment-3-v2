@@ -1929,6 +1929,9 @@
             border-radius: 12px;
             background: var(--white);
         }
+        /* Dropdown header dapat melampaui batas kartu. Buka clipping hanya
+           saat daftar pilihan aktif agar opsi tidak tertutup oleh kartu. */
+        .material-package-group.is-dropdown-open { overflow: visible; }
         .material-package-group__header {
             display: flex;
             align-items: center;
