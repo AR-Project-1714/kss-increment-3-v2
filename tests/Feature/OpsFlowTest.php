@@ -1192,6 +1192,58 @@ class OpsFlowTest extends TestCase
         $this->assertStringContainsString('Teus', $html);
     }
 
+    public function test_relief_and_overtime_details_are_persisted_and_absence_clears_relief_work_time(): void
+    {
+        $role = Role::firstOrCreate(['name' => Role::OPERATIONAL]);
+        $user = User::create([
+            'name' => 'Petugas Relief Lembur',
+            'username' => 'petugas-relief-lembur',
+            'email' => 'petugas-relief-lembur@example.com',
+            'password' => 'password',
+            'role_id' => $role->id,
+            'status' => 'aktif',
+            'group' => 'A',
+        ]);
+
+        $this->actingAs($user)->post(route('report-ops.store'), [
+            'status' => 'submitted',
+            'report_date' => '2026-08-14',
+            'shift' => 'Pagi',
+            'group_name' => 'A',
+            'received_by_group' => 'B',
+            'time_range' => '07.00 - 15.00',
+            'overtime_logs' => [[
+                'name' => 'Karyawan Lembur',
+                'work_task' => 'Membantu pemuatan',
+                'work_time' => '15:00 - 19:00',
+            ]],
+            'relief_logs' => [[
+                'name' => 'Karyawan Relief',
+                'work_time' => '07:00 - 15:00',
+                'attendance_status' => 'Sakit',
+            ]],
+        ])->assertRedirect(route('report-ops.index'));
+
+        $report = DailyReport::where('created_by', $user->id)->latest('id')->firstOrFail();
+        $overtime = $report->employeeLogs()->where('description', 'Lembur')->firstOrFail();
+        $relief = $report->employeeLogs()->where('description', 'Relief')->firstOrFail();
+
+        $this->assertSame('Membantu pemuatan', $overtime->work_task);
+        $this->assertSame('15:00 - 19:00', $overtime->work_time);
+        $this->assertSame('Sakit', $relief->attendance_status);
+        $this->assertNull($relief->work_time);
+        $this->assertNull($relief->time_in);
+        $this->assertNull($relief->time_out);
+
+        $html = view('report-ops.partials.report-paper', [
+            'report' => $report->load('employeeLogs'),
+            'isPdf' => false,
+        ])->render();
+
+        $this->assertStringContainsString('Membantu pemuatan', $html);
+        $this->assertStringContainsString('Sakit', $html);
+    }
+
     public function test_stale_ship_operation_suggestions_are_pruned_after_three_days_for_bag_and_bulk_loading(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-05-19 08:00:00'));

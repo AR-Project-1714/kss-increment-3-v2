@@ -1904,6 +1904,13 @@
         .btn-trash-row { background: none; border: none; color: var(--red-main); cursor: pointer; font-size: 14px; transition: .2s; padding: 5px; border-radius: 4px; }
         .btn-trash-row:hover { background-color: var(--red-main-10); }
 
+        .btn-trash-row:focus-visible { outline: 2px solid var(--blue-main); outline-offset: 2px; }
+        .employee-log-row input.is-absence-cleared {
+            color: var(--muted);
+            background-color: var(--blue-bg);
+            cursor: not-allowed;
+        }
+
         .btn-tambah-baris {
             display: flex; padding: 12px; justify-content: center; align-items: center; gap: 8px; align-self: stretch;
             border-radius: 8px; background-color: transparent; color: var(--dark-main); font-size: 12px; font-weight: 600;

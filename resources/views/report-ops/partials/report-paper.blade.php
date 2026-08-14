@@ -830,13 +830,18 @@
                         <td class="pair-left">
                             <table class="grid compact roomy">
                                 <thead>
-                                    <tr><th style="width:10%">NO</th><th>LEMBUR</th><th style="width:28%">JAM KERJA</th></tr>
+                                    <tr><th style="width:10%">NO</th><th>NAMA / TUGAS</th><th style="width:28%">JAM KERJA</th></tr>
                                 </thead>
                                 <tbody>
                                     @forelse ($overtimeEmps as $employee)
                                         <tr>
                                             <td class="c">{{ $loop->iteration }}</td>
-                                            <td>{{ $employee->name }}</td>
+                                            <td>
+                                                {{ $employee->name }}
+                                                @if (filled($employee->work_task))
+                                                    <div class="small muted">{{ $employee->work_task }}</div>
+                                                @endif
+                                            </td>
                                             <td class="c">{!! $cell($employee->work_time) !!}</td>
                                         </tr>
                                     @empty
@@ -848,7 +853,7 @@
                         <td class="pair-right">
                             <table class="grid compact roomy">
                                 <thead>
-                                    <tr><th style="width:10%">NO</th><th>RELIEF SIANG/MALAM</th><th style="width:28%">JAM KERJA</th></tr>
+                                    <tr><th style="width:8%">NO</th><th>RELIEF SIANG/MALAM</th><th style="width:22%">JAM</th><th style="width:20%">KET</th></tr>
                                 </thead>
                                 <tbody>
                                     @forelse ($reliefEmps as $employee)
@@ -856,9 +861,10 @@
                                             <td class="c">{{ $loop->iteration }}</td>
                                             <td>{{ $employee->name }}</td>
                                             <td class="c">{!! $cell($employee->work_time) !!}</td>
+                                            <td class="c">{!! $cell($employee->attendance_status) !!}</td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="3" class="empty-note">Tidak ada karyawan relief.</td></tr>
+                                        <tr><td colspan="4" class="empty-note">Tidak ada karyawan relief.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>

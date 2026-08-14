@@ -84,33 +84,40 @@
                 </div>
             </div>
 
-            {{-- Saran cepat keterangan absensi (Karyawan Shift & OP.7); tetap bisa diketik manual apa saja. --}}
+            {{-- Saran cepat keterangan absensi untuk Karyawan Shift, Relief, dan OP.7. --}}
             <datalist id="keterangan_absen_options">
                 <option value="Sakit"></option>
+                <option value="Izin"></option>
                 <option value="Cuti"></option>
                 <option value="Tidak Masuk"></option>
             </datalist>
 
             <!-- 2. SECTION RELIEF & LEMBUR -->
-            <div id="section-lembur" class="tab-content-karyawan d-none flex-column align-items-center align-self-stretch w-100 gap-10">
+            <div id="section-lembur" class="tab-content-karyawan d-none flex-column align-items-center align-self-stretch w-100 gap-20">
+                <!-- Tabel Karyawan Lembur -->
                 <div class="table-wrapper w-100 material">
                     <div class="table-input material w-100">
                         <div class="head">
                             <div class="table-column no"><span>No</span></div>
                             <div class="table-column main"><span>Nama Karyawan Lembur</span></div>
+                            <div class="table-column main"><span>Tugas/Pekerjaan</span></div>
                             <div class="table-column medium"><span>Jam Kerja</span></div>
-                            <div class="table-column no"><span>No</span></div>
-                            <div class="table-column main"><span>Nama Karyawan Relief</span></div>
-                            <div class="table-column medium"><span>Jam Kerja</span></div>
+                            <div class="table-column delete"><span>Hapus</span></div>
                         </div>
 
                         @for ($i = 0; $i < 5; $i++)
-                            <div class="body">
+                            <div class="body employee-log-row">
                                 <div class="table-column no"><span>{{ $i + 1 }}</span></div>
                                 <div class="table-column main">
                                     <div class="table-input-wrapper">
                                         <span class="icon"><i class="fi fi-sr-user-hard-work"></i></span>
                                         <input type="text" name="overtime_logs[{{ $i }}][name]" placeholder="Nama Karyawan Lembur"@if($i === 0) value="Nurul Huda"@endif>
+                                    </div>
+                                </div>
+                                <div class="table-column main">
+                                    <div class="table-input-wrapper">
+                                        <span class="icon"><i class="fi fi-rr-briefcase"></i></span>
+                                        <input type="text" name="overtime_logs[{{ $i }}][work_task]" placeholder="Tugas/Pekerjaan">
                                     </div>
                                 </div>
                                 <div class="table-column medium">
@@ -119,6 +126,31 @@
                                         <input type="text" name="overtime_logs[{{ $i }}][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
                                     </div>
                                 </div>
+                                <div class="table-column delete">
+                                    <button type="button" class="btn-trash-row" aria-label="Hapus karyawan lembur baris {{ $i + 1 }}" title="Hapus baris"><i class="fi fi-rr-trash"></i></button>
+                                </div>
+                            </div>
+                        @endfor
+
+                        <button type="button" class="btn-tambah-baris">
+                            <i class="fi fi-rr-plus-small"></i> Tambah Karyawan Lembur
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabel Karyawan Relief -->
+                <div class="table-wrapper w-100 material">
+                    <div class="table-input material w-100">
+                        <div class="head">
+                            <div class="table-column no"><span>No</span></div>
+                            <div class="table-column main"><span>Nama Karyawan Relief</span></div>
+                            <div class="table-column medium"><span>Jam Kerja</span></div>
+                            <div class="table-column absent"><span>Keterangan</span></div>
+                            <div class="table-column delete"><span>Hapus</span></div>
+                        </div>
+
+                        @for ($i = 0; $i < 5; $i++)
+                            <div class="body employee-log-row">
                                 <div class="table-column no"><span>{{ $i + 1 }}</span></div>
                                 <div class="table-column main">
                                     <div class="table-input-wrapper">
@@ -132,11 +164,19 @@
                                         <input type="text" name="relief_logs[{{ $i }}][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
                                     </div>
                                 </div>
+                                <div class="table-column absent" style="overflow: visible;">
+                                    <div class="table-input-wrapper">
+                                        <input type="text" name="relief_logs[{{ $i }}][attendance_status]" list="keterangan_absen_options" placeholder="Keterangan" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="table-column delete">
+                                    <button type="button" class="btn-trash-row" aria-label="Hapus karyawan relief baris {{ $i + 1 }}" title="Hapus baris"><i class="fi fi-rr-trash"></i></button>
+                                </div>
                             </div>
                         @endfor
 
                         <button type="button" class="btn-tambah-baris">
-                            <i class="fi fi-rr-plus-small"></i> Tambah Baris
+                            <i class="fi fi-rr-plus-small"></i> Tambah Karyawan Relief
                         </button>
                     </div>
                 </div>

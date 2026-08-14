@@ -1341,7 +1341,13 @@ class ReportOpsController extends Controller
             'shelter_logs' => ['nullable', 'array'],
             'employee_shift_logs' => ['nullable', 'array'],
             'relief_logs' => ['nullable', 'array'],
+            'relief_logs.*.name' => ['nullable', 'string', 'max:255'],
+            'relief_logs.*.work_time' => ['nullable', 'string', 'max:50'],
+            'relief_logs.*.attendance_status' => ['nullable', 'string', Rule::in(['Sakit', 'Izin', 'Cuti', 'Tidak Masuk'])],
             'overtime_logs' => ['nullable', 'array'],
+            'overtime_logs.*.name' => ['nullable', 'string', 'max:255'],
+            'overtime_logs.*.work_task' => ['nullable', 'string', 'max:255'],
+            'overtime_logs.*.work_time' => ['nullable', 'string', 'max:50'],
             'op7_logs' => ['nullable', 'array'],
             'replacement_logs' => ['nullable', 'array'],
             'other_activity_logs' => ['nullable', 'array'],
@@ -1996,22 +2002,26 @@ class ReportOpsController extends Controller
         }
 
         foreach ($this->rows($request->input('relief_logs', [])) as $log) {
-            if ($this->rowHasAny($log, ['name', 'work_time'])) {
-                [$timeIn, $timeOut] = $this->splitTimeRange($log['work_time'] ?? null);
+            if ($this->rowHasAny($log, ['name', 'work_time', 'attendance_status'])) {
+                $attendanceStatus = $this->string($log['attendance_status'] ?? null);
+                $isAbsent = in_array(mb_strtolower(trim((string) $attendanceStatus)), ['sakit', 'izin', 'cuti', 'tidak masuk'], true);
+                $workTime = $isAbsent ? null : $this->string($log['work_time'] ?? null);
+                [$timeIn, $timeOut] = $this->splitTimeRange($workTime);
 
                 $report->employeeLogs()->create([
                     'category' => 'operasi',
                     'name' => $this->string($log['name'] ?? null),
                     'time_in' => $timeIn,
                     'time_out' => $timeOut,
-                    'work_time' => $this->string($log['work_time'] ?? null),
+                    'work_time' => $workTime,
+                    'attendance_status' => $attendanceStatus,
                     'description' => 'Relief',
                 ]);
             }
         }
 
         foreach ($this->rows($request->input('overtime_logs', [])) as $log) {
-            if ($this->rowHasAny($log, ['name', 'work_time'])) {
+            if ($this->rowHasAny($log, ['name', 'work_task', 'work_time'])) {
                 [$timeIn, $timeOut] = $this->splitTimeRange($log['work_time'] ?? null);
 
                 $report->employeeLogs()->create([
@@ -2020,6 +2030,7 @@ class ReportOpsController extends Controller
                     'time_in' => $timeIn,
                     'time_out' => $timeOut,
                     'work_time' => $this->string($log['work_time'] ?? null),
+                    'work_task' => $this->string($log['work_task'] ?? null),
                     'description' => 'Lembur',
                 ]);
             }

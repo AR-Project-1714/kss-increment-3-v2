@@ -3453,7 +3453,27 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isAbsentDescription(value) {
-        return ['sakit', 'cuti', 'tidak masuk'].includes(String(value || '').toLowerCase());
+        return ['sakit', 'izin', 'cuti', 'tidak masuk', 'tdk masuk'].includes(String(value || '').trim().toLowerCase());
+    }
+
+    function applyReliefAttendanceState(row) {
+        if (!row?.querySelector('input[name^="relief_logs"]')) return false;
+
+        const status = row.querySelector('input[name$="[attendance_status]"]')?.value;
+        const isAbsent = isAbsentDescription(status);
+        const taskInput = row.querySelector('input[name$="[work_task]"]');
+        const workTimeInput = row.querySelector('input[name$="[work_time]"]');
+
+        [taskInput, workTimeInput].forEach(input => {
+            if (!input) return;
+
+            if (isAbsent) input.value = '';
+            input.readOnly = isAbsent;
+            input.classList.toggle('is-absence-cleared', isAbsent);
+            input.setAttribute('aria-disabled', isAbsent ? 'true' : 'false');
+        });
+
+        return isAbsent;
     }
 
     const OP7_FORKLIFT_DEFAULTS = [
@@ -3693,16 +3713,16 @@ document.addEventListener('DOMContentLoaded', function () {
         reindexTable(repTable);
     }
 
-    function employeeShiftRowHtml(employee, index, locked = false) {
+    function employeeShiftRowHtml(employee, index) {
         const { timeIn, timeOut } = currentWorkTimes();
 
         return `
-            <div class="body"${locked ? ' data-locked-role="true"' : ''}>
+            <div class="body">
                 <div class="table-column no"><span>${index + 1}</span></div>
                 <div class="table-column main">
                     <div class="table-input-wrapper">
                         <span class="icon"><i class="fi fi-sr-user-time"></i></span>
-                        <input type="text" name="employee_shift_logs[${index}][name]" value="${escapeHtml(employee.name)}" placeholder="Nama Karyawan"${locked ? ' readonly title="Kepala Regu / Wakil Kepala Regu terkunci"' : ''}>
+                        <input type="text" name="employee_shift_logs[${index}][name]" value="${escapeHtml(employee.name)}" placeholder="Nama Karyawan">
                     </div>
                 </div>
                 <div class="table-column absent">
@@ -3723,7 +3743,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
                 <div class="table-column delete">
-                    ${locked ? '<span class="icon text-muted" title="Baris terkunci"><i class="fi fi-rr-lock"></i></span>' : '<button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button>'}
+                    <button type="button" class="btn-trash-row"><i class="fi fi-rr-trash"></i></button>
                 </div>
             </div>
         `;
@@ -3792,7 +3812,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!employeeTable || employees.length === 0) return;
 
-        // Baris 1 & 2 dikunci tetap: Kepala Regu (KARU) lalu Wakil Kepala Regu.
+        // Kepala Regu (KARU) dan Wakil Kepala Regu tetap ditampilkan lebih dahulu.
         const isWakaru = employee => /wakil/i.test(employee.position || '');
         const isKaru = employee => !isWakaru(employee) && /karu|kepala regu/i.test(employee.position || '');
         const karu = employees.find(isKaru);
@@ -3802,7 +3822,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const ordered = [...leaders, ...rest];
 
         insertRows(employeeTable, ordered.map((employee, index) =>
-            employeeShiftRowHtml(employee, index, leaders.includes(employee))));
+            employeeShiftRowHtml(employee, index)));
         applyMasterDatalists(employeeTable);
         hydrateTableSelects(employeeTable);
         applyShiftTimesToEmployeeRows();
@@ -4162,6 +4182,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (tableInput.closest('#section-shift')) {
             applyShiftTimesToRow(clone);
+        }
+
+        if (tableInput.closest('#section-lembur')) {
+            applyReliefAttendanceState(clone);
         }
 
         if (tableInput.closest('#section-op7') && !tableInput.closest('.red')) {
@@ -5195,6 +5219,10 @@ document.addEventListener('DOMContentLoaded', function () {
             applyShiftTimesToRow(event.target.closest('.body'));
         }
 
+        if (event.target.matches('input[name^="relief_logs"][name$="[attendance_status]"]')) {
+            applyReliefAttendanceState(event.target.closest('.body'));
+        }
+
         if (event.target.matches('[name^="op7_logs"][name$="[description]"]')) {
             syncOp7Replacements();
         }
@@ -5281,6 +5309,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // (mengosongkan Masuk/Pulang) saat diketik, sama seperti OP.7.
         if (event.target.matches('input[name^="employee_shift_logs"][name$="[description]"]')) {
             applyShiftTimesToRow(event.target.closest('.body'));
+        }
+
+        if (event.target.matches('input[name^="relief_logs"][name$="[attendance_status]"]')) {
+            applyReliefAttendanceState(event.target.closest('.body'));
         }
     });
 });
