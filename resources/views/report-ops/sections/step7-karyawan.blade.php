@@ -101,7 +101,8 @@
                             <div class="table-column no"><span>No</span></div>
                             <div class="table-column main"><span>Nama Karyawan Lembur</span></div>
                             <div class="table-column main"><span>Tugas/Pekerjaan</span></div>
-                            <div class="table-column medium"><span>Jam Kerja</span></div>
+                            <div class="table-column absent"><span>Masuk</span></div>
+                            <div class="table-column absent"><span>Pulang</span></div>
                             <div class="table-column delete"><span>Hapus</span></div>
                         </div>
 
@@ -120,10 +121,16 @@
                                         <input type="text" name="overtime_logs[{{ $i }}][work_task]" placeholder="Tugas/Pekerjaan">
                                     </div>
                                 </div>
-                                <div class="table-column medium">
+                                <div class="table-column absent">
                                     <div class="table-input-wrapper">
-                                        <span class="icon"><i class="fi fi-rr-clock"></i></span>
-                                        <input type="text" name="overtime_logs[{{ $i }}][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
+                                        <span class="icon"><i class="fi fi-rr-time-quarter-past blue"></i></span>
+                                        <input type="text" name="overtime_logs[{{ $i }}][time_in]" class="time-picker-input" placeholder="00:00">
+                                    </div>
+                                </div>
+                                <div class="table-column absent">
+                                    <div class="table-input-wrapper">
+                                        <span class="icon"><i class="fi fi-rr-time-check red"></i></span>
+                                        <input type="text" name="overtime_logs[{{ $i }}][time_out]" class="time-picker-input" placeholder="00:00">
                                     </div>
                                 </div>
                                 <div class="table-column delete">
@@ -144,7 +151,8 @@
                         <div class="head">
                             <div class="table-column no"><span>No</span></div>
                             <div class="table-column main"><span>Nama Karyawan Relief</span></div>
-                            <div class="table-column medium"><span>Jam Kerja</span></div>
+                            <div class="table-column absent"><span>Masuk</span></div>
+                            <div class="table-column absent"><span>Pulang</span></div>
                             <div class="table-column absent"><span>Keterangan</span></div>
                             <div class="table-column delete"><span>Hapus</span></div>
                         </div>
@@ -158,10 +166,16 @@
                                         <input type="text" name="relief_logs[{{ $i }}][name]" placeholder="Nama Karyawan Relief"@if($i === 0) value="Sabarudin"@endif>
                                     </div>
                                 </div>
-                                <div class="table-column medium">
+                                <div class="table-column absent">
                                     <div class="table-input-wrapper">
-                                        <span class="icon"><i class="fi fi-rr-clock"></i></span>
-                                        <input type="text" name="relief_logs[{{ $i }}][work_time]" class="time-range-input" placeholder="23:00 - 04:00" autocomplete="off" inputmode="numeric" maxlength="13">
+                                        <span class="icon"><i class="fi fi-rr-time-quarter-past blue"></i></span>
+                                        <input type="text" name="relief_logs[{{ $i }}][time_in]" class="time-picker-input" placeholder="00:00">
+                                    </div>
+                                </div>
+                                <div class="table-column absent">
+                                    <div class="table-input-wrapper">
+                                        <span class="icon"><i class="fi fi-rr-time-check red"></i></span>
+                                        <input type="text" name="relief_logs[{{ $i }}][time_out]" class="time-picker-input" placeholder="00:00">
                                     </div>
                                 </div>
                                 <div class="table-column absent" style="overflow: visible;">

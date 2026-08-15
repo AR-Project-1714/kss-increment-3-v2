@@ -1342,11 +1342,15 @@ class ReportOpsController extends Controller
             'employee_shift_logs' => ['nullable', 'array'],
             'relief_logs' => ['nullable', 'array'],
             'relief_logs.*.name' => ['nullable', 'string', 'max:255'],
+            'relief_logs.*.time_in' => ['nullable', 'date_format:H:i'],
+            'relief_logs.*.time_out' => ['nullable', 'date_format:H:i'],
             'relief_logs.*.work_time' => ['nullable', 'string', 'max:50'],
             'relief_logs.*.attendance_status' => ['nullable', 'string', Rule::in(['Sakit', 'Izin', 'Cuti', 'Tidak Masuk'])],
             'overtime_logs' => ['nullable', 'array'],
             'overtime_logs.*.name' => ['nullable', 'string', 'max:255'],
             'overtime_logs.*.work_task' => ['nullable', 'string', 'max:255'],
+            'overtime_logs.*.time_in' => ['nullable', 'date_format:H:i'],
+            'overtime_logs.*.time_out' => ['nullable', 'date_format:H:i'],
             'overtime_logs.*.work_time' => ['nullable', 'string', 'max:50'],
             'op7_logs' => ['nullable', 'array'],
             'replacement_logs' => ['nullable', 'array'],
@@ -2002,11 +2006,13 @@ class ReportOpsController extends Controller
         }
 
         foreach ($this->rows($request->input('relief_logs', [])) as $log) {
-            if ($this->rowHasAny($log, ['name', 'work_time', 'attendance_status'])) {
+            if ($this->rowHasAny($log, ['name', 'time_in', 'time_out', 'work_time', 'attendance_status'])) {
                 $attendanceStatus = $this->string($log['attendance_status'] ?? null);
                 $isAbsent = in_array(mb_strtolower(trim((string) $attendanceStatus)), ['sakit', 'izin', 'cuti', 'tidak masuk'], true);
-                $workTime = $isAbsent ? null : $this->string($log['work_time'] ?? null);
-                [$timeIn, $timeOut] = $this->splitTimeRange($workTime);
+                [$legacyTimeIn, $legacyTimeOut] = $this->splitTimeRange($log['work_time'] ?? null);
+                $timeIn = $isAbsent ? null : ($this->time($log['time_in'] ?? null) ?: $legacyTimeIn);
+                $timeOut = $isAbsent ? null : ($this->time($log['time_out'] ?? null) ?: $legacyTimeOut);
+                $workTime = $isAbsent ? null : $this->joinedTimeRange($timeIn, $timeOut);
 
                 $report->employeeLogs()->create([
                     'category' => 'operasi',
@@ -2021,15 +2027,17 @@ class ReportOpsController extends Controller
         }
 
         foreach ($this->rows($request->input('overtime_logs', [])) as $log) {
-            if ($this->rowHasAny($log, ['name', 'work_task', 'work_time'])) {
-                [$timeIn, $timeOut] = $this->splitTimeRange($log['work_time'] ?? null);
+            if ($this->rowHasAny($log, ['name', 'work_task', 'time_in', 'time_out', 'work_time'])) {
+                [$legacyTimeIn, $legacyTimeOut] = $this->splitTimeRange($log['work_time'] ?? null);
+                $timeIn = $this->time($log['time_in'] ?? null) ?: $legacyTimeIn;
+                $timeOut = $this->time($log['time_out'] ?? null) ?: $legacyTimeOut;
 
                 $report->employeeLogs()->create([
                     'category' => 'operasi',
                     'name' => $this->string($log['name'] ?? null),
                     'time_in' => $timeIn,
                     'time_out' => $timeOut,
-                    'work_time' => $this->string($log['work_time'] ?? null),
+                    'work_time' => $this->joinedTimeRange($timeIn, $timeOut),
                     'work_task' => $this->string($log['work_task'] ?? null),
                     'description' => 'Lembur',
                 ]);
@@ -3312,6 +3320,15 @@ class ReportOpsController extends Controller
             $this->time($parts[0] ?? null),
             $this->time($parts[1] ?? null),
         ];
+    }
+
+    private function joinedTimeRange(?string $timeIn, ?string $timeOut): ?string
+    {
+        if ($timeIn === null && $timeOut === null) {
+            return null;
+        }
+
+        return trim(($timeIn ?? '').' - '.($timeOut ?? ''), ' -');
     }
 
     private function dateTime(mixed $value, ?string $reportDate = null): ?string

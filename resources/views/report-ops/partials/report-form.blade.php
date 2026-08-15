@@ -3461,10 +3461,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const status = row.querySelector('input[name$="[attendance_status]"]')?.value;
         const isAbsent = isAbsentDescription(status);
-        const taskInput = row.querySelector('input[name$="[work_task]"]');
+        const timeInInput = row.querySelector('input[name$="[time_in]"]');
+        const timeOutInput = row.querySelector('input[name$="[time_out]"]');
         const workTimeInput = row.querySelector('input[name$="[work_time]"]');
 
-        [taskInput, workTimeInput].forEach(input => {
+        [timeInInput, timeOutInput, workTimeInput].forEach(input => {
             if (!input) return;
 
             if (isAbsent) input.value = '';

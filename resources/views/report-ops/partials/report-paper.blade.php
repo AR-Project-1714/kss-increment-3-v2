@@ -251,16 +251,6 @@
     .report-paper .dash { color: #9ca3af; }
     /* Item shelter menjorok agar terbaca sebagai anak dari baris kategori. */
     .report-paper .roomy td.sub-item { padding-left: 10px; }
-    /* Header "KARYAWAN OPERASI" menyatu dengan dua tabel di bawahnya. */
-    .report-paper .ops-split { margin-top: -1px; }
-    /* Judul kolom dijaga satu baris agar tinggi header Lembur dan Relief sama. */
-    .report-paper .ops-split thead th { white-space: nowrap; }
-    /* Relief butuh porsi lebih lebar: judulnya lebih panjang dari "LEMBUR". */
-    .report-paper .ops-split .pair-left { width: 45%; padding: 0; }
-    .report-paper .ops-split .pair-right { width: 55%; padding: 0; }
-    /* Tabel Lembur dan Relief menempel jadi satu garis, tidak dobel. */
-    .report-paper .ops-split table.grid { margin-left: -1px; }
-    .report-paper .ops-split .pair-left table.grid { margin-left: 0; }
     .report-paper .mini-title { text-align: center; font-weight: bold; background: #eceff1; text-transform: uppercase; }
     .report-paper .category-row td { text-align: center; font-weight: bold; background: #eef0f2; }
     .report-paper .sign { margin-top: 8px; page-break-inside: avoid; }
@@ -798,81 +788,64 @@
     </table>
 
     <div class="sec">VII. Karyawan</div>
-    <table class="pair">
-        <tr>
-            <td class="pair-left">
-                <table class="grid compact roomy">
-                    <thead>
-                        <tr><th colspan="5">KARYAWAN SHIFT YANG BERTUGAS</th></tr>
-                        <tr><th style="width:7%">NO</th><th>NAMA</th><th style="width:14%">MASUK</th><th style="width:14%">PULANG</th><th style="width:20%">KET</th></tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($shiftEmps as $employee)
-                            <tr>
-                                <td class="c">{{ $loop->iteration }}</td>
-                                <td>{{ $employee->name }}</td>
-                                <td class="c">{{ $fmtTime($employee->time_in) }}</td>
-                                <td class="c">{{ $fmtTime($employee->time_out) }}</td>
-                                <td class="c">{{ $employee->description }}</td>
-                            </tr>
-                        @empty
-                            <tr><td colspan="5" class="empty-note">Tidak ada karyawan shift yang bertugas.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </td>
-            <td class="pair-right">
-                <table class="grid compact roomy">
-                    <thead><tr><th>KARYAWAN OPERASI</th></tr></thead>
-                </table>
-                <table class="pair ops-split">
-                    <tr>
-                        <td class="pair-left">
-                            <table class="grid compact roomy">
-                                <thead>
-                                    <tr><th style="width:10%">NO</th><th>NAMA / TUGAS</th><th style="width:28%">JAM KERJA</th></tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($overtimeEmps as $employee)
-                                        <tr>
-                                            <td class="c">{{ $loop->iteration }}</td>
-                                            <td>
-                                                {{ $employee->name }}
-                                                @if (filled($employee->work_task))
-                                                    <div class="small muted">{{ $employee->work_task }}</div>
-                                                @endif
-                                            </td>
-                                            <td class="c">{!! $cell($employee->work_time) !!}</td>
-                                        </tr>
-                                    @empty
-                                        <tr><td colspan="3" class="empty-note">Tidak ada karyawan lembur.</td></tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </td>
-                        <td class="pair-right">
-                            <table class="grid compact roomy">
-                                <thead>
-                                    <tr><th style="width:8%">NO</th><th>RELIEF SIANG/MALAM</th><th style="width:22%">JAM</th><th style="width:20%">KET</th></tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($reliefEmps as $employee)
-                                        <tr>
-                                            <td class="c">{{ $loop->iteration }}</td>
-                                            <td>{{ $employee->name }}</td>
-                                            <td class="c">{!! $cell($employee->work_time) !!}</td>
-                                            <td class="c">{!! $cell($employee->attendance_status) !!}</td>
-                                        </tr>
-                                    @empty
-                                        <tr><td colspan="4" class="empty-note">Tidak ada karyawan relief.</td></tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
+    <table class="grid compact roomy avoid-break">
+        <thead>
+            <tr><th colspan="5">KARYAWAN SHIFT YANG BERTUGAS</th></tr>
+            <tr><th style="width:7%">NO</th><th>NAMA</th><th style="width:14%">MASUK</th><th style="width:14%">PULANG</th><th style="width:20%">KET</th></tr>
+        </thead>
+        <tbody>
+            @forelse ($shiftEmps as $employee)
+                <tr>
+                    <td class="c">{{ $loop->iteration }}</td>
+                    <td>{{ $employee->name }}</td>
+                    <td class="c">{{ $fmtTime($employee->time_in) }}</td>
+                    <td class="c">{{ $fmtTime($employee->time_out) }}</td>
+                    <td class="c">{{ $employee->description }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="empty-note">Tidak ada karyawan shift yang bertugas.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <table class="grid compact roomy" style="margin-top:6px">
+        <thead>
+            <tr><th colspan="5">KARYAWAN LEMBUR</th></tr>
+            <tr><th style="width:7%">NO</th><th>NAMA KARYAWAN LEMBUR</th><th>TUGAS/PEKERJAAN</th><th style="width:14%">MASUK</th><th style="width:14%">PULANG</th></tr>
+        </thead>
+        <tbody>
+            @forelse ($overtimeEmps as $employee)
+                <tr>
+                    <td class="c">{{ $loop->iteration }}</td>
+                    <td>{{ $employee->name }}</td>
+                    <td>{!! $cell($employee->work_task) !!}</td>
+                    <td class="c">{{ $fmtTime($employee->time_in) }}</td>
+                    <td class="c">{{ $fmtTime($employee->time_out) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="empty-note">Tidak ada karyawan lembur.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    <table class="grid compact roomy" style="margin-top:6px">
+        <thead>
+            <tr><th colspan="5">KARYAWAN RELIEF</th></tr>
+            <tr><th style="width:7%">NO</th><th>NAMA KARYAWAN RELIEF</th><th style="width:14%">MASUK</th><th style="width:14%">PULANG</th><th style="width:20%">KETERANGAN</th></tr>
+        </thead>
+        <tbody>
+            @forelse ($reliefEmps as $employee)
+                <tr>
+                    <td class="c">{{ $loop->iteration }}</td>
+                    <td>{{ $employee->name }}</td>
+                    <td class="c">{{ $fmtTime($employee->time_in) }}</td>
+                    <td class="c">{{ $fmtTime($employee->time_out) }}</td>
+                    <td class="c">{!! $cell($employee->attendance_status) !!}</td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="empty-note">Tidak ada karyawan relief.</td></tr>
+            @endforelse
+        </tbody>
     </table>
 
     <table class="grid" style="margin-top:6px">

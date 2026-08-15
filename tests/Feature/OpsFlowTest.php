@@ -1192,7 +1192,7 @@ class OpsFlowTest extends TestCase
         $this->assertStringContainsString('Teus', $html);
     }
 
-    public function test_relief_and_overtime_details_are_persisted_and_absence_clears_relief_work_time(): void
+    public function test_relief_and_overtime_details_are_persisted_and_absence_clears_relief_work_times(): void
     {
         $role = Role::firstOrCreate(['name' => Role::OPERATIONAL]);
         $user = User::create([
@@ -1215,25 +1215,40 @@ class OpsFlowTest extends TestCase
             'overtime_logs' => [[
                 'name' => 'Karyawan Lembur',
                 'work_task' => 'Membantu pemuatan',
-                'work_time' => '15:00 - 19:00',
+                'time_in' => '15:00',
+                'time_out' => '19:00',
             ]],
-            'relief_logs' => [[
-                'name' => 'Karyawan Relief',
-                'work_time' => '07:00 - 15:00',
-                'attendance_status' => 'Sakit',
-            ]],
+            'relief_logs' => [
+                [
+                    'name' => 'Karyawan Relief Bertugas',
+                    'time_in' => '07:00',
+                    'time_out' => '15:00',
+                ],
+                [
+                    'name' => 'Karyawan Relief Sakit',
+                    'time_in' => '07:00',
+                    'time_out' => '15:00',
+                    'attendance_status' => 'Sakit',
+                ],
+            ],
         ])->assertRedirect(route('report-ops.index'));
 
         $report = DailyReport::where('created_by', $user->id)->latest('id')->firstOrFail();
         $overtime = $report->employeeLogs()->where('description', 'Lembur')->firstOrFail();
-        $relief = $report->employeeLogs()->where('description', 'Relief')->firstOrFail();
+        $relief = $report->employeeLogs()->where('name', 'Karyawan Relief Bertugas')->firstOrFail();
+        $absentRelief = $report->employeeLogs()->where('name', 'Karyawan Relief Sakit')->firstOrFail();
 
         $this->assertSame('Membantu pemuatan', $overtime->work_task);
+        $this->assertSame('15:00', $overtime->time_in);
+        $this->assertSame('19:00', $overtime->time_out);
         $this->assertSame('15:00 - 19:00', $overtime->work_time);
-        $this->assertSame('Sakit', $relief->attendance_status);
-        $this->assertNull($relief->work_time);
-        $this->assertNull($relief->time_in);
-        $this->assertNull($relief->time_out);
+        $this->assertSame('07:00', $relief->time_in);
+        $this->assertSame('15:00', $relief->time_out);
+        $this->assertSame('07:00 - 15:00', $relief->work_time);
+        $this->assertSame('Sakit', $absentRelief->attendance_status);
+        $this->assertNull($absentRelief->work_time);
+        $this->assertNull($absentRelief->time_in);
+        $this->assertNull($absentRelief->time_out);
 
         $html = view('report-ops.partials.report-paper', [
             'report' => $report->load('employeeLogs'),
@@ -1242,6 +1257,10 @@ class OpsFlowTest extends TestCase
 
         $this->assertStringContainsString('Membantu pemuatan', $html);
         $this->assertStringContainsString('Sakit', $html);
+        $this->assertStringContainsString('KARYAWAN SHIFT YANG BERTUGAS', $html);
+        $this->assertStringContainsString('KARYAWAN LEMBUR', $html);
+        $this->assertStringContainsString('KARYAWAN RELIEF', $html);
+        $this->assertStringContainsString('TUGAS/PEKERJAAN', $html);
     }
 
     public function test_stale_ship_operation_suggestions_are_pruned_after_three_days_for_bag_and_bulk_loading(): void
