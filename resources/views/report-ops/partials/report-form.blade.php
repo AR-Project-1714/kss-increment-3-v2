@@ -513,22 +513,26 @@
         .status-info-icon .status-info-tip {
             position: absolute;
             left: 50%;
-            bottom: calc(100% + 8px);
+            bottom: calc(100% + 10px);
             width: max-content;
             max-width: min(240px, calc(100vw - 32px));
-            padding: 8px 10px;
-            border-radius: 8px;
-            /* Warna tetap gelap di kedua tema — bukan var(--dark-main), yang
-               berbalik jadi terang pada dark mode dan membuat teks putih tak
-               terbaca di atasnya. */
-            background-color: var(--dark-table-head);
-            color: #fff;
+            padding: 9px 11px;
+            border-radius: 10px;
+            /* Frosted bersama — lihat components/frosted-surface.css. Teks kini
+               memakai token tema karena latarnya ikut berbalik di dark mode. */
+            border: 1px solid var(--kss-frost-border);
+            background-color: var(--kss-frost-surface);
+            -webkit-backdrop-filter: var(--kss-frost-filter);
+            backdrop-filter: var(--kss-frost-filter);
+            color: var(--dark-main);
             font-size: 11px;
             font-weight: 500;
-            line-height: 1.4;
+            line-height: 1.45;
             text-align: left;
             white-space: normal;
-            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+            box-shadow:
+                inset 0 1px 0 var(--kss-frost-edge),
+                var(--kss-frost-shadow);
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -537,14 +541,23 @@
             z-index: 20;
         }
 
+        /* Panah dibuat dari kotak yang diputar, bukan segitiga border, supaya
+           ikut membawa kaca beku dan hairline yang sama. */
         .status-info-icon .status-info-tip::after {
             content: '';
             position: absolute;
             top: 100%;
             left: 50%;
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-top-color: var(--dark-table-head);
+            width: 10px;
+            height: 10px;
+            margin-top: -6px;
+            border-right: 1px solid var(--kss-frost-border);
+            border-bottom: 1px solid var(--kss-frost-border);
+            border-radius: 0 0 3px 0;
+            background-color: var(--kss-frost-surface);
+            -webkit-backdrop-filter: var(--kss-frost-filter);
+            backdrop-filter: var(--kss-frost-filter);
+            transform: translateX(-50%) rotate(45deg);
         }
 
         .status-info-icon:hover .status-info-tip,
@@ -848,7 +861,7 @@
             }
             .status-info-icon:hover .status-info-tip,
             .status-info-icon:focus-visible .status-info-tip { transform: translateY(0); }
-            .status-info-icon .status-info-tip::after { left: auto; right: 51px; transform: none; }
+            .status-info-icon .status-info-tip::after { left: auto; right: 51px; transform: rotate(45deg); }
             .ship-operation-status-options { width: 100%; }
             .ship-operation-status-options label { flex: 1 1 0; min-width: 0; }
             .ship-operation-status-options span { width: 100%; }

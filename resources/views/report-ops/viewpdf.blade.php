@@ -114,37 +114,10 @@
         </div>
     </div>
 
-    @unless (request()->boolean('peek'))
-    <script>
-        (function () {
-            var backBtn = document.getElementById('btnBack');
-            if (!backBtn) return;
-            backBtn.addEventListener('click', function (event) {
-                event.preventDefault();
-                var fallbackUrl = backBtn.getAttribute('href');
-                window.close();
-                window.setTimeout(function () {
-                    if (!window.closed) window.location.href = fallbackUrl;
-                }, 150);
-            });
-        })();
-
-        (function () {
-            var pdfBtn = document.getElementById('btnPdf');
-            if (!pdfBtn) return;
-            var backBtn = document.getElementById('btnBack');
-            var fallbackUrl = backBtn ? backBtn.getAttribute('href') : '/';
-            pdfBtn.addEventListener('click', function () {
-                window.setTimeout(function () {
-                    window.close();
-                    window.setTimeout(function () {
-                        if (!window.closed) window.location.href = fallbackUrl;
-                    }, 150);
-                }, 500);
-            });
-        })();
-    </script>
-    @endunless
+    {{-- Pratinjau kini dibuka di tab yang sama, jadi tombol "Kembali" cukup
+         menavigasi lewat href-nya sendiri dan "Unduh PDF" tidak boleh menutup
+         atau memindahkan halaman. Perilaku tutup-tab yang lama berasal dari
+         masa ketika pratinjau selalu dibuka sebagai tab baru. --}}
 
     <div class="sheet-frame">
         <div class="sheet">

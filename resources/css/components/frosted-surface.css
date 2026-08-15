@@ -1,0 +1,91 @@
+/* =============================================
+   FROSTED SURFACE — sistem kaca beku bersama
+   =============================================
+   Satu resep untuk SEMUA permukaan mengambang: popover info form, tooltip
+   status pekerjaan kapal, dropdown profil, panel notifikasi, popover filter,
+   dan toast.
+
+   Karakter yang dituju adalah frosted, bukan liquid glass:
+   - Satu veil putih/slate yang RATA (bukan gradien diagonal).
+   - Blur latar yang tebal sehingga isi di belakang jadi kabut, bukan garis.
+   - Satu hairline terang di sisi atas saja sebagai tepi yang "terkena cahaya".
+   - Bayangan lebar berlapis dan sangat lembut supaya panel terbaca mengambang.
+   Yang sengaja TIDAK dipakai: gradien 135deg, border terang/gelap asimetris,
+   dan inner sheen — itu kosakata liquid glass.
+
+   Semua nilai lewat token berpasangan light/dark; jangan menaruh warna kaca
+   langsung pada komponen. */
+
+:root {
+    --kss-frost-filter: blur(26px) saturate(150%);
+
+    /* Veil utama panel. */
+    --kss-frost-surface: rgb(255 255 255 / 72%);
+    /* Dipakai saat backdrop-filter tidak tersedia atau transparansi ditolak. */
+    --kss-frost-surface-opaque: rgb(255 255 255 / 96%);
+
+    --kss-frost-border: rgb(226 232 240 / 78%);
+    /* Hairline atas: tepi yang terkena cahaya. */
+    --kss-frost-edge: rgb(255 255 255 / 72%);
+
+    /* Kartu/tile di DALAM panel frosted — tetap tembus supaya kabut terlihat. */
+    --kss-frost-inset: rgb(255 255 255 / 46%);
+    --kss-frost-inset-border: rgb(226 232 240 / 72%);
+
+    /* Empat lapis beralfa rendah, bukan tiga lapis pekat. Kesan "kasar" datang
+       dari satu lapisan gelap yang menumpuk; deret yang lebih rapat dan tipis
+       membuat peluruhannya mulus sampai hilang. */
+    --kss-frost-shadow:
+        0 1px 2px rgb(15 23 42 / 4%),
+        0 4px 10px rgb(15 23 42 / 4%),
+        0 12px 26px rgb(15 23 42 / 5%),
+        0 26px 50px rgb(15 23 42 / 6%);
+}
+
+body.dark-mode {
+    --kss-frost-surface: rgb(30 41 59 / 68%);
+    --kss-frost-surface-opaque: rgb(30 41 59 / 97%);
+
+    --kss-frost-border: rgb(148 163 184 / 24%);
+    --kss-frost-edge: rgb(255 255 255 / 9%);
+
+    --kss-frost-inset: rgb(255 255 255 / 6%);
+    --kss-frost-inset-border: rgb(255 255 255 / 11%);
+
+    --kss-frost-shadow:
+        0 1px 2px rgb(2 6 23 / 16%),
+        0 4px 10px rgb(2 6 23 / 18%),
+        0 12px 26px rgb(2 6 23 / 22%),
+        0 26px 50px rgb(2 6 23 / 26%);
+}
+
+/* Tanpa backdrop-filter (atau saat pengguna menolak transparansi) veil menipis
+   jadi tak terbaca. Naikkan ke permukaan hampir solid agar teks tetap kontras. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    :root,
+    body.dark-mode {
+        --kss-frost-surface: var(--kss-frost-surface-opaque);
+        --kss-frost-inset: var(--kss-frost-surface-opaque);
+    }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    :root,
+    body.dark-mode {
+        --kss-frost-surface: var(--kss-frost-surface-opaque);
+        --kss-frost-inset: var(--kss-frost-surface-opaque);
+        --kss-frost-filter: none;
+    }
+}
+
+/* Utilitas untuk permukaan mengambang baru. Prefiks -webkit- didahulukan agar
+   hasil build tetap membawa properti standar. */
+.kss-frost {
+    border: 1px solid var(--kss-frost-border);
+    background-color: var(--kss-frost-surface);
+    -webkit-backdrop-filter: var(--kss-frost-filter);
+    backdrop-filter: var(--kss-frost-filter);
+    box-shadow:
+        inset 0 1px 0 var(--kss-frost-edge),
+        var(--kss-frost-shadow);
+}

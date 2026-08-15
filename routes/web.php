@@ -110,6 +110,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/report-ops/day-report-count', [ReportOpsController::class, 'dayReportCount'])->name('report-ops.day-report-count');
         Route::get('/report-ops/create', [ReportOpsController::class, 'create'])->name('report-ops.create');
         Route::post('/report-ops', [ReportOpsController::class, 'store'])->name('report-ops.store');
+        // Didaftarkan sebelum rute {report} agar segmen "drafts" tidak ditangkap
+        // sebagai model binding.
+        Route::delete('/report-ops/drafts', [ReportOpsController::class, 'destroyAllDrafts'])->name('report-ops.drafts.destroy-all');
         Route::get('/report-ops/{report}', [ReportOpsController::class, 'show'])->name('report-ops.show');
         Route::get('/report-ops/{report}/edit', [ReportOpsController::class, 'edit'])->name('report-ops.edit');
         Route::put('/report-ops/{report}', [ReportOpsController::class, 'update'])->name('report-ops.update');
@@ -126,6 +129,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ReportMaintenanceController::class, 'index'])->name('index');
         Route::get('/create', [ReportMaintenanceController::class, 'create'])->name('create');
         Route::post('/', [ReportMaintenanceController::class, 'store'])->name('store');
+        // Didaftarkan sebelum rute {report} agar segmen "drafts" tidak ditangkap
+        // sebagai model binding.
+        Route::delete('/drafts', [ReportMaintenanceController::class, 'destroyAllDrafts'])->name('drafts.destroy-all');
         Route::get('/{report}', [ReportMaintenanceController::class, 'show'])->name('show');
         Route::get('/{report}/edit', [ReportMaintenanceController::class, 'edit'])->name('edit');
         Route::put('/{report}', [ReportMaintenanceController::class, 'update'])->name('update');
@@ -140,6 +146,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [ReportSafetyController::class, 'history'])->name('index');
         Route::get('/create', [ReportSafetyController::class, 'create'])->name('create');
         Route::post('/', [ReportSafetyController::class, 'store'])->name('store');
+        // Didaftarkan sebelum rute {report} agar segmen "drafts" tidak ditangkap
+        // sebagai model binding.
+        Route::delete('/drafts', [ReportSafetyController::class, 'destroyAllDrafts'])->name('drafts.destroy-all');
         Route::get('/{report}', [ReportSafetyController::class, 'show'])->name('show');
         Route::get('/{report}/edit', [ReportSafetyController::class, 'edit'])->name('edit');
         Route::put('/{report}', [ReportSafetyController::class, 'update'])->name('update');

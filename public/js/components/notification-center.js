@@ -214,6 +214,13 @@
             trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
             panel.hidden = !open;
             panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+            if (open) {
+                // Kontrak lepas-kait dengan overlay navbar lain (mis. dropdown
+                // profil): yang membuka memberi kabar, yang lain menutup.
+                document.dispatchEvent(new CustomEvent('kss:overlay-open', {
+                    detail: { source: 'notification' },
+                }));
+            }
             if (open && Date.now() - lastLoadedAt > 30000) load();
         }
 
@@ -221,6 +228,11 @@
             setOpen(panel.hidden);
         });
         readAllButton.addEventListener('click', markAllRead);
+
+        document.addEventListener('kss:overlay-open', function (event) {
+            if (event.detail?.source === 'notification') return;
+            if (!panel.hidden) setOpen(false);
+        });
 
         document.addEventListener('click', function (event) {
             if (!panel.hidden && !root.contains(event.target)) setOpen(false);

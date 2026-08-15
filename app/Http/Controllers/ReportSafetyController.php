@@ -572,6 +572,50 @@ class ReportSafetyController extends Controller
             && in_array($report->status, [SafetyStatus::Draft, SafetyStatus::Submitted], true);
     }
 
+    /**
+     * Hapus cepat seluruh draft milik petugas yang sedang masuk.
+     *
+     * Penghapusan dilakukan per model (bukan mass delete lewat query) supaya
+     * event dan cascade relasi tetap berjalan persis seperti hapus satuan, dan
+     * dibungkus transaksi agar tidak menyisakan penghapusan separuh jalan.
+     */
+    public function destroyAllDrafts()
+    {
+        $user = auth()->user();
+
+        $drafts = SafetyReport::where('created_by', $user->id)
+            ->where('status', SafetyStatus::Draft)
+            ->get();
+
+        if ($drafts->isEmpty()) {
+            return redirect()
+                ->route('safety.index')
+                ->with('error', 'Tidak ada draft yang bisa dihapus.');
+        }
+
+        $total = $drafts->count();
+
+        try {
+            DB::transaction(function () use ($drafts) {
+                foreach ($drafts as $draft) {
+                    $draft->delete();
+                }
+            });
+        } catch (Throwable $exception) {
+            Log::error('Gagal menghapus seluruh draft laporan K3.', [
+                'user_id' => $user->id,
+                'total' => $total,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return back()->with('error', 'Draft belum bisa dihapus. Silakan coba lagi.');
+        }
+
+        return redirect()
+            ->route('safety.index')
+            ->with('success', $total.' draft laporan K3 berhasil dihapus.');
+    }
+
     private function canDelete(SafetyReport $report, mixed $user): bool
     {
         return $this->canAccess($report, $user) && $report->status === SafetyStatus::Draft;

@@ -6,8 +6,9 @@
     - Menyediakan helper global untuk toast dinamis dari JS:
         window.kssToast(type, title, message, duration)
       beserta alias kompatibel: window.showAdminToast / showManagerToast / showReportToast.
-    - Mandiri: membawa CSS (glassmorphism) & JS sendiri agar tampil konsisten
-      di mana pun disertakan.
+    - Mandiri: membawa CSS & JS sendiri agar tampil konsisten di mana pun
+      disertakan. Latarnya memakai token frosted bersama dari
+      resources/css/components/frosted-surface.css.
 --}}
 @php
     $toastMessages = collect();
@@ -41,6 +42,8 @@
 @endphp
 
 <style>
+    /* Viewport memegang batas lebar; toast-nya sendiri menyusut ke lebar teks
+       lewat align-items: center, jadi 460px kini berlaku sebagai max-width. */
     .toast-viewport {
         position: fixed;
         top: 18px;
@@ -49,47 +52,41 @@
         width: min(460px, calc(100vw - 32px));
         display: flex;
         flex-direction: column;
-        align-items: stretch;
+        align-items: center;
         gap: 10px;
         transform: translateX(-50%);
         pointer-events: none;
     }
 
+    /* Frosted, satu resep dengan popover & dropdown lain
+       (lihat resources/css/components/frosted-surface.css).
+       Bukan liquid glass: tidak ada gradien diagonal, border terang/gelap
+       asimetris, atau inner sheen — hanya satu veil rata + hairline atas. */
     .toast-message {
         position: relative;
-        overflow: hidden;
-        isolation: isolate;
         display: flex;
         align-items: center;
         gap: 10px;
+        max-width: 100%;
         padding: 12px 14px;
-        border-radius: 24px;
-        border-top: 1px solid rgba(255, 255, 255, 0.70);
-        border-left: 1px solid rgba(255, 255, 255, 0.70);
-        border-right: 1px solid rgba(255, 255, 255, 0.20);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.20);
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.14) 100%);
+        /* Satu langkah di atas surface 14px: toast kini selebar isinya, dan
+           bentuk lozenge butuh sudut lebih lunak agar tidak terbaca kotak. */
+        border-radius: 18px;
+        border: 1px solid var(--kss-frost-border);
+        background: var(--kss-frost-surface);
         color: var(--black, var(--dark-main, #0F172A));
         box-shadow:
-            0 25px 45px rgba(15, 23, 42, 0.12),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.30),
-            inset 0 2px 10px rgba(255, 255, 255, 0.36);
-        backdrop-filter: blur(28px) saturate(150%);
-        -webkit-backdrop-filter: blur(28px) saturate(150%);
+            inset 0 1px 0 var(--kss-frost-edge),
+            var(--kss-frost-shadow);
+        -webkit-backdrop-filter: var(--kss-frost-filter);
+        backdrop-filter: var(--kss-frost-filter);
         opacity: 0;
         transform: translateY(-140%) scale(0.98);
-        transition: transform 0.48s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.28s ease-out;
+        /* Ease-out eksponensial, bukan overshoot pegas. Pantulan itu bagian dari
+           karakter liquid glass yang mengilap; permukaan frosted yang matte
+           turun dan berhenti, tidak melenting. */
+        transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease-out;
         pointer-events: auto;
-    }
-
-    .toast-message::before {
-        content: "";
-        position: absolute;
-        inset: 2px;
-        border-radius: 22px;
-        background: transparent;
-        pointer-events: none;
-        z-index: -1;
     }
 
     .toast-message.show { opacity: 1; transform: translateY(0) scale(1); }
@@ -103,15 +100,11 @@
     .toast-icon {
         width: 36px;
         height: 36px;
-        border-radius: 15px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex: 0 0 auto;
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.70),
-            inset 0 -10px 20px rgba(255, 255, 255, 0.10),
-            0 8px 18px rgba(15, 23, 42, 0.08);
     }
 
     .toast-icon i,
@@ -119,24 +112,35 @@
 
     .toast-message.success .toast-icon {
         color: var(--success, #10B981);
-        background:
-            linear-gradient(145deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.08)),
-            rgba(16, 185, 129, 0.12);
-        border: 1px solid rgba(16, 185, 129, 0.34);
+        background: rgba(16, 185, 129, 0.14);
+        border: 1px solid rgba(16, 185, 129, 0.30);
     }
 
     .toast-message.error .toast-icon {
         color: var(--red-main, #D20000);
-        background:
-            linear-gradient(145deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.08)),
-            rgba(210, 0, 0, 0.12);
-        border: 1px solid rgba(210, 0, 0, 0.34);
+        background: rgba(210, 0, 0, 0.12);
+        border: 1px solid rgba(210, 0, 0, 0.30);
+    }
+
+    body.dark-mode .toast-message.error .toast-icon {
+        color: var(--red-main, #EF4444);
+        background: rgba(239, 68, 68, 0.16);
+        border-color: rgba(239, 68, 68, 0.34);
     }
 
     .toast-copy { min-width: 0; flex: 1 1 auto; }
 
-    .toast-title {
+    /* Teks panjang dipotong dengan elipsis, bukan membungkus, supaya toast tetap
+       satu lozenge selebar isinya. Teks utuh tetap terbaca lewat atribut title. */
+    .toast-title,
+    .toast-text {
         display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .toast-title {
         font-size: 13px;
         font-weight: 700;
         line-height: 1.25;
@@ -144,7 +148,6 @@
     }
 
     .toast-text {
-        display: block;
         margin-top: 2px;
         font-size: 11px;
         font-weight: 400;
@@ -156,28 +159,29 @@
         width: 28px;
         height: 28px;
         border: none;
-        border-radius: 16px;
+        border-radius: 8px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex: 0 0 auto;
         color: var(--muted, #94A3B8);
-        background: rgba(255, 255, 255, 0.24);
+        background: var(--kss-frost-inset);
         transition: background-color 0.2s ease, color 0.2s ease;
     }
 
     .toast-close:hover { color: var(--black); background-color: rgba(51, 65, 85, 0.10); }
 
-    body.dark-mode .toast-message {
-        border-color: rgba(255, 255, 255, 0.10);
-        background: rgba(30, 41, 59, 0.45);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.40);
+    body.dark-mode .toast-close:hover { background-color: rgba(226, 232, 240, 0.14); }
+
+    .toast-close:focus-visible {
+        outline: 2px solid var(--blue-main, #2563EB);
+        outline-offset: 2px;
     }
 
     @media (max-width: 480px) {
         .toast-viewport { top: 12px; width: calc(100vw - 24px); }
-        .toast-message { padding: 10px 12px; gap: 9px; border-radius: 22px; }
-        .toast-icon { width: 34px; height: 34px; border-radius: 12px; }
+        .toast-message { padding: 10px 12px; gap: 9px; }
+        .toast-icon { width: 34px; height: 34px; }
     }
 </style>
 
@@ -187,7 +191,7 @@
             <div class="toast-icon"><i class="{{ $toast['icon'] }}"></i></div>
             <div class="toast-copy">
                 <span class="toast-title">{{ $toast['title'] }}</span>
-                <span class="toast-text">{{ $toast['message'] }}</span>
+                <span class="toast-text" title="{{ $toast['message'] }}">{{ $toast['message'] }}</span>
             </div>
             <button type="button" class="toast-close" aria-label="Tutup notifikasi">
                 <i class="fi fi-rr-cross-small"></i>
@@ -247,7 +251,10 @@
                 '<div class="toast-copy"><span class="toast-title"></span><span class="toast-text"></span></div>' +
                 '<button type="button" class="toast-close" aria-label="Tutup notifikasi"><i class="fi fi-rr-cross-small"></i></button>';
             el.querySelector('.toast-title').textContent = title || (safe === 'success' ? 'Berhasil' : 'Gagal');
-            el.querySelector('.toast-text').textContent = message || '';
+            var textEl = el.querySelector('.toast-text');
+            textEl.textContent = message || '';
+            // Teks dipotong elipsis kalau panjang; simpan versi utuh di title.
+            textEl.title = message || '';
             viewport().appendChild(el);
             activate(el);
             return el;

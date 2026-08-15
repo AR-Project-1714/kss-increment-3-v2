@@ -110,6 +110,20 @@
 
             {{-- ===== TAB DRAFT ===== --}}
             <div id="content-draft" class="flex-column align-items-start align-self-stretch gap-20 w-100 {{ $activeTab === 'draft' ? 'd-flex' : 'd-none' }}">
+                {{-- Hapus cepat hanya muncul saat ada lebih dari satu draft; dengan
+                     satu draft tombol hapus per baris sudah tepat di sebelahnya. --}}
+                @if ($draftReports->count() > 1)
+                    <div class="draft-bulk-bar d-flex justify-content-between align-items-center align-self-stretch gap-10 flex-wrap">
+                        <span class="draft-bulk-bar__count fsize-12 text-secondary">
+                            {{ $draftReports->count() }} draft tersimpan dan belum dikirim.
+                        </span>
+                        <button type="button" class="btn-delete-all" data-open-modal="delete-all-drafts-modal">
+                            <span class="icon-delete"><i class="fi fi-rr-trash"></i></span>
+                            <span class="text">Hapus Semua Draft</span>
+                        </button>
+                    </div>
+                @endif
+
                 @forelse ($draftReports as $report)
                     <div class="draft-item d-flex flex-column align-items-start align-self-stretch gap-8 br-10">
                         <div class="info-time d-flex justify-content-between align-items-start align-self-stretch flex-wrap" style="row-gap:8px;">
@@ -200,7 +214,7 @@
                                     </div>
                                 </td>
                                 <td class="aksi col-action" role="cell">
-                                    <a href="{{ route('pemeliharaan.show', $report) }}" class="btn see" target="_blank" rel="noopener">
+                                    <a href="{{ route('pemeliharaan.show', $report) }}" class="btn see">
                                         <span><i class="fi fi-rr-eye"></i></span><span>Lihat</span>
                                     </a>
                                     <a href="{{ route('pemeliharaan.pdf', $report) }}" class="btn export-pdf" target="_blank" rel="noopener">
@@ -292,6 +306,32 @@
             </div>
         </div>
     @endforeach
+
+    @if ($draftReports->count() > 1)
+        <div class="modal-overlay" id="delete-all-drafts-modal">
+            <div class="pop-up signed d-flex flex-column gap-20">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-600 fsize-16 text-main">Hapus Semua Draft?</span>
+                    <button type="button" class="button-close" data-close-modal><i class="fi fi-br-cross"></i></button>
+                </div>
+                <div class="pop-up detail danger d-flex align-items-center">
+                    <span class="icon-document danger"><i class="fi fi-rr-trash"></i></span>
+                    <div>
+                        <div class="fw-600 fsize-13 text-main">{{ $draftReports->count() }} draft laporan harian pemeliharaan</div>
+                        <div class="fsize-11 text-muted">Seluruh draft milik Anda</div>
+                    </div>
+                </div>
+                <p class="fsize-12 text-secondary m-0">Tindakan ini tidak bisa dibatalkan. Laporan yang sudah dikirim atau disetujui tidak terpengaruh. Lanjutkan?</p>
+                <div class="pop-up footer d-flex justify-content-end gap-10">
+                    <button type="button" class="btn cancel" data-close-modal>Batal</button>
+                    <form action="{{ route('pemeliharaan.drafts.destroy-all') }}" method="POST" class="m-0">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="btn delete-confirm"><i class="fi fi-br-trash"></i> Ya, Hapus Semua</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 @endpush
 
 @push('scripts')

@@ -187,8 +187,10 @@
                     @endif
                 </div>
                 <div class="report-peek-actions">
-                    <a href="{{ $previousReportPeek['url'] }}" target="_blank" rel="noopener">
-                        <i class="fi fi-rr-arrow-up-right-from-square"></i> Buka Penuh
+                    {{-- Pindah halaman di tab yang sama; ikon panah-keluar-kotak
+                         diganti karena itu menandakan tab baru. --}}
+                    <a href="{{ $previousReportPeek['url'] }}">
+                        <i class="fi fi-rr-arrow-small-right"></i> Buka Penuh
                     </a>
                     <button type="button" class="report-peek-close" id="reportPeekClose">
                         <i class="fi fi-rr-cross-small"></i> Tutup

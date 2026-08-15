@@ -1,144 +1,188 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-01T19:27:46.2102208+08:00",
+  "generatedAt": "2026-08-15T00:00:00.000Z",
   "title": "Design System: Sistem Laporan Operasional KSS",
   "extensions": {
     "colorMeta": {
-      "primary-blue": { "role": "primary", "displayName": "Operational Blue", "canonical": "#2563EB", "tonalRamp": ["#071534", "#0B2868", "#1245A7", "#2563EB", "#5B8EF0", "#91B5F6", "#C8D9FB", "#F2F7FF"] },
-      "primary-blue-hover": { "role": "primary", "displayName": "Deep Operational Blue", "canonical": "#1D4ED8", "tonalRamp": ["#07142F", "#0A2763", "#103D9A", "#1D4ED8", "#527FE5", "#8BAAEE", "#C5D5F7", "#F1F5FE"] },
-      "primary-blue-active": { "role": "primary", "displayName": "Pressed Operational Blue", "canonical": "#1E40AF", "tonalRamp": ["#081126", "#0D224F", "#15327C", "#1E40AF", "#586FC7", "#8E9FDB", "#C7CFED", "#F2F4FB"] },
-      "primary-blue-soft": { "role": "primary", "displayName": "Soft Operational Blue", "canonical": "rgba(37,99,235,0.10)", "tonalRamp": ["#071534", "#0B2868", "#1245A7", "#2563EB", "#5B8EF0", "#91B5F6", "#C8D9FB", "#F2F7FF"] },
-      "cyan": { "role": "secondary", "displayName": "Signal Cyan", "canonical": "#0EA5E9", "tonalRamp": ["#032531", "#06495E", "#087393", "#0EA5E9", "#45B9EE", "#7CCEF3", "#B6E4F8", "#EEFAFD"] },
-      "success": { "role": "secondary", "displayName": "Success Green", "canonical": "#10B981", "tonalRamp": ["#03291E", "#06523D", "#0A7C5B", "#10B981", "#49CDA3", "#83DDC2", "#BDEDE1", "#EFFBF8"] },
-      "warning": { "role": "secondary", "displayName": "Attention Orange", "canonical": "#F7931E", "tonalRamp": ["#351C03", "#683907", "#A65B0C", "#F7931E", "#F9AE52", "#FBC986", "#FDE4BC", "#FFF8EE"] },
-      "danger": { "role": "secondary", "displayName": "Alert Red", "canonical": "#D20000", "tonalRamp": ["#300000", "#5F0000", "#920000", "#D20000", "#E14A4A", "#EC8686", "#F6C1C1", "#FFF1F1"] },
-      "text": { "role": "neutral", "displayName": "Ink Slate", "canonical": "#0F172A", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F1F5F9"] },
-      "text-secondary": { "role": "neutral", "displayName": "Secondary Slate", "canonical": "#334155", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F1F5F9"] },
-      "text-muted": { "role": "neutral", "displayName": "Readable Muted Slate", "canonical": "#64748B", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F1F5F9"] },
-      "border": { "role": "neutral", "displayName": "Hairline Slate", "canonical": "#E2E8F0", "tonalRamp": ["#111827", "#273449", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"] },
-      "divider": { "role": "neutral", "displayName": "Divider Slate", "canonical": "#CBD5E1", "tonalRamp": ["#111827", "#273449", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"] },
-      "canvas": { "role": "neutral", "displayName": "Cool Canvas", "canonical": "#F8FAFC", "tonalRamp": ["#111827", "#273449", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"] },
-      "surface": { "role": "neutral", "displayName": "Operational Surface", "canonical": "#FFFFFF", "tonalRamp": ["#171717", "#303030", "#525252", "#737373", "#A3A3A3", "#D4D4D4", "#F5F5F5", "#FFFFFF"] },
-      "surface-pure": { "role": "neutral", "displayName": "Pure White", "canonical": "#FFFFFF", "tonalRamp": ["#171717", "#303030", "#525252", "#737373", "#A3A3A3", "#D4D4D4", "#F5F5F5", "#FFFFFF"] },
-      "dark-primary-blue": { "role": "primary", "displayName": "Dark-Mode Operational Blue", "canonical": "#3B82F6", "tonalRamp": ["#071A3D", "#0C3478", "#1853B5", "#3B82F6", "#70A3F8", "#A0C2FA", "#CFE1FD", "#F3F8FF"] },
-      "dark-primary-blue-hover": { "role": "primary", "displayName": "Dark-Mode Hover Blue", "canonical": "#60A5FA", "tonalRamp": ["#071D3C", "#0C3B78", "#1A64B5", "#60A5FA", "#89BCFB", "#B0D2FC", "#D7E9FE", "#F4FAFF"] },
-      "dark-primary-blue-active": { "role": "primary", "displayName": "Dark-Mode Active Blue", "canonical": "#93C5FD", "tonalRamp": ["#0A203C", "#154078", "#286DB5", "#93C5FD", "#AFD4FD", "#CBE2FE", "#E5F1FF", "#F7FBFF"] },
-      "dark-danger": { "role": "secondary", "displayName": "Dark-Mode Alert Red", "canonical": "#EF4444", "tonalRamp": ["#340707", "#690E0E", "#A91D1D", "#EF4444", "#F37070", "#F69E9E", "#FACCCC", "#FFF3F3"] },
-      "dark-text": { "role": "neutral", "displayName": "Dark-Mode Ink", "canonical": "#F8FAFC", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F8FAFC"] },
-      "dark-text-secondary": { "role": "neutral", "displayName": "Dark-Mode Secondary", "canonical": "#CBD5E1", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F8FAFC"] },
-      "dark-text-muted": { "role": "neutral", "displayName": "Dark-Mode Muted", "canonical": "#94A3B8", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F8FAFC"] },
-      "dark-border": { "role": "neutral", "displayName": "Dark-Mode Hairline", "canonical": "#334155", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F8FAFC"] },
-      "dark-canvas": { "role": "neutral", "displayName": "Dark Canvas", "canonical": "#0F172A", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F8FAFC"] },
-      "dark-surface": { "role": "neutral", "displayName": "Dark Surface", "canonical": "#1E293B", "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#64748B", "#94A3B8", "#CBD5E1", "#F8FAFC"] },
-      "chart-blue": { "role": "primary", "displayName": "Analytic Blue", "canonical": "#2563EB", "tonalRamp": ["#071534", "#0B2868", "#1245A7", "#2563EB", "#5B8EF0", "#91B5F6", "#C8D9FB", "#F2F7FF"] },
-      "chart-green": { "role": "secondary", "displayName": "Analytic Green", "canonical": "#10B981", "tonalRamp": ["#03291E", "#06523D", "#0A7C5B", "#10B981", "#49CDA3", "#83DDC2", "#BDEDE1", "#EFFBF8"] },
-      "chart-amber": { "role": "tertiary", "displayName": "Analytic Amber", "canonical": "#F59E0B", "tonalRamp": ["#342000", "#684000", "#A66503", "#F59E0B", "#F7B544", "#F9CD7A", "#FCE5B4", "#FFF9EC"] },
-      "chart-cyan": { "role": "tertiary", "displayName": "Analytic Cyan", "canonical": "#06B6D4", "tonalRamp": ["#022A30", "#04535F", "#078091", "#06B6D4", "#42C7DD", "#7BD9E7", "#B5EAF1", "#EEFBFD"] },
-      "chart-violet": { "role": "tertiary", "displayName": "Analytic Violet", "canonical": "#8B5CF6", "tonalRamp": ["#1D0C3B", "#381976", "#5C31B2", "#8B5CF6", "#AA87F8", "#C7B2FA", "#E3DDFC", "#F8F5FF"] }
+      "primary-blue": {
+        "role": "primary",
+        "displayName": "Operational Blue",
+        "canonical": "#2563EB",
+        "tonalRamp": ["#172554", "#1E3A8A", "#1E40AF", "#1D4ED8", "#2563EB", "#60A5FA", "#BFDBFE", "#EFF6FF"]
+      },
+      "cyan": {
+        "role": "secondary",
+        "displayName": "Signal Cyan",
+        "canonical": "#0EA5E9",
+        "tonalRamp": ["#082F49", "#0C4A6E", "#075985", "#0369A1", "#0EA5E9", "#38BDF8", "#BAE6FD", "#F0F9FF"]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Success Green",
+        "canonical": "#10B981",
+        "tonalRamp": ["#022C22", "#064E3B", "#065F46", "#047857", "#10B981", "#34D399", "#A7F3D0", "#ECFDF5"]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Attention Orange",
+        "canonical": "#F7931E",
+        "tonalRamp": ["#431407", "#7C2D12", "#9A3412", "#C2410C", "#F7931E", "#FB923C", "#FED7AA", "#FFF7ED"]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Alert Red",
+        "canonical": "#D20000",
+        "tonalRamp": ["#450A0A", "#7F1D1D", "#9F0000", "#B80000", "#D20000", "#EF4444", "#FECACA", "#FEF2F2"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink Slate",
+        "canonical": "#0F172A",
+        "tonalRamp": ["#020617", "#0F172A", "#1E293B", "#334155", "#64748B", "#94A3B8", "#CBD5E1", "#F8FAFC"]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline Slate",
+        "canonical": "#E2E8F0",
+        "tonalRamp": ["#0F172A", "#1E293B", "#334155", "#475569", "#94A3B8", "#CBD5E1", "#E2E8F0", "#F8FAFC"]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Application Canvas",
+        "canonical": "#F8FAFC",
+        "tonalRamp": ["#020617", "#0F172A", "#1E293B", "#334155", "#64748B", "#CBD5E1", "#F1F5F9", "#FFFFFF"]
+      },
+      "frost-surface": {
+        "role": "neutral",
+        "displayName": "Frosted Veil",
+        "canonical": "rgba(255,255,255,0.72)"
+      },
+      "chart-violet": {
+        "role": "tertiary",
+        "displayName": "Analytic Violet",
+        "canonical": "#8B5CF6",
+        "tonalRamp": ["#2E1065", "#4C1D95", "#5B21B6", "#6D28D9", "#8B5CF6", "#A78BFA", "#DDD6FE", "#F5F3FF"]
+      }
     },
     "typographyMeta": {
-      "headline": { "displayName": "Page Headline", "purpose": "Judul halaman dan orientasi tingkat pertama." },
-      "title": { "displayName": "Section Title", "purpose": "Judul kartu, grafik, dan blok rincian." },
-      "body": { "displayName": "Operational Body", "purpose": "Navigasi, kontrol, tabel, dan isi operasional." },
-      "label": { "displayName": "Compact Label", "purpose": "Metadata, unit, header tabel, dan keterangan metrik." },
-      "metric": { "displayName": "Tabular Metric", "purpose": "KPI utama dan angka yang dibandingkan cepat." }
+      "metric": { "displayName": "Metric", "purpose": "Nilai KPI utama; tabular numerals. Turun ke 22px lalu 18px pada layar sempit." },
+      "display": { "displayName": "Display", "purpose": "Angka besar non-KPI dan judul ringkasan tebal." },
+      "metric-sm": { "displayName": "Metric Small", "purpose": "Nilai KPI pada layar sempit. Turunan responsif, bukan ukuran dasar." },
+      "headline": { "displayName": "Headline", "purpose": "Judul halaman. Turun ke 18px di bawah 900px." },
+      "headline-sm": { "displayName": "Headline Small", "purpose": "Judul halaman pada layar sempit dan kepala modal besar." },
+      "title": { "displayName": "Title", "purpose": "Judul blok dan kepala modal." },
+      "subtitle": { "displayName": "Subtitle", "purpose": "Judul kartu, grafik, dan blok rincian." },
+      "body-lg": { "displayName": "Body Large", "purpose": "Baris penegasan dan isi tombol besar." },
+      "caption": { "displayName": "Caption", "purpose": "Judul popover filter dan teks kontrol sekunder." },
+      "body": { "displayName": "Body", "purpose": "Navigasi, kontrol, tabel, isi operasional. Ukuran paling sering dipakai." },
+      "body-sm": { "displayName": "Body Small", "purpose": "Sel tabel padat dan isi popover." },
+      "label": { "displayName": "Label", "purpose": "Keterangan metrik, header tabel, unit pendamping." },
+      "meta": { "displayName": "Meta", "purpose": "Stempel waktu dan catatan kaki kartu." },
+      "micro": { "displayName": "Micro", "purpose": "Badge hitung dan footer panel. Tidak untuk kalimat." }
     },
     "shadows": [
       { "name": "card-low", "value": "0 1px 2px rgba(15,23,42,0.04)", "purpose": "Section card pada keadaan diam." },
       { "name": "metric-low", "value": "0 2px 4px rgba(37,99,235,0.07)", "purpose": "Kartu KPI dan statistik." },
+      { "name": "focus-ring", "value": "0 0 0 3px rgba(37,99,235,0.10)", "purpose": "Ring fokus kontrol; varian merah dan jingga memakai alpha hue yang sama." },
       { "name": "action-lift", "value": "0 5px 14px rgba(37,99,235,0.18)", "purpose": "Pemicu filter utama." },
-      { "name": "glass-float", "value": "0 8px 24px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.70)", "purpose": "Tab kegiatan sticky pada tema terang." },
-      { "name": "popover-high", "value": "0 20px 52px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.76)", "purpose": "Popover filter desktop." },
-      { "name": "popover-high-dark", "value": "0 20px 52px rgba(0,0,0,0.52), inset 0 1px 0 rgba(255,255,255,0.08)", "purpose": "Popover filter pada dark mode." }
+      { "name": "glass-float", "value": "0 8px 24px rgba(15,23,42,0.08)", "purpose": "Tab kegiatan yang sticky." },
+      { "name": "frost-float", "value": "0 1px 2px rgba(15,23,42,0.04), 0 4px 10px rgba(15,23,42,0.04), 0 12px 26px rgba(15,23,42,0.05), 0 26px 50px rgba(15,23,42,0.06)", "purpose": "Seluruh keluarga frosted. Empat lapis tipis, bukan satu lapis pekat." },
+      { "name": "frost-float-dark", "value": "0 1px 2px rgba(2,6,23,0.16), 0 4px 10px rgba(2,6,23,0.18), 0 12px 26px rgba(2,6,23,0.22), 0 26px 50px rgba(2,6,23,0.26)", "purpose": "Pasangan dark mode untuk frost-float." },
+      { "name": "frost-edge", "value": "inset 0 1px 0 rgba(255,255,255,0.72)", "purpose": "Hairline atas pada permukaan frosted; tepi yang terkena cahaya." }
     ],
     "motion": [
-      { "name": "state-fast", "value": "0.2s ease", "purpose": "Hover, focus, warna, dan batas kontrol." },
-      { "name": "theme-standard", "value": "0.3s ease", "purpose": "Perubahan warna surface saat tema berganti." },
-      { "name": "sidebar-standard", "value": "0.32s cubic-bezier(0.4,0,0.2,1)", "purpose": "Collapse sidebar desktop." },
-      { "name": "spring-emphasis", "value": "0.4s cubic-bezier(0.34,1.56,0.64,1)", "purpose": "Ikon tema dan dialog yang memerlukan umpan balik ringan." }
+      { "name": "ease-surface", "value": "cubic-bezier(.22, 1, .36, 1)", "purpose": "Buka-tutup popover, dropdown, dan drawer." },
+      { "name": "ease-toast-in", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Masuknya toast. Ease-out eksponensial, bukan overshoot pegas." },
+      { "name": "ease-sidebar", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Transisi lebar sidebar 234px kembali 60px." },
+      { "name": "duration-default", "value": "0.2s", "purpose": "Default untuk perubahan warna, border, dan tint hover." },
+      { "name": "duration-surface", "value": "0.28s", "purpose": "Popover dan dropdown." },
+      { "name": "duration-toast", "value": "0.42s", "purpose": "Masuk dan keluarnya toast." }
     ],
     "breakpoints": [
-      { "name": "wide-kpi", "value": "1100px" },
-      { "name": "mobile-shell", "value": "900px" },
-      { "name": "dense-chart", "value": "700px" },
-      { "name": "compact", "value": "560px" },
-      { "name": "small-phone", "value": "430px" },
-      { "name": "narrow-phone", "value": "340px" }
+      { "name": "xl", "value": "1100px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "drawer", "value": "900px" },
+      { "name": "md", "value": "768px" },
+      { "name": "sm", "value": "640px" },
+      { "name": "xs", "value": "560px" },
+      { "name": "phone", "value": "480px" },
+      { "name": "phone-sm", "value": "430px" }
     ]
   },
   "components": [
     {
-      "name": "Primary Tool Button",
+      "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Aksi utama seperti Terapkan dan pemicu filter performa.",
-      "html": "<button class=\"ds-btn-primary\" type=\"button\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M5 12.5 9.5 17 19 7.5\"/></svg><span>Terapkan</span></button>",
-      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;min-height:38px;border:1px solid var(--blue-main);border-radius:8px;background:var(--blue-main);color:var(--white-pure);font:500 12px Poppins,sans-serif;cursor:pointer;transition:background-color .2s ease,border-color .2s ease,box-shadow .2s ease,transform .16s ease}.ds-btn-primary svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ds-btn-primary:hover{background:var(--blue-hover);border-color:var(--blue-hover)}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 3px var(--blue-main-25)}.ds-btn-primary:active{background:var(--blue-active);transform:scale(.98)}"
+      "description": "Aksi utama pada toolbar, form, dan modal.",
+      "html": "<button class=\"ds-btn-primary\">Simpan Laporan</button>",
+      "css": ".ds-btn-primary { font-family: Poppins, sans-serif; font-size: 12px; font-weight: 500; padding: 8px 14px; border: 1px solid transparent; border-radius: 8px; background: var(--blue-main, #2563EB); color: #FFFFFF; cursor: pointer; transition: background-color .2s ease, box-shadow .2s ease; } .ds-btn-primary:hover { background: var(--blue-hover, #1D4ED8); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,0.10); } .ds-btn-primary:active { background: var(--blue-active, #1E40AF); }"
     },
     {
-      "name": "Secondary Tool Button",
+      "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Aksi pendamping seperti ekspor dan membuka rincian.",
-      "html": "<button class=\"ds-btn-secondary\" type=\"button\"><span>Buka Rincian</span><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"m9 6 6 6-6 6\"/></svg></button>",
-      "css": ".ds-btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border:1px solid var(--smooth-border);border-radius:8px;background:var(--white);color:var(--black-secondary);font:500 12px Poppins,sans-serif;cursor:pointer;transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform .16s ease}.ds-btn-secondary svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ds-btn-secondary:hover{background:var(--blue-main-5);border-color:var(--blue-main-25);color:var(--blue-main)}.ds-btn-secondary:focus-visible{outline:none;box-shadow:0 0 0 3px var(--blue-main-10)}.ds-btn-secondary:active{transform:scale(.98)}"
+      "description": "Aksi pendamping; surface dengan batas halus dan tint biru saat hover.",
+      "html": "<button class=\"ds-btn-secondary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M3 6h18M6 12h12M10 18h4\"/></svg>Filter</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 6px; font-family: Poppins, sans-serif; font-size: 12px; font-weight: 500; padding: 8px 14px; border: 1px solid var(--smooth-border, #E2E8F0); border-radius: 8px; background: var(--white, #FFFFFF); color: var(--dark-secondary, #334155); cursor: pointer; transition: background-color .2s ease, border-color .2s ease, color .2s ease; } .ds-btn-secondary:hover { background: rgba(37,99,235,0.05); border-color: rgba(37,99,235,0.25); color: var(--blue-main, #2563EB); } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,0.10); }"
     },
     {
-      "name": "Filter Field",
+      "name": "Text Input",
       "kind": "input",
       "refersTo": "input",
-      "description": "Bidang filter periode, regu, shift, dan pencarian.",
-      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Regu</span><input class=\"ds-field-input\" type=\"text\" placeholder=\"Semua regu\"></label>",
-      "css": ".ds-field{display:flex;flex-direction:column;gap:4px;font-family:Poppins,sans-serif}.ds-field-label{color:var(--black-secondary);font-size:10px;font-weight:500}.ds-field-input{min-width:150px;padding:8px 12px;border:1px solid var(--smooth-border);border-radius:8px;background:var(--white);color:var(--black);font:400 12px Poppins,sans-serif;outline:none;transition:border-color .2s ease,box-shadow .2s ease}.ds-field-input::placeholder{color:var(--muted)}.ds-field-input:hover{border-color:var(--divider)}.ds-field-input:focus-visible{border-color:var(--blue-main);box-shadow:0 0 0 3px var(--blue-main-10)}.ds-field-input:disabled{cursor:not-allowed;opacity:.65}"
+      "description": "Bidang isian laporan dengan label 10px di atasnya.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field__label\">Nama Kapal</span><input class=\"ds-field__control\" type=\"text\" placeholder=\"Masukkan Nama Kapal\"></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font-family: Poppins, sans-serif; } .ds-field__label { font-size: 10px; font-weight: 500; color: var(--dark-secondary, #334155); } .ds-field__control { font-family: inherit; font-size: 12px; padding: 8px 12px; border: 1px solid var(--smooth-border, #E2E8F0); border-radius: 8px; background: var(--white, #FFFFFF); color: var(--dark-main, #0F172A); transition: border-color .2s ease, box-shadow .2s ease; } .ds-field__control::placeholder { color: var(--muted, #94A3B8); } .ds-field__control:focus { outline: none; border-color: var(--blue-main, #2563EB); box-shadow: 0 0 0 3px rgba(37,99,235,0.10); }"
     },
     {
       "name": "KPI Card",
       "kind": "card",
       "refersTo": "kpi-card",
-      "description": "Pembuka pembacaan untuk angka utama, unit, delta, dan konteks.",
-      "html": "<article class=\"ds-kpi-card\"><div class=\"ds-kpi-head\"><span class=\"ds-kpi-icon\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M4 19V9m6 10V5m6 14v-7m4 7H2\"/></svg></span><span class=\"ds-kpi-label\">Total Tonase</span></div><div class=\"ds-kpi-row\"><strong class=\"ds-kpi-value\">24.680 <small>Ton</small></strong><span class=\"ds-kpi-delta\">+8,2%</span></div><span class=\"ds-kpi-note\">dibanding periode sebelumnya</span></article>",
-      "css": ".ds-kpi-card{min-height:128px;display:flex;flex-direction:column;gap:10px;padding:16px 18px 14px;border:1px solid var(--smooth-border);border-radius:14px;background:var(--white);color:var(--black);box-shadow:0 2px 4px rgba(37,99,235,.07);font-family:Poppins,sans-serif}.ds-kpi-head,.ds-kpi-row{display:flex;align-items:center;gap:10px}.ds-kpi-row{justify-content:space-between;flex-wrap:wrap}.ds-kpi-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:var(--blue-main-10);color:var(--blue-main)}.ds-kpi-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}.ds-kpi-label{color:var(--black-secondary);font-size:12px;font-weight:500}.ds-kpi-value{font-size:26px;line-height:1.1;font-weight:700;font-variant-numeric:tabular-nums}.ds-kpi-value small{margin-left:5px;color:var(--muted);font-size:12px;font-weight:500}.ds-kpi-delta{padding:3px 9px;border-radius:999px;background:var(--success-10);color:var(--success);font-size:11px;font-weight:600}.ds-kpi-note{color:var(--muted);font-size:10px}"
+      "description": "Kartu metrik: ikon bernada, label, angka tabular, unit, dan delta pill.",
+      "html": "<div class=\"ds-kpi\"><span class=\"ds-kpi__icon\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M3 17l6-6 4 4 7-7\"/></svg></span><span class=\"ds-kpi__label\">Total Bongkar</span><span class=\"ds-kpi__value\">1.284<span class=\"ds-kpi__unit\">Ton</span></span><span class=\"ds-kpi__delta\">+12,4%</span></div>",
+      "css": ".ds-kpi { display: flex; flex-direction: column; gap: 10px; font-family: Poppins, sans-serif; padding: 16px 18px 14px; min-height: 128px; border: 1px solid var(--smooth-border, #E2E8F0); border-radius: 14px; background: var(--white, #FFFFFF); box-shadow: 0 2px 4px rgba(37,99,235,0.07); } .ds-kpi__icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(37,99,235,0.10); color: var(--blue-main, #2563EB); } .ds-kpi__label { font-size: 10px; font-weight: 500; color: var(--dark-secondary, #334155); } .ds-kpi__value { font-size: 26px; font-weight: 700; line-height: 1.1; color: var(--dark-main, #0F172A); font-variant-numeric: tabular-nums; } .ds-kpi__unit { margin-left: 4px; font-size: 10px; font-weight: 500; color: var(--muted, #94A3B8); } .ds-kpi__delta { align-self: flex-start; padding: 3px 9px; border-radius: 999px; background: rgba(16,185,129,0.10); color: #10B981; font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums; }"
     },
     {
-      "name": "Section Card",
-      "kind": "card",
-      "refersTo": "section-card",
-      "description": "Wadah utama untuk ringkasan, grafik, tabel, dan rincian.",
-      "html": "<section class=\"ds-section-card\"><header class=\"ds-section-header\"><div><h3>Tren Kuantum</h3><p>Enam bulan terakhir, Ton, MT, dan Teus tetap dilabeli sesuai sumber.</p></div></header><div class=\"ds-section-body\"><span class=\"ds-section-placeholder\">Area data atau grafik</span></div></section>",
-      "css": ".ds-section-card{overflow:hidden;border:1px solid var(--smooth-border);border-radius:14px;background:var(--white);color:var(--black);box-shadow:0 1px 2px rgba(15,23,42,.04);font-family:Poppins,sans-serif}.ds-section-header{padding:16px 20px;border-bottom:1px solid var(--smooth-border)}.ds-section-header h3{margin:0;color:var(--black);font-size:15px;font-weight:600}.ds-section-header p{margin:2px 0 0;color:var(--black-secondary);font-size:10px;font-weight:400}.ds-section-body{min-height:96px;display:grid;place-items:center;padding:20px}.ds-section-placeholder{color:var(--muted);font-size:11px}"
-    },
-    {
-      "name": "Success Status Chip",
+      "name": "Status Chip",
       "kind": "chip",
       "refersTo": "status-success",
-      "description": "Status persetujuan atau delta yang membaik.",
-      "html": "<span class=\"ds-status-success\"><span class=\"ds-status-dot\" aria-hidden=\"true\"></span>Disetujui</span>",
-      "css": ".ds-status-success{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--success);border-radius:999px;background:var(--success-10);color:var(--success);font:600 10px Poppins,sans-serif}.ds-status-dot{width:6px;height:6px;border-radius:50%;background:currentColor}"
+      "description": "Pill status laporan; warna membawa makna, teks tetap sumber utama.",
+      "html": "<span class=\"ds-chip ds-chip--success\">Disetujui</span> <span class=\"ds-chip ds-chip--warning\">Menunggu</span> <span class=\"ds-chip ds-chip--danger\">Ditolak</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; font-family: Poppins, sans-serif; font-size: 10px; font-weight: 500; padding: 3px 9px; border-radius: 999px; } .ds-chip--success { background: rgba(16,185,129,0.10); color: #10B981; } .ds-chip--warning { background: rgba(247,147,30,0.10); color: #F7931E; } .ds-chip--danger { background: rgba(210,0,0,0.10); color: #D20000; }"
     },
     {
-      "name": "Sidebar Navigation Item",
+      "name": "Sidebar Nav Item",
       "kind": "nav",
       "refersTo": "nav-active",
-      "description": "Item menu dengan ikon, label, hover lembut, dan state aktif yang jelas.",
-      "html": "<a class=\"ds-nav-item is-active\" href=\"#\" aria-current=\"page\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><rect x=\"4\" y=\"4\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"14\" y=\"4\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"4\" y=\"14\" width=\"6\" height=\"6\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"6\" height=\"6\" rx=\"1\"/></svg><span>Dashboard</span></a>",
-      "css": ".ds-nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:transparent;color:var(--muted);font:400 12px Poppins,sans-serif;text-decoration:none;transition:background-color .2s ease,color .2s ease}.ds-nav-item svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8}.ds-nav-item:hover{background:var(--blue-main-5);color:var(--black-secondary)}.ds-nav-item.is-active{background:var(--blue-main-10);color:var(--blue-active);font-weight:500}.ds-nav-item:focus-visible{outline:none;box-shadow:0 0 0 3px var(--blue-main-10)}.ds-nav-item:active{background:var(--blue-main-10)}"
+      "description": "Item sidebar; aktif memakai tint biru, teks biru aktif, dan bobot 500.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav__item is-active\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M3 12l9-9 9 9M5 10v10h14V10\"/></svg>Dashboard</a><a class=\"ds-nav__item\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 4h16v16H4zM8 9h8M8 13h5\"/></svg>Arsip Laporan</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 234px; font-family: Poppins, sans-serif; } .ds-nav__item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 400; color: var(--dark-secondary, #334155); text-decoration: none; transition: background-color .2s ease, color .2s ease; } .ds-nav__item:hover { background: rgba(37,99,235,0.05); color: var(--blue-main, #2563EB); } .ds-nav__item.is-active { background: rgba(37,99,235,0.10); color: var(--blue-active, #1E40AF); font-weight: 500; }"
     },
     {
-      "name": "Activity Tab",
-      "kind": "nav",
-      "refersTo": "tab-active",
-      "description": "Salah satu dari tujuh kegiatan, lengkap dengan satuan dan semantik tab.",
-      "html": "<button class=\"ds-activity-tab is-active\" type=\"button\" role=\"tab\" aria-selected=\"true\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M4 8h16v10H4zM8 8V5h8v3\"/></svg><span>Bongkar</span><small>Ton</small></button>",
-      "css": ".ds-activity-tab{display:inline-flex;min-width:140px;align-items:center;justify-content:center;gap:8px;padding:6px 12px;border:0;border-radius:8px;background:transparent;color:var(--black-secondary);font:500 12px Poppins,sans-serif;cursor:pointer;transition:color .2s ease,background-color .2s ease,transform .16s ease}.ds-activity-tab svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8}.ds-activity-tab small{padding:2px 6px;border-radius:999px;background:var(--blue-main-5);color:var(--muted);font-size:9px}.ds-activity-tab:hover{background:var(--blue-main-10);color:var(--blue-main)}.ds-activity-tab.is-active{background:var(--blue-main);color:var(--white-pure)}.ds-activity-tab.is-active small{background:rgba(255,255,255,.18);color:var(--white-pure)}.ds-activity-tab:focus-visible{outline:none;box-shadow:0 0 0 3px var(--blue-main-25)}.ds-activity-tab:active{transform:scale(.98)}"
+      "name": "Frosted Popover",
+      "kind": "custom",
+      "refersTo": "frost-popover",
+      "description": "Resep kaca beku bersama: popover info form, dropdown profil, panel notifikasi, dan popover filter.",
+      "html": "<div class=\"ds-frost\"><span class=\"ds-frost__head\"><span class=\"ds-frost__icon\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 11v5M12 8h.01\"/></svg></span>Panduan pengisian</span><span class=\"ds-frost__body\">Regu Penerima adalah regu shift berikutnya yang menandatangani laporan ini, wajib berbeda dari regu pengirim.</span></div>",
+      "css": ".ds-frost { display: flex; flex-direction: column; gap: 10px; width: 320px; font-family: Poppins, sans-serif; padding: 14px; border: 1px solid var(--kss-frost-border, rgba(226,232,240,0.78)); border-radius: 14px; background: var(--kss-frost-surface, rgba(255,255,255,0.72)); -webkit-backdrop-filter: blur(26px) saturate(150%); backdrop-filter: blur(26px) saturate(150%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 1px 2px rgba(15,23,42,0.04), 0 4px 10px rgba(15,23,42,0.04), 0 12px 26px rgba(15,23,42,0.05), 0 26px 50px rgba(15,23,42,0.06); } .ds-frost__head { display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 600; color: var(--dark-main, #0F172A); } .ds-frost__icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 7px; background: rgba(37,99,235,0.10); color: var(--blue-main, #2563EB); } .ds-frost__body { font-size: 11px; line-height: 1.65; color: var(--dark-secondary, #334155); }"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Notifikasi mengambang selebar isinya; teks panjang dipotong elipsis.",
+      "html": "<div class=\"ds-toast\"><span class=\"ds-toast__icon\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 12l3 3 5-6\"/></svg></span><span class=\"ds-toast__copy\"><strong>Berhasil</strong><small>Laporan shift tersimpan.</small></span></div>",
+      "css": ".ds-toast { display: inline-flex; align-items: center; gap: 10px; max-width: 460px; font-family: Poppins, sans-serif; padding: 12px 14px; border: 1px solid var(--kss-frost-border, rgba(226,232,240,0.78)); border-radius: 18px; background: var(--kss-frost-surface, rgba(255,255,255,0.72)); -webkit-backdrop-filter: blur(26px) saturate(150%); backdrop-filter: blur(26px) saturate(150%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.72), 0 1px 2px rgba(15,23,42,0.04), 0 4px 10px rgba(15,23,42,0.04), 0 12px 26px rgba(15,23,42,0.05), 0 26px 50px rgba(15,23,42,0.06); } .ds-toast__icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: 0 0 auto; border-radius: 10px; background: rgba(16,185,129,0.14); border: 1px solid rgba(16,185,129,0.30); color: #10B981; } .ds-toast__copy { min-width: 0; display: flex; flex-direction: column; } .ds-toast__copy strong { font-size: 13px; font-weight: 700; line-height: 1.25; color: var(--dark-main, #0F172A); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .ds-toast__copy small { margin-top: 2px; font-size: 11px; font-weight: 400; line-height: 1.35; color: var(--dark-secondary, #334155); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }"
     }
   ],
   "narrative": {
     "northStar": "The Structured Operations Ledger",
-    "overview": "Sistem ini menerjemahkan kepadatan spreadsheet operasional menjadi antarmuka terstruktur yang dapat dipindai cepat. Ia terasa tenang, presisi, dan praktis: permukaan terang atau gelap yang berlapis tipis, kartu ringkas, angka tabular, serta warna semantik yang dipakai untuk orientasi dan status—bukan dekorasi.\n\nMode utamanya adalah Operate. Dashboard membuka pembacaan langsung dengan tujuh kartu kegiatan dan laporan masuk. Kinerja Operasi melanjutkan dengan KPI, ringkasan kegiatan, serta analitik sebelum pengguna masuk ke Rincian Kegiatan. Poppins, Flaticon UICons, token tema, anatomi kartu, dan perilaku responsif tetap menjadi satu dunia visual lintas modul.",
+    "overview": "Sistem ini menerjemahkan kepadatan spreadsheet operasional menjadi antarmuka terstruktur yang dapat dipindai cepat. Ia terasa tenang, presisi, dan praktis: permukaan terang atau gelap yang berlapis tipis, kartu ringkas, angka tabular, serta warna semantik yang dipakai untuk orientasi dan status—bukan dekorasi.\n\nMode utamanya adalah Operate. Dashboard membuka pembacaan langsung dengan tujuh kartu kegiatan dan laporan masuk. Kinerja Operasi melanjutkan dengan KPI, ringkasan kegiatan, serta analitik sebelum pengguna masuk ke Rincian Kegiatan. Poppins, Flaticon UICons, token tema, anatomi kartu, dan perilaku responsif tetap menjadi satu dunia visual lintas modul.\n\nSistem ini padat dengan sengaja. Antarmuka internal yang dipakai berjam-jam oleh petugas shift menukar kelapangan dengan jumlah data per layar, sehingga ramp tipografinya turun sampai 8px dan langkah antar ukurannya rapat—1px pada rentang bawah. Itu bukan kecelakaan yang harus dirapikan menjadi skala tipografi editorial; itu konsekuensi dari lembar kerja yang harus muat.",
     "keyCharacteristics": [
       "Padat namun berjarak teratur, seperti lembar kerja yang sudah disusun untuk keputusan cepat.",
       "Hierarki angka-ke-konteks: nilai utama tegas, satuan dan keterangan lebih tenang tetapi tetap terbaca.",
       "Kartu putih atau slate dengan batas halus, sudut membulat, dan bayangan rendah.",
+      "Permukaan mengambang memakai satu resep kaca beku (frosted) yang matte, bukan liquid glass yang mengilap.",
       "Aksen biru untuk orientasi dan aksi; hijau, jingga, merah, cyan, dan palet grafik hanya untuk makna data.",
       "Paritas light/dark dan keterbacaan teks sekunder adalah bagian dari sistem, bukan variasi kosmetik."
     ],
@@ -146,11 +190,16 @@
       { "name": "The Semantic Color Rule", "body": "Warna non-netral harus menjelaskan aksi, status, kategori, atau seri data; jangan menggunakannya sebagai hiasan bebas.", "section": "colors" },
       { "name": "The Theme Pair Rule", "body": "Semua warna implementasi harus berasal dari variabel tema yang memiliki pasangan light/dark; jangan menambahkan nilai warna langsung pada permukaan baru.", "section": "colors" },
       { "name": "The Readable Muted Rule", "body": "Teks sekunder dan muted boleh lebih tenang, tetapi tidak boleh menjadi abu-abu yang terlalu redup untuk dibaca pada light maupun dark mode.", "section": "typography" },
-      { "name": "The Progressive Ledger Rule", "body": "Mulai Dashboard dari tujuh kegiatan, lalu arahkan ke laporan masuk; pada Kinerja Operasi gunakan KPI → ringkasan kegiatan → analitik → detail. Jangan mendahulukan tabel panjang sebelum ringkasannya.", "section": "layout" },
-      { "name": "The Earned Elevation Rule", "body": "Bayangan kuat hanya untuk elemen yang mengambang, menutup, atau menuntut fokus sementara.", "section": "elevation" }
+      { "name": "The Dense Ramp Rule", "body": "Ukuran di bawah 12px sudah menjadi bagian sah dari sistem ini, tetapi hanya untuk label, metadata, dan badge. Jangan memakai 9px atau 8px untuk kalimat yang harus dibaca, dan jangan menambah langkah baru di antara yang sudah ada.", "section": "typography" },
+      { "name": "The Progressive Ledger Rule", "body": "Mulai Dashboard dari tujuh kegiatan, lalu arahkan ke laporan masuk; pada Kinerja Operasi gunakan KPI kembali ringkasan kegiatan kembali analitik kembali detail. Jangan mendahulukan tabel panjang sebelum ringkasannya.", "section": "layout" },
+      { "name": "The Earned Elevation Rule", "body": "Bayangan kuat hanya untuk elemen yang mengambang, menutup, atau menuntut fokus sementara.", "section": "elevation" },
+      { "name": "The Matte Overlay Rule", "body": "Permukaan mengambang memakai satu veil rata dengan blur tebal. Gradien diagonal, border terang/gelap asimetris, dan inner sheen adalah kosakata liquid glass dan tidak dipakai di sistem ini.", "section": "elevation" },
+      { "name": "The Pill Spelling Rule", "body": "Pill kanonis ditulis 999px. Nilai 50px dan 100px yang masih tersisa adalah ejaan lama dengan hasil visual sama; jangan menambah ejaan baru, dan konvergensikan ke 999px saat menyentuh aturan tersebut.", "section": "shapes" }
     ],
     "dos": [
       "Do gunakan token tema, Poppins, Flaticon UICons, dan anatomi kartu incumbent untuk semua ekstensi.",
+      "Do ambil ukuran teks dari dua belas peran yang sudah terdaftar, termasuk langkah rapat 9–14px.",
+      "Do pakai token --kss-frost-* untuk setiap permukaan mengambang baru, bukan meracik kaca sendiri.",
       "Do pertahankan Dashboard yang activity-first dan Kinerja Operasi yang KPI/summary-first sebelum analitik dan rincian.",
       "Do rata-kan angka pembanding ke kanan dan gunakan tabular numerals pada KPI, tabel, gauge, dan delta.",
       "Do pertahankan fokus terlihat, semantik ARIA, scroll horizontal terkontrol, dan teks muted yang terbaca pada kedua tema.",
@@ -158,6 +207,8 @@
     ],
     "donts": [
       "Don't membuat identitas, palet, font, ikon, atau anatomi kartu baru untuk satu halaman.",
+      "Don't menambah langkah tipografi atau radius baru di antara yang sudah terdaftar; ramp ini sudah rapat.",
+      "Don't memakai gradien diagonal, border asimetris, atau inner sheen pada permukaan mengambang.",
       "Don't memakai warna hardcoded di luar token tema atau menggunakan warna non-netral tanpa makna data.",
       "Don't menghapus label sumber Ton, MT, atau Teus, atau mencampur Teus dengan massa dalam total maupun skala visual.",
       "Don't menumpuk kartu KPI Kinerja Operasi satu kolom di ponsel bila matriks 2×2 masih terbaca.",

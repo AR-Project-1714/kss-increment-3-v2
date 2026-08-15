@@ -7,11 +7,11 @@
       saat sinyal buruk di lapangan.
 
     Aplikasi sengaja TIDAK installable sebagai PWA standalone (tidak ada
-    manifest). Alur tinjau, cetak, dan unduh PDF memakai target="_blank" di
-    banyak tempat; pada mode standalone tab baru terpaksa dibuka sebagai window
-    terpisah, yang justru mengganggu petugas. Service worker tidak memerlukan
-    mode standalone, jadi cache aset dan fallback offline tetap didapat penuh
-    lewat tab browser biasa.
+    manifest). Alur tinjau laporan kini berpindah halaman di tab yang sama,
+    tetapi cetak dan unduh PDF masih memakai target="_blank"; pada mode
+    standalone tab baru terpaksa dibuka sebagai window terpisah, yang justru
+    mengganggu petugas. Service worker tidak memerlukan mode standalone, jadi
+    cache aset dan fallback offline tetap didapat penuh lewat tab browser biasa.
 
     theme-color mewarnai toolbar Chrome Android, dan apple-touch-icon dipakai
     bila petugas menaruh shortcut di home screen — keduanya berlaku untuk tab

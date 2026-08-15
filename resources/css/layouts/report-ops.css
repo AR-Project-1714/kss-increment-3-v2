@@ -1,3 +1,4 @@
+@import '../components/frosted-surface.css';
 @import '../components/account-settings.css';
 @import '../components/notification-center.css';
 @import '../components/report-table.css';
@@ -716,6 +717,62 @@
         .btn-delete .icon-delete i {
             position: relative;
             top: 2px;
+        }
+
+        /* Bilah hapus cepat seluruh draft. Aksi merusak yang berlaku untuk
+           banyak baris, jadi dibuat outline merah — bukan solid — supaya tidak
+           lebih menonjol daripada "Lanjutkan Draft" yang merupakan aksi utama. */
+        .draft-bulk-bar {
+            padding: 10px 12px;
+            border: 1px solid var(--smooth-border);
+            border-radius: 10px;
+            background: var(--white);
+        }
+
+        .draft-bulk-bar__count {
+            min-width: 0;
+        }
+
+        .btn-delete-all {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--red-main-25);
+            border-radius: 8px;
+            background: var(--white);
+            color: var(--red-main);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color .2s ease-out, border-color .2s ease-out;
+        }
+
+        .btn-delete-all:hover {
+            background-color: var(--red-main-10);
+            border-color: var(--red-main);
+        }
+
+        .btn-delete-all:focus-visible {
+            outline: 2px solid var(--red-main);
+            outline-offset: 2px;
+        }
+
+        .btn-delete-all .icon-delete i {
+            position: relative;
+            top: 2px;
+        }
+
+        @media (max-width: 560px) {
+            .draft-bulk-bar {
+                align-items: stretch;
+            }
+
+            .btn-delete-all {
+                justify-content: center;
+                width: 100%;
+            }
         }
 
         /* === 3. RIWAYAT LAPORAN STYLES === */

@@ -17,8 +17,13 @@
 .report-table {
     /* Lebar kolom (urutan sama dengan urutan kolom di markup). */
     --col-no: 38px;
-    --col-doc: 176px;        /* kolom fleksibel: nilai ini lebar minimumnya */
-    --col-date: 212px;
+    /* Dua kolom baca ini fleksibel: nilai dasar = lebar minimum, nilai -max =
+       batas tumbuhnya. Tanpa batas, satu kolom menelan seluruh sisa ruang dan
+       menyisakan jurang kosong di tengah baris. */
+    --col-doc: 176px;
+    --col-doc-max: 260px;
+    --col-date: 232px;       /* muat "Terakhir diedit: 30 menit yang lalu" utuh */
+    --col-date-max: 300px;
     --col-context-1: 108px;  /* Shift (Operasi) / Hari (K3 & Pemeliharaan) */
     --col-context-2: 116px;  /* Group (Operasi) / Jam Kerja (K3 & Pemeliharaan) */
     --col-status: 116px;
@@ -93,17 +98,22 @@ table.report-table {
     font-variant-numeric: tabular-nums;
 }
 
-/* Satu-satunya kolom yang tumbuh saat layar lebih lega. */
+/* Kolom baca yang tumbuh saat layar lebih lega — keduanya berhenti di batas
+   masing-masing. Sisa ruang setelah batas tercapai jatuh ke margin-left:auto
+   milik kolom aksi, jadi ia berkumpul di tepi kanan sebagai pemisah aksi,
+   bukan menganga di antara Info Dokumen dan Tanggal Laporan. */
 .report-table .thead th.col-doc,
 .report-table .tbody td.col-doc {
     flex: 1 1 var(--col-doc);
     min-width: var(--col-doc);
+    max-width: var(--col-doc-max);
 }
 
 .report-table .thead th.col-date,
 .report-table .tbody td.col-date {
-    flex: 0 0 var(--col-date);
-    width: var(--col-date);
+    flex: 1 1 var(--col-date);
+    min-width: var(--col-date);
+    max-width: var(--col-date-max);
 }
 
 .report-table .thead th.col-shift,
@@ -232,9 +242,13 @@ table.report-table {
     --col-action: 206px;
 }
 
-/* Riwayat K3 & Pemeliharaan: Lihat, PDF, Edit (kondisional), Cetak = 196px. */
+/* Riwayat K3 & Pemeliharaan: Lihat, PDF, Edit (kondisional), Cetak = 196px.
+   Kolom konteks dan aksinya lebih sempit, jadi batas kolom baca dinaikkan agar
+   sisa ruang tidak menumpuk terlalu banyak di depan kolom aksi. */
 .report-table--daily-history {
     --col-doc: 190px;
+    --col-doc-max: 320px;
+    --col-date-max: 360px;
     --col-context-1: 96px;   /* Hari */
     --col-context-2: 124px;  /* Jam Kerja */
     --col-action: 206px;

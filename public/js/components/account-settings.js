@@ -76,14 +76,23 @@
             document.body.classList.toggle('kss-account-modal-open', Boolean(hasOpenModal));
         }
 
-        function setMenuOpen(root, open, focusFirstItem) {
+        /* Dua cara membuka dengan umur yang berbeda:
+           - hover  → sementara, tertutup begitu kursor meninggalkan area;
+           - klik   → "dipaku" (pinned), hanya tertutup oleh klik di luar,
+                      Escape, atau overlay lain yang mengambil alih.
+           Status paku disimpan di root.dataset.pinned supaya setMenuOpen tetap
+           menjadi satu-satunya jalan mengubah keadaan. */
+        function setMenuOpen(root, open, focusFirstItem, pinned) {
             var trigger = root?.querySelector('[data-account-trigger]');
             var popover = root?.querySelector('[data-account-popover]');
             if (!trigger || !popover) return;
 
+            root.dataset.pinned = open && pinned ? 'true' : 'false';
             trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
             popover.setAttribute('aria-hidden', open ? 'false' : 'true');
             popover.classList.toggle('is-open', open);
+
+            if (open) notifyOverlayOpened();
 
             if (open && focusFirstItem) {
                 window.setTimeout(function () {
@@ -92,12 +101,30 @@
             }
         }
 
+        function isPinned(root) {
+            return root?.dataset.pinned === 'true';
+        }
+
         function closeMenus(exceptRoot) {
             document.querySelectorAll('[data-account-root]').forEach(function (root) {
                 if (root === exceptRoot) return;
-                setMenuOpen(root, false, false);
+                setMenuOpen(root, false, false, false);
             });
         }
+
+        /* Kontrak lepas-kait dengan overlay lain di navbar (mis. pusat
+           notifikasi): siapa pun yang membuka memberi kabar, yang lain menutup.
+           Keduanya tidak boleh terbuka bersamaan. */
+        function notifyOverlayOpened() {
+            document.dispatchEvent(new CustomEvent('kss:overlay-open', {
+                detail: { source: 'account' },
+            }));
+        }
+
+        document.addEventListener('kss:overlay-open', function (event) {
+            if (event.detail?.source === 'account') return;
+            closeMenus();
+        });
 
         function showToast(type, title, message) {
             if (window.kssToast) window.kssToast(type, title, message);
@@ -414,28 +441,34 @@
             var themeToggle = root.querySelector('[data-account-theme-toggle]');
             var hoverCloseTimer = null;
 
+            // Klik memaku popover; klik lagi pada pemicunya melepas dan menutup.
             trigger?.addEventListener('click', function () {
-                var willOpen = hoverCapable.matches || !popover.classList.contains('is-open');
+                var willOpen = !isPinned(root);
                 closeMenus(root);
-                setMenuOpen(root, willOpen, willOpen);
+                setMenuOpen(root, willOpen, willOpen, willOpen);
             });
 
             root.addEventListener('mouseenter', function () {
                 if (!hoverCapable.matches) return;
                 window.clearTimeout(hoverCloseTimer);
+                if (isPinned(root)) return;
                 closeMenus(root);
-                setMenuOpen(root, true, false);
+                setMenuOpen(root, true, false, false);
             });
 
             root.addEventListener('mouseleave', function () {
-                if (!hoverCapable.matches) return;
-                hoverCloseTimer = window.setTimeout(function () { setMenuOpen(root, false, false); }, 180);
+                if (!hoverCapable.matches || isPinned(root)) return;
+                hoverCloseTimer = window.setTimeout(function () {
+                    if (!isPinned(root)) setMenuOpen(root, false, false, false);
+                }, 180);
             });
 
             root.addEventListener('focusin', function () { window.clearTimeout(hoverCloseTimer); });
             root.addEventListener('focusout', function (event) {
-                if (root.contains(event.relatedTarget)) return;
-                window.setTimeout(function () { setMenuOpen(root, false, false); }, 0);
+                if (root.contains(event.relatedTarget) || isPinned(root)) return;
+                window.setTimeout(function () {
+                    if (!isPinned(root)) setMenuOpen(root, false, false, false);
+                }, 0);
             });
 
             passwordOpen?.addEventListener('click', function () { openPasswordModal(passwordOpen); });

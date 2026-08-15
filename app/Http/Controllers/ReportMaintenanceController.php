@@ -583,6 +583,50 @@ class ReportMaintenanceController extends Controller
             && in_array($report->status, [MaintenanceStatus::Draft, MaintenanceStatus::Submitted], true);
     }
 
+    /**
+     * Hapus cepat seluruh draft milik petugas yang sedang masuk.
+     *
+     * Penghapusan dilakukan per model (bukan mass delete lewat query) supaya
+     * event dan cascade relasi tetap berjalan persis seperti hapus satuan, dan
+     * dibungkus transaksi agar tidak menyisakan penghapusan separuh jalan.
+     */
+    public function destroyAllDrafts()
+    {
+        $user = auth()->user();
+
+        $drafts = MaintenanceReport::where('created_by', $user->id)
+            ->where('status', MaintenanceStatus::Draft)
+            ->get();
+
+        if ($drafts->isEmpty()) {
+            return redirect()
+                ->route('pemeliharaan.index')
+                ->with('error', 'Tidak ada draft yang bisa dihapus.');
+        }
+
+        $total = $drafts->count();
+
+        try {
+            DB::transaction(function () use ($drafts) {
+                foreach ($drafts as $draft) {
+                    $draft->delete();
+                }
+            });
+        } catch (Throwable $exception) {
+            Log::error('Gagal menghapus seluruh draft laporan pemeliharaan.', [
+                'user_id' => $user->id,
+                'total' => $total,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return back()->with('error', 'Draft belum bisa dihapus. Silakan coba lagi.');
+        }
+
+        return redirect()
+            ->route('pemeliharaan.index')
+            ->with('success', $total.' draft laporan pemeliharaan berhasil dihapus.');
+    }
+
     private function canDelete(MaintenanceReport $report, mixed $user): bool
     {
         return $this->canAccess($report, $user) && $report->status === MaintenanceStatus::Draft;

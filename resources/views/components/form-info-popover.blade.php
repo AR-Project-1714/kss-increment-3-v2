@@ -88,14 +88,17 @@
                 padding: 14px;
                 flex-direction: column;
                 gap: 10px;
-                border-radius: 12px;
-                background: color-mix(in srgb, var(--white) 82%, transparent);
-                backdrop-filter: blur(14px) saturate(160%);
-                -webkit-backdrop-filter: blur(14px) saturate(160%);
-                border: 1px solid color-mix(in srgb, var(--white) 40%, transparent);
+                border-radius: 14px;
+                /* Frosted bersama — lihat components/frosted-surface.css.
+                   Prefiks -webkit- didahulukan agar hasil build tetap membawa
+                   properti standar. */
+                border: 1px solid var(--kss-frost-border);
+                background: var(--kss-frost-surface);
+                -webkit-backdrop-filter: var(--kss-frost-filter);
+                backdrop-filter: var(--kss-frost-filter);
                 box-shadow:
-                    0 3px 10px var(--kss-popover-shadow-near),
-                    0 18px 44px var(--kss-popover-shadow-far);
+                    inset 0 1px 0 var(--kss-frost-edge),
+                    var(--kss-frost-shadow);
                 color: var(--dark-main);
                 opacity: 0;
                 pointer-events: none;

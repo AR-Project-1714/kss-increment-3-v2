@@ -141,18 +141,13 @@
         z-index: 40;
         width: min(940px, calc(100vw - 112px));
         padding: 16px;
-        background-color: rgba(255, 255, 255, .92);
-        -webkit-backdrop-filter: blur(22px) saturate(180%);
-        backdrop-filter: blur(22px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, .62);
-        border-radius: 12px;
-        box-shadow: 0 20px 52px rgba(15, 23, 42, .18), inset 0 1px 0 rgba(255, 255, 255, .76);
-    }
-
-    body.dark-mode .performance-filter__popover {
-        background-color: rgba(15, 23, 42, .92);
-        border-color: rgba(255, 255, 255, .14);
-        box-shadow: 0 20px 52px rgba(0, 0, 0, .52), inset 0 1px 0 rgba(255, 255, 255, .08);
+        /* Frosted bersama — lihat resources/css/components/frosted-surface.css. */
+        border: 1px solid var(--kss-frost-border);
+        border-radius: 14px;
+        background-color: var(--kss-frost-surface);
+        -webkit-backdrop-filter: var(--kss-frost-filter);
+        backdrop-filter: var(--kss-frost-filter);
+        box-shadow: inset 0 1px 0 var(--kss-frost-edge), var(--kss-frost-shadow);
     }
 
     .performance-filter__popover[hidden] { display: none; }

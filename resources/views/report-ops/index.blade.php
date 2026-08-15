@@ -800,7 +800,7 @@
                             </div>
                         </div>
                         <div class="report-button d-flex justify-content-end align-items-start gap-8 flexible" style="min-width: 220px;">
-                            <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
+                            <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link">
                                 <span class="icon-eye"><i class="fi fi-rr-eye"></i></span>
                                 <span class="text fw-500">Lihat Laporan</span>
                             </a>
@@ -824,6 +824,20 @@
             </div>
 
             <div id="content-draft" class="flex-column align-items-start align-self-stretch gap-20 w-100 {{ $activeTab === 'draft' ? 'd-flex' : 'd-none' }}">
+                {{-- Hapus cepat hanya muncul saat ada lebih dari satu draft; dengan
+                     satu draft tombol hapus per baris sudah tepat di sebelahnya. --}}
+                @if ($draftReports->count() > 1)
+                    <div class="draft-bulk-bar d-flex justify-content-between align-items-center align-self-stretch gap-10 flex-wrap">
+                        <span class="draft-bulk-bar__count fsize-12 text-secondary">
+                            {{ $draftReports->count() }} draft tersimpan dan belum dikirim.
+                        </span>
+                        <button type="button" class="btn-delete-all action-modal-trigger" data-open-modal="delete-all-drafts-modal">
+                            <span class="icon-delete"><i class="fi fi-rr-trash"></i></span>
+                            <span class="text">Hapus Semua Draft</span>
+                        </button>
+                    </div>
+                @endif
+
                 @forelse ($draftReports as $report)
                     @php($shift = $shiftMeta($report->shift))
                     <div class="draft-item d-flex flex-column align-items-start align-self-stretch gap-8 br-10">
@@ -987,7 +1001,7 @@
                                     </div>
                                 </td>
                                 <td class="aksi col-action" role="cell">
-                                    <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
+                                    <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link">
                                         <span><i class="fi fi-rr-eye"></i></span>
                                         <span>Lihat</span>
                                     </a>
@@ -1202,7 +1216,7 @@
                                     </div>
                                 </td>
                                 <td class="aksi col-action" role="cell">
-                                    <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link" target="_blank" rel="noopener">
+                                    <a href="{{ route('report-ops.show', $report) }}" class="btn see action-link">
                                         <span><i class="fi fi-rr-eye"></i></span>
                                         <span>Lihat</span>
                                     </a>
@@ -1357,7 +1371,7 @@
 
                     <div class="pop-up footer d-flex justify-content-end gap-10 flex-wrap">
                         <button type="button" class="btn cancel btn-close-modal" data-close-sign-modal>Batal</button>
-                        <a href="{{ route('report-ops.show', $report) }}" class="btn check-report" target="_blank" rel="noopener">
+                        <a href="{{ route('report-ops.show', $report) }}" class="btn check-report">
                             <i class="fi fi-rr-eye me-1"></i> Periksa Laporan
                         </a>
                         <form action="{{ route('report-ops.sign', $report) }}" method="POST" class="inline-action-form">
@@ -1437,6 +1451,41 @@
         </div>
     @endforeach
 
+    @if ($draftReports->count() > 1)
+        <div class="modal-overlay" id="delete-all-drafts-modal">
+            <div class="pop-up signed d-flex flex-column gap-20">
+                <div class="pop-up-header d-flex justify-content-between align-items-center">
+                    <span class="fw-600 fsize-16">Hapus Semua Draft</span>
+                    <button type="button" class="btn-close-modal border-0 bg-transparent text-muted" data-close-action-modal>
+                        <i class="fi fi-br-cross fsize-10"></i>
+                    </button>
+                </div>
+
+                <div class="pop-up-content d-flex flex-column gap-15">
+                    <div class="pop-up detail danger d-flex align-items-center">
+                        <span class="icon-document danger"><i class="fi fi-rr-trash"></i></span>
+                        <div class="d-flex flex-column">
+                            <span class="fw-600 fsize-14">Hapus {{ $draftReports->count() }} draft sekaligus?</span>
+                            <span class="fsize-10 text-secondary">Seluruh draft laporan operasi milik Anda</span>
+                        </div>
+                    </div>
+                    <p class="fsize-12 sign-modal-note">Tindakan ini tidak bisa dibatalkan. Semua draft pada daftar ini akan hilang dan tidak bisa dilanjutkan. Laporan yang sudah dikirim, diterima, atau disetujui tidak terpengaruh.</p>
+                </div>
+
+                <div class="pop-up footer d-flex justify-content-end gap-10 flex-wrap">
+                    <button type="button" class="btn cancel btn-close-modal" data-close-action-modal>Batal</button>
+                    <form action="{{ route('report-ops.drafts.destroy-all') }}" method="POST" class="inline-action-form">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn delete-confirm">
+                            <i class="fi fi-rr-trash me-1"></i> Ya, Hapus Semua
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @foreach ($historyReports as $report)
         @if ($canEdit($report))
             @php($shift = $shiftMeta($report->shift))
@@ -1462,7 +1511,7 @@
 
                     <div class="pop-up footer d-flex justify-content-end gap-10 flex-wrap">
                         <button type="button" class="btn cancel btn-close-modal" data-close-action-modal>Batal</button>
-                        <a href="{{ route('report-ops.show', $report) }}" class="btn check-report" target="_blank" rel="noopener">
+                        <a href="{{ route('report-ops.show', $report) }}" class="btn check-report">
                             <i class="fi fi-rr-eye me-1"></i> Periksa Laporan
                         </a>
                         <a href="{{ route('report-ops.edit', $report) }}" class="btn edit-confirm">

@@ -810,7 +810,7 @@
                                     <a href="{{ $r['download_url'] ?? '#' }}" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="{{ $r['view_url'] ?? '#' }}" class="btn-act view" title="Lihat" target="_blank" rel="noopener">
+                                    <a href="{{ $r['view_url'] ?? '#' }}" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-{{ $r['key'] }}" title="Hapus">

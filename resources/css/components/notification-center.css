@@ -78,13 +78,17 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
-    border: 1px solid var(--smooth-border);
     border-radius: 14px;
-    background: var(--white);
+    /* Frosted bersama — lihat components/frosted-surface.css. Prefiks -webkit-
+       didahulukan agar hasil build tetap membawa properti standar. */
+    border: 1px solid var(--kss-frost-border);
+    background: var(--kss-frost-surface);
+    -webkit-backdrop-filter: var(--kss-frost-filter);
+    backdrop-filter: var(--kss-frost-filter);
     color: var(--black, var(--dark-main));
     box-shadow:
-        0 3px 10px var(--kss-popover-shadow-near),
-        0 18px 44px var(--kss-popover-shadow-far);
+        inset 0 1px 0 var(--kss-frost-edge),
+        var(--kss-frost-shadow);
     transform-origin: top right;
     animation: kss-notification-panel-in 180ms cubic-bezier(.2, .8, .2, 1);
 }
@@ -170,7 +174,9 @@
     padding: 13px 16px;
     border: 0;
     border-bottom: 1px solid var(--smooth-border);
-    background: var(--white);
+    /* Baris dibiarkan tembus supaya kabut panel terbaca merata; state hover dan
+       belum-dibaca tetap memakai tint biru yang sudah transparan. */
+    background: transparent;
     color: inherit;
     text-align: left;
     font-family: inherit;
@@ -336,9 +342,9 @@
 .kss-notification-center__state button {
     margin-top: 5px;
     padding: 7px 10px;
-    border: 1px solid var(--smooth-border);
+    border: 1px solid var(--kss-frost-inset-border);
     border-radius: 8px;
-    background: var(--white);
+    background: var(--kss-frost-inset);
     color: var(--blue-main);
     font-family: inherit;
     font-size: 9px;

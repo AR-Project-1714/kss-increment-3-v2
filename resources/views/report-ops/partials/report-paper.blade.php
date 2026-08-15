@@ -256,6 +256,16 @@
     .report-paper .sign { margin-top: 8px; page-break-inside: avoid; }
     .report-paper .company { text-align: center; font-weight: bold; font-size: 9px; padding: 8px 0 2px; }
     .report-paper .sign td { width: 33.33%; text-align: center; vertical-align: top; font-size: 8.5px; padding: 2px 12px; }
+    /* Baris tempat-tanggal hanya terisi di kolom terakhir, tetapi barisnya tetap
+       ada (diisi &nbsp;) di ketiga kolom. Tanpa itu kolom terakhir lebih tinggi
+       satu baris dan seluruh isinya — label, tanda tangan, nama — melorot
+       dibanding dua kolom lain. Tinggi dipatok agar DomPDF dan pratinjau HTML
+       menghitung baris yang sama persis. */
+    /* 8px: satu langkah di bawah 8.5px milik label peran, jadi tetap terbaca
+       sebagai keterangan dan bukan judul. Tinggi, line-height, dan jarak bawah
+       berlaku di ketiga kolom sekaligus supaya label peran tetap sebaris. */
+    .report-paper .sign .place { height: 11px; line-height: 11px; font-size: 10px; margin-bottom: 8px; }
+    .report-paper .sign .role { line-height: 11px; }
     .report-paper .sigwrap { height: 52px; margin: 3px 0; }
     .report-paper .sigwrap img { max-height: 52px; max-width: 145px; }
     .report-paper .nm { font-weight: bold; text-decoration: underline; }
@@ -907,20 +917,22 @@
     <table class="sign">
         <tr>
             <td>
-                Mengetahui,
+                <div class="place">&nbsp;</div>
+                <div class="role">Mengetahui,</div>
                 <div class="sigwrap">@if ($approverSig)<img src="{{ $approverSig }}" alt="TTD">@endif</div>
                 <div class="nm">{{ $report->approver?->name ?: '(.....................)' }}</div>
                 <div class="ttl">Manager Operasi &amp; K3</div>
             </td>
             <td>
-                Diterima / Melanjutkan,
+                <div class="place">&nbsp;</div>
+                <div class="role">Diterima / Melanjutkan,</div>
                 <div class="sigwrap">@if ($receiverSig)<img src="{{ $receiverSig }}" alt="TTD">@endif</div>
                 <div class="nm">{{ $report->receiver?->name ?: '(.....................)' }}</div>
                 <div class="ttl">Foreman Group {{ $report->received_by_group ?: '-' }}</div>
             </td>
             <td>
-                <span class="small">Bontang, {{ $fmtDate($report->report_date) }}</span><br>
-                Dilaksanakan / Menyerahkan,
+                <div class="place">Bontang, {{ $fmtDate($report->report_date) }}</div>
+                <div class="role">Dilaksanakan / Menyerahkan,</div>
                 <div class="sigwrap">@if ($creatorSig)<img src="{{ $creatorSig }}" alt="TTD">@endif</div>
                 <div class="nm">{{ $report->creator?->name ?: '(.....................)' }}</div>
                 <div class="ttl">Foreman Group {{ $report->group_name ?: '-' }}</div>

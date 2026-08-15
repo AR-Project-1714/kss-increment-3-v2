@@ -303,7 +303,7 @@
                         </div>
 
                         <div class="report-button d-flex justify-content-end align-items-start gap-8 flexible" style="min-width: 220px;">
-                            <a href="{{ route('manajer.reports.show', $report) }}" class="btn see" target="_blank" rel="noopener">
+                            <a href="{{ route('manajer.reports.show', $report) }}" class="btn see">
                                 <span class="icon-eye"><i class="fi fi-rr-eye"></i></span>
                                 <span class="text">Baca Laporan</span>
                             </a>
@@ -348,7 +348,7 @@
                         </div>
 
                         <div class="report-button d-flex justify-content-end align-items-start gap-8 flexible" style="min-width: 220px;">
-                            <a href="{{ route('manajer.pemeliharaan.show', $report) }}" class="btn see" target="_blank" rel="noopener">
+                            <a href="{{ route('manajer.pemeliharaan.show', $report) }}" class="btn see">
                                 <span class="icon-eye"><i class="fi fi-rr-eye"></i></span>
                                 <span class="text">Baca Laporan</span>
                             </a>
@@ -393,7 +393,7 @@
                         </div>
 
                         <div class="report-button d-flex justify-content-end align-items-start gap-8 flexible" style="min-width: 220px;">
-                            <a href="{{ route('manajer.safety.show', $report) }}" class="btn see" target="_blank" rel="noopener">
+                            <a href="{{ route('manajer.safety.show', $report) }}" class="btn see">
                                 <span class="icon-eye"><i class="fi fi-rr-eye"></i></span>
                                 <span class="text">Baca Laporan</span>
                             </a>
@@ -455,7 +455,7 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="approve-report-modal-{{ $report->id }}">Batal</button>
-                    <a href="{{ route('manajer.reports.show', $report) }}" class="btn-modal btn-modal--cancel" target="_blank" rel="noopener">Tinjau</a>
+                    <a href="{{ route('manajer.reports.show', $report) }}" class="btn-modal btn-modal--cancel">Tinjau</a>
                     <form action="{{ route('manajer.reports.approve', $report) }}" method="POST" class="js-approve-form">
                         @csrf
                         <button type="submit" class="btn-modal btn-modal--confirm">
@@ -508,7 +508,7 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="approve-maintenance-modal-{{ $report->id }}">Batal</button>
-                    <a href="{{ route('manajer.pemeliharaan.show', $report) }}" class="btn-modal btn-modal--cancel" target="_blank" rel="noopener">Tinjau</a>
+                    <a href="{{ route('manajer.pemeliharaan.show', $report) }}" class="btn-modal btn-modal--cancel">Tinjau</a>
                     <form action="{{ route('manajer.pemeliharaan.approve', $report) }}" method="POST" class="js-approve-form">
                         @csrf
                         <button type="submit" class="btn-modal btn-modal--confirm">
@@ -561,7 +561,7 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="approve-safety-modal-{{ $report->id }}">Batal</button>
-                    <a href="{{ route('manajer.safety.show', $report) }}" class="btn-modal btn-modal--cancel" target="_blank" rel="noopener">Tinjau</a>
+                    <a href="{{ route('manajer.safety.show', $report) }}" class="btn-modal btn-modal--cancel">Tinjau</a>
                     <form action="{{ route('manajer.safety.approve', $report) }}" method="POST" class="js-approve-form">
                         @csrf
                         <button type="submit" class="btn-modal btn-modal--confirm">

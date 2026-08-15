@@ -75,30 +75,9 @@
         </div>
     </div>
 
-    {{-- Tombol "Unduh PDF": PDF terbuka di tab baru, lalu tab pratinjau ini
-         ditutup dan fokus kembali ke website laporan KSS. Jika browser memblokir
-         penutupan tab, navigasi balik ke daftar laporan. --}}
-    @unless (request()->boolean('peek'))
-    <script>
-        (function () {
-            var pdfBtn = document.getElementById('btnPdf');
-            if (!pdfBtn) return;
-            var backBtn = document.querySelector('.toolbar .btn.back');
-            var fallbackUrl = backBtn ? backBtn.getAttribute('href') : '/';
-
-            pdfBtn.addEventListener('click', function () {
-                window.setTimeout(function () {
-                    window.close();
-                    window.setTimeout(function () {
-                        if (!window.closed) {
-                            window.location.href = fallbackUrl;
-                        }
-                    }, 150);
-                }, 500);
-            });
-        })();
-    </script>
-    @endunless
+    {{-- Pratinjau kini dibuka di tab yang sama. "Unduh PDF" hanya mengunduh dan
+         tidak lagi menutup atau memindahkan halaman ini; perilaku tutup-tab yang
+         lama berasal dari masa ketika pratinjau selalu dibuka sebagai tab baru. --}}
 
     <div class="sheet-frame">
         <div class="sheet">
