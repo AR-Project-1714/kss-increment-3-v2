@@ -82,7 +82,12 @@
            CSS VARIABLES — Dark Mode
            ============================================= */
         body.dark-mode {
-            --main-bg:         #0F172A;
+            /* Kanvas sengaja lebih dalam daripada permukaan kartu supaya batas
+               kartu terbaca tanpa mengandalkan bayangan — bayangan nyaris tak
+               terlihat di atas latar gelap. Tidak dibawa ke hitam pekat karena
+               teks aplikasi ini banyak yang 8–11px; kontras ekstrem pada ukuran
+               sekecil itu membuat huruf bergetar. */
+            --main-bg:         #0A101C;
             --white:           #1E293B;
             --black:           #F8FAFC;
             --black-secondary: #CBD5E1;

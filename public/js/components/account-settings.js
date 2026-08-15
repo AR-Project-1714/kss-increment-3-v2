@@ -52,24 +52,56 @@
         var allowedPhotoTypes = ['image/jpeg', 'image/png', 'image/webp'];
         var maximumPhotoSize = 10 * 1024 * 1024;
 
+        /* Preferensi tema punya tiga nilai — 'light', 'dark', 'system' — dan
+           resolusinya dipusatkan di partials/theme-init.blade.php (window.kssTheme)
+           supaya skrip anti-flicker, FAB tanda tangan, dan panel ini memakai
+           aturan yang sama persis. Cadangan di bawah dipakai hanya bila partial
+           itu belum sempat jalan. */
+        var THEME_LABELS = { light: 'Terang', dark: 'Gelap', system: 'Mengikuti sistem' };
+
+        function themePreference() {
+            if (window.kssTheme) return window.kssTheme.get();
+            var value = localStorage.getItem('theme');
+            return (value === 'light' || value === 'dark' || value === 'system') ? value : 'system';
+        }
+
+        function themeIsDark(pref) {
+            if (window.kssTheme) return window.kssTheme.resolve(pref);
+            return pref === 'dark';
+        }
+
         function syncThemeControls() {
-            var isDark = document.body.classList.contains('dark-mode');
+            var pref = themePreference();
+            var isDark = themeIsDark(pref);
             document.documentElement.classList.toggle('kss-dark-theme', isDark);
 
-            document.querySelectorAll('[data-account-theme-toggle]').forEach(function (control) {
-                control.checked = isDark;
-                control.setAttribute('aria-label', isDark ? 'Nonaktifkan mode gelap' : 'Aktifkan mode gelap');
-                var status = control.closest('.kss-account__theme-row')?.querySelector('[data-account-theme-status]');
-                if (status) status.textContent = isDark ? 'Aktif' : 'Nonaktif';
+            document.querySelectorAll('[data-account-theme-option]').forEach(function (option) {
+                var selected = option.dataset.accountThemeOption === pref;
+                option.setAttribute('aria-checked', selected ? 'true' : 'false');
+                // Radiogroup hanya menyisakan satu titik tab; sisanya lewat panah.
+                option.tabIndex = selected ? 0 : -1;
+            });
+
+            document.querySelectorAll('[data-account-theme-status]').forEach(function (status) {
+                status.textContent = pref === 'system'
+                    ? THEME_LABELS.system + ' (' + (isDark ? 'gelap' : 'terang') + ')'
+                    : THEME_LABELS[pref];
             });
         }
 
-        function setTheme(isDark) {
-            document.body.classList.toggle('dark-mode', isDark);
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        function setTheme(pref) {
+            if (window.kssTheme) {
+                // apply() menyiarkan kss:theme-change, dan pendengar di bawah
+                // yang memanggil syncThemeControls — jadi tidak dipanggil dobel.
+                window.kssTheme.apply(pref);
+                return;
+            }
+            localStorage.setItem('theme', pref);
+            document.body.classList.toggle('dark-mode', pref === 'dark');
             syncThemeControls();
-            document.dispatchEvent(new CustomEvent('kss:theme-change', { detail: { dark: isDark } }));
         }
+
+        document.addEventListener('kss:theme-change', syncThemeControls);
 
         function setBodyModalState() {
             var hasOpenModal = document.querySelector('.kss-account-modal.is-open');
@@ -438,7 +470,7 @@
             var passwordOpen = root.querySelector('[data-account-open]');
             var helpOpen = root.querySelector('[data-account-help-open]');
             var photoOpen = root.querySelector('[data-account-photo-open]');
-            var themeToggle = root.querySelector('[data-account-theme-toggle]');
+            var themeOptions = Array.prototype.slice.call(root.querySelectorAll('[data-account-theme-option]'));
             var hoverCloseTimer = null;
 
             // Klik memaku popover; klik lagi pada pemicunya melepas dan menutup.
@@ -474,12 +506,36 @@
             passwordOpen?.addEventListener('click', function () { openPasswordModal(passwordOpen); });
             helpOpen?.addEventListener('click', function () { openHelpModal(helpOpen); });
             photoOpen?.addEventListener('click', function () { openPhotoModal(photoOpen); });
-            themeToggle?.addEventListener('change', function () { setTheme(themeToggle.checked); });
+            themeOptions.forEach(function (option, index) {
+                option.addEventListener('click', function () {
+                    setTheme(option.dataset.accountThemeOption);
+                });
+
+                // Navigasi panah sesuai perilaku radiogroup yang diharapkan
+                // pembaca layar; Home/End melompat ke ujung.
+                option.addEventListener('keydown', function (event) {
+                    var step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+                    var target = null;
+
+                    if (step) target = themeOptions[(index + step + themeOptions.length) % themeOptions.length];
+                    else if (event.key === 'Home') target = themeOptions[0];
+                    else if (event.key === 'End') target = themeOptions[themeOptions.length - 1];
+                    if (!target) return;
+
+                    event.preventDefault();
+                    setTheme(target.dataset.accountThemeOption);
+                    target.focus();
+                });
+            });
         });
 
         syncThemeControls();
         window.addEventListener('storage', function (event) {
-            if (event.key === 'theme') setTheme(event.newValue === 'dark');
+            // Tab lain mengubah preferensi: ikuti tampilannya, tetapi jangan
+            // menulis ulang localStorage — itu memicu pantulan antar tab.
+            if (event.key !== 'theme') return;
+            if (window.kssTheme) window.kssTheme.paint(window.kssTheme.resolve());
+            syncThemeControls();
         });
 
         document.addEventListener('click', function (event) {

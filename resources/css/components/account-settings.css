@@ -53,7 +53,6 @@
 .kss-account__trigger:focus-visible,
 .kss-account__menu-item:focus-visible,
 .kss-account__profile-card:focus-visible,
-.kss-account__theme-switch:focus-visible,
 .kss-account-modal button:focus-visible,
 .kss-account-field input:focus-visible,
 .kss-account-photo__dropzone:focus-visible {
@@ -319,11 +318,20 @@
     gap: 2px;
 }
 
-.kss-account__popover--profile .kss-account__menu-item,
-.kss-account__theme-row {
+/* Item menu profil: ikon — teks — panah. Kolom ketiga wajib ada, kalau tidak
+   panahnya membungkus ke baris kedua di bawah teks. */
+.kss-account__popover--profile .kss-account__menu-item {
     grid-template-columns: 30px minmax(0, 1fr) auto;
     min-height: 46px;
     padding: 8px;
+}
+
+/* Baris tema tidak punya panah — hanya ikon dan teks — jadi kolomnya sendiri,
+   bukan menumpang aturan item menu di atas. */
+.kss-account__theme-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+    min-height: 40px;
+    padding: 8px 8px 2px;
 }
 
 .kss-account__popover--profile .kss-account__menu-icon {
@@ -334,6 +342,9 @@
     font-size: 16px;
 }
 
+/* Baris ini kini hanya judul untuk segmented control di bawahnya — bukan lagi
+   kontrol yang bisa diklik, jadi hover dan cursor:pointer dilepas agar tidak
+   menjanjikan interaksi yang tidak ada. */
 .kss-account__theme-row {
     display: grid;
     align-items: center;
@@ -341,13 +352,6 @@
     width: 100%;
     border-radius: 9px;
     color: var(--dark-main, var(--black));
-    cursor: pointer;
-    transition: color .2s ease, background-color .2s ease;
-}
-
-.kss-account__theme-row:hover {
-    color: var(--blue-main);
-    background-color: var(--blue-main-5);
 }
 
 .kss-account__theme-copy {
@@ -356,41 +360,72 @@
     min-width: 0;
 }
 
-.kss-account__theme-switch {
-    position: relative;
-    width: 36px;
-    height: 20px;
-    margin: 0;
-    padding: 0;
-    appearance: none;
-    -webkit-appearance: none;
+/* Pemilih tema tiga arah. Sakelar biner lama diganti karena "Sistem" bukan
+   keadaan tengah dari Terang–Gelap, melainkan pilihan ketiga yang setara: ia
+   menyerahkan keputusan ke perangkat. Segmented control menyatakan ketiganya
+   sejajar, dan yang aktif terbaca dari posisi, bukan dari hafalan. */
+.kss-theme-segmented {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    margin: 2px 2px 4px;
+    padding: 3px;
     border: 1px solid var(--kss-frost-inset-border);
-    border-radius: 999px;
+    border-radius: 10px;
     background-color: var(--kss-frost-inset);
+}
+
+.kss-theme-segmented__option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 8px;
+    background-color: transparent;
+    color: var(--dark-secondary, var(--black-secondary));
+    font: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
     cursor: pointer;
-    transition: border-color .2s ease, background-color .2s ease;
+    transition: color .2s ease, background-color .2s ease;
 }
 
-.kss-account__theme-switch::before {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background-color: var(--muted);
-    transition: transform .22s cubic-bezier(.22, 1, .36, 1), background-color .2s ease;
+.kss-theme-segmented__option i {
+    position: relative;
+    top: 1px;
+    font-size: 11px;
+    line-height: 1;
 }
 
-.kss-account__theme-switch:checked {
-    border-color: var(--blue-main);
-    background-color: var(--blue-main);
+.kss-theme-segmented__option:hover {
+    color: var(--blue-main);
 }
 
-.kss-account__theme-switch:checked::before {
-    background-color: var(--button-color, var(--white-pure));
-    transform: translateX(16px);
+/* Segmen aktif diangkat ke permukaan kartu supaya terbaca timbul di atas
+   jalurnya yang cekung. */
+.kss-theme-segmented__option[aria-checked="true"] {
+    background-color: var(--white);
+    color: var(--blue-main);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 10%);
+}
+
+.kss-theme-segmented__option:focus-visible {
+    outline: 2px solid var(--blue-main);
+    outline-offset: 1px;
+}
+
+@media (max-width: 380px) {
+    .kss-theme-segmented__option span {
+        display: none;
+    }
+
+    .kss-theme-segmented__option i {
+        font-size: 13px;
+    }
 }
 
 .kss-account__popover--profile .kss-account__divider {

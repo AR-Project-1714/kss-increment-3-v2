@@ -27,6 +27,8 @@
 </head>
 
 <body>
+    {{-- Terapkan tema sebelum render agar tidak flicker --}}
+    @include('partials.theme-init')
 
     @include('partials.first-load-loader')
 

@@ -44,7 +44,7 @@ colors:
   dark-text-secondary: "#CBD5E1"
   dark-text-muted: "#94A3B8"
   dark-border: "#334155"
-  dark-canvas: "#0F172A"
+  dark-canvas: "#0A101C"
   dark-surface: "#1E293B"
   dark-frost-surface: "rgba(30,41,59,0.68)"
   dark-frost-border: "rgba(148,163,184,0.24)"
@@ -267,7 +267,9 @@ Palet memakai biru operasional sebagai aksen utama, warna status yang terbatas, 
 - **Secondary Slate** (`#334155`, dark `#CBD5E1`): label, subjudul, dan deskripsi operasional; harus tetap terbaca pada kedua tema.
 - **Muted Slate** (`#64748B` / `#94A3B8`): metadata dan konteks tersier, bukan isi kritis.
 - **Hairline Slate** (`#E2E8F0`, dark `#334155`): batas kartu, divider, grid, dan struktur tabel.
-- **Canvas and Surface** (`#F8FAFC` / `#FFFFFF`, dark `#0F172A` / `#1E293B`): pemisahan latar aplikasi dari kartu, navbar, sidebar, dan popover.
+- **Canvas and Surface** (`#F8FAFC` / `#FFFFFF`, dark `#0A101C` / `#1E293B`): pemisahan latar aplikasi dari kartu, navbar, sidebar, dan popover.
+
+**The Dark Canvas Depth Rule.** Pada dark mode kanvas harus jauh lebih dalam daripada permukaan kartu — jarak yang dipakai sistem ini adalah **11,7 langkah L\*** (kanvas L\* 4,7 ke permukaan L\* 16,4). Bayangan hampir tidak terbaca di atas latar gelap, jadi pemisahan nada inilah yang menggantikannya. Jangan menurunkan jarak itu, dan jangan pula membawa kanvas ke hitam pekat: teks aplikasi ini banyak yang 8–11px, dan kontras ekstrem pada ukuran sekecil itu membuat huruf bergetar.
 
 ### Alpha Ramps
 
@@ -339,6 +341,9 @@ Semua permukaan mengambang berbagi satu resep **frosted** dari `resources/css/co
 - **Action Lift** (`0 5px 14px rgba(37,99,235,0.18)`): pemicu filter utama.
 - **Glass Float** (`0 8px 24px rgba(15,23,42,0.08)`): tab kegiatan yang sticky.
 - **Frost Float** (`0 1px 2px / 0 4px 10px / 0 12px 26px / 0 26px 50px` pada alpha 4–6%): seluruh keluarga frosted—popover info form, tooltip status kapal, dropdown profil, panel notifikasi, popover filter, dan toast. Empat lapis tipis, bukan satu lapis pekat.
+- **Card Ring** (`0 0 0 1px var(--kss-card-ring)`): hairline tepi kartu, transparan pada mode terang dan `--smooth-border` pada mode gelap. Dipasang sebagai lapis pertama box-shadow kartu.
+
+**The Dark Edge Rule.** Di mode gelap, tepi kartu digambar oleh hairline, bukan oleh bayangan—bayangan hampir tidak terbaca di atas latar gelap. Hairline itu memakai ring box-shadow (blur 0, spread 1px), bukan `border`, karena kartu-kartu ini sudah punya padding dan tinggi mapan yang tidak boleh bergeser saat tema berganti.
 
 ### Motion
 
@@ -393,6 +398,18 @@ Keluarga permukaan mengambang yang berbagi satu resep: popover info form, toolti
 Isi di dalam panel frosted harus ikut tembus. Tile dan baris daftar memakai `--kss-frost-inset` atau transparan; latar solid `var(--white)` di dalam panel akan memotong kabutnya. Ketika `backdrop-filter` tidak tersedia atau pengguna meminta `prefers-reduced-transparency`, veil naik ke hampir solid agar teks tetap kontras.
 
 Dropdown profil dibuka dua cara dengan umur berbeda: hover membuka sementara dan menutup saat kursor pergi; klik memaku sampai ada klik di luar. Panel notifikasi dan dropdown profil tidak pernah terbuka bersamaan—keduanya berkoordinasi lewat event `kss:overlay-open`.
+
+### Theme Selector
+
+Segmented control tiga pilihan setara di dalam dropdown profil: **Terang**, **Gelap**, dan **Sistem**. Jalurnya cekung memakai `--kss-frost-inset`; segmen aktif diangkat ke `--white` dengan bayangan tipis sehingga terbaca timbul di atas jalurnya.
+
+Sakelar biner tidak dipakai karena "Sistem" bukan posisi tengah antara Terang dan Gelap—ia pilihan ketiga yang menyerahkan keputusan ke perangkat. Bentuk segmented menyatakan ketiganya sejajar, dan yang aktif terbaca dari posisi, bukan dari hafalan arah sakelar.
+
+Teks status di bawah judul menyebut hasil nyata, bukan sekadar nama pilihan: saat "Sistem" terpilih ia berbunyi `Mengikuti sistem (gelap)`. Di bawah 380px label teks disembunyikan dan menyisakan ikon agar ketiga segmen tetap muat.
+
+Semantiknya `role="radiogroup"` dengan `aria-checked` dan satu titik tab (`tabindex` 0 pada yang aktif, -1 pada sisanya); panah kiri/kanan, Home, dan End berpindah pilihan.
+
+**The Single Theme Source Rule.** Resolusi tema hanya boleh datang dari `window.kssTheme` di `partials/theme-init.blade.php`. Jangan menulis ulang `localStorage.getItem('theme') === 'dark'` di tempat lain: pemeriksaan seperti itu buta terhadap pilihan "Sistem" dan akan menyimpang begitu aturannya berubah.
 
 ### KPI and Analytics
 

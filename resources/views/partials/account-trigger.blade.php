@@ -99,22 +99,51 @@
                 @endif
 
                 @if ($showThemeToggle ?? false)
-                    <label class="kss-account__theme-row">
+                    {{-- Tiga pilihan setara: Terang, Gelap, dan Sistem. "Sistem"
+                         mengikuti tema perangkat dan berubah langsung saat
+                         perangkat berganti, tanpa perlu muat ulang. --}}
+                    <div class="kss-account__theme-row">
                         <span class="kss-account__menu-icon" aria-hidden="true">
-                            <i class="fi fi-rr-moon"></i>
+                            <i class="fi fi-rr-brightness"></i>
                         </span>
                         <span class="kss-account__theme-copy">
-                            <strong>Mode Gelap</strong>
-                            <small data-account-theme-status>Nonaktif</small>
+                            <strong>Tampilan</strong>
+                            <small data-account-theme-status>Mengikuti sistem</small>
                         </span>
-                        <input
-                            type="checkbox"
-                            class="kss-account__theme-switch"
-                            data-account-theme-toggle
-                            role="switch"
-                            aria-label="Aktifkan mode gelap"
+                    </div>
+
+                    <div class="kss-theme-segmented" role="radiogroup" aria-label="Mode tampilan">
+                        <button
+                            type="button"
+                            class="kss-theme-segmented__option"
+                            data-account-theme-option="light"
+                            role="radio"
+                            aria-checked="false"
                         >
-                    </label>
+                            <i class="fi fi-rr-sun" aria-hidden="true"></i>
+                            <span>Terang</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="kss-theme-segmented__option"
+                            data-account-theme-option="dark"
+                            role="radio"
+                            aria-checked="false"
+                        >
+                            <i class="fi fi-rr-moon" aria-hidden="true"></i>
+                            <span>Gelap</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="kss-theme-segmented__option"
+                            data-account-theme-option="system"
+                            role="radio"
+                            aria-checked="false"
+                        >
+                            <i class="fi fi-rr-laptop" aria-hidden="true"></i>
+                            <span>Sistem</span>
+                        </button>
+                    </div>
                 @endif
             </div>
 

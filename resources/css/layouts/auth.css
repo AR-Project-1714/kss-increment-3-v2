@@ -103,7 +103,8 @@
         }
 
         body.dark-mode {
-            --main-bg: #0F172A;
+            /* Lihat catatan kanvas gelap di admin.css. */
+            --main-bg: #0A101C;
             --white: #1E293B;
             --white-50: rgba(30, 41, 59, 0.5);
             --white-60: rgba(30, 41, 59, 0.6);

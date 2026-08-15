@@ -32,6 +32,11 @@
     --kss-frost-inset: rgb(255 255 255 / 46%);
     --kss-frost-inset-border: rgb(226 232 240 / 72%);
 
+    /* Hairline tepi kartu. Transparan pada mode terang — di sana bayangan dan
+       beda nada kanvas/permukaan sudah cukup memisahkan kartu. Lihat catatan
+       pemakaiannya di bawah. */
+    --kss-card-ring: transparent;
+
     /* Empat lapis beralfa rendah, bukan tiga lapis pekat. Kesan "kasar" datang
        dari satu lapisan gelap yang menumpuk; deret yang lebih rapat dan tipis
        membuat peluruhannya mulus sampai hilang. */
@@ -51,6 +56,9 @@ body.dark-mode {
 
     --kss-frost-inset: rgb(255 255 255 / 6%);
     --kss-frost-inset-border: rgb(255 255 255 / 11%);
+
+    /* Di gelap, bayangan nyaris tak terbaca: tepi kartu digambar hairline. */
+    --kss-card-ring: var(--smooth-border);
 
     --kss-frost-shadow:
         0 1px 2px rgb(2 6 23 / 16%),
@@ -77,6 +85,14 @@ body.dark-mode {
         --kss-frost-filter: none;
     }
 }
+
+/* Hairline tepi kartu dipasang sebagai ring box-shadow (blur 0, spread 1px),
+   BUKAN border: kartu-kartu ini sudah punya padding dan tinggi yang mapan, dan
+   border sungguhan akan memakan 1px ruang dalam di setiap sisi. Ring mengikuti
+   border-radius dan tidak menyentuh metrik kotak sama sekali. Pemakaiannya:
+   sisipkan `0 0 0 1px var(--kss-card-ring)` sebagai lapis PERTAMA pada
+   box-shadow kartu, sehingga di mode terang ia menghilang (transparan) dan di
+   mode gelap ia menggambar tepi. */
 
 /* Utilitas untuk permukaan mengambang baru. Prefiks -webkit- didahulukan agar
    hasil build tetap membawa properti standar. */

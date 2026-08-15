@@ -110,7 +110,8 @@
 
         /* Dark Mode Variables Override */
         body.dark-mode {
-            --main-bg: #0F172A;
+            /* Lihat catatan kanvas gelap di admin.css. */
+            --main-bg: #0A101C;
             --white: #1E293B;
             --white-50: rgba(30, 41, 59, 0.5);
             --white-60: rgba(30, 41, 59, 0.6);
@@ -276,7 +277,7 @@
 
         .content-header, .main-content {
             background-color: var(--white);
-            box-shadow: 0 2px 4px 0 var(--blue-main-10);
+            box-shadow: 0 0 0 1px var(--kss-card-ring), 0 2px 4px 0 var(--blue-main-10);
         }
 
         .main-content {
@@ -612,7 +613,7 @@
         /* === 2. DRAFT STYLES === */
         .draft-item {
             background-color: var(--white);
-            box-shadow: 0 0 1px 0 var(--muted);
+            box-shadow: 0 0 0 1px var(--kss-card-ring), 0 0 1px 0 var(--muted);
             padding: 20px;
             transition: .2s ease-out;
             cursor: pointer;
@@ -1304,7 +1305,7 @@
             position: relative;
             display: flex; padding: 5px; align-items: center; align-content: center;
             gap: 5px 10px; align-self: stretch; flex-wrap: nowrap; border-radius: 10px;
-            background-color: var(--white); box-shadow: 0 2px 4px 0 var(--blue-main-10);
+            background-color: var(--white); box-shadow: 0 0 0 1px var(--kss-card-ring), 0 2px 4px 0 var(--blue-main-10);
             width: 100%; overflow-x: auto; overflow-y: hidden;
             -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--blue-main-25) transparent;
         }
@@ -1344,7 +1345,7 @@
            FORM CONTAINERS & HEADERS
            ========================================= */
         .box-form {
-            gap: 10px; border-radius: 10px; box-shadow: 0 2px 4px 0 var(--blue-main-10); background-color: var(--white);
+            gap: 10px; border-radius: 10px; box-shadow: 0 0 0 1px var(--kss-card-ring), 0 2px 4px 0 var(--blue-main-10); background-color: var(--white);
         }
         .header-form {
             padding: 20px 25px; border-top: 4px solid var(--blue-main);

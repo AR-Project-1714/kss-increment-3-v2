@@ -36,7 +36,7 @@
 </head>
 <body class="officer-report-shell">
     <!-- Dark mode init lebih awal agar overlay langsung pakai warna yang benar -->
-    <script>if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');</script>
+    @include('partials.theme-init')
 
     @include('partials.first-load-loader')
 

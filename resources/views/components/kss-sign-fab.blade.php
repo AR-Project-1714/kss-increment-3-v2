@@ -93,7 +93,12 @@
 <script>
     (function () {
         try {
-            document.documentElement.classList.toggle('kss-dark-theme', localStorage.getItem('theme') === 'dark');
+            // Resolusi tema dipusatkan di partials/theme-init.blade.php supaya
+            // pilihan 'system' ikut terbaca di sini, bukan cuma 'dark'.
+            document.documentElement.classList.toggle(
+                'kss-dark-theme',
+                window.kssTheme ? window.kssTheme.resolve() : localStorage.getItem('theme') === 'dark'
+            );
         } catch (error) {
             // localStorage dapat diblokir pada mode privasi; gunakan tema terang.
         }

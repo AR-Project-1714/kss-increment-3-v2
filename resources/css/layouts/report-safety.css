@@ -48,7 +48,8 @@
         }
 
         body.dark-mode {
-            --main-bg: #0F172A; --white: #1E293B;
+            /* Lihat catatan kanvas gelap di admin.css. */
+            --main-bg: #0A101C; --white: #1E293B;
             --dark-main: #F8FAFC; --dark-secondary: #CBD5E1; --dark-secondary-10: rgba(203,213,225,0.1);
             --muted: #94A3B8; --smooth-border: #334155; --divider: #334155;
             --black: #FFFFFF; --black-25: #ffffff40; --black-10: #ffffff1a; --black-5: #ffffff0d; --black-40: #ffffff66;
@@ -92,7 +93,7 @@
             transition:background-color .3s ease-out,color .3s ease-out; margin-bottom:40px;
         }
         .content { max-width:1440px; margin:0 auto; width:100%; }
-        .content-header,.main-content { background-color:var(--white); box-shadow:0 2px 4px 0 var(--blue-main-10); }
+        .content-header,.main-content { background-color:var(--white); box-shadow: 0 0 0 1px var(--kss-card-ring), 0 2px 4px 0 var(--blue-main-10); }
         .main-content { padding-bottom:20px!important; }
         .title-header { min-width:250px; }
 
@@ -124,7 +125,7 @@
         .tab-amount{display:flex;padding:0 5px;flex-direction:column;justify-content:center;align-items:center;gap:10px;background-color:var(--orange-main);border-radius:10px;color:var(--button-color)}
 
         /* ===== DRAFT CARDS ===== */
-        .draft-item{background-color:var(--white);box-shadow:0 0 1px 0 var(--muted);padding:20px;transition:.2s ease-out;width:100%}
+        .draft-item{background-color:var(--white);box-shadow:0 0 0 1px var(--kss-card-ring),0 0 1px 0 var(--muted);padding:20px;transition:.2s ease-out;width:100%}
         .draft-item:hover{box-shadow:0 2px 4px 0 var(--blue-main-40);transform:translateY(-2px);background-color:var(--blue-main-2)}
         .badge-draft{padding:3px 6px;gap:6px;background-color:var(--dark-secondary-10);border-radius:4px;font-size:10px}
         .badge-draft .icon-draft i{position:relative;top:2px}
@@ -228,7 +229,7 @@
         .btn.new-report:hover{color:var(--blue-hover);transform:translateY(-2px)}
 
         /* ===== FORM: TABS ===== */
-        .tab-form{position:relative;display:flex;padding:5px;align-items:center;gap:5px 10px;align-self:stretch;flex-wrap:nowrap;border-radius:10px;background-color:var(--white);box-shadow:0 2px 4px 0 var(--blue-main-10);width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--blue-main-25) transparent}
+        .tab-form{position:relative;display:flex;padding:5px;align-items:center;gap:5px 10px;align-self:stretch;flex-wrap:nowrap;border-radius:10px;background-color:var(--white);box-shadow:0 0 0 1px var(--kss-card-ring),0 2px 4px 0 var(--blue-main-10);width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--blue-main-25) transparent}
         .tab-form::-webkit-scrollbar{height:6px}.tab-form::-webkit-scrollbar-thumb{background:var(--blue-main);border-radius:10px}
         .tab-form-indicator{position:absolute;left:0;top:5px;bottom:5px;width:0;border-radius:8px;background:var(--blue-main);box-shadow:0 0 4px 0 var(--blue-main-40);transform:translateX(0);transition:transform .34s cubic-bezier(.22,1,.36,1),width .34s cubic-bezier(.22,1,.36,1);pointer-events:none;z-index:0}
         .list-form-tab{position:relative;z-index:1;display:flex;min-width:130px;padding:6px 12px;justify-content:center;align-items:center;gap:8px;flex:1 0 auto;flex-shrink:0;white-space:nowrap;font-size:12px;font-weight:500;color:var(--dark-secondary);cursor:pointer;border-radius:8px;transition:.2s ease-out}
@@ -238,7 +239,7 @@
         .list-form-tab .icon-tab{position:relative;top:1px}
 
         /* ===== FORM: CARD CONTAINERS ===== */
-        .box-form{gap:10px;border-radius:10px;box-shadow:0 2px 4px 0 var(--blue-main-10);background-color:var(--white)}
+        .box-form{gap:10px;border-radius:10px;box-shadow:0 0 0 1px var(--kss-card-ring),0 2px 4px 0 var(--blue-main-10);background-color:var(--white)}
         .header-form{padding:20px 25px;border-top:4px solid var(--blue-main);border-radius:10px 10px 0 0;background-color:var(--blue-main-2)}
         .icon-title-form{font-size:14px;color:var(--blue-main);display:flex;width:30px;height:30px;padding:10px;justify-content:center;align-items:center;border-radius:6px;background-color:var(--blue-main-10);font-weight:600}
         .icon-title-form i{position:relative;top:2.5px}

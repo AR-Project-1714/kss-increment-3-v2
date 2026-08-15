@@ -34,7 +34,7 @@
 
 <body>
     {{-- Terapkan dark mode sebelum render agar tidak flicker --}}
-    <script>if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');</script>
+    @include('partials.theme-init')
 
     @include('partials.first-load-loader')
 

@@ -21,7 +21,7 @@
     @include('partials.officer-icon-alignment')
 </head>
 <body class="officer-report-shell">
-    <script>if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark-mode');</script>
+    @include('partials.theme-init')
 
     @include('partials.first-load-loader')
 

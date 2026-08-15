@@ -177,3 +177,41 @@ Nama kemasan hilang seluruhnya dari SQL, sehingga penambahan kemasan berikutnya 
 2. **Label `Jumbo Bag` lama**: diganti menjadi `Jumbo Bag 1 Ton` (rancangan ini) atau dibiarkan apa adanya?
 3. **Katalog kemasan**: cukup di berkas PHP (rancangan ini), atau perlu tabel master dengan halaman kelola sendiri supaya admin bisa menambah kemasan tanpa rilis baru?
 4. **Batas tiga baris pada ekspor Excel**: dilebarkan atau dibiarkan?
+
+## 14. Susulan: Kemasan yang Menyatu dengan Nama Bahan (15 Agustus 2026)
+
+Pengisian data pada migrasi `2026_08_14_000001` hanya membaca kolom
+`packaging_type`. Kolom itu sendiri baru ada sejak `2026_08_13_000001`, sehingga
+seluruh laporan 10–13 Agustus 2026 terlewat: kemasannya ditulis petugas menyatu
+dengan nama bahan — `MGO 18% Bag @50Kg`, `Clay Jumbo Bag @ 1 Ton`.
+
+Tanpa `packaging_factor`, rekap kinerja membaca jumlah Bag sebagai Ton. Untuk
+jumbo bag hasilnya kebetulan benar (1 Bag = 1 Ton), tetapi 34.080 Bag MgO
+tercatat sebagai 34.080 Ton — dua puluh kali lipat dari 1.704 Ton yang
+sebenarnya. Kartu Bongkar Bahan Baku menunjukkan 36.685 Ton, seharusnya 4.309
+Ton.
+
+Migrasi `2026_08_15_000001_backfill_material_packaging_from_raw_type` membaca
+kemasan dari teks nama bahan itu, dalam dua langkah:
+
+1. Kemasan yang tertulis lengkap dibaca langsung. Ukuran kilogram diperiksa lebih
+   dulu karena namanya juga memuat kata "Bag"; jumbo bag tanpa angka mengikuti
+   ukuran bawaan 1 Ton seperti alias katalog.
+2. Baris yang namanya disingkat antar shift — `MGO`, `Clay` — mengikuti baris
+   sekapal dan sebahan yang kemasannya tertulis lengkap. Ruang lingkupnya dikunci
+   per `ship_name_key`, dan bahan yang pernah tercatat dalam dua kemasan berbeda
+   sengaja dilewatkan.
+
+Faktor di luar katalog tidak pernah dikarang; baris yang kemasannya tidak dapat
+dipastikan dibiarkan apa adanya dan tetap dibaca sebagai Ton.
+
+`raw_material_type` tidak disentuh. Teks itu ikut tercetak pada laporan PDF yang
+sudah disetujui, dan kadar di dalamnya ("17%", "18%") bukan milik katalog
+kemasan. Akibatnya panel Rincian Kegiatan masih memecah satu bahan menjadi
+beberapa baris selama ejaan lamanya berbeda — penyeragaman tampilan itu dicatat
+sebagai pekerjaan tersendiri, bukan sebagai perbaikan angka.
+
+Perintah `material:repair-packaging` memanggil pengisian data yang sama.
+Jalankan dengan `--dry-run` untuk melihat rencananya pada basis data produksi
+sebelum menulis. Aman diulang: baris yang `packaging_code`-nya sudah terisi tidak
+pernah disentuh.
