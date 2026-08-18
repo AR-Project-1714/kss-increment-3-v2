@@ -39,17 +39,18 @@
          baru dimunculkan di media query mobile, sehingga tampilan desktop
          (brand mark kiri atas + kartu kaca di tengah + hak cipta) tidak berubah. --}}
     <div class="auth-shell">
-        {{-- Hero. Desktop: hanya baris atas (brand kiri + toggle tema kanan).
+        {{-- Hero. Desktop: hanya baris atas berisi logo KSS lengkap di kiri.
              Mobile: logo dan sapaan di bawahnya, menyatu dengan form dalam
              satu permukaan penuh layar (tanpa lembar/sheet terpisah). --}}
         <header class="auth-hero">
             <div class="auth-hero__topbar">
-                {{-- Pojok kiri: desktop memakai ikon webp, mobile memakai logo penuh --}}
-                <img src="{{ asset('assets/login-mobile-kss.webp') }}" alt="Logo KSS"
-                     class="auth-brand-mark" width="45" height="45">
+                {{-- Satu-satunya isi topbar: logo KSS lengkap, rata kiri di semua
+                     lebar layar. Halaman login sengaja tidak punya kontrol tema —
+                     temanya ditentukan window.kssTheme (partials/theme-init):
+                     preferensi tersimpan bila pengguna pernah memilih, dan
+                     mengikuti tema perangkat bila belum. --}}
                 <img src="{{ asset('assets/KSS-full.png') }}" alt="Logo KSS"
                      class="auth-brand-full" width="324" height="118">
-                @include('auth.layouts.theme')
             </div>
 
             <div class="auth-hero__intro">

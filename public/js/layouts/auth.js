@@ -53,49 +53,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 
             // ==========================================
-            // 2. DARK MODE TOGGLE LOGIC
-            // ==========================================
-            const themeBtn = document.getElementById('themeToggle');
-            const themeIcon = document.getElementById('themeIcon');
-            const body = document.body;
-
-            // Cek local storage theme
-            let isDarkMode = localStorage.getItem('theme') === 'dark';
-            if (isDarkMode) enableDarkMode(false);
-
-            if(themeBtn && themeIcon) {
-                themeBtn.addEventListener('click', () => {
-                    isDarkMode = !isDarkMode;
-                    if (isDarkMode) {
-                        themeIcon.style.transform = 'rotate(180deg)';
-                        setTimeout(() => {
-                            enableDarkMode(true);
-                            localStorage.setItem('theme', 'dark');
-                        }, 150);
-                    } else {
-                        themeIcon.style.transform = 'rotate(-180deg)';
-                        setTimeout(() => {
-                            disableDarkMode(true);
-                            localStorage.setItem('theme', 'light');
-                        }, 150);
-                    }
-                });
-            }
-
-            function enableDarkMode(animate) {
-                body.classList.add('dark-mode');
-                themeIcon.className = 'fi fi-rr-moon';
-                if(animate) themeIcon.style.transform = 'rotate(0deg)';
-            }
-
-            function disableDarkMode(animate) {
-                body.classList.remove('dark-mode');
-                themeIcon.className = 'fi fi-rr-sun';
-                if(animate) themeIcon.style.transform = 'rotate(0deg)';
-            }
-
-            // ==========================================
-            // 3. LOGIN BUTTON LOADING STATE
+            // 2. LOGIN BUTTON LOADING STATE
             // ==========================================
             const loginForm = document.getElementById('loginForm');
             const loginButton = document.getElementById('loginButton');

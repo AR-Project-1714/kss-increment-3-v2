@@ -67,10 +67,6 @@
             --divider: #CBD5E1;
             --button-color: #FFFFFF;
 
-            --btn-theme-bg: var(--white);
-            --btn-theme-border: rgba(0, 0, 0, 0.1);
-            --btn-theme-icon: var(--dark-main);
-
             /* Glass Variables */
             --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%);
             --glass-border-light: rgba(255, 255, 255, 0.7);
@@ -121,9 +117,6 @@
             --black-5: #ffffff0d;
             --black-40: #ffffff66;
             --button-color: #FFFFFF;
-            --btn-theme-bg: #334155;
-            --btn-theme-border: rgba(255, 255, 255, 0.1);
-            --btn-theme-icon: #F1F5F9;
             --blue-main: #3B82F6;
             --blue-hover: #60A5FA;
             --blue-active: #93C5FD;
@@ -282,15 +275,19 @@
             flex: 0 0 auto;
         }
 
+        /* Topbar hanya berisi logo. Rata kiri di semua lebar layar — tidak ada
+           lagi kontrol di ujung kanan yang perlu diseimbangkan. */
         .auth-hero__topbar {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             gap: 12px;
             padding: 20px;
         }
 
-        .auth-brand-mark {
+        /* Logo lengkap (ikon + tulisan). Tingginya disamakan dengan tinggi ikon
+           lama supaya hero — dan posisi vertikal kartu login — tidak bergeser. */
+        .auth-brand-full {
             height: 45px;
             width: auto;
             object-fit: contain;
@@ -298,30 +295,11 @@
         }
 
         /* ---------------------------------------------------------------
-           Elemen khusus mobile. Semuanya dimatikan di sini agar tampilan
-           desktop tidak berubah sama sekali; masing-masing dihidupkan lagi
-           di media query ≤640px paling bawah berkas ini.
+           Elemen khusus mobile. Dimatikan di sini agar tampilan desktop
+           tidak berubah, dan dihidupkan lagi di media query paling bawah
+           berkas ini.
            --------------------------------------------------------------- */
-        .auth-hero__intro,
-        .auth-brand-full { display: none; }
-
-        /* Theme Toggle Button */
-        .btn-theme {
-            width: 45px;
-            height: 45px;
-            background-color: var(--btn-theme-bg);
-            border: 1px solid var(--btn-theme-border);
-            border-radius: 12px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            flex: 0 0 auto;
-        }
-        .btn-theme:hover { border-color: var(--blue-main); transform: scale(1.05); }
-        .btn-theme i { color: var(--btn-theme-icon); font-size: 20px; transition: transform 0.4s; position: relative; top: 3px; }
+        .auth-hero__intro { display: none; }
 
         /* Hak Cipta — dasar shell, ikut terdorong saat konten tinggi */
         .auth-footer {
@@ -703,7 +681,7 @@
         /* =========================================
            MOBILE LOGIN (≤768px)
            Satu permukaan penuh layar tanpa lembar/sheet terpisah: topbar
-           (logo penuh + toggle tema), logo + sapaan di tengah, form langsung
+           (logo penuh), logo + sapaan di tengah, form langsung
            di atas latar yang sama, hak cipta menempel di dasar. Batas 768px
            supaya tablet kecil (portrait) ikut memakai susunan ini.
            ========================================= */
@@ -739,24 +717,8 @@
                form supaya tepi kiri/kanan seluruh layar berbaris rapi. */
             .auth-hero__topbar { padding: 0 24px; }
 
-            /* Pojok kiri: desktop memakai ikon webp, mobile memakai logo penuh */
-            .auth-brand-mark { display: none; }
-
-            .auth-brand-full {
-                display: block;
-                height: 34px;
-                width: auto;
-                object-fit: contain;
-                flex: 0 0 auto;
-            }
-
-            /* Gaya tombol sama seperti desktop, hanya sedikit dikecilkan */
-            .auth-hero .btn-theme {
-                width: 40px;
-                height: 40px;
-                margin-left: auto;
-            }
-            .auth-hero .btn-theme i { font-size: 18px; }
+            /* Logo dikecilkan di layar sempit, tetap rata kiri seperti desktop. */
+            .auth-brand-full { height: 34px; }
 
             .auth-hero__intro {
                 display: flex;

@@ -114,6 +114,48 @@ class MaterialPackagingRawTypeBackfillTest extends TestCase
         $this->assertSame(0.8, (float) $item->packaging_factor);
     }
 
+    public function test_rincian_kegiatan_tidak_memecah_bahan_yang_sama(): void
+    {
+        $this->seedFieldSpellings();
+        $this->runBackfill();
+
+        $breakdown = collect($this->activityDetail()['breakdown'])->pluck('value', 'name');
+
+        // Tujuh ejaan menjadi tiga baris. Ejaan yang tampil diambil dari baris
+        // terbaru tiap kelompok.
+        $this->assertSame(240.0, $breakdown['CLAY · Jumbo Bag 1 Ton']);
+        $this->assertSame(366.0, $breakdown['MGO · Bag 50 Kg']);
+        $this->assertSame(182.0, $breakdown['Limestone · Jumbo Bag 1 Ton']);
+    }
+
+    public function test_bahan_berbeda_dalam_satu_kemasan_tetap_terpisah(): void
+    {
+        $this->seedFieldSpellings();
+        $this->runBackfill();
+
+        $names = collect($this->activityDetail()['breakdown'])->pluck('name');
+
+        // Penyeragaman ejaan tidak boleh melebur bahan yang memang berbeda,
+        // walau kemasannya sama. "Limeston" — salah ketik satu huruf — sengaja
+        // tetap berdiri sendiri: baris yang terlihat janggal masih bisa
+        // dibetulkan lewat menu edit laporan, sedangkan peleburan yang keliru
+        // tidak akan pernah terlihat.
+        $this->assertContains('CLAY · Jumbo Bag 1 Ton', $names);
+        $this->assertContains('Limestone · Jumbo Bag 1 Ton', $names);
+        $this->assertContains('Limeston · Jumbo Bag 1 Ton', $names);
+    }
+
+    /** @return array<string, mixed> */
+    private function activityDetail(): array
+    {
+        return app(OperationalPerformanceService::class)->activityDetail('bongkar_bahan_baku', [
+            'start' => Carbon::parse('2026-08-10')->startOfDay(),
+            'end' => Carbon::parse('2026-08-10')->endOfDay(),
+            'group' => null,
+            'shift' => null,
+        ]);
+    }
+
     /** Satu kapal, empat shift, dengan ejaan apa adanya dari lapangan. */
     private function seedFieldSpellings(): DailyReport
     {
@@ -153,11 +195,6 @@ class MaterialPackagingRawTypeBackfillTest extends TestCase
 
     private function materialTonnage(): float
     {
-        return (float) app(OperationalPerformanceService::class)->activityDetail('bongkar_bahan_baku', [
-            'start' => Carbon::parse('2026-08-10')->startOfDay(),
-            'end' => Carbon::parse('2026-08-10')->endOfDay(),
-            'group' => null,
-            'shift' => null,
-        ])['value'];
+        return (float) $this->activityDetail()['value'];
     }
 }

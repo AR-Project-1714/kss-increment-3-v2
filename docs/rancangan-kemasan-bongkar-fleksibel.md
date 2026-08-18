@@ -215,3 +215,25 @@ Perintah `material:repair-packaging` memanggil pengisian data yang sama.
 Jalankan dengan `--dry-run` untuk melihat rencananya pada basis data produksi
 sebelum menulis. Aman diulang: baris yang `packaging_code`-nya sudah terisi tidak
 pernah disentuh.
+
+### Penyeragaman Ejaan pada Panel Rincian Kegiatan
+
+Panel Rincian Kegiatan mengelompokkan komposisi tonase menurut nama bahan apa
+adanya, sedangkan nama bahan diketik bebas tiap shift. Tiga bahan dari satu
+pelayaran karena itu terpecah menjadi 20 baris — "Clay", "CLAY JUMBO 17%",
+"Clay jumbo bag", dan seterusnya masing-masing hanya memuat sebagian tonasenya.
+
+`App\Support\MaterialNameNormalizer` memberi bentuk kanonik untuk pengelompokan,
+sejalan dengan `ShipNameNormalizer` untuk nama kapal: keterangan kemasan dan
+kadar dibuang, sisanya dipakai sebagai kunci. Ejaan yang ditampilkan diambil dari
+baris terbaru tiap kelompok, sehingga label mengikuti bentuk yang sedang dipakai
+di lapangan tanpa perlu daftar bahan baku tersendiri.
+
+Penyeragaman ini hanya berlaku saat menampilkan. Nama yang tersimpan tidak
+diubah, dan pemisahan menurut kemasan tetap dipertahankan — satu bahan dalam dua
+kemasan memang dua subtotal operasional yang berbeda.
+
+Pencocokannya sengaja persis, bukan mirip. Salah ketik seperti "Limeston" tetap
+berdiri sendiri sebagai satu baris. Baris yang terlihat janggal masih bisa
+dibetulkan lewat menu edit laporan, sedangkan peleburan dua bahan yang keliru
+tidak akan pernah terlihat pada angkanya.

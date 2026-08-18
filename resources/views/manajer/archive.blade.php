@@ -165,11 +165,16 @@
             min-width: 1150px;
         }
 
+        /* Kotak centang menempati kolomnya sendiri di depan No: selama keduanya
+           berbagi satu sel, posisi centang ikut bergeser mengikuti lebar teks di
+           sampingnya, sehingga centang pilih-semua tidak pernah sejajar dengan
+           centang barisnya. */
         .archive-body .thead,
         .archive-body .tbody {
             display: grid !important;
             grid-template-columns:
-                76px
+                30px
+                26px
                 minmax(230px, 1.4fr)
                 minmax(135px, 1fr)
                 minmax(135px, .9fr)
@@ -200,14 +205,18 @@
             padding: 0;
         }
 
-        .archive-body .thead th:nth-child(2),
+        /* Padding kiri kolom Info Dokumen disamakan dengan sisa ruang di sisi
+           kanan centang, sehingga jarak nomor→dokumen sama dengan jarak
+           centang→nomor. */
+        .archive-body .thead th:nth-child(3),
         .archive-body .tbody td.column-2 {
-            padding-left: 0;
+            padding-left: 8px;
         }
 
+        .archive-body .thead th.pilih,
+        .archive-body .tbody td.pilih,
         .archive-body .thead th.nomor,
         .archive-body .tbody td.nomor {
-            gap: 8px;
             justify-content: center;
         }
 
@@ -697,19 +706,26 @@
                             </span>
 
                             <div class="archive-toolbar__actions">
-                                <div class="filter-select-wrapper toolbar-page-size-wrapper">
+                                {{-- data-select-pending + skeleton: trigger dropdown
+                                     baru dibangun JS, jadi tanpa ini select bawaan
+                                     browser sempat terlihat sesaat setelah pindah
+                                     halaman. Lihat
+                                     resources/css/components/filter-select-skeleton.css. --}}
+                                <div class="filter-select-wrapper toolbar-page-size-wrapper" data-select-pending>
                                     <select class="native-select" name="per_page" data-autosubmit-filter aria-label="Jumlah laporan per halaman">
                                         <option value="10" @selected($archivePerPage === 10)>10 baris</option>
                                         <option value="20" @selected($archivePerPage === 20)>20 baris</option>
                                         <option value="50" @selected($archivePerPage === 50)>50 baris</option>
                                     </select>
+                                    <span class="filter-select-skeleton" aria-hidden="true"></span>
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>
-                                <div class="filter-select-wrapper toolbar-sort-wrapper">
+                                <div class="filter-select-wrapper toolbar-sort-wrapper" data-select-pending>
                                     <select class="native-select" name="sort" data-autosubmit-filter>
                                         <option value="newest" @selected($sort === 'newest')>Terbaru</option>
                                         <option value="oldest" @selected($sort === 'oldest')>Terlama</option>
                                     </select>
+                                    <span class="filter-select-skeleton" aria-hidden="true"></span>
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>
                             </div>
@@ -740,13 +756,13 @@
                 <div class="table-responsive-wrapper">
                     <table>
                         <tr class="thead d-flex justify-content-between align-items-center">
-                            <th class="nomor">
+                            <th class="pilih">
                                 <input type="checkbox"
                                        class="archive-select"
                                        data-bulk-master
                                        aria-label="Pilih semua laporan di halaman ini">
-                                <span>No</span>
                             </th>
+                            <th class="nomor">No</th>
                             <th class="column-1">Info Dokumen</th>
                             <th class="column-1">Tanggal Laporan</th>
                             <th>Divisi</th>
@@ -767,14 +783,14 @@
                                 data-history-row
                                 data-history-search="{{ $r['search'] ?? '' }}"
                             >
-                                <td class="nomor">
+                                <td class="pilih">
                                     <input type="checkbox"
                                            class="archive-select"
                                            value="{{ $r['key'] ?? '' }}"
                                            data-bulk-checkbox
                                            aria-label="Pilih {{ $r['title'] }} {{ $r['id'] }}">
-                                    <span data-row-number>{{ $r['no'] }}</span>
                                 </td>
+                                <td class="nomor"><span data-row-number>{{ $r['no'] }}</span></td>
                                 <td class="column-2">
                                     <span>{{ $r['title'] }}</span>
                                     <span class="fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
@@ -820,7 +836,7 @@
                             </tr>
                         @empty
                             <tr class="tbody archive-empty-row">
-                                <td colspan="8" class="border-0 p-0">
+                                <td colspan="9" class="border-0 p-0">
                                     <div class="archive-empty">
                                         <div class="fw-600 mb-1" style="color: var(--black);">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Laporan tidak ditemukan' : 'Arsip masih kosong' }}</div>
                                         <div class="fsize-12">{{ $archiveSearch !== '' || $hasActiveFilter ? 'Coba gunakan ID, tanggal, shift, regu, divisi, status, kapal, karyawan, atau isi laporan lain.' : 'Laporan berstatus diserahkan, ditanda tangani, dan diarsipkan akan tampil di sini.' }}</div>
@@ -831,7 +847,7 @@
 
                         @if ($reports->count() > 0)
                             <tr id="archive-search-empty" class="tbody archive-search-empty-row d-none">
-                                <td colspan="8" class="border-0 p-0">
+                                <td colspan="9" class="border-0 p-0">
                                     <div class="archive-empty">
                                         <div class="fw-600 mb-1" style="color: var(--black);">Laporan tidak ditemukan di halaman ini</div>
                                         <div class="fsize-12">Tekan Enter untuk mencari ke seluruh arsip, atau coba kata kunci lain.</div>

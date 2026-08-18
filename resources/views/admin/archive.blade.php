@@ -565,12 +565,18 @@
     .table-responsive-wrapper table { min-width: 1150px; width: 100%; }
 
     /* Lebar tambahan tabel dibagi ke kolom isi, bukan menjadi jarak kosong
-       antarkolom. No dan Info Dokumen pun selalu berdampingan rapat. */
+       antarkolom. No dan Info Dokumen pun selalu berdampingan rapat.
+
+       Kotak centang menempati kolomnya sendiri di depan No: selama keduanya
+       berbagi satu sel, posisi centang ikut bergeser mengikuti lebar teks di
+       sampingnya ("No" pada kepala, "1"–"10" pada baris), sehingga centang
+       pilih-semua tidak pernah benar-benar sejajar dengan centang barisnya. */
     .thead,
     .tbody {
         display: grid !important;
         grid-template-columns:
-            76px
+            30px
+            26px
             minmax(230px, 1.4fr)
             minmax(135px, 1fr)
             minmax(135px, .9fr)
@@ -596,8 +602,12 @@
         color: var(--black-secondary);
     }
 
-    .thead th:nth-child(2) { padding-left: 0; }
-    .thead th.nomor { justify-content: center; gap: 8px; padding: 10px 0; }
+    /* Padding kiri kolom Info Dokumen disamakan dengan sisa ruang di sisi
+       kanan centang, sehingga jarak nomor→dokumen sama dengan jarak
+       centang→nomor. Tanpa ini nomor menempel ke judul dokumen. */
+    .thead th:nth-child(3) { padding-left: 8px; }
+    .thead th.pilih,
+    .thead th.nomor { justify-content: center; padding: 10px 0; }
 
     .tbody {
         border-bottom: 1px solid var(--smooth-border);
@@ -629,14 +639,15 @@
         color: var(--black);
     }
 
-    .tbody td.nomor { justify-content: center; gap: 8px; padding: 10px 0; color: var(--black-secondary); }
+    .tbody td.pilih { justify-content: center; padding: 10px 0; }
+    .tbody td.nomor { justify-content: center; padding: 10px 0; color: var(--black-secondary); }
 
     .tbody td.column-2 {
         flex-direction: column;
         justify-content: center;
         align-items: flex-start;
         gap: 4px;
-        padding-left: 0;
+        padding-left: 8px;
     }
 
     .archive-doc-title {
@@ -1044,19 +1055,25 @@
                 <span>{{ $archiveTotal }} {{ $archiveCountLabel }}</span>
             </span>
             <div class="archive-toolbar__actions">
-                <div class="filter-select-wrapper toolbar-page-size-wrapper">
+                {{-- data-select-pending + skeleton: trigger dropdown baru
+                     dibangun JS, jadi tanpa ini select bawaan browser sempat
+                     terlihat sesaat setelah pindah halaman. Lihat
+                     resources/css/components/filter-select-skeleton.css. --}}
+                <div class="filter-select-wrapper toolbar-page-size-wrapper" data-select-pending>
                     <select class="native-select" name="per_page" data-autosubmit-filter aria-label="Jumlah laporan per halaman">
                         <option value="10" @selected($archivePerPage === 10)>10 baris</option>
                         <option value="20" @selected($archivePerPage === 20)>20 baris</option>
                         <option value="50" @selected($archivePerPage === 50)>50 baris</option>
                     </select>
+                    <span class="filter-select-skeleton" aria-hidden="true"></span>
                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                 </div>
-                <div class="filter-select-wrapper toolbar-sort-wrapper">
+                <div class="filter-select-wrapper toolbar-sort-wrapper" data-select-pending>
                     <select class="native-select" name="sort" data-autosubmit-filter>
                         <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
                         <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
                     </select>
+                    <span class="filter-select-skeleton" aria-hidden="true"></span>
                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                 </div>
             </div>
@@ -1088,13 +1105,13 @@
     <div class="table-responsive-wrapper">
         <table>
             <tr class="thead d-flex justify-content-between align-items-center">
-                <th class="nomor">
+                <th class="pilih">
                     <input type="checkbox"
                            class="archive-select"
                            data-bulk-master
                            aria-label="Pilih semua laporan di halaman ini">
-                    <span>No</span>
                 </th>
+                <th class="nomor">No</th>
                 <th class="column-1">Info Dokumen</th>
                 <th class="column-1">Tanggal Laporan</th>
                 <th>Divisi</th>
@@ -1111,14 +1128,14 @@
                     $reguCode = $reguCodeSource !== '' ? strtoupper(substr($reguCodeSource, 0, 1)) : '-';
                 @endphp
                 <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="{{ $r['search'] ?? '' }}">
-                    <td class="nomor">
+                    <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
                                value="{{ $r['key'] ?? '' }}"
                                data-bulk-checkbox
                                aria-label="Pilih {{ $r['title'] }} {{ $r['id'] }}">
-                        <span data-row-number>{{ $r['no'] }}</span>
                     </td>
+                    <td class="nomor"><span data-row-number>{{ $r['no'] }}</span></td>
                     <td class="column-2">
                         <span class="archive-doc-title">{{ $r['title'] }}</span>
                         <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
@@ -1178,13 +1195,13 @@
                 </tr>
             @empty
                 <tr class="tbody archive-empty-row">
-                    <td colspan="8" class="text-muted-custom">Belum ada laporan arsip.</td>
+                    <td colspan="9" class="text-muted-custom">Belum ada laporan arsip.</td>
                 </tr>
             @endforelse
 
             @if ((method_exists($reports, 'count') ? $reports->count() : count($reports)) > 0)
                 <tr id="archive-search-empty" class="tbody archive-search-empty-row d-none">
-                    <td colspan="8" class="text-muted-custom">
+                    <td colspan="9" class="text-muted-custom">
                         Laporan tidak ditemukan di halaman ini. Tekan Enter untuk mencari ke seluruh arsip.
                     </td>
                 </tr>

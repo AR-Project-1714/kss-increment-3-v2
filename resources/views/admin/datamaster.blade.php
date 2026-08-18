@@ -118,7 +118,7 @@
     }
 
     /* =============================================
-       FILTER (tombol toggle + panel, pola Arsip Laporan)
+       FILTER (pemicu di page header + popover, pola Arsip Laporan)
        ============================================= */
     .master-toolbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
@@ -147,24 +147,146 @@
     .btn-reset:hover { background-color: var(--red-main-10, rgba(239,68,68,0.08)); }
     .btn-reset.is-hidden { display: none; }
 
-    .master-filter-panel {
-        flex: 1 1 100%;
+    /* Pemicu filter duduk di ujung kanan page header — anatomi yang sama
+       dengan Arsip Laporan, Log Aktivitas, dan halaman Manajer. */
+    .performance-page-header {
+        position: relative;
+        z-index: 20;
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .performance-page-header__heading {
+        min-width: 0;
         display: flex;
-        align-items: flex-end;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .performance-filter {
+        position: relative;
+        flex: 0 0 auto;
+    }
+
+    .performance-filter__trigger {
+        min-height: 38px;
+        padding-inline: 14px;
+        color: #fff;
+        background-color: var(--blue-main);
+        border-color: var(--blue-main);
+        box-shadow: 0 5px 14px rgba(37, 99, 235, .18);
+    }
+
+    .performance-filter__trigger:hover {
+        color: #fff;
+        background-color: var(--blue-hover);
+        border-color: var(--blue-hover);
+    }
+
+    .performance-filter__trigger[aria-expanded="true"] {
+        box-shadow: 0 0 0 3px var(--blue-main-10), 0 5px 14px rgba(37, 99, 235, .18);
+    }
+
+    .performance-filter__status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 18px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        color: var(--blue-main);
+        background-color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+    }
+
+    .performance-filter__status.is-hidden { display: none; }
+
+    .performance-filter__popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 40;
+        width: min(620px, calc(100vw - 112px));
+        padding: 16px;
+        /* Frosted bersama — lihat resources/css/components/frosted-surface.css. */
+        border: 1px solid var(--kss-frost-border);
+        border-radius: 14px;
+        background-color: var(--kss-frost-surface);
+        -webkit-backdrop-filter: var(--kss-frost-filter);
+        backdrop-filter: var(--kss-frost-filter);
+        box-shadow: inset 0 1px 0 var(--kss-frost-edge), var(--kss-frost-shadow);
+    }
+
+    .performance-filter__popover[hidden] { display: none; }
+
+    .performance-filter__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--smooth-border);
+    }
+
+    .performance-filter__title {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--black);
+    }
+
+    .performance-filter__subtitle {
+        display: block;
+        margin-top: 2px;
+        font-size: 10px;
+        color: var(--muted);
+    }
+
+    .performance-filter__close {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        color: var(--black-secondary);
+        background-color: transparent;
+        cursor: pointer;
+    }
+
+    .performance-filter__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    /* Satu grup bidang per pane; hanya grup pane aktif yang ditampilkan
+       (display diatur JS, karena select pane lain juga dinonaktifkan). */
+    .master-filter-group {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: end;
         gap: 12px;
-        flex-wrap: wrap;
-        margin-top: 4px;
-        animation: filterSlideDown 0.3s ease;
     }
 
-    .master-filter-panel.collapsed { display: none; }
-
-    @keyframes filterSlideDown {
-        from { opacity: 0; transform: translateY(-12px); }
-        to   { opacity: 1; transform: translateY(0); }
+    .master-filter-group[data-filter-pane="unit"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .master-filter-group { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; width: 100%; }
+    .master-filter-group .filter-field { max-width: none; }
+
+    /* Selaras dengan popover Arsip Laporan dan Log Aktivitas: bidang di dalam
+       popover setinggi 36px, satu tingkat lebih rapat dari kontrol toolbar. */
+    .master-filter-group .filter-field .filter-input,
+    .master-filter-group .filter-field .filter-select-trigger { height: 36px; }
 
     .filter-field { display: flex; flex: 1 1 160px; min-width: 0; flex-direction: column; gap: 4px; }
     .filter-field label { font-size: 10px; font-weight: 500; color: var(--black-secondary); }
@@ -242,7 +364,28 @@
     @media (max-width: 640px) {
         .master-toolbar-actions { width: 100%; }
         .filter-field { max-width: none; }
-        .master-filter-group { width: 100%; }
+
+        /* Pemicu turun ke bawah judul dan melebar penuh; popover ikut
+           menempel ke tepi kiri supaya tidak menggantung keluar layar. */
+        .performance-page-header { flex-direction: column; }
+        .performance-filter { width: 100%; }
+        .performance-filter__trigger { width: 100%; justify-content: center; }
+
+        /* Popover mengikuti lebar pemicunya, bukan lebar viewport dikurangi
+           konstanta — tepi kiri dan kanannya jadi persis segaris. */
+        .performance-filter__popover {
+            left: 0;
+            right: 0;
+            width: auto;
+        }
+
+        .performance-filter__actions > * {
+            flex: 1 1 0;
+            justify-content: center;
+        }
+
+        .master-filter-group,
+        .master-filter-group[data-filter-pane="unit"] { grid-template-columns: 1fr; }
     }
 
     /* =============================================
@@ -544,53 +687,61 @@
     };
 @endphp
 
-<div class="page-header">
-    <span class="page-title">Master Data</span>
-    <div class="page-breadcrumb">
-        <span class="page-breadcrumb__root">Data Master</span>
-        <span class="page-breadcrumb__sep"><i class="fi fi-rr-angle-small-right"></i></span>
-        <span class="page-breadcrumb__current" id="masterCrumb">{{ $activeMasterUi['title'] }}</span>
+@php
+    $filterApplied = $masterFilterActive[$activePane] ?? false;
+    $hasFilterPane = in_array($activePane, ['karyawan', 'unit'], true);
+@endphp
+
+<div class="page-header performance-page-header">
+    <div class="performance-page-header__heading">
+        <span class="page-title">Master Data</span>
+        <div class="page-breadcrumb">
+            <span class="page-breadcrumb__root">Data Master</span>
+            <span class="page-breadcrumb__sep"><i class="fi fi-rr-angle-small-right"></i></span>
+            <span class="page-breadcrumb__current" id="masterCrumb">{{ $activeMasterUi['title'] }}</span>
+        </div>
     </div>
-</div>
 
-@component('admin.layouts.card', ['title' => $activeMasterUi['title'], 'titleId' => 'masterTitle'])
-    <!-- Toolbar -->
-    <form class="archive-toolbar" method="GET" action="{{ route('admin.datamaster') }}" id="masterSearchForm" autocomplete="off">
-        <input type="hidden" name="pane" id="masterPaneInput" value="{{ $activePane ?? 'karyawan' }}">
-        <div class="search-action-group">
-            <div class="search-box">
-                <span><i class="fi fi-rr-search"></i></span>
-                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="{{ $activeMasterUi['search'] }}" id="masterSearch" data-search-debounce="650" aria-label="Cari data master">
+    {{-- Pemicu filter + popover. Bidangnya tetap milik #masterSearchForm lewat
+         atribut form=, jadi pencarian, pane, dan filter berangkat sebagai satu
+         permintaan meski markup-nya kini berada di luar kartu. --}}
+    <div class="performance-filter" data-master-filter>
+        <button type="button"
+                @class(['btn-tool', 'btn-tool--primary', 'performance-filter__trigger', 'is-hidden' => ! $hasFilterPane])
+                id="masterFilterBtn"
+                data-master-filter-trigger
+                aria-expanded="false"
+                aria-controls="master-filter-popover">
+            <i class="fi fi-rr-settings-sliders" aria-hidden="true"></i>
+            <span>Filter</span>
+            <span @class(['performance-filter__status', 'is-hidden' => ! $filterApplied])
+                  id="masterFilterStatus"
+                  aria-label="Filter aktif">Aktif</span>
+        </button>
+
+        <div class="performance-filter__popover"
+             id="master-filter-popover"
+             data-master-filter-popover
+             hidden>
+            <div class="performance-filter__head">
+                <div>
+                    <span class="performance-filter__title">Filter Master Data</span>
+                    <span class="performance-filter__subtitle" id="masterFilterSubtitle">Atur divisi, group, dan jabatan karyawan.</span>
+                </div>
+                <button type="button"
+                        class="performance-filter__close"
+                        data-master-filter-close
+                        aria-label="Tutup filter">
+                    <i class="fi fi-rr-cross-small" aria-hidden="true"></i>
+                </button>
             </div>
-        </div>
-        @php
-            $filterApplied = $masterFilterActive[$activePane] ?? false;
-            $hasFilterPane = in_array($activePane, ['karyawan', 'unit'], true);
-        @endphp
-        <div class="master-toolbar-actions">
-            <button type="button"
-                    @class(['btn-tool', 'btn-tool--active' => $filterApplied, 'is-hidden' => ! $hasFilterPane])
-                    id="masterFilterBtn" aria-expanded="{{ $filterApplied ? 'true' : 'false' }}">
-                <i class="fi fi-rr-filter"></i> Filter
-            </button>
-            <a href="{{ route('admin.datamaster', ['pane' => $activePane]) }}"
-               @class(['btn-reset', 'is-hidden' => ! $filterApplied && $masterSearch === ''])
-               id="masterFilterReset">
-                <i class="fi fi-rr-refresh"></i> Reset
-            </a>
-            <button type="button" class="btn-tool btn-tool--primary" id="masterAddBtn">
-                <i class="{{ $activeMasterUi['icon'] }}" id="masterAddIcon"></i> <span id="masterAddText">{{ $activeMasterUi['add'] }}</span>
-            </button>
-        </div>
 
-        {{-- Filter panel (muncul saat tombol Filter ditekan, pola Arsip Laporan) --}}
-        <div @class(['master-filter-panel', 'collapsed' => ! $filterApplied || ! $hasFilterPane]) id="masterFilterPanel">
             {{-- Filter Karyawan --}}
             <div class="master-filter-group" data-filter-pane="karyawan" @style(['display:none' => $activePane !== 'karyawan'])>
                 <div class="filter-field">
                     <label>Divisi</label>
                     <div class="filter-select-wrapper">
-                        <select name="f_division" class="native-select js-master-filter" aria-label="Filter Divisi">
+                        <select name="f_division" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Divisi">
                             @foreach ($filterDivisionOptions as $val => $label)
                                 <option value="{{ $val }}" @selected($masterFilters['division'] === $val)>{{ $label }}</option>
                             @endforeach
@@ -601,7 +752,7 @@
                 <div class="filter-field">
                     <label>Group</label>
                     <div class="filter-select-wrapper">
-                        <select name="f_group" class="native-select js-master-filter" aria-label="Filter Group">
+                        <select name="f_group" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Group">
                             @foreach ($filterGroupOptions as $val => $label)
                                 <option value="{{ $val }}" @selected($masterFilters['group'] === $val)>{{ $label }}</option>
                             @endforeach
@@ -612,7 +763,7 @@
                 <div class="filter-field">
                     <label>Jabatan</label>
                     <div class="filter-select-wrapper">
-                        <select name="f_position" class="native-select js-master-filter" aria-label="Filter Jabatan">
+                        <select name="f_position" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Jabatan">
                             @foreach ($filterPositionOptions as $val => $label)
                                 <option value="{{ $val }}" @selected($masterFilters['position'] === $val)>{{ $label }}</option>
                             @endforeach
@@ -627,7 +778,7 @@
                 <div class="filter-field">
                     <label>Tipe Unit</label>
                     <div class="filter-select-wrapper">
-                        <select name="f_type" class="native-select js-master-filter" aria-label="Filter Tipe Unit">
+                        <select name="f_type" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Tipe Unit">
                             @foreach ($filterTypeOptions as $val => $label)
                                 <option value="{{ $val }}" @selected($masterFilters['type'] === $val)>{{ $label }}</option>
                             @endforeach
@@ -638,7 +789,7 @@
                 <div class="filter-field">
                     <label>Kategori</label>
                     <div class="filter-select-wrapper">
-                        <select name="f_category" class="native-select js-master-filter" aria-label="Filter Kategori">
+                        <select name="f_category" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Kategori">
                             @foreach ($filterCategoryOptions as $val => $label)
                                 <option value="{{ $val }}" @selected($masterFilters['category'] === $val)>{{ $label }}</option>
                             @endforeach
@@ -647,6 +798,35 @@
                     </div>
                 </div>
             </div>
+
+            <div class="performance-filter__actions">
+                <button type="submit" form="masterSearchForm" class="btn-tool btn-tool--primary">
+                    <i class="fi fi-rr-check" aria-hidden="true"></i> Terapkan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@component('admin.layouts.card', ['title' => $activeMasterUi['title'], 'titleId' => 'masterTitle'])
+    <!-- Toolbar -->
+    <form class="archive-toolbar" method="GET" action="{{ route('admin.datamaster') }}" id="masterSearchForm" autocomplete="off">
+        <input type="hidden" name="pane" id="masterPaneInput" value="{{ $activePane ?? 'karyawan' }}">
+        <div class="search-action-group">
+            <div class="search-box">
+                <span><i class="fi fi-rr-search"></i></span>
+                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="{{ $activeMasterUi['search'] }}" id="masterSearch" data-search-debounce="650" aria-label="Cari data master">
+            </div>
+        </div>
+        <div class="master-toolbar-actions">
+            <a href="{{ route('admin.datamaster', ['pane' => $activePane]) }}"
+               @class(['btn-reset', 'is-hidden' => ! $filterApplied && $masterSearch === ''])
+               id="masterFilterReset">
+                <i class="fi fi-rr-refresh"></i> Reset
+            </a>
+            <button type="button" class="btn-tool btn-tool--primary" id="masterAddBtn">
+                <i class="{{ $activeMasterUi['icon'] }}" id="masterAddIcon"></i> <span id="masterAddText">{{ $activeMasterUi['add'] }}</span>
+            </button>
         </div>
     </form>
 
@@ -1186,10 +1366,21 @@
         const masterFormSubmit = document.getElementById('masterFormSubmit');
         const masterForm = document.getElementById('masterForm');
         const masterFormMethod = document.getElementById('masterFormMethod');
+        const masterFilter = document.querySelector('[data-master-filter]');
         const masterFilterBtn = document.getElementById('masterFilterBtn');
-        const masterFilterPanel = document.getElementById('masterFilterPanel');
+        const masterFilterPopover = document.getElementById('master-filter-popover');
+        const masterFilterClose = masterFilter?.querySelector('[data-master-filter-close]');
+        const masterFilterStatus = document.getElementById('masterFilterStatus');
+        const masterFilterSubtitle = document.getElementById('masterFilterSubtitle');
         const masterFilterGroups = document.querySelectorAll('.master-filter-group[data-filter-pane]');
         const masterFilterPanes = ['karyawan', 'unit'];
+        // Status filter dibaca per pane supaya badge "Aktif" ikut benar saat
+        // pane berpindah tanpa memuat ulang halaman.
+        const masterFilterApplied = @json($masterFilterActive);
+        const masterFilterSubtitles = {
+            karyawan: 'Atur divisi, group, dan jabatan karyawan.',
+            unit: 'Atur tipe dan kategori unit.',
+        };
         const masterActions = @json($masterActions);
         let activeMasterPane = @json($activePane ?? 'karyawan');
         let masterSearchTimer = null;
@@ -1211,33 +1402,35 @@
             syncMasterFilters(pane);
         }
 
-        // Tampilkan tombol Filter hanya untuk pane yang punya filter; tampilkan
+        function setMasterFilterOpen(open) {
+            if (!masterFilterBtn || !masterFilterPopover) return;
+            masterFilterPopover.hidden = !open;
+            masterFilterBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            masterFilter?.classList.toggle('is-open', open);
+        }
+
+        // Tampilkan pemicu Filter hanya untuk pane yang punya filter; tampilkan
         // grup filter milik pane aktif & nonaktifkan select pane lain agar tidak
         // ikut terkirim ke URL.
         function syncMasterFilters(pane) {
             const hasFilters = masterFilterPanes.includes(pane);
             if (masterFilterBtn) masterFilterBtn.classList.toggle('is-hidden', !hasFilters);
-            if (!hasFilters && masterFilterPanel) {
-                masterFilterPanel.classList.add('collapsed');
-                masterFilterBtn?.classList.remove('btn-tool--active');
+            if (!hasFilters) setMasterFilterOpen(false);
+
+            if (masterFilterStatus) {
+                masterFilterStatus.classList.toggle('is-hidden', !(masterFilterApplied[pane] ?? false));
             }
+            if (masterFilterSubtitle && masterFilterSubtitles[pane]) {
+                masterFilterSubtitle.textContent = masterFilterSubtitles[pane];
+            }
+
             masterFilterGroups.forEach(function (group) {
                 const isActive = group.getAttribute('data-filter-pane') === pane;
-                group.style.display = isActive ? 'flex' : 'none';
+                group.style.display = isActive ? 'grid' : 'none';
                 group.querySelectorAll('select').forEach(function (select) {
                     select.disabled = !isActive;
                 });
             });
-        }
-
-        function submitMasterFilter() {
-            if (!masterSearchForm) return;
-            window.clearTimeout(masterSearchTimer);
-            if (typeof masterSearchForm.requestSubmit === 'function') {
-                masterSearchForm.requestSubmit();
-            } else {
-                masterSearchForm.submit();
-            }
         }
 
         function scheduleMasterSearchSubmit(delay = null) {
@@ -1505,18 +1698,28 @@
         });
 
         masterFilterBtn?.addEventListener('click', function () {
-            if (!masterFilterPanel) return;
-            const isOpen = !masterFilterPanel.classList.toggle('collapsed');
-            masterFilterBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-            masterFilterBtn.classList.toggle('btn-tool--active', isOpen);
+            setMasterFilterOpen(masterFilterPopover?.hidden ?? true);
         });
 
-        document.querySelectorAll('.js-master-filter').forEach(function (select) {
-            select.addEventListener('change', submitMasterFilter);
+        masterFilterClose?.addEventListener('click', function () {
+            setMasterFilterOpen(false);
+            masterFilterBtn?.focus();
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!masterFilterPopover || masterFilterPopover.hidden) return;
+            if (masterFilter?.contains(event.target)) return;
+            setMasterFilterOpen(false);
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape' || !masterFilterPopover || masterFilterPopover.hidden) return;
+            setMasterFilterOpen(false);
+            masterFilterBtn?.focus();
         });
 
         // Custom dropdown bergaya Arsip Laporan untuk select filter.
-        document.querySelectorAll('.master-filter-panel .filter-select-wrapper').forEach(function (wrapper) {
+        document.querySelectorAll('#master-filter-popover .filter-select-wrapper').forEach(function (wrapper) {
             const select = wrapper.querySelector('select');
             if (!select) return;
             select.style.display = 'none';

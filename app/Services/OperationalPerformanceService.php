@@ -6,6 +6,7 @@ use App\Enums\ReportStatus;
 use App\Models\BulkLoadingActivity;
 use App\Models\DailyReport;
 use App\Support\ContainerStatusNormalizer;
+use App\Support\MaterialNameNormalizer;
 use App\Support\MaterialPackaging;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -1250,14 +1251,34 @@ class OperationalPerformanceService
                 ->selectRaw('COALESCE(SUM('.($recap['delivery'] ?? '0').'), 0) as kirim')
                 ->selectRaw('COALESCE(SUM('.($recap['damage'] ?? '0').'), 0) as kerusakan');
 
+            // Akumulasi periode dihitung ulang atas seluruh rentang, bukan
+            // dijumlahkan dari dua segmen. Tonase boleh dijumlahkan karena
+            // aditif, tetapi COUNT(DISTINCT) tidak: satu kapal yang bersandar
+            // melewati pergantian bulan muncul di kedua segmen, sehingga
+            // penjumlahannya melaporkan dua kapal untuk satu pelayaran.
+            $accumulated = $this->scopedSourceQuery($source, $filters)
+                ->selectRaw("'".$key."' as kegiatan")
+                ->selectRaw("'total' as segmen")
+                ->selectRaw('COUNT(DISTINCT '.$recap['count'].') as jumlah')
+                ->selectRaw('COALESCE(SUM('.$source['column'].'), 0) as muat')
+                ->selectRaw('COALESCE(SUM('.($recap['delivery'] ?? '0').'), 0) as kirim')
+                ->selectRaw('COALESCE(SUM('.($recap['damage'] ?? '0').'), 0) as kerusakan');
+
             $union = $union === null ? $query : $union->union($query);
+            $union->union($accumulated);
         }
 
         $rows = $union === null ? collect() : $union->get();
         $totals = [];
 
         foreach ($rows as $row) {
-            $totals[$row->kegiatan][$row->segmen === 'bulan' ? 'bulan' : 'sebelum'] = [
+            $slot = match ($row->segmen) {
+                'bulan' => 'bulan',
+                'total' => 'total',
+                default => 'sebelum',
+            };
+
+            $totals[$row->kegiatan][$slot] = [
                 'count' => (int) $row->jumlah,
                 'value' => (float) $row->muat,
                 'delivery' => (float) $row->kirim,
@@ -1314,6 +1335,9 @@ class OperationalPerformanceService
             $segments = $totals[$key] ?? [];
             $month = $segments['bulan'] ?? $empty;
             $previous = $segments['sebelum'] ?? $empty;
+            // Pencacah akumulasi datang dari query rentang penuh; tonase tetap
+            // dijumlahkan dari kedua segmen supaya aritmetikanya terlihat.
+            $accumulated = $segments['total'] ?? $empty;
 
             $rows[] = [
                 'key' => $key,
@@ -1335,7 +1359,7 @@ class OperationalPerformanceService
                 'month' => $month,
                 'previous' => $previous,
                 'total' => [
-                    'count' => $month['count'] + $previous['count'],
+                    'count' => $accumulated['count'],
                     'value' => $month['value'] + $previous['value'],
                     'delivery' => $month['delivery'] + $previous['delivery'],
                     'damage' => $month['damage'] + $previous['damage'],
@@ -2140,6 +2164,7 @@ class OperationalPerformanceService
 
         $rows = $rowsQuery
             ->groupBy(DB::raw($this->bulkVisitIdentity()))
+            ->selectRaw('COUNT(bulk_loading_logs.id) as log_count')
             ->selectRaw('MAX(bulk_loading_activities.ship_name) as ship_name')
             ->selectRaw('MIN(bulk_loading_activities.berthing_time) as berthing')
             ->selectRaw('MAX(bulk_loading_activities.start_loading_time) as start_loading')
@@ -2180,7 +2205,10 @@ class OperationalPerformanceService
         return [
             'value' => (float) ($totals->loaded ?? 0),
             'metrics' => [
-                ['label' => 'Kapal dilayani', 'value' => $rows->count(), 'unit' => 'kapal', 'decimals' => 0],
+                // Aturan yang sama dengan bahan baku: kapal yang belum punya
+                // satu pun entri log belum menjadi pemuatan, sehingga tidak
+                // ikut dihitung — persis seperti rekap di Kinerja Operasi.
+                ['label' => 'Kapal dilayani', 'value' => $rows->filter(fn (object $row): bool => (int) $row->log_count > 0)->count(), 'unit' => 'kapal', 'decimals' => 0],
                 ['label' => 'Entri log jam', 'value' => (int) ($totals->log_count ?? 0), 'unit' => 'entri', 'decimals' => 0],
                 ['label' => 'Rata-rata COB per entri', 'value' => ($totals->log_count ?? 0) > 0 ? (float) $totals->loaded / (int) $totals->log_count : 0.0, 'unit' => 'MT', 'decimals' => 1],
                 ['label' => 'Rata-rata jeda sandar → mulai muat', 'value' => $waits === [] ? null : array_sum($waits) / count($waits), 'unit' => 'jam', 'decimals' => 1],
@@ -2219,26 +2247,38 @@ class OperationalPerformanceService
             ->groupBy('material_items.packaging_type', 'material_items.raw_material_type')
             ->selectRaw('material_items.packaging_type as packaging_type')
             ->selectRaw('material_items.raw_material_type as raw_material_type')
+            ->selectRaw('MAX(material_items.id) as newest_id')
             ->selectRaw("COALESCE(SUM({$tonnageExpression}), 0) as total")
             ->get()
-            ->map(fn (object $row): array => [
+            // Jenis bahan diketik bebas, jadi satu bahan yang sama muncul dengan
+            // banyak ejaan antar shift — "Clay", "CLAY", "Clay Jumbo Bag @ 1 Ton".
+            // Penyeragamannya dilakukan di sini dan bukan dengan menulis ulang
+            // nama yang sudah tersimpan, karena teks itu ikut tercetak pada
+            // laporan harian yang sudah disetujui.
+            ->groupBy(fn (object $row): string => MaterialNameNormalizer::key($row->raw_material_type)
+                .'|'.MaterialPackaging::labelFor(null, $row->packaging_type))
+            ->map(fn (Collection $group): array => [
+                // Ejaan yang ditampilkan diambil dari baris terbaru: itulah
+                // bentuk yang sedang dipakai di lapangan.
                 'name' => collect([
-                    $row->raw_material_type ?: 'Jenis belum diisi',
-                    $row->packaging_type ?: MaterialPackaging::UNRECORDED_LABEL,
+                    MaterialNameNormalizer::label($group->sortByDesc('newest_id')->first()->raw_material_type) ?: 'Jenis belum diisi',
+                    MaterialPackaging::labelFor(null, $group->first()->packaging_type),
                 ])->implode(' · '),
-                'value' => (float) $row->total,
+                'value' => (float) $group->sum('total'),
             ])
             ->filter(fn (array $row): bool => $row['value'] > 0)
             ->sortByDesc('value')
             ->values()
             ->all();
 
-        $rows = $this->parentQuery('material_activities', $filters)
+        $groups = $this->parentQuery('material_activities', $filters)
             ->leftJoin('material_items', 'material_items.material_activity_id', '=', 'material_activities.id')
             // Dikelompokkan menurut nama kanonik, bukan nama mentah: satu kapal
             // yang ejaannya berbeda antar shift harus tetap satu baris dengan
             // jumlah bag yang utuh.
             ->groupBy(DB::raw($this->visitIdentity('material_activities')))
+            ->selectRaw($this->visitIdentity('material_activities').' as ship_key')
+            ->selectRaw('COUNT(material_items.id) as line_count')
             ->selectRaw('MAX(material_activities.ship_name) as ship_name')
             ->selectRaw('MAX(material_activities.agent) as agent')
             ->selectRaw('MAX(material_activities.jetty) as jetty')
@@ -2248,7 +2288,9 @@ class OperationalPerformanceService
             ->selectRaw("COALESCE(SUM({$tonnageExpression}), 0) as loaded")
             ->selectRaw('COUNT(DISTINCT material_activities.id) as activities')
             ->get()
-            ->sortByDesc('loaded')
+            ->sortByDesc('loaded');
+
+        $rows = $groups
             ->map(fn (object $row): array => [
                 $row->ship_name ?: 'Nama kapal belum diisi',
                 $row->agent ?: '-',
@@ -2263,6 +2305,22 @@ class OperationalPerformanceService
             ->values()
             ->all();
 
+        // Pencacah kapal memakai aturan yang sama persis dengan kartu Rekap
+        // Kegiatan di Kinerja Operasi, supaya kedua halaman tidak pernah
+        // menyebut jumlah kapal yang berbeda untuk periode yang sama:
+        //
+        //   - kelompok tanpa identitas (blok bahan baku yang terkirim tanpa
+        //     nama kapal maupun operasi kapal) bukan sebuah kapal;
+        //   - kegiatan yang belum punya satu pun baris rincian belum menjadi
+        //     pembongkaran, sama seperti COUNT(DISTINCT) di rekap yang berangkat
+        //     dari tabel rincian.
+        //
+        // Barisnya tetap ditampilkan di tabel agar tidak ada data yang hilang
+        // dari pandangan; yang disamakan hanya angka yang dibaca sebagai kapal.
+        $shipCount = $groups
+            ->filter(fn (object $row): bool => $row->ship_key !== null && (int) $row->line_count > 0)
+            ->count();
+
         $total = array_sum(array_column($breakdown, 'value'));
         $max = $breakdown === [] ? 0.0 : (float) $breakdown[0]['value'];
 
@@ -2274,10 +2332,10 @@ class OperationalPerformanceService
         return [
             'value' => $total,
             'metrics' => [
-                ['label' => 'Kapal dilayani', 'value' => count($rows), 'unit' => 'kapal', 'decimals' => 0],
+                ['label' => 'Kapal dilayani', 'value' => $shipCount, 'unit' => 'kapal', 'decimals' => 0],
                 ['label' => 'Bahan / kemasan', 'value' => count($breakdown), 'unit' => 'kombinasi', 'decimals' => 0],
                 ['label' => 'Kegiatan tercatat', 'value' => array_sum(array_column($rows, 7)), 'unit' => 'kegiatan', 'decimals' => 0],
-                ['label' => 'Rata-rata per kapal', 'value' => $rows === [] ? 0.0 : $total / count($rows), 'unit' => 'Ton', 'decimals' => 1],
+                ['label' => 'Rata-rata per kapal', 'value' => $shipCount === 0 ? 0.0 : $total / $shipCount, 'unit' => 'Ton', 'decimals' => 1],
             ],
             'table' => $this->detailTable([
                 ['label' => 'Kapal', 'type' => 'name'],
