@@ -43,7 +43,9 @@
             /* Grayscale */
             --black:           #0F172A;
             --black-secondary: #334155;
-            --muted:           #64748B;
+            /* Selaras dengan muted shell admin agar navigasi lintas role
+               mempertahankan hierarki dan kontras visual yang sama. */
+            --muted:           #94A3B8;
             --smooth-border:   #E2E8F0;
             --divider:         #CBD5E1;
             --main-bg:         #F8FAFC;
@@ -248,11 +250,21 @@
             max-width: 0;
         }
 
+        /* Struktur wrapper mengikuti sidebar admin tanpa menggeser posisi logo. */
+        .sidebar__main {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
         /* ---- Navigation ---- */
         .sidebar__nav {
             display: flex;
             flex-direction: column;
-            flex: 1;
+            flex: 1 1 auto;
+            min-height: 0;
             margin-top: 6px;
             gap: 0;
             overflow-y: auto;

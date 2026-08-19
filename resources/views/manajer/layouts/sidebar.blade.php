@@ -10,7 +10,7 @@
     <aside class="sidebar" id="sidebar">
 
         <!-- Logo -->
-        <div>
+        <div class="sidebar__main">
             <div class="sidebar__logo">
                 <img src="{{ asset('assets/Logo.png') }}" alt="" style="width: 32px;">
                 <img src="{{ asset('assets/KSS-text.png') }}" alt="" style="width: 56px;">

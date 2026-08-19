@@ -165,10 +165,8 @@
             min-width: 1150px;
         }
 
-        /* Kotak centang menempati kolomnya sendiri di depan No: selama keduanya
-           berbagi satu sel, posisi centang ikut bergeser mengikuti lebar teks di
-           sampingnya, sehingga centang pilih-semua tidak pernah sejajar dengan
-           centang barisnya. */
+        /* Struktur tabel mengikuti arsip admin: setiap kolom memakai track yang
+           sama agar header, checkbox, nomor, dan informasi dokumen sejajar. */
         .archive-body .thead,
         .archive-body .tbody {
             display: grid !important;
@@ -187,9 +185,35 @@
 
         .archive-body .thead th,
         .archive-body .tbody td {
+            display: flex;
+            align-items: center;
+            width: auto !important;
+            min-width: 0 !important;
             padding-left: 6px;
             padding-right: 6px;
             flex: 0 0 auto;
+        }
+
+        .archive-body .thead {
+            background-color: var(--blue-main-5);
+            border-radius: 6px;
+        }
+
+        .archive-body .thead th {
+            padding-top: 10px;
+            padding-bottom: 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--black-secondary);
+        }
+
+        .archive-body .tbody {
+            border-bottom: 1px solid var(--smooth-border);
+            transition: background-color .15s ease-in-out;
+        }
+
+        .archive-body .tbody:hover {
+            background-color: var(--blue-main-3);
         }
 
         .archive-body .tbody.d-none {
@@ -218,10 +242,33 @@
         .archive-body .thead th.nomor,
         .archive-body .tbody td.nomor {
             justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
         }
 
-        .archive-body .tbody td.column-2 > span:first-child {
+        .archive-body .tbody td.column-2 {
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .archive-doc-title {
+            color: var(--black);
+            font-weight: 600;
+            line-height: 1.25;
             white-space: nowrap;
+        }
+
+        .archive-doc-id {
+            line-height: 1.25;
+        }
+
+        /* Judul card mengikuti komponen arsip admin pada semua breakpoint. */
+        .archive-body > .section-card__title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--black);
         }
 
         .archive-count {
@@ -427,6 +474,21 @@
 
         .archive-body .tbody td.column-3 {
             gap: 6px;
+        }
+
+        /* Header dan badge Shift/Status memakai satu garis awal yang sama.
+           Kelas khusus ini juga menahan override alignment dari layout global. */
+        .archive-body .archive-col-shift,
+        .archive-body .archive-col-status {
+            justify-content: flex-start;
+            justify-self: stretch;
+        }
+
+        .archive-body .tbody td.archive-col-shift,
+        .archive-body .tbody td.archive-col-status {
+            flex-direction: row;
+            align-items: center;
+            gap: 0;
         }
 
         .archive-body .tbody td.aksi {
@@ -767,8 +829,8 @@
                             <th class="column-1">Tanggal Laporan</th>
                             <th>Divisi</th>
                             <th>Regu</th>
-                            <th>Shift</th>
-                            <th>Status</th>
+                            <th class="archive-col-shift">Shift</th>
+                            <th class="archive-col-status">Status</th>
                             <th class="aksi">Aksi</th>
                         </tr>
 
@@ -792,8 +854,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>{{ $r['no'] }}</span></td>
                                 <td class="column-2">
-                                    <span>{{ $r['title'] }}</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
+                                    <span class="archive-doc-title">{{ $r['title'] }}</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: {{ $r['id'] }}</span>
                                 </td>
                                 <td class="column-1">
                                     <span>{{ $r['date'] }}</span>
@@ -810,13 +872,13 @@
                                         <span class="text fsize-10 fw-600">{{ $reguName === '-' ? '-' : $reguName }}</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift {{ $r['shift'] }}">
                                         <span class="icon-shift"><i class="{{ $r['shift_icon'] }}"></i></span>
                                         <span class="text">{{ $r['shift_label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status {{ $r['status'] }}">
                                         <span class="status-dot"></span>
                                         <span class="text">{{ $r['status_label'] }}</span>
