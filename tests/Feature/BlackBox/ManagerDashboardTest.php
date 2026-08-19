@@ -1342,8 +1342,14 @@ class ManagerDashboardTest extends BlackBoxTestCase
         $operatorA = $this->operator('A');
         $operatorB = $this->operator('B');
 
-        // Juni adalah periode pembanding 1-15 Juni. Petugas A awalnya posisi
-        // pertama dengan dua entri, Petugas B posisi kedua dengan satu entri.
+        // Pergerakan posisi dibandingkan dengan periode yang sama SEHARI LEBIH
+        // AWAL, bukan dengan bulan sebelumnya. Lihat catatan pada
+        // OperationalPerformanceService::overtimeComparisonRange(): pembanding
+        // antarbulan/antartahun membuat seluruh personil tertandai "baru" pada
+        // instalasi yang datanya belum melewati satu periode penuh.
+        //
+        // Data Juni tetap ada untuk memastikan bulan lalu TIDAK ikut
+        // mempengaruhi tanda naik/turun pada periode Juli.
         foreach (['2026-06-02', '2026-06-03'] as $date) {
             $this->opsReportWithActivities(
                 $operatorA,
@@ -1358,8 +1364,8 @@ class ManagerDashboardTest extends BlackBoxTestCase
             ['lembur' => 'Petugas B']
         );
 
-        // Pada Juli, tambahan tiga entri Petugas B membuatnya naik satu
-        // posisi. Setiap entri berdurasi empat jam dari helper di atas.
+        // Sampai 14 Juli: Petugas B memimpin dengan tiga entri, Petugas A satu
+        // entri. Setiap entri berdurasi empat jam dari helper di atas.
         $this->opsReportWithActivities(
             $operatorA,
             ['report_date' => '2026-07-02', 'group_name' => 'A'],
@@ -1374,6 +1380,15 @@ class ManagerDashboardTest extends BlackBoxTestCase
             );
         }
 
+        // Pada hari terakhir periode, tiga entri Petugas A menyalip Petugas B.
+        foreach (['2026-07-15', '2026-07-15', '2026-07-15'] as $date) {
+            $this->opsReportWithActivities(
+                $operatorA,
+                ['report_date' => $date, 'group_name' => 'A'],
+                ['lembur' => 'Petugas A']
+            );
+        }
+
         $report = app(OperationalPerformanceService::class)->performanceReport([
             'start' => Carbon::parse('2026-07-01'),
             'end' => Carbon::parse(self::TODAY),
@@ -1383,20 +1398,26 @@ class ManagerDashboardTest extends BlackBoxTestCase
 
         $ranking = collect($report['overtimeLeaders']['ranking'])->keyBy('name');
 
-        $this->assertSame(1, $ranking['Petugas B']['position']);
-        $this->assertSame(2, $ranking['Petugas B']['previousPosition']);
-        $this->assertSame('up', $ranking['Petugas B']['movement']);
+        // Petugas A: 4 entri (16 jam) mengambil posisi pertama pada hari
+        // terakhir, naik satu posisi dari keadaan sehari sebelumnya.
+        $this->assertSame(1, $ranking['Petugas A']['position']);
+        $this->assertSame(2, $ranking['Petugas A']['previousPosition']);
+        $this->assertSame('up', $ranking['Petugas A']['movement']);
+        $this->assertSame(1, $ranking['Petugas A']['movementValue']);
+        $this->assertSame('A', $ranking['Petugas A']['group']);
+        $this->assertSame(4, $ranking['Petugas A']['count']);
+        $this->assertSame(16.0, $ranking['Petugas A']['hours']);
+        $this->assertSame(4.0, $ranking['Petugas A']['averageHours']);
+
+        // Petugas B tergeser ke posisi dua walau jamnya tidak berkurang.
+        $this->assertSame(2, $ranking['Petugas B']['position']);
+        $this->assertSame(1, $ranking['Petugas B']['previousPosition']);
+        $this->assertSame('down', $ranking['Petugas B']['movement']);
         $this->assertSame(1, $ranking['Petugas B']['movementValue']);
         $this->assertSame('B', $ranking['Petugas B']['group']);
         $this->assertSame(3, $ranking['Petugas B']['count']);
         $this->assertSame(12.0, $ranking['Petugas B']['hours']);
         $this->assertSame(4.0, $ranking['Petugas B']['averageHours']);
-
-        $this->assertSame(2, $ranking['Petugas A']['position']);
-        $this->assertSame(1, $ranking['Petugas A']['previousPosition']);
-        $this->assertSame('down', $ranking['Petugas A']['movement']);
-        $this->assertSame(1, $ranking['Petugas A']['movementValue']);
-        $this->assertSame('A', $ranking['Petugas A']['group']);
 
         Cache::flush();
 

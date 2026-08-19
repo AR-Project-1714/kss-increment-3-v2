@@ -514,10 +514,12 @@ class OperationalPerformanceService
         }
 
         $overtimeRows = $this->overtimeRows($filters);
-        $previousOvertimeRows = $this->overtimeRows(array_merge($filters, [
-            'start' => $prevStart,
-            'end' => $prevEnd,
-        ]));
+        // Pergerakan peringkat dibandingkan dengan periode yang sama sehari
+        // lebih awal, bukan dengan periode setara sebelumnya. Lihat catatan di
+        // overtimeComparisonRange().
+        $previousOvertimeRows = $this->overtimeRows(
+            array_merge($filters, $this->overtimeComparisonRange($start, $end))
+        );
 
         return [
             'periodLabel' => $this->periodLabel($start, $end),
@@ -1853,15 +1855,13 @@ class OperationalPerformanceService
                 ->get();
         };
 
-        [$prevStart, $prevEnd] = $this->equivalentPreviousPeriod($filters['start'], $filters['end']);
-
         return $this->overtimeLeadersFrom(
             $rowsFor($filters),
             limit: null,
-            previousRows: $rowsFor(array_merge($filters, [
-                'start' => $prevStart,
-                'end' => $prevEnd,
-            ]))
+            previousRows: $rowsFor(array_merge(
+                $filters,
+                $this->overtimeComparisonRange($filters['start'], $filters['end'])
+            ))
         );
     }
 
@@ -3382,6 +3382,38 @@ class OperationalPerformanceService
     // ============================================================
     // Delta & pembanding periode
     // ============================================================
+
+    /**
+     * Rentang pembanding untuk PERGERAKAN PERINGKAT LEMBUR: periode yang sama
+     * persis, tetapi berhenti satu hari lebih awal. Panah naik/turun dengan
+     * begitu menjawab "posisi siapa yang bergeser karena lembur hari terakhir".
+     *
+     * Sengaja TIDAK memakai equivalentPreviousPeriod(). Periode bawaan halaman
+     * Kinerja Operasi adalah tahun berjalan, sehingga pembanding setaranya
+     * jatuh ke tahun sebelumnya — pada instalasi yang datanya baru berumur satu
+     * tahun rentang itu kosong dan SELURUH personil selamanya tertandai "baru".
+     *
+     * Periode satu hari tidak punya "sehari lebih awal" di dalam dirinya, jadi
+     * pembandingnya adalah hari sebelumnya secara utuh.
+     *
+     * @return array{start: CarbonInterface, end: CarbonInterface}
+     */
+    private function overtimeComparisonRange(CarbonInterface $start, CarbonInterface $end): array
+    {
+        if ($end->greaterThan($start)) {
+            return [
+                'start' => $start->copy(),
+                'end' => $end->copy()->subDay(),
+            ];
+        }
+
+        $previousDay = $start->copy()->subDay();
+
+        return [
+            'start' => $previousDay,
+            'end' => $previousDay->copy(),
+        ];
+    }
 
     /**
      * Periode pembanding yang setara dan tidak bertumpang tindih. Rentang YTD
