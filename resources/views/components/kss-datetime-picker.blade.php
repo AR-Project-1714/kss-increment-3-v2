@@ -338,8 +338,8 @@
     body.dark-mode .kss-date-nav,
     body.dark-mode .kss-date-action,
     body.dark-mode .kss-date-trigger {
-        background: var(--white, #1e293b);
-        border-color: var(--smooth-border, #334155);
+        background: var(--white, #17212f);
+        border-color: var(--smooth-border, #2C3A4E);
     }
 
     @media (max-width: 520px) {

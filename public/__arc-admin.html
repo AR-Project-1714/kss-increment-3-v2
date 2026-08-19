@@ -6,14 +6,14 @@
     <title>KSS Admin - Arsip Laporan</title>
 
     <!-- Google Fonts: Poppins -->
-    <link href="http://localhost:8010/vendor/poppins.css" rel="stylesheet">
+    <link href="http://localhost/vendor/poppins.css" rel="stylesheet">
 
     <!-- Bootstrap 5 CSS -->
-    <link href="http://localhost:8010/vendor/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="http://localhost/vendor/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 
-    <link rel="icon" href="http://localhost:8010/favicon.ico">
+    <link rel="icon" href="http://localhost/favicon.ico">
     <meta name="theme-color" content="#2563EB">
-<link rel="apple-touch-icon" href="http://localhost:8010/assets/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="http://localhost/assets/apple-touch-icon.png">
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
@@ -161,12 +161,12 @@
 </script>
 
     <!-- Flaticon UICONS -->
-    <link rel="stylesheet" href="http://localhost:8010/vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css">
-    <link rel="stylesheet" href="http://localhost:8010/vendor/uicons/uicons-bold-rounded/css/uicons-bold-rounded.css">
-    <link rel="stylesheet" href="http://localhost:8010/vendor/uicons/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    <link rel="stylesheet" href="http://localhost/vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css">
+    <link rel="stylesheet" href="http://localhost/vendor/uicons/uicons-bold-rounded/css/uicons-bold-rounded.css">
+    <link rel="stylesheet" href="http://localhost/vendor/uicons/uicons-solid-rounded/css/uicons-solid-rounded.css">
 
     
-    <link rel="preload" as="style" href="http://localhost:8010/build/assets/admin-PyvF5ZPK.css" /><link rel="stylesheet" href="http://localhost:8010/build/assets/admin-PyvF5ZPK.css" />
+    <link rel="preload" as="style" href="http://localhost/build/assets/admin-Cj47bau2.css" /><link rel="stylesheet" href="http://localhost/build/assets/admin-Cj47bau2.css" />
     <style>
     .kss-date-native {
         position: absolute !important;
@@ -506,8 +506,8 @@
     body.dark-mode .kss-date-nav,
     body.dark-mode .kss-date-action,
     body.dark-mode .kss-date-trigger {
-        background: var(--white, #1e293b);
-        border-color: var(--smooth-border, #334155);
+        background: var(--white, #17212f);
+        border-color: var(--smooth-border, #2C3A4E);
     }
 
     @media (max-width: 520px) {
@@ -1371,15 +1371,21 @@
         gap: 8px;
     }
 
+    /* Ekspor bersifat sekunder terhadap Filter, jadi tampil sebagai tombol
+       bergaris hijau — resep yang sama dengan tombol Ekspor di Master Data. */
     .performance-export-button {
+        flex: 0 0 auto;
         min-height: 38px;
+        padding-inline: 14px;
         color: var(--success);
         border-color: var(--success);
         background-color: var(--success-10);
         text-decoration: none;
+        box-shadow: none;
     }
 
-    .performance-export-button:hover {
+    .performance-export-button:hover,
+    .performance-export-button:focus-visible {
         color: var(--success);
         border-color: var(--success);
         background-color: var(--success-10);
@@ -1523,7 +1529,11 @@
         font-size: 13px;
     }
 
-    .archive-toolbar {
+    /* Baris header kartu: judul + lencana di kiri, pencarian & kontrol daftar
+       di kanan. Anatominya disamakan dengan Kelola Pengguna. */
+    .archive-card-header {
+        position: relative;
+        z-index: 15;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1531,17 +1541,30 @@
         flex-wrap: wrap;
     }
 
+    .archive-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
     .search-box {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 9px 18px;
+        padding: 0 12px;
+        height: 38px;
         border: 1px solid var(--smooth-border);
-        border-radius: 50px;
+        border-radius: 8px;
         background-color: var(--main-bg);
-        flex: 1 1 380px;
-        max-width: 460px;
+        width: 340px;
+        max-width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
+
+    .search-box:focus-within { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
 
     .search-box i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
 
@@ -1659,14 +1682,13 @@
     }
     .btn-reset:hover { background-color: var(--red-main-10); }
 
-    /* Toolbar right cluster + result count badge (match manajer) */
-    .archive-toolbar__right {
-        margin-left: auto;
+    /* Judul kartu + lencana jumlah dibaca sebagai satu kesatuan. */
+    .archive-card-heading {
         display: flex;
         align-items: center;
         gap: 10px;
+        min-width: 0;
         flex-wrap: wrap;
-        justify-content: flex-end;
     }
 
     .archive-count {
@@ -1751,16 +1773,20 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .archive-toolbar { align-items: stretch; }
+        .archive-card-header { align-items: stretch; }
 
-        .search-box {
-            flex-basis: 100%;
-            max-width: none;
+        .archive-toolbar {
             width: 100%;
+            margin-left: 0;
+            align-items: stretch;
         }
 
-        .archive-toolbar__actions,
-        .archive-toolbar__right {
+        .search-box {
+            width: 100%;
+            flex: 1 1 240px;
+        }
+
+        .archive-toolbar__actions {
             width: 100%;
             justify-content: flex-start;
         }
@@ -2025,7 +2051,7 @@
     /* =============================================
        LIVE SEARCH + DROPDOWN SARAN (selaras Manajer)
        ============================================= */
-    .archive-search-box { position: relative; padding-right: 44px; }
+    .archive-search-box { position: relative; padding-right: 36px; }
 
     .archive-search-box input[type="search"]::-webkit-search-cancel-button,
     .archive-search-box input[type="search"]::-webkit-search-decoration {
@@ -2035,14 +2061,14 @@
 
     .archive-search-clear {
         position: absolute;
-        right: 10px;
+        right: 6px;
         top: 50%;
         transform: translateY(-50%);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 26px;
-        height: 26px;
+        width: 22px;
+        height: 22px;
         border: none;
         border-radius: 50%;
         color: var(--blue-main);
@@ -2250,7 +2276,7 @@
         <span class="kss-loader__spinner" aria-hidden="true"></span>
         <img
             class="kss-loader__logo"
-            src="http://localhost:8010/assets/loading-state.webp"
+            src="http://localhost/assets/loading-state.webp"
             alt=""
             width="96"
             height="96"
@@ -2489,8 +2515,8 @@
     <!-- Logo -->
     <div class="sidebar__main">
         <div class="sidebar__logo">
-            <img src="http://localhost:8010/assets/Logo.png" alt="KSS" style="width: 32px;">
-            <img src="http://localhost:8010/assets/KSS-text.png" alt="KSS" style="width: 56px;">
+            <img src="http://localhost/assets/Logo.png" alt="KSS" style="width: 32px;">
+            <img src="http://localhost/assets/KSS-text.png" alt="KSS" style="width: 56px;">
         </div>
 
         <!-- Nav -->
@@ -2500,22 +2526,22 @@
             <div class="sidebar__section">
                 <span class="sidebar__section-label">Menu Utama</span>
 
-                <a href="http://localhost:8010/admin" class="sidebar__nav-item " data-tooltip="Dashboard Sistem">
+                <a href="http://localhost/admin" class="sidebar__nav-item " data-tooltip="Dashboard Sistem">
                     <span class="nav-icon"><i class="fi fi-sr-apps"></i></span>
                     <span class="nav-label">Dashboard Sistem</span>
                 </a>
 
-                <a href="http://localhost:8010/admin/billing-cloud" class="sidebar__nav-item " data-tooltip="Billing Cloud">
+                <a href="http://localhost/admin/billing-cloud" class="sidebar__nav-item " data-tooltip="Billing Cloud">
                     <span class="nav-icon"><i class="fi fi-sr-wallet"></i></span>
                     <span class="nav-label">Billing Cloud</span>
                 </a>
 
-                <a href="http://localhost:8010/admin/archive" class="sidebar__nav-item active" data-tooltip="Arsip Laporan">
+                <a href="http://localhost/admin/archive" class="sidebar__nav-item active" data-tooltip="Arsip Laporan">
                     <span class="nav-icon"><i class="fi fi-sr-folder"></i></span>
                     <span class="nav-label">Arsip Laporan</span>
                 </a>
 
-                <a href="http://localhost:8010/admin/log" class="sidebar__nav-item " data-tooltip="Log Aktivitas">
+                <a href="http://localhost/admin/log" class="sidebar__nav-item " data-tooltip="Log Aktivitas">
                     <span class="nav-icon"><i class="fi fi-sr-document"></i></span>
                     <span class="nav-label">Log Aktivitas</span>
                 </a>
@@ -2525,13 +2551,13 @@
             <div class="sidebar__section">
                 <span class="sidebar__section-label">Administrasi</span>
 
-                <a href="http://localhost:8010/admin/user-manage" class="sidebar__nav-item " data-tooltip="Kelola Pengguna">
+                <a href="http://localhost/admin/user-manage" class="sidebar__nav-item " data-tooltip="Kelola Pengguna">
                     <span class="nav-icon"><i class="fi fi-sr-user"></i></span>
                     <span class="nav-label">Kelola Pengguna</span>
                 </a>
 
                 <div class="sidebar__nav-group">
-                    <a href="http://localhost:8010/admin/datamaster" class="sidebar__nav-item js-submenu-toggle " data-tooltip="Data Master">
+                    <a href="http://localhost/admin/datamaster" class="sidebar__nav-item js-submenu-toggle " data-tooltip="Data Master">
                         <span class="nav-icon"><i class="fi fi-sr-database"></i></span>
                         <span class="nav-label">Data Master</span>
                         <span class="nav-chevron"><i class="fi fi-rr-angle-small-down"></i></span>
@@ -2541,19 +2567,19 @@
                         <div class="sidebar__submenu">
                             <div class="sidebar__submenu-line"></div>
                             <div class="sidebar__submenu-items">
-                                <a href="http://localhost:8010/admin/datamaster?pane=karyawan" class="sidebar__submenu-item " data-pane="karyawan">Data Karyawan</a>
-                                <a href="http://localhost:8010/admin/datamaster?pane=unit" class="sidebar__submenu-item " data-pane="unit">Data Unit</a>
-                                <a href="http://localhost:8010/admin/datamaster?pane=truck" class="sidebar__submenu-item " data-pane="truck">Data Truck</a>
-                                <a href="http://localhost:8010/admin/datamaster?pane=inventaris" class="sidebar__submenu-item " data-pane="inventaris">Data Inventaris</a>
-                                <a href="http://localhost:8010/admin/datamaster?pane=lingkungan" class="sidebar__submenu-item " data-pane="lingkungan">Data Lingkungan Operasi</a>
-                                <a href="http://localhost:8010/admin/datamaster?pane=safety_lokasi" class="sidebar__submenu-item " data-pane="safety_lokasi">Data Lokasi K3</a>
-                                <a href="http://localhost:8010/admin/datamaster?pane=safety_item" class="sidebar__submenu-item " data-pane="safety_item">Data Item K3</a>
+                                <a href="http://localhost/admin/datamaster?pane=karyawan" class="sidebar__submenu-item " data-pane="karyawan">Data Karyawan</a>
+                                <a href="http://localhost/admin/datamaster?pane=unit" class="sidebar__submenu-item " data-pane="unit">Data Unit</a>
+                                <a href="http://localhost/admin/datamaster?pane=truck" class="sidebar__submenu-item " data-pane="truck">Data Truck</a>
+                                <a href="http://localhost/admin/datamaster?pane=inventaris" class="sidebar__submenu-item " data-pane="inventaris">Data Inventaris</a>
+                                <a href="http://localhost/admin/datamaster?pane=lingkungan" class="sidebar__submenu-item " data-pane="lingkungan">Data Lingkungan Operasi</a>
+                                <a href="http://localhost/admin/datamaster?pane=safety_lokasi" class="sidebar__submenu-item " data-pane="safety_lokasi">Data Lokasi K3</a>
+                                <a href="http://localhost/admin/datamaster?pane=safety_item" class="sidebar__submenu-item " data-pane="safety_item">Data Item K3</a>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <a href="http://localhost:8010/admin/backup"
+                <a href="http://localhost/admin/backup"
                    class="sidebar__nav-item "
                    data-tooltip="Manajemen Backup">
                     <span class="nav-icon"><i class="fi fi-sr-cloud-upload"></i></span>
@@ -2565,7 +2591,7 @@
             <div class="sidebar__section">
                 <span class="sidebar__section-label">Sistem</span>
 
-                <a href="http://localhost:8010/admin/help" class="sidebar__nav-item " data-tooltip="Pusat Bantuan">
+                <a href="http://localhost/admin/help" class="sidebar__nav-item " data-tooltip="Pusat Bantuan">
                     <span class="nav-icon"><i class="fi fi-sr-interrogation"></i></span>
                     <span class="nav-label">Pusat Bantuan</span>
                 </a>
@@ -2576,8 +2602,8 @@
 
     <!-- Logout -->
     <div class="sidebar__footer">
-        <form method="POST" action="http://localhost:8010/logout">
-            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">            <button type="submit"
+        <form method="POST" action="http://localhost/logout">
+            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">            <button type="submit"
                     class="sidebar__logout w-100 border-0"
                     data-tooltip="Logout">
                 <span class="nav-icon"><i class="fi fi-br-sign-out-alt"></i></span>
@@ -2600,7 +2626,7 @@
             <i class="fi fi-sr-angle-double-small-left" id="sidebarToggleIcon"></i>
         </button>
         <div class="greeting">
-            <div class="navbar-top__user-name">Selamat datang, Admin 788990</div>
+            <div class="navbar-top__user-name">Selamat datang, Admin 404798</div>
             <div class="navbar-top__user-role">Admin</div>
         </div>
     </div>
@@ -2608,10 +2634,10 @@
         <div
     class="kss-notification-center"
     data-notification-root
-    data-index-url="http://localhost:8010/notifications"
-    data-read-url-template="http://localhost:8010/notifications/__ID__/read"
-    data-read-all-url="http://localhost:8010/notifications/read-all"
-    data-csrf-token="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE"
+    data-index-url="http://localhost/notifications"
+    data-read-url-template="http://localhost/notifications/__ID__/read"
+    data-read-all-url="http://localhost/notifications/read-all"
+    data-csrf-token="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp"
 >
     <button
         type="button"
@@ -2657,7 +2683,7 @@
     <span class="kss-notification-center__live" data-notification-live aria-live="polite"></span>
 </div>
 
-    <script src="http://localhost:8010/js/components/notification-center.js?v=1786777913"></script>
+    <script src="http://localhost/js/components/notification-center.js?v=1786777913"></script>
         <div class="kss-account-toolbar">
             <div class="kss-account" data-account-root>
     <button
@@ -2666,7 +2692,7 @@
         data-account-trigger
         aria-haspopup="dialog"
         aria-expanded="false"
-        aria-label="Buka pengaturan akun Admin 788990"
+        aria-label="Buka pengaturan akun Admin 404798"
     >
         <span class="kss-account__trigger-avatar" aria-hidden="true">
             <img
@@ -2675,7 +2701,7 @@
                 data-account-avatar-image
                  hidden                 onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
             >
-            <span data-account-avatar-fallback >A7</span>
+            <span data-account-avatar-fallback >A4</span>
         </span>
         <span class="kss-account__presence" aria-hidden="true"></span>
     </button>
@@ -2694,7 +2720,7 @@
                 class="kss-account__profile-card"
                 data-account-photo-open
                 data-account-initial-focus
-                aria-label="Buka profil dan atur foto Admin 788990"
+                aria-label="Buka profil dan atur foto Admin 404798"
             >
                 <span class="kss-account__avatar kss-account__avatar--profile" aria-hidden="true">
                     <img
@@ -2703,11 +2729,11 @@
                         data-account-avatar-image
                          hidden                         onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
                     >
-                    <span data-account-avatar-fallback >A7</span>
+                    <span data-account-avatar-fallback >A4</span>
                 </span>
                 <span class="kss-account__summary-copy">
-                    <strong>Admin 788990</strong>
-                    <small>@admin-770461</small>
+                    <strong>Admin 404798</strong>
+                    <small>@admin-693773</small>
                     <span>Admin</span>
                 </span>
                 <span class="kss-account__profile-action" aria-hidden="true">
@@ -2790,16 +2816,17 @@
     </div>
 
     <div class="performance-filter performance-filter--with-export" data-archive-filter>
-        <a href="http://localhost:8010/admin/archive/export"
+        <a href="http://localhost/admin/archive/export"
                 class="btn-tool performance-export-button"
                 data-confirm
-                data-confirm-redirect="http://localhost:8010/admin/archive/export"
+                data-confirm-redirect="http://localhost/admin/archive/export"
                 data-confirm-tone="success"
                 data-confirm-title="Ekspor arsip laporan?"
                 data-confirm-subtitle="Berkas Excel akan diunduh sesuai filter yang sedang aktif."
                 data-confirm-message="Ekspor mengambil 10 laporan sesuai pencarian, tanggal, divisi, regu, shift, dan status yang sedang diterapkan pada tabel."
                 data-confirm-summary="Format: Excel (.xlsx), 10 laporan"
                 data-confirm-label="Ekspor Data"
+                data-confirm-download="true"
                 data-confirm-icon="fi fi-rr-cloud-upload-alt">
             <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
             <span>Ekspor Excel</span>
@@ -2831,7 +2858,7 @@
                 </button>
             </div>
 
-            <form method="GET" action="http://localhost:8010/admin/archive" id="archive-filter-form" autocomplete="off">
+            <form method="GET" action="http://localhost/admin/archive" id="archive-filter-form" autocomplete="off">
                 <input type="hidden" name="q" value="">
                 <input type="hidden" name="sort" value="newest">
                 <input type="hidden" name="per_page" value="10">
@@ -2990,10 +3017,18 @@
 <!-- Riwayat Laporan -->
 <div class="section-card">
     <div class="archive-body">
-                    <span class="section-card__title" >Riwayat Laporan</span>
         
-        <form method="GET" action="http://localhost:8010/admin/archive" id="archive-search-form" autocomplete="off">
-    <!-- Toolbar -->
+        <form method="GET" action="http://localhost/admin/archive" id="archive-search-form" autocomplete="off">
+    
+    <div class="archive-card-header">
+    <div class="archive-card-heading">
+        <span class="section-card__title">Riwayat Laporan</span>
+        <span id="archive-count" class="archive-count" data-total="10" data-label="laporan">
+            <i class="fi fi-rr-folder-open"></i>
+            <span>10 laporan</span>
+        </span>
+    </div>
+
     <div class="archive-toolbar">
         <div class="search-box archive-search-box">
             <span><i class="fi fi-rr-search"></i></span>
@@ -3005,7 +3040,7 @@
                 value=""
                 data-initial-value=""
                 data-page-start="1"
-                data-suggest-url="http://localhost:8010/admin/archive/suggestions"
+                data-suggest-url="http://localhost/admin/archive/suggestions"
                 autocomplete="off"
                 role="combobox"
                 aria-expanded="false"
@@ -3016,11 +3051,6 @@
                 </button>
                         <div id="archive-suggest-dropdown" class="archive-suggest-dropdown" role="listbox" aria-label="Saran pencarian arsip laporan"></div>
         </div>
-        <div class="archive-toolbar__right">
-            <span id="archive-count" class="archive-count" data-total="10" data-label="laporan">
-                <i class="fi fi-rr-folder-open"></i>
-                <span>10 laporan</span>
-            </span>
             <div class="archive-toolbar__actions">
                 
                 <div class="filter-select-wrapper toolbar-page-size-wrapper" data-select-pending>
@@ -3041,7 +3071,7 @@
                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                 </div>
             </div>
-        </div>
+    </div>
     </div>
 
     <input type="hidden" name="tanggal" value="">
@@ -3052,7 +3082,7 @@
     </form>
 
     <form method="POST"
-      action="http://localhost:8010/admin/archive/bulk-download"
+      action="http://localhost/admin/archive/bulk-download"
       id="archive-bulk-form"
       class="is-empty"
       data-bulk-form
@@ -3060,8 +3090,8 @@
       data-filter-total="10"
       data-instant-limit="50"
       data-bundle-limit="1000"
-      data-bundle-url="http://localhost:8010/admin/archive/bundles">
-    <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">    <input type="hidden" name="all" value="0" data-bulk-all>
+      data-bundle-url="http://localhost/admin/archive/bundles">
+    <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">    <input type="hidden" name="all" value="0" data-bulk-all>
     
     <input type="hidden" name="q" value="">
     <input type="hidden" name="tanggal" value="">
@@ -3143,7 +3173,7 @@
                 <th class="aksi">Aksi</th>
             </tr>
 
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-010 2026-08-10 10 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 10 user id 3 created by 3 report date 2026-08-09t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-010 2026-08-10 10 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 10 user id 3 created by 3 report date 2026-08-09t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3185,12 +3215,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/10/download">
+                                data-download-url="http://localhost/admin/reports/10/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/10" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/10">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/10" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/10">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3207,7 +3237,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-009 2026-08-09 09 agustus 2026 shift pagi diarsipkan regu a regu b operasional 370925 manajer 987597 id 9 user id 3 created by 3 report date 2026-08-08t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-009 2026-08-09 09 agustus 2026 shift pagi diarsipkan regu a regu b operasional 970661 manajer 270991 id 9 user id 3 created by 3 report date 2026-08-08t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3249,12 +3279,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/9/download">
+                                data-download-url="http://localhost/admin/reports/9/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/9" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/9">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/9" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/9">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3271,7 +3301,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-008 2026-08-08 08 agustus 2026 shift malam diarsipkan regu a regu b operasional 370925 manajer 987597 id 8 user id 3 created by 3 report date 2026-08-07t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-008 2026-08-08 08 agustus 2026 shift malam diarsipkan regu a regu b operasional 970661 manajer 270991 id 8 user id 3 created by 3 report date 2026-08-07t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3313,12 +3343,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/8/download">
+                                data-download-url="http://localhost/admin/reports/8/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/8" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/8">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/8" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/8">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3335,7 +3365,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-007 2026-08-07 07 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 7 user id 3 created by 3 report date 2026-08-06t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-007 2026-08-07 07 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 7 user id 3 created by 3 report date 2026-08-06t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3377,12 +3407,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/7/download">
+                                data-download-url="http://localhost/admin/reports/7/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/7" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/7">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/7" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/7">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3399,7 +3429,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-006 2026-08-06 06 agustus 2026 shift pagi diarsipkan regu a regu b operasional 370925 manajer 987597 id 6 user id 3 created by 3 report date 2026-08-05t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-006 2026-08-06 06 agustus 2026 shift pagi diarsipkan regu a regu b operasional 970661 manajer 270991 id 6 user id 3 created by 3 report date 2026-08-05t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3441,12 +3471,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/6/download">
+                                data-download-url="http://localhost/admin/reports/6/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/6" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/6">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/6" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/6">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3463,7 +3493,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-005 2026-08-05 05 agustus 2026 shift malam diarsipkan regu a regu b operasional 370925 manajer 987597 id 5 user id 3 created by 3 report date 2026-08-04t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-005 2026-08-05 05 agustus 2026 shift malam diarsipkan regu a regu b operasional 970661 manajer 270991 id 5 user id 3 created by 3 report date 2026-08-04t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3505,12 +3535,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/5/download">
+                                data-download-url="http://localhost/admin/reports/5/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/5" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/5">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/5" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/5">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3527,7 +3557,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-004 2026-08-04 04 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 4 user id 3 created by 3 report date 2026-08-03t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-004 2026-08-04 04 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 4 user id 3 created by 3 report date 2026-08-03t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3569,12 +3599,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/4/download">
+                                data-download-url="http://localhost/admin/reports/4/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/4" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/4">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/4" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/4">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3591,7 +3621,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-003 2026-08-03 03 agustus 2026 shift pagi diarsipkan regu a regu b operasional 370925 manajer 987597 id 3 user id 3 created by 3 report date 2026-08-02t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-003 2026-08-03 03 agustus 2026 shift pagi diarsipkan regu a regu b operasional 970661 manajer 270991 id 3 user id 3 created by 3 report date 2026-08-02t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3633,12 +3663,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/3/download">
+                                data-download-url="http://localhost/admin/reports/3/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/3" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/3">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/3" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/3">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3655,7 +3685,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-002 2026-08-02 02 agustus 2026 shift malam diarsipkan regu a regu b operasional 370925 manajer 987597 id 2 user id 3 created by 3 report date 2026-08-01t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-002 2026-08-02 02 agustus 2026 shift malam diarsipkan regu a regu b operasional 970661 manajer 270991 id 2 user id 3 created by 3 report date 2026-08-01t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3697,12 +3727,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/2/download">
+                                data-download-url="http://localhost/admin/reports/2/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/2" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/2">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/2" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/2">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -3719,7 +3749,7 @@
                         </form>
                     </td>
                 </tr>
-                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-001 2026-08-01 01 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 1 user id 3 created by 3 report date 2026-07-31t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597">
+                                            <tr class="tbody d-flex justify-content-between align-items-center" data-history-row data-history-search="operasional laporan operasi harian #ops-2026-001 2026-08-01 01 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 1 user id 3 created by 3 report date 2026-07-31t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991">
                     <td class="pilih">
                         <input type="checkbox"
                                class="archive-select"
@@ -3761,12 +3791,12 @@
                         <button type="button"
                                 class="btn-act download"
                                 title="Download"
-                                data-download-url="http://localhost:8010/admin/reports/1/download">
+                                data-download-url="http://localhost/admin/reports/1/download">
                             <i class="fi fi-rr-download"></i> Download
                         </button>
-                        <a href="http://localhost:8010/admin/reports/1" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
-                        <form method="POST" action="http://localhost:8010/admin/reports/1">
-                            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
+                        <a href="http://localhost/admin/reports/1" class="btn-act view" title="Lihat"><i class="fi fi-rr-eye"></i></a>
+                        <form method="POST" action="http://localhost/admin/reports/1">
+                            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                            <input type="hidden" name="_method" value="DELETE">                            <button type="submit"
                                     class="btn-act delete"
                                     title="Hapus"
                                     data-confirm
@@ -4579,14 +4609,14 @@
         </div>
 
         <form
-            action="http://localhost:8010/account/profile-photo"
+            action="http://localhost/account/profile-photo"
             method="POST"
             enctype="multipart/form-data"
             data-account-photo-form
-            data-account-photo-delete-url="http://localhost:8010/account/profile-photo"
+            data-account-photo-delete-url="http://localhost/account/profile-photo"
             novalidate
         >
-            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">            <input type="hidden" name="_method" value="PATCH">
+            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">            <input type="hidden" name="_method" value="PATCH">
             <div class="kss-account-modal__body kss-account-photo__body">
                 <div class="kss-account-modal__alert" data-account-photo-alert role="alert" aria-live="assertive" hidden></div>
 
@@ -4598,7 +4628,7 @@
                             data-account-photo-preview
                              hidden                         >
                         <span data-account-photo-preview-fallback >
-                            A7
+                            A4
                         </span>
                     </span>
                     <span class="kss-account-photo__preview-copy">
@@ -4710,8 +4740,8 @@
             </button>
         </div>
 
-        <form action="http://localhost:8010/account/password" method="POST" data-account-form novalidate>
-            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">            <input type="hidden" name="_method" value="PATCH">
+        <form action="http://localhost/account/password" method="POST" data-account-form novalidate>
+            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">            <input type="hidden" name="_method" value="PATCH">
             <div class="kss-account-modal__body">
                 <div class="kss-account-modal__alert" data-account-alert role="alert" aria-live="assertive" hidden></div>
 
@@ -4804,13 +4834,13 @@
     </div>
 </div>
 
-<script src="http://localhost:8010/js/components/account-settings.js?v=1786784787"></script>
+<script src="http://localhost/js/components/account-settings.js?v=1786784787"></script>
 
     
-    <script src="http://localhost:8010/vendor/bootstrap/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="http://localhost/vendor/bootstrap/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
     
-    <script src="http://localhost:8010/js/layouts/admin.js?v=1786491211"></script>
+    <script src="http://localhost/js/layouts/admin.js?v=1787118825"></script>
 
     
     <script>

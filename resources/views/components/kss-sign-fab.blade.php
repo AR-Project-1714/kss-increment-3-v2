@@ -132,7 +132,7 @@
 
     html.kss-dark-theme .sign-fab {
         border-color: rgba(110, 231, 183, .62);
-        background: rgba(30, 41, 59, .88);
+        background: rgba(23, 33, 47, .88);
         color: #6EE7B7;
         box-shadow: 0 7px 20px rgba(2, 6, 23, .32);
     }
@@ -179,7 +179,7 @@
         html.kss-dark-theme .sign-fab:hover,
         html.kss-dark-theme .sign-fab:focus-visible {
             border-color: #6EE7B7;
-            background: rgba(30, 41, 59, .96);
+            background: rgba(23, 33, 47, .96);
             color: #D1FAE5;
             box-shadow: 0 9px 26px rgba(2, 6, 23, .4), 0 0 18px rgba(52, 211, 153, .12);
         }

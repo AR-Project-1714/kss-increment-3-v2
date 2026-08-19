@@ -88,18 +88,18 @@
                terlihat di atas latar gelap. Tidak dibawa ke hitam pekat karena
                teks aplikasi ini banyak yang 8–11px; kontras ekstrem pada ukuran
                sekecil itu membuat huruf bergetar. */
-            --main-bg:         #0A101C;
-            --white:           #1E293B;
+            --main-bg:         #03060B;
+            --white:           #17212F;
             --black:           #F8FAFC;
             --black-secondary: #CBD5E1;
             --muted:           #64748B;
-            --smooth-border:   #334155;
-            --divider:         #334155;
+            --smooth-border:   #2C3A4E;
+            --divider:         #2C3A4E;
 
             --blue-main:     #3B82F6;
             --blue-hover:    #60A5FA;
             --blue-active:   #93C5FD;
-            --blue-bg:       #1E293B;
+            --blue-bg:       #1C2942;
             --blue-main-40:  rgba(59,130,246,0.40);
             --blue-main-25:  rgba(59,130,246,0.25);
             --blue-main-10:  rgba(59,130,246,0.10);
@@ -851,6 +851,21 @@
 
         .btn-act.is-loading {
             opacity: 0.85;
+            cursor: progress;
+            pointer-events: none;
+        }
+
+        /* Spinner bawaan berwarna putih karena dirancang untuk tombol Download
+           biru. Pada tombol bergaris (mis. Ekspor Excel hijau) latarnya terang,
+           jadi cincinnya mengikuti warna teks tombol itu sendiri. */
+        .btn-tool .btn-spinner {
+            border-color: currentColor;
+            border-top-color: transparent;
+            opacity: .85;
+        }
+
+        .btn-tool.is-loading {
+            opacity: .85;
             cursor: progress;
             pointer-events: none;
         }

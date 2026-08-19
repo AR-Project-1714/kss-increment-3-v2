@@ -53,6 +53,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:'.Role::ADMIN]
     Route::get('/log/export', [AdminV2Controller::class, 'logExport'])->name('log.export');
     Route::get('/user-manage', [AdminV2Controller::class, 'userManage'])->name('user-manage');
     Route::get('/datamaster', [AdminV2Controller::class, 'dataMaster'])->name('datamaster');
+    Route::get('/datamaster/export', [AdminV2Controller::class, 'dataMasterExport'])->name('datamaster.export');
     Route::get('/backup', [AdminV2Controller::class, 'backup'])->name('backup');
     Route::get('/help', [AdminV2Controller::class, 'help'])->name('help');
 

@@ -304,6 +304,9 @@ class AdminV2Controller extends Controller
     public function userManage(Request $request)
     {
         $search = trim((string) $request->input('q', ''));
+        $selectedRole = $this->selectedUserRole($request);
+        $selectedGroup = $this->selectedUserGroup($request);
+        $selectedStatus = $this->selectedUserStatus($request);
 
         $users = User::query()
             ->with('role')
@@ -317,6 +320,32 @@ class AdminV2Controller extends Controller
                         ->orWhereHas('role', fn (Builder $roleQuery) => $roleQuery->where('name', 'like', $like));
                 });
             })
+            ->when($selectedRole !== 'all', fn (Builder $query): Builder => $query->whereHas(
+                'role',
+                fn (Builder $roleQuery) => $roleQuery->where('name', $selectedRole)
+            ))
+            ->when($selectedGroup !== 'all', function (Builder $query) use ($selectedGroup): void {
+                // Kolom `group` disimpan sudah dinormalkan (null untuk Kantor,
+                // 'A'..'D' untuk regu). Varian lama seperti "Regu A" tetap
+                // dicocokkan supaya baris warisan tidak hilang dari filter.
+                if ($selectedGroup === 'kantor') {
+                    $query->where(fn (Builder $builder) => $builder
+                        ->whereNull('group')
+                        ->orWhereIn('group', ['', '-', 'Kantor', 'kantor']));
+
+                    return;
+                }
+
+                $query->whereIn('group', [
+                    $selectedGroup,
+                    Str::lower($selectedGroup),
+                    'Regu '.$selectedGroup,
+                    'regu '.Str::lower($selectedGroup),
+                    'Group '.$selectedGroup,
+                    'Grup '.$selectedGroup,
+                ]);
+            })
+            ->when($selectedStatus !== 'all', fn (Builder $query): Builder => $query->where('status', $selectedStatus))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
@@ -327,8 +356,108 @@ class AdminV2Controller extends Controller
             'users' => $users,
             'roles' => Role::orderBy('name')->get(),
             'userSearch' => $search,
+            'selectedUserRole' => $selectedRole,
+            'selectedUserGroup' => $selectedGroup,
+            'selectedUserStatus' => $selectedStatus,
             'issuedCredentials' => $this->pullIssuedCredentials($request),
         ]));
+    }
+
+    /**
+     * Filter role Kelola Pengguna. Nilai di luar daftar role yang dikenal
+     * dianggap "semua" supaya URL yang diutak-atik tidak memunculkan
+     * hasil kosong yang membingungkan.
+     */
+    private function selectedUserRole(Request $request): string
+    {
+        $role = Role::normalize((string) $request->input('role', 'all'));
+
+        return in_array($role, Role::NAMES, true) ? $role : 'all';
+    }
+
+    private function selectedUserGroup(Request $request): string
+    {
+        $group = trim((string) $request->input('regu', 'all'));
+
+        if (Str::lower($group) === 'kantor') {
+            return 'kantor';
+        }
+
+        $code = Str::upper($group);
+
+        return in_array($code, ['A', 'B', 'C', 'D'], true) ? $code : 'all';
+    }
+
+    private function selectedUserStatus(Request $request): string
+    {
+        $status = Str::lower(trim((string) $request->input('status', 'all')));
+
+        return in_array($status, ['aktif', 'nonaktif'], true) ? $status : 'all';
+    }
+
+    /**
+     * Ekspor Excel master data pada pane yang sedang dibuka. Isinya mengikuti
+     * pencarian & filter yang sedang aktif — tanpa filter berarti seluruh data.
+     */
+    public function dataMasterExport(Request $request)
+    {
+        $validPanes = ['karyawan', 'unit', 'truck', 'inventaris', 'lingkungan', 'safety_lokasi', 'safety_item'];
+        $pane = in_array($request->input('pane'), $validPanes, true)
+            ? $request->input('pane')
+            : 'karyawan';
+
+        $filters = [
+            'search' => trim((string) $request->input('q', '')),
+            'group' => trim((string) $request->input('f_group', '')),
+            'division' => trim((string) $request->input('f_division', '')),
+            'position' => trim((string) $request->input('f_position', '')),
+            'type' => trim((string) $request->input('f_type', '')),
+            'category' => trim((string) $request->input('f_category', '')),
+        ];
+
+        $definition = $this->masterExportDefinition($pane);
+        $records = $this->masterPaneQuery($pane, $filters)->get();
+
+        if ($records->isEmpty()) {
+            return back()->with('error', 'Tidak ada data pada filter aktif untuk diekspor.');
+        }
+
+        abort_if(
+            $records->count() > self::EXPORT_ROW_LIMIT,
+            422,
+            'Data terlalu banyak untuk diekspor sekaligus (maks '.self::EXPORT_ROW_LIMIT.' baris). Persempit filter terlebih dahulu.'
+        );
+
+        $rowMapper = $definition['row'];
+
+        $spreadsheet = $this->buildExportSpreadsheet(
+            $definition['title'],
+            [
+                'Diekspor: '.now()->locale('id')->translatedFormat('d F Y, H:i').' oleh '.($request->user()->name ?? '-'),
+                'Filter aktif: '.$this->describeMasterFilters($pane, $filters),
+                'Jumlah baris: '.$records->count(),
+            ],
+            $definition['headers'],
+            $records->values()->map(fn ($record, int $index): array => $rowMapper($record, $index + 1)),
+            $definition['title']
+        );
+
+        $fileName = $definition['file'].'_'.now()->format('Y-m-d_Hi').'.xlsx';
+
+        AdminActivityLog::create([
+            'user_id' => $request->user()?->id,
+            'type' => 'export',
+            'description' => 'Mengekspor '.$definition['title'].' ('.$records->count().' baris)',
+            'ip_address' => $request->ip(),
+        ]);
+
+        return response()->streamDownload(function () use ($spreadsheet): void {
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function dataMaster(Request $request)
@@ -356,96 +485,49 @@ class AdminV2Controller extends Controller
             'f_category' => $targetPane === 'unit' ? $unitCategory : null,
         ], fn ($value): bool => filled($value));
 
-        $employees = MasterEmployee::query()
-            ->when($pane === 'karyawan' && $search !== '', function (Builder $query) use ($search): void {
-                $like = '%'.$search.'%';
-                $query->where(fn (Builder $builder) => $builder
-                    ->where('npk', 'like', $like)
-                    ->orWhere('name', 'like', $like)
-                    ->orWhere('group_name', 'like', $like)
-                    ->orWhere('position', 'like', $like)
-                    ->orWhere('division', 'like', $like)
-                    ->orWhere('work_time', 'like', $like));
-            })
-            ->when($pane === 'karyawan' && $empGroup !== '', fn (Builder $query) => $this->applyEmployeeGroupFilter($query, $empGroup))
-            ->when($pane === 'karyawan' && $empDivision !== '', fn (Builder $query) => $query->whereIn('division', $this->divisionFilterValues($empDivision)))
-            ->when($pane === 'karyawan' && $empPosition !== '', fn (Builder $query) => $empPosition === '-'
-                ? $query->where(fn (Builder $builder) => $builder->whereNull('position')->orWhere('position', ''))
-                : $query->where('position', $empPosition))
-            ->orderBy('name')
+        // Pencarian & filter hanya berlaku pada pane yang sedang dibuka; pane
+        // lain tetap menampilkan seluruh datanya. Kondisinya dipusatkan di
+        // masterPaneQuery() supaya tabel dan ekspornya tidak mungkin
+        // menafsirkan filter secara berbeda.
+        $masterFilters = [
+            'search' => $search,
+            'group' => $empGroup,
+            'division' => $empDivision,
+            'position' => $empPosition,
+            'type' => $unitType,
+            'category' => $unitCategory,
+        ];
+
+        $paneQuery = fn (string $targetPane): Builder => $this->masterPaneQuery(
+            $targetPane,
+            $targetPane === $pane ? $masterFilters : []
+        );
+
+        $employees = $paneQuery('karyawan')
             ->paginate(10, ['*'], 'employees_page')
             ->appends($paginationQuery('karyawan'));
 
-        $units = MasterUnit::query()
-            ->when($pane === 'unit' && $search !== '', function (Builder $query) use ($search): void {
-                $like = '%'.$search.'%';
-                $query->where(fn (Builder $builder) => $builder
-                    ->where('name', 'like', $like)
-                    ->orWhere('type', 'like', $like)
-                    ->orWhere('unit_code', 'like', $like)
-                    ->orWhere('brand', 'like', $like)
-                    ->orWhere('unit_number', 'like', $like)
-                    ->orWhere('plate_number', 'like', $like)
-                    ->orWhere('macro_category', 'like', $like));
-            })
-            ->when($pane === 'unit' && $unitType !== '', fn (Builder $query) => $query->where('type', $unitType))
-            ->when($pane === 'unit' && $unitCategory !== '', fn (Builder $query) => $unitCategory === '-'
-                ? $query->whereNull('macro_category')
-                : $query->where('macro_category', $unitCategory))
-            ->orderBy('id')
+        $units = $paneQuery('unit')
             ->paginate(10, ['*'], 'units_page')
             ->appends($paginationQuery('unit'));
 
-        $trucks = MasterTruck::query()
-            ->when($pane === 'truck' && $search !== '', function (Builder $query) use ($search): void {
-                $like = '%'.$search.'%';
-                $query->where(fn (Builder $builder) => $builder
-                    ->where('name', 'like', $like)
-                    ->orWhere('plate_number', 'like', $like)
-                    ->orWhere('description', 'like', $like));
-            })
-            ->orderBy('name')
+        $trucks = $paneQuery('truck')
             ->paginate(10, ['*'], 'trucks_page')
             ->appends($paginationQuery('truck'));
 
-        $inventories = MasterInventoryItem::query()
-            ->when($pane === 'inventaris' && $search !== '', function (Builder $query) use ($search): void {
-                $like = '%'.$search.'%';
-                $query->where(fn (Builder $builder) => $builder
-                    ->where('name', 'like', $like)
-                    ->orWhere('category', 'like', $like));
-            })
-            ->orderBy('name')
+        $inventories = $paneQuery('inventaris')
             ->paginate(10, ['*'], 'inventories_page')
             ->appends($paginationQuery('inventaris'));
 
-        $environments = MasterEnvironmentItem::query()
-            ->when($pane === 'lingkungan' && $search !== '', function (Builder $query) use ($search): void {
-                $like = '%'.$search.'%';
-                $query->where(fn (Builder $builder) => $builder
-                    ->where('name', 'like', $like)
-                    ->orWhere('category', 'like', $like));
-            })
-            ->orderBy('sort_order')
-            ->orderBy('id')
+        $environments = $paneQuery('lingkungan')
             ->paginate(10, ['*'], 'environments_page')
             ->appends($paginationQuery('lingkungan'));
 
-        $safetyLocations = MasterSafetyLocation::query()
-            ->withCount('items')
-            ->when($pane === 'safety_lokasi' && $search !== '', function (Builder $query) use ($search): void {
-                $query->where('name', 'like', '%'.$search.'%');
-            })
-            ->orderBy('sort_order')
-            ->orderBy('id')
+        $safetyLocations = $paneQuery('safety_lokasi')
             ->paginate(10, ['*'], 'safety_locations_page')
             ->appends($paginationQuery('safety_lokasi'));
 
-        $safetyItems = MasterSafetyItem::query()
-            ->when($pane === 'safety_item' && $search !== '', function (Builder $query) use ($search): void {
-                $query->where('name', 'like', '%'.$search.'%');
-            })
-            ->orderBy('name')
+        $safetyItems = $paneQuery('safety_item')
             ->paginate(10, ['*'], 'safety_items_page')
             ->appends($paginationQuery('safety_item'));
 
@@ -472,6 +554,7 @@ class AdminV2Controller extends Controller
             'type' => $unit->type ?: '-',
             'unit_code' => $unit->unit_code ?: '-',
             'brand' => $unit->brand ?: '-',
+            'brand_logo' => $this->brandLogoUrl($unit->brand),
             'unit_number' => $unit->unit_number ?: '-',
             'plate' => $unit->plate_number ?: '-',
             'macro_category' => match ($unit->macro_category) {
@@ -1780,7 +1863,24 @@ class AdminV2Controller extends Controller
             'destroy_url' => route('admin.users.destroy', $user),
             'signature_path' => $user->signature_path,
             'signature_url' => $user->signature_path ? asset($user->signature_path) : '',
+            'photo_url' => $user->profile_photo_path ? asset($user->profile_photo_path) : '',
+            'initials' => $this->userInitials($user->name),
         ];
+    }
+
+    /**
+     * Inisial dua huruf sebagai cadangan foto profil — dipakai di kolom foto
+     * halaman Kelola Pengguna, mengikuti pola avatar pada partials/account-trigger.
+     */
+    private function userInitials(?string $name): string
+    {
+        $initials = collect(preg_split('/\s+/', trim((string) $name)))
+            ->filter()
+            ->take(2)
+            ->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))
+            ->implode('');
+
+        return $initials !== '' ? $initials : 'U';
     }
 
     /**
@@ -1989,6 +2089,275 @@ class AdminV2Controller extends Controller
     /**
      * Daftar nilai division yang cocok untuk filter (mengikutkan 'both').
      */
+    /**
+     * Query satu pane master data lengkap dengan urutan bakunya. Filter
+     * diterapkan hanya bila $filters diisi — halaman datamaster memanggilnya
+     * dengan filter kosong untuk pane yang sedang tidak dibuka.
+     *
+     * SATU-SATUNYA tempat definisi query master data boleh hidup: halaman dan
+     * tombol Ekspor sama-sama lewat sini, jadi isi berkas Excel tidak mungkin
+     * berbeda dari yang terlihat di tabel.
+     *
+     * @param  array<string, string>  $filters
+     */
+    private function masterPaneQuery(string $pane, array $filters = []): Builder
+    {
+        $query = match ($pane) {
+            'unit' => MasterUnit::query()->orderBy('id'),
+            'truck' => MasterTruck::query()->orderBy('name'),
+            'inventaris' => MasterInventoryItem::query()->orderBy('name'),
+            'lingkungan' => MasterEnvironmentItem::query()->orderBy('sort_order')->orderBy('id'),
+            'safety_lokasi' => MasterSafetyLocation::query()->withCount('items')->orderBy('sort_order')->orderBy('id'),
+            'safety_item' => MasterSafetyItem::query()->orderBy('name'),
+            default => MasterEmployee::query()->orderBy('name'),
+        };
+
+        if ($filters === []) {
+            return $query;
+        }
+
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        if ($search !== '') {
+            $columns = match ($pane) {
+                'karyawan' => ['npk', 'name', 'group_name', 'position', 'division', 'work_time'],
+                'unit' => ['name', 'type', 'unit_code', 'brand', 'unit_number', 'plate_number', 'macro_category'],
+                'truck' => ['name', 'plate_number', 'description'],
+                'inventaris', 'lingkungan' => ['name', 'category'],
+                default => ['name'],
+            };
+
+            $like = '%'.$search.'%';
+            $query->where(function (Builder $builder) use ($columns, $like): void {
+                foreach ($columns as $index => $column) {
+                    $index === 0
+                        ? $builder->where($column, 'like', $like)
+                        : $builder->orWhere($column, 'like', $like);
+                }
+            });
+        }
+
+        if ($pane === 'karyawan') {
+            $group = trim((string) ($filters['group'] ?? ''));
+            $division = trim((string) ($filters['division'] ?? ''));
+            $position = trim((string) ($filters['position'] ?? ''));
+
+            if ($group !== '') {
+                $this->applyEmployeeGroupFilter($query, $group);
+            }
+            if ($division !== '') {
+                $query->whereIn('division', $this->divisionFilterValues($division));
+            }
+            if ($position !== '') {
+                $position === '-'
+                    ? $query->where(fn (Builder $builder) => $builder->whereNull('position')->orWhere('position', ''))
+                    : $query->where('position', $position);
+            }
+        }
+
+        if ($pane === 'unit') {
+            $type = trim((string) ($filters['type'] ?? ''));
+            $category = trim((string) ($filters['category'] ?? ''));
+
+            if ($type !== '') {
+                $query->where('type', $type);
+            }
+            if ($category !== '') {
+                $category === '-'
+                    ? $query->whereNull('macro_category')
+                    : $query->where('macro_category', $category);
+            }
+        }
+
+        return $query;
+    }
+
+    /**
+     * Judul, nama berkas, kolom, dan pemetaan baris untuk ekspor Excel tiap
+     * pane. Kolomnya sengaja dibuat sama dengan tabel di layar supaya berkas
+     * yang diunduh terbaca seperti apa yang barusan dilihat.
+     *
+     * @return array{title: string, file: string, headers: array<int, string>, row: callable}
+     */
+    private function masterExportDefinition(string $pane): array
+    {
+        return match ($pane) {
+            'unit' => [
+                'title' => 'Master Data Unit',
+                'file' => 'Master-Data-Unit',
+                'headers' => ['No', 'Nama', 'Kode', 'Merk', 'Plat', 'Tipe', 'Kategori', 'Cek Unit', 'Tahun'],
+                'row' => fn (MasterUnit $unit, int $no): array => [
+                    $no,
+                    $unit->name,
+                    $unit->unit_number ?: '-',
+                    $unit->brand ?: '-',
+                    $unit->plate_number ?: '-',
+                    $unit->type ?: '-',
+                    match ($unit->macro_category) {
+                        MasterUnit::MACRO_TRUCK => 'Truck',
+                        MasterUnit::MACRO_HEAVY => 'Heavy',
+                        MasterUnit::MACRO_BUS => 'Bus',
+                        default => '-',
+                    },
+                    $unit->in_operational_check ? 'Ya' : 'Tidak',
+                    $unit->year ?: '-',
+                ],
+            ],
+            'truck' => [
+                'title' => 'Master Data Truck',
+                'file' => 'Master-Data-Truck',
+                'headers' => ['No', 'Nama', 'Nomor Plat', 'Keterangan'],
+                'row' => fn (MasterTruck $truck, int $no): array => [
+                    $no,
+                    $truck->name,
+                    $truck->plate_number ?: '-',
+                    $truck->description ?: '-',
+                ],
+            ],
+            'inventaris' => [
+                'title' => 'Master Data Inventaris',
+                'file' => 'Master-Data-Inventaris',
+                'headers' => ['No', 'Nama', 'Kategori', 'Jumlah'],
+                'row' => fn (MasterInventoryItem $item, int $no): array => [
+                    $no,
+                    $item->name,
+                    $item->category ?: 'Umum',
+                    (int) $item->stock,
+                ],
+            ],
+            'lingkungan' => [
+                'title' => 'Master Data Lingkungan Operasi',
+                'file' => 'Master-Data-Lingkungan',
+                'headers' => ['No', 'Nama Item', 'Kategori', 'Urutan', 'Status'],
+                'row' => fn (MasterEnvironmentItem $item, int $no): array => [
+                    $no,
+                    $item->name,
+                    $item->category ?: 'Umum',
+                    (int) $item->sort_order,
+                    $item->is_active ? 'Aktif' : 'Nonaktif',
+                ],
+            ],
+            'safety_lokasi' => [
+                'title' => 'Master Data Lokasi K3',
+                'file' => 'Master-Data-Lokasi-K3',
+                'headers' => ['No', 'Nama Lokasi', 'Urutan', 'Jumlah Item', 'Status'],
+                'row' => fn (MasterSafetyLocation $location, int $no): array => [
+                    $no,
+                    $location->name,
+                    (int) $location->sort_order,
+                    (int) $location->items_count,
+                    $location->is_active ? 'Aktif' : 'Nonaktif',
+                ],
+            ],
+            'safety_item' => [
+                'title' => 'Master Data Item K3',
+                'file' => 'Master-Data-Item-K3',
+                'headers' => ['No', 'Nama Item', 'Pakai QTY', 'Status'],
+                'row' => fn (MasterSafetyItem $item, int $no): array => [
+                    $no,
+                    $item->name,
+                    $item->is_countable ? 'Ya' : 'Tidak',
+                    $item->is_active ? 'Aktif' : 'Nonaktif',
+                ],
+            ],
+            default => [
+                'title' => 'Master Data Karyawan',
+                'file' => 'Master-Data-Karyawan',
+                'headers' => ['No', 'NPK', 'Nama', 'Regu', 'Jabatan', 'Divisi', 'Jam Kerja', 'Penugasan Sementara'],
+                'row' => fn (MasterEmployee $employee, int $no): array => [
+                    $no,
+                    $employee->npk ?: '-',
+                    $employee->name,
+                    $this->displayGroup($employee->group_name),
+                    $employee->position ?: '-',
+                    $this->displayDivision($employee->division),
+                    $employee->work_time ?: '-',
+                    filled($employee->shift_group_name) ? $this->displayGroup($employee->shift_group_name) : '-',
+                ],
+            ],
+        };
+    }
+
+    /**
+     * Ringkasan filter aktif untuk dicatat di kepala berkas Excel, sehingga
+     * penerima berkas tahu persis potongan data mana yang sedang dilihatnya.
+     *
+     * @param  array<string, string>  $filters
+     */
+    private function describeMasterFilters(string $pane, array $filters): string
+    {
+        $parts = [];
+
+        if (filled($filters['search'] ?? '')) {
+            $parts[] = 'Pencarian "'.$filters['search'].'"';
+        }
+
+        if ($pane === 'karyawan') {
+            if (filled($filters['division'] ?? '')) {
+                $parts[] = 'Divisi '.$filters['division'];
+            }
+            if (filled($filters['group'] ?? '')) {
+                $parts[] = 'Group '.$filters['group'];
+            }
+            if (filled($filters['position'] ?? '')) {
+                $parts[] = 'Jabatan '.($filters['position'] === '-' ? 'kosong' : $filters['position']);
+            }
+        }
+
+        if ($pane === 'unit') {
+            if (filled($filters['type'] ?? '')) {
+                $parts[] = 'Tipe '.$filters['type'];
+            }
+            if (filled($filters['category'] ?? '')) {
+                $parts[] = 'Kategori '.($filters['category'] === '-' ? 'kosong' : $filters['category']);
+            }
+        }
+
+        return $parts === [] ? 'Tidak ada filter (seluruh data)' : implode(', ', $parts);
+    }
+
+    /**
+     * Berkas logo merek untuk satu unit, dicocokkan dari kolom `brand` yang
+     * isinya teks bebas ("NISSAN CWM 330", "ISUZU NLR 55", "YALE", ...).
+     * Pencocokan memakai kata kunci, bukan nilai persis, karena merek hampir
+     * selalu ditulis bersama tipe mesinnya.
+     *
+     * Berkasnya ada di public/brand-logo. Merek tanpa logo mengembalikan ''
+     * sehingga tabel menampilkan lencana inisial sebagai gantinya.
+     */
+    private function brandLogoUrl(?string $brand): string
+    {
+        $haystack = Str::upper(trim((string) $brand));
+
+        if ($haystack === '') {
+            return '';
+        }
+
+        // Urutan menentukan: cek yang paling khas lebih dulu. GWE/GKE adalah
+        // kode model UD Trucks (Quester), jadi tidak ada kata "UD" di teksnya.
+        $logos = [
+            'TOYOTA' => 'toyota.webp',
+            'DAIHATSU' => 'daihatsu.webp',
+            'ISUZU' => 'isuzu.webp',
+            'KOMATSU' => 'komatsu.webp',
+            'KOBELCO' => 'kobelco.webp',
+            'LONKING' => 'Lonking_Logo.webp',
+            'YALE' => 'yale.webp',
+            'GWE' => 'UD Truck.webp',
+            'GKE' => 'UD Truck.webp',
+            'UD' => 'UD Truck.webp',
+            'NISSAN' => 'nissan-logo-2.webp',
+        ];
+
+        foreach ($logos as $keyword => $file) {
+            if (Str::contains($haystack, $keyword)) {
+                return asset('brand-logo/'.$file);
+            }
+        }
+
+        return '';
+    }
+
     private function divisionFilterValues(string $label): array
     {
         return match ($label) {

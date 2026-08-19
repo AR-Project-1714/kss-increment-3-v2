@@ -111,24 +111,24 @@
         /* Dark Mode Variables Override */
         body.dark-mode {
             /* Lihat catatan kanvas gelap di admin.css. */
-            --main-bg: #0A101C;
-            --white: #1E293B;
-            --white-50: rgba(30, 41, 59, 0.5);
-            --white-60: rgba(30, 41, 59, 0.6);
+            --main-bg: #03060B;
+            --white: #17212F;
+            --white-50: rgba(23, 33, 47, 0.5);
+            --white-60: rgba(23, 33, 47, 0.6);
             --dark-main: #F8FAFC;
             --dark-secondary: #CBD5E1;
             --dark-secondary-10: rgba(203, 213, 225, 0.1);
-            --dark-table-head: #0F172A;
+            --dark-table-head: #0A111D;
             --muted: #94A3B8;
-            --smooth-border: #334155;
-            --divider: #334155;
+            --smooth-border: #2C3A4E;
+            --divider: #2C3A4E;
             --black: #FFFFFF;
             --black-25: #ffffff40;
             --black-10: #ffffff1a;
             --black-5: #ffffff0d;
             --black-40: #ffffff66;
             --button-color: #FFFFFF;
-            --btn-theme-bg: #334155;
+            --btn-theme-bg: #2C3A4E;
             --btn-theme-border: rgba(255, 255, 255, 0.1);
             --btn-theme-icon: #F1F5F9;
 
@@ -140,9 +140,9 @@
             --blue-main-5: #3b82f60d;
             --blue-main-2: rgba(59, 130, 246, 0.02);
             --blue-main-40: #3b82f666;
-            --blue-bg: #243447;
-            --blue-input-focus: #334155;
-            --blue-bg-25: #24344740;
+            --blue-bg: #1D2B3F;
+            --blue-input-focus: #24334A;
+            --blue-bg-25: #1D2B3F40;
 
             --cyan-main: #0EA5E9;
             --cyan-hover: #38BDF8;
@@ -159,7 +159,7 @@
             --red-main-10: #ef44441a;
             --red-main-5: #ef44440d;
             --red-main-40: #ef444466;
-            --red-input-focus: #2a1a1a;
+            --red-input-focus: #241414;
 
             --success: #10B981;
             --success-hover: #34D399;
@@ -176,8 +176,8 @@
             --orange-main-10: #f973161a;
             --orange-main-5: #f973160d;
             --orange-main-40: #f9731666;
-            --orange-bg: #431407;
-            --orange-input-focus: #2f2111;
+            --orange-bg: #3A1106;
+            --orange-input-focus: #281C0E;
         }
 
         /* =========================================
@@ -240,7 +240,7 @@
         .br-100 { border-radius: 100px !important; }
 
         /* Paddings */
-        .p-navbar  { padding: 15px 22px !important; }
+        .p-navbar  { padding: 12px 22px !important; }
         .p-content { padding: 0 100px !important; transition: padding 0.3s; }
         .p-main { padding: 10px 20px !important; }
         .p-20 { padding: 20px !important; }
@@ -333,7 +333,7 @@
         }
 
         body.dark-mode .content-header.is-sticky {
-            background-color: rgba(15, 23, 42, 0.65) !important;
+            background-color: rgba(10, 17, 29, 0.72) !important;
             border-color: rgba(255, 255, 255, 0.15);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
         }

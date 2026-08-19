@@ -18,11 +18,42 @@
     .section-card__title { font-size: 16px; font-weight: 600; color: var(--black); }
 
     /* =============================================
-       TOOLBAR
+       PAGE HEADER — judul di kiri, aksi utama di ujung kanan.
+       Susunannya sengaja disamakan dengan tombol Filter pada
+       Arsip Laporan (.performance-page-header) supaya kedua
+       halaman admin punya titik aksi yang sama.
+       ============================================= */
+    .user-page-header {
+        position: relative;
+        z-index: 20;
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .user-page-header__heading {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .user-page-header__action {
+        flex: 0 0 auto;
+        min-height: 38px;
+        padding-inline: 14px;
+        box-shadow: 0 5px 14px rgba(37, 99, 235, .18);
+    }
+
+    /* =============================================
+       CARD HEADER — judul kartu sebaris dengan pencarian & filter
        ============================================= */
     .archive-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 
-    .archive-toolbar {
+    .user-card-header {
+        position: relative;
+        z-index: 15;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -30,27 +61,32 @@
         flex-wrap: wrap;
     }
 
-    .search-action-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex: 1 1 540px;
-        max-width: 620px;
-        min-width: 0;
-    }
-
-    .search-box {
+    .user-toolbar {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 9px 18px;
-        border: 1px solid var(--smooth-border);
-        border-radius: 50px;
-        background-color: var(--main-bg);
-        flex: 1 1 auto;
-        max-width: none;
-        min-width: 260px;
+        margin-left: auto;
+        min-width: 0;
     }
+
+    .user-toolbar__search { min-width: 0; }
+
+    .search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 34px 0 12px;
+        height: 38px;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        background-color: var(--main-bg);
+        width: 300px;
+        max-width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-box:focus-within { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
 
     .search-box i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
 
@@ -62,9 +98,41 @@
         font-size: 12px;
         color: var(--black);
         width: 100%;
+        min-width: 0;
     }
 
     .search-box input::placeholder { color: var(--muted); }
+
+    .search-box input[type="search"]::-webkit-search-cancel-button,
+    .search-box input[type="search"]::-webkit-search-decoration {
+        display: none;
+        -webkit-appearance: none;
+    }
+
+    /* Tombol bersihkan menempati ruang kanan yang sudah dipesan lewat
+       padding-inline-end, jadi teks tidak pernah berjalan di bawahnya. */
+    .search-clear {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        color: var(--blue-main);
+        background-color: var(--blue-main-10);
+        cursor: pointer;
+        transition: .2s ease-out;
+    }
+
+    .search-clear:hover { background-color: var(--blue-main-25); }
+    .search-clear[hidden] { display: none; }
+    .search-clear i { top: 0; font-size: 11px; }
 
     .btn-tool {
         display: inline-flex;
@@ -83,24 +151,238 @@
     }
 
     .btn-tool i { position: relative; top: 1px; }
+    .btn-tool:hover { background-color: var(--blue-main-5); border-color: var(--blue-main-25); color: var(--blue-main); }
     .btn-tool--primary { background-color: var(--blue-main); border-color: var(--blue-main); color: #fff; }
     .btn-tool--primary:hover { background-color: var(--blue-hover); border-color: var(--blue-hover); color: #fff; }
 
-    .search-action-group .btn-tool {
-        height: 44px;
-        flex-shrink: 0;
-        padding: 0 16px;
+    /* =============================================
+       FILTER POPOVER (role / regu / status)
+       ============================================= */
+    .user-filter { position: relative; flex: 0 0 auto; }
+
+    /* Tombol ikon saja: dibuat bujur sangkar 38px agar tingginya persis
+       sama dengan kotak pencarian di sebelahnya. */
+    .user-filter__trigger {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        justify-content: center;
+        position: relative;
     }
 
-    @media (max-width: 640px) {
-        .search-action-group {
-            flex: 1 1 100%;
-            max-width: none;
+    /* Glyph "settings-sliders" duduk lebih tinggi dari kotak em-nya sendiri
+       (ruang kosong font berada di bawah, bukan di atas), jadi butuh offset
+       positif ekstra supaya optically center di tombol persegi 38px. */
+    .user-filter__trigger i { top: 3px; font-size: 14px; }
+
+    .user-filter__trigger[aria-expanded="true"] {
+        background-color: var(--blue-main-10);
+        border-color: var(--blue-main);
+        color: var(--blue-main);
+    }
+
+    .user-filter__trigger--active {
+        background-color: var(--blue-main);
+        border-color: var(--blue-main);
+        color: #fff;
+    }
+
+    .user-filter__trigger--active:hover {
+        background-color: var(--blue-hover);
+        border-color: var(--blue-hover);
+        color: #fff;
+    }
+
+    /* Titik penanda filter aktif — dipakai bersama ikon supaya tidak perlu
+       label teks di tombol. */
+    .user-filter__dot {
+        position: absolute;
+        top: -3px;
+        right: -3px;
+        width: 9px;
+        height: 9px;
+        border: 2px solid var(--white);
+        border-radius: 50%;
+        background-color: var(--orange-main);
+    }
+
+    .user-filter__popover {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 40;
+        width: min(520px, calc(100vw - 112px));
+        padding: 16px;
+        /* Frosted bersama — lihat resources/css/components/frosted-surface.css. */
+        border: 1px solid var(--kss-frost-border);
+        border-radius: 14px;
+        background-color: var(--kss-frost-surface);
+        -webkit-backdrop-filter: var(--kss-frost-filter);
+        backdrop-filter: var(--kss-frost-filter);
+        box-shadow: inset 0 1px 0 var(--kss-frost-edge), var(--kss-frost-shadow);
+    }
+
+    .user-filter__popover[hidden] { display: none; }
+
+    .user-filter__head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--smooth-border);
+    }
+
+    .user-filter__title { display: block; font-size: 13px; font-weight: 600; color: var(--black); }
+    .user-filter__subtitle { display: block; margin-top: 2px; font-size: 10px; color: var(--muted); }
+
+    .user-filter__close {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        color: var(--black-secondary);
+        background-color: transparent;
+        cursor: pointer;
+    }
+
+    .user-filter__fields {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: end;
+        gap: 12px;
+    }
+
+    .user-filter__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    .filter-field { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+    .filter-field label { font-size: 10px; font-weight: 500; color: var(--black-secondary); }
+
+    .filter-input {
+        font-family: inherit;
+        font-size: 12px;
+        color: var(--black);
+        background-color: var(--white);
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s ease;
+    }
+
+    .filter-select-wrapper { position: relative; width: 100%; min-width: 0; }
+
+    .filter-select-trigger {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-width: 0;
+        height: 36px;
+        padding-right: 34px;
+        cursor: pointer;
+    }
+
+    .filter-select-trigger.focus-active { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
+
+    .select-arrow {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--blue-main);
+        font-size: 14px;
+        pointer-events: none;
+        display: flex;
+        transition: transform 0.2s ease;
+    }
+    .filter-select-trigger.focus-active ~ .select-arrow { transform: translateY(-50%) rotate(180deg); }
+
+    .filter-select-options {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        right: 0;
+        background-color: var(--white);
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        z-index: 999;
+        display: none;
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 6px 0;
+    }
+    .filter-select-options.open { display: block; animation: fadeIn 0.2s ease-out; }
+
+    .filter-select-option {
+        padding: 9px 14px;
+        font-size: 12px;
+        color: var(--black-secondary);
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .filter-select-option:hover { background-color: var(--blue-main-10); color: var(--blue-main); }
+    .filter-select-option.selected {
+        background-color: var(--blue-main-5);
+        color: var(--blue-main);
+        border-left: 3px solid var(--blue-main);
+        font-weight: 500;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+    .btn-reset {
+        padding: 8px 16px;
+        border: 1px solid var(--red-main);
+        border-radius: 8px;
+        background-color: transparent;
+        color: var(--red-main);
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: 0.2s ease;
+    }
+    .btn-reset:hover { background-color: var(--red-main-10); }
+
+    @media (max-width: 720px) {
+        .user-card-header { align-items: stretch; }
+
+        .user-toolbar {
+            width: 100%;
+            margin-left: 0;
         }
 
-        .search-box {
-            min-width: 0;
-        }
+        .user-toolbar__search { flex: 1 1 auto; }
+        .search-box { width: 100%; }
+
+        .user-filter__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 560px) {
+        .user-page-header { flex-direction: column; }
+        .user-page-header__action { width: 100%; justify-content: center; }
+
+        /* Tetap ditambatkan ke tepi kanan tombol. Membaliknya ke `left: 0`
+           justru membuat panel keluar layar, karena titik acuannya adalah
+           .user-filter yang sudah berada di ujung kanan kartu. */
+        .user-filter__popover { width: min(520px, calc(100vw - 48px)); }
+
+        .user-filter__fields { grid-template-columns: 1fr; }
+        .user-filter__actions > * { flex: 1 1 0; justify-content: center; text-align: center; }
     }
 
     /* =============================================
@@ -119,7 +401,7 @@
     .table-responsive-wrapper::-webkit-scrollbar-thumb { background-color: var(--blue-main-25); border-radius: 10px; }
     .table-responsive-wrapper::-webkit-scrollbar-thumb:hover { background-color: var(--blue-main-40); }
 
-    .table-responsive-wrapper table { min-width: 900px; width: 100%; }
+    .table-responsive-wrapper table { min-width: 960px; width: 100%; }
 
     .thead { background-color: var(--blue-main-5); border-radius: 6px; }
 
@@ -148,6 +430,7 @@
 
     /* User table columns */
     .thead th.col-no,       .tbody td.col-no       { width: 50px; flex: none; justify-content: center; padding: 12px 0; color: var(--black-secondary); }
+    .thead th.col-photo,    .tbody td.col-photo    { width: 60px; flex: none; justify-content: center; padding: 8px 0; }
     .thead th.col-name,     .tbody td.col-name     { min-width: 150px; }
     .thead th.col-username, .tbody td.col-username { min-width: 120px; }
     .thead th.col-role,     .tbody td.col-role     { min-width: 100px; }
@@ -156,6 +439,28 @@
     .thead th.col-aksi,     .tbody td.col-aksi     { min-width: 180px; gap: 8px; flex-wrap: nowrap; }
 
     .tbody td.col-username { color: var(--black-secondary); font-weight: 400; }
+
+    /* Avatar kolom foto — bentuk & warna mengikuti avatar pada
+       partials/account-trigger agar identitas pengguna terbaca sama di
+       seluruh shell. Inisial dipakai saat foto kosong atau gagal dimuat. */
+    .user-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        overflow: hidden;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        background-color: var(--blue-main-10);
+        color: var(--blue-main);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-avatar [hidden] { display: none; }
 
     /* Status badges */
     .status {
@@ -519,33 +824,154 @@
 
     $roles = $roles ?? collect();
     $issuedCredentials = $issuedCredentials ?? null;
+
+    $userSearch = $userSearch ?? '';
+    $selectedUserRole = $selectedUserRole ?? 'all';
+    $selectedUserGroup = $selectedUserGroup ?? 'all';
+    $selectedUserStatus = $selectedUserStatus ?? 'all';
+    $hasUserFilter = $selectedUserRole !== 'all'
+        || $selectedUserGroup !== 'all'
+        || $selectedUserStatus !== 'all';
 @endphp
 
-<div class="page-header">
-    <span class="page-title">Kelola Pengguna</span>
-    <span class="page-subtitle">Manajemen akun staff, hak akses (Role-Based), dan reset sandi (Separation of Duties).</span>
+<div class="page-header user-page-header">
+    <div class="user-page-header__heading">
+        <span class="page-title">Kelola Pengguna</span>
+        <span class="page-subtitle">Manajemen akun staff, hak akses (Role-Based), dan reset sandi (Separation of Duties).</span>
+    </div>
+
+    <button type="button" class="btn-tool btn-tool--primary user-page-header__action" id="btnAddUser">
+        <i class="fi fi-rr-user-add" aria-hidden="true"></i>
+        <span>Tambah Pengguna</span>
+    </button>
 </div>
 
-@component('admin.layouts.card', ['title' => 'Daftar Pengguna'])
-    <!-- Toolbar -->
-    <form class="archive-toolbar" method="GET" action="{{ route('admin.user-manage') }}">
-        <div class="search-action-group">
-            <div class="search-box">
-                <span><i class="fi fi-rr-search"></i></span>
-                <input type="text" name="q" value="{{ $userSearch ?? '' }}" placeholder="Cari Pengguna">
+@component('admin.layouts.card')
+    <div class="user-card-header">
+        <span class="section-card__title">Daftar Pengguna</span>
+
+        <div class="user-toolbar">
+            {{-- Pencarian tanpa tombol: form dikirim otomatis setelah ketikan
+                 berhenti sejenak (debounce di skrip bawah). Filter dibawa
+                 sebagai input tersembunyi supaya tidak hilang saat mencari. --}}
+            <form class="user-toolbar__search"
+                  method="GET"
+                  action="{{ route('admin.user-manage') }}"
+                  id="userSearchForm"
+                  autocomplete="off">
+                <div class="search-box">
+                    <span><i class="fi fi-rr-search" aria-hidden="true"></i></span>
+                    <input type="search"
+                           id="userSearchInput"
+                           name="q"
+                           value="{{ $userSearch }}"
+                           data-initial-value="{{ $userSearch }}"
+                           placeholder="Cari nama, username, atau role"
+                           aria-label="Cari pengguna">
+                    <button type="button"
+                            class="search-clear"
+                            id="userSearchClear"
+                            aria-label="Bersihkan pencarian"
+                            @if ($userSearch === '') hidden @endif>
+                        <i class="fi fi-br-cross-small" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <input type="hidden" name="role" value="{{ $selectedUserRole }}">
+                <input type="hidden" name="regu" value="{{ $selectedUserGroup }}">
+                <input type="hidden" name="status" value="{{ $selectedUserStatus }}">
+            </form>
+
+            <div class="user-filter" data-user-filter>
+                <button type="button"
+                        class="btn-tool user-filter__trigger {{ $hasUserFilter ? 'user-filter__trigger--active' : '' }}"
+                        data-user-filter-trigger
+                        aria-expanded="false"
+                        aria-controls="user-filter-popover"
+                        aria-label="Filter pengguna"
+                        title="Filter pengguna">
+                    <i class="fi fi-rr-settings-sliders" aria-hidden="true"></i>
+                    @if ($hasUserFilter)
+                        <span class="user-filter__dot" aria-hidden="true"></span>
+                    @endif
+                </button>
+
+                <div class="user-filter__popover" id="user-filter-popover" data-user-filter-popover hidden>
+                    <div class="user-filter__head">
+                        <div>
+                            <span class="user-filter__title">Filter Pengguna</span>
+                            <span class="user-filter__subtitle">Saring daftar berdasarkan role, regu, dan status akun.</span>
+                        </div>
+                        <button type="button" class="user-filter__close" data-user-filter-close aria-label="Tutup filter">
+                            <i class="fi fi-rr-cross-small" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <form method="GET" action="{{ route('admin.user-manage') }}" id="userFilterForm" autocomplete="off">
+                        <input type="hidden" name="q" value="{{ $userSearch }}">
+
+                        <div class="user-filter__fields">
+                            <div class="filter-field">
+                                <label>Role</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="role" aria-label="Filter role">
+                                        <option value="all" @selected($selectedUserRole === 'all')>Semua Role</option>
+                                        @foreach (\App\Models\Role::NAMES as $roleName)
+                                            <option value="{{ $roleName }}" @selected($selectedUserRole === $roleName)>
+                                                {{ \App\Models\Role::displayName($roleName) }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+
+                            <div class="filter-field">
+                                <label>Regu</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="regu" aria-label="Filter regu">
+                                        <option value="all" @selected($selectedUserGroup === 'all')>Semua Regu</option>
+                                        <option value="kantor" @selected($selectedUserGroup === 'kantor')>Kantor</option>
+                                        @foreach (['A', 'B', 'C', 'D'] as $groupCode)
+                                            <option value="{{ $groupCode }}" @selected($selectedUserGroup === $groupCode)>Regu {{ $groupCode }}</option>
+                                        @endforeach
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+
+                            <div class="filter-field">
+                                <label>Status</label>
+                                <div class="filter-select-wrapper">
+                                    <select class="native-select" name="status" aria-label="Filter status">
+                                        <option value="all" @selected($selectedUserStatus === 'all')>Semua Status</option>
+                                        <option value="aktif" @selected($selectedUserStatus === 'aktif')>Aktif</option>
+                                        <option value="nonaktif" @selected($selectedUserStatus === 'nonaktif')>Non-Aktif</option>
+                                    </select>
+                                    <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="user-filter__actions">
+                            @if ($hasUserFilter)
+                                <a href="{{ route('admin.user-manage', array_filter(['q' => $userSearch])) }}" class="btn-reset">Reset</a>
+                            @endif
+                            <button type="submit" class="btn-tool btn-tool--primary">
+                                <i class="fi fi-rr-check" aria-hidden="true"></i> Terapkan
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <button type="submit" class="btn-tool"><i class="fi fi-rr-search"></i> Cari</button>
         </div>
-        <button type="button" class="btn-tool btn-tool--primary" id="btnAddUser">
-            <i class="fi fi-rr-user-add"></i> Tambah Pengguna
-        </button>
-    </form>
+    </div>
 
     <!-- Table -->
     <div class="table-responsive-wrapper">
         <table>
             <tr class="thead d-flex justify-content-between align-items-center">
                 <th class="col-no">No</th>
+                <th class="col-photo">Foto</th>
                 <th class="col-name">Nama Lengkap</th>
                 <th class="col-username">Username</th>
                 <th class="col-role">Role</th>
@@ -568,6 +994,24 @@
                     data-user-update-url="{{ $u['update_url'] ?? '' }}"
                     data-user-signature-url="{{ $u['signature_url'] ?? '' }}">
                     <td class="col-no">{{ $u['no'] }}</td>
+                    <td class="col-photo">
+                        @php
+                            $userPhotoUrl = $u['photo_url'] ?? '';
+                            $userInitials = $u['initials'] ?? (collect(preg_split('/\s+/', trim((string) $u['name'])))
+                                ->filter()
+                                ->take(2)
+                                ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+                                ->implode('') ?: 'U');
+                        @endphp
+                        <span class="user-avatar" title="Foto profil {{ $u['name'] }}">
+                            <img src="{{ $userPhotoUrl }}"
+                                 alt="Foto profil {{ $u['name'] }}"
+                                 loading="lazy"
+                                 @if (! $userPhotoUrl) hidden @endif
+                                 onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
+                            <span aria-hidden="true" @if ($userPhotoUrl) hidden @endif>{{ $userInitials }}</span>
+                        </span>
+                    </td>
                     <td class="col-name">{{ $u['name'] }}</td>
                     <td class="col-username">{{ $u['username'] }}</td>
                     <td class="col-role">{{ $u['role'] }}</td>
@@ -618,13 +1062,20 @@
                     </td>
                 </tr>
             @empty
-                @php $userIsSearching = ($userSearch ?? '') !== ''; @endphp
+                @php
+                    $userIsSearching = $userSearch !== '';
+                    $userIsNarrowed = $userIsSearching || $hasUserFilter;
+                    $userEmptyMessage = match (true) {
+                        $userIsSearching && $hasUserFilter => 'Tidak ada pengguna yang cocok dengan pencarian "'.$userSearch.'" pada filter yang sedang aktif. Longgarkan filter atau ubah kata kuncinya.',
+                        $userIsSearching => 'Tidak ada pengguna yang sesuai dengan pencarian "'.$userSearch.'". Coba kata kunci lain atau periksa ejaannya.',
+                        $hasUserFilter => 'Tidak ada pengguna pada kombinasi role, regu, dan status yang sedang dipilih. Ubah atau reset filternya.',
+                        default => 'Tambahkan pengguna baru lewat tombol "Tambah Pengguna" untuk mulai mengelola akun dan hak akses.',
+                    };
+                @endphp
                 @include('admin.layouts.empty-state', [
-                    'icon' => $userIsSearching ? 'fi fi-rr-search' : 'fi fi-rr-users',
-                    'title' => $userIsSearching ? 'Tidak ada pengguna yang cocok' : 'Belum ada pengguna',
-                    'message' => $userIsSearching
-                        ? 'Tidak ada pengguna yang sesuai dengan pencarian "'.$userSearch.'". Coba kata kunci lain atau periksa ejaannya.'
-                        : 'Tambahkan pengguna baru lewat tombol "Tambah Pengguna" untuk mulai mengelola akun dan hak akses.',
+                    'icon' => $userIsNarrowed ? 'fi fi-rr-search' : 'fi fi-rr-users',
+                    'title' => $userIsNarrowed ? 'Tidak ada pengguna yang cocok' : 'Belum ada pengguna',
+                    'message' => $userEmptyMessage,
                 ])
             @endforelse
         </table>
@@ -956,6 +1407,155 @@
 
         document.getElementById('btnAddUser')?.addEventListener('click', () => openUserModal('add'));
         fields.role?.addEventListener('change', syncReguForRole);
+
+        // =====================================================
+        // PENCARIAN OTOMATIS (debounce)
+        // Form dikirim sendiri setelah ketikan berhenti, jadi hasilnya
+        // mencakup SELURUH pengguna — bukan hanya baris di halaman ini.
+        // Setelah muat ulang, fokus dan posisi kursor dikembalikan ke akhir
+        // teks supaya mengetik terasa tidak terputus.
+        // =====================================================
+        (function () {
+            const searchForm = document.getElementById('userSearchForm');
+            const searchInput = document.getElementById('userSearchInput');
+            const searchClear = document.getElementById('userSearchClear');
+            if (!searchForm || !searchInput) return;
+
+            const initialValue = searchInput.dataset.initialValue || '';
+            const debounceMs = 400;
+            let timer = null;
+
+            function submitSearch() {
+                if (timer) window.clearTimeout(timer);
+                // Halaman selalu kembali ke awal saat kata kunci berubah:
+                // nomor halaman lama hampir pasti tidak ada lagi di hasil baru.
+                searchForm.requestSubmit ? searchForm.requestSubmit() : searchForm.submit();
+            }
+
+            function scheduleSearch() {
+                if (searchClear) searchClear.hidden = searchInput.value === '';
+                if (timer) window.clearTimeout(timer);
+
+                // Tidak perlu memuat ulang kalau nilainya kembali sama persis
+                // dengan yang sedang ditampilkan server.
+                if (searchInput.value.trim() === initialValue.trim()) return;
+
+                timer = window.setTimeout(submitSearch, debounceMs);
+            }
+
+            searchInput.addEventListener('input', scheduleSearch);
+
+            searchInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submitSearch();
+                    return;
+                }
+
+                if (event.key === 'Escape' && searchInput.value !== '') {
+                    event.preventDefault();
+                    searchInput.value = '';
+                    scheduleSearch();
+                }
+            });
+
+            searchClear?.addEventListener('click', function () {
+                searchInput.value = '';
+                searchInput.focus();
+                scheduleSearch();
+            });
+
+            if (initialValue !== '') {
+                searchInput.focus();
+                searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+            }
+        })();
+
+        // =====================================================
+        // POPOVER FILTER (role / regu / status)
+        // Pola buka-tutupnya mengikuti filter Arsip Laporan.
+        // =====================================================
+        (function () {
+            const filterRoot = document.querySelector('[data-user-filter]');
+            const filterTrigger = filterRoot?.querySelector('[data-user-filter-trigger]');
+            const filterPopover = filterRoot?.querySelector('[data-user-filter-popover]');
+            const filterClose = filterRoot?.querySelector('[data-user-filter-close]');
+            if (!filterRoot || !filterTrigger || !filterPopover) return;
+
+            function setFilterOpen(open) {
+                filterPopover.hidden = !open;
+                filterTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            }
+
+            filterTrigger.addEventListener('click', () => setFilterOpen(filterPopover.hidden));
+            filterClose?.addEventListener('click', () => {
+                setFilterOpen(false);
+                filterTrigger.focus();
+            });
+
+            document.addEventListener('click', function (event) {
+                if (filterPopover.hidden || filterRoot.contains(event.target)) return;
+                setFilterOpen(false);
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key !== 'Escape' || filterPopover.hidden) return;
+                setFilterOpen(false);
+                filterTrigger.focus();
+            });
+
+            // DROPDOWN KUSTOM — sama seperti pada Arsip Laporan supaya
+            // tampilannya seragam antar halaman admin.
+            filterPopover.querySelectorAll('.filter-select-wrapper').forEach(function (wrapper) {
+                const select = wrapper.querySelector('select');
+                if (!select) return;
+                select.style.display = 'none';
+
+                const trigger = document.createElement('div');
+                trigger.className = 'filter-input filter-select-trigger';
+                const label = document.createElement('span');
+                label.textContent = select.options[select.selectedIndex].text.trim();
+                trigger.appendChild(label);
+                wrapper.insertBefore(trigger, select.nextSibling);
+
+                const list = document.createElement('div');
+                list.className = 'filter-select-options';
+                Array.from(select.options).forEach(function (opt, i) {
+                    const item = document.createElement('div');
+                    item.className = 'filter-select-option';
+                    item.textContent = opt.text.trim();
+                    if (i === select.selectedIndex) item.classList.add('selected');
+                    item.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        select.value = opt.value;
+                        select.dispatchEvent(new Event('change'));
+                        label.textContent = opt.text.trim();
+                        list.querySelectorAll('.filter-select-option').forEach(o => o.classList.remove('selected'));
+                        item.classList.add('selected');
+                        list.classList.remove('open');
+                        trigger.classList.remove('focus-active');
+                    });
+                    list.appendChild(item);
+                });
+                wrapper.appendChild(list);
+
+                trigger.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    filterPopover.querySelectorAll('.filter-select-options.open').forEach(function (c) {
+                        if (c === list) return;
+                        c.classList.remove('open');
+                        c.parentElement.querySelector('.filter-select-trigger')?.classList.remove('focus-active');
+                    });
+                    list.classList.toggle('open');
+                    trigger.classList.toggle('focus-active');
+                });
+            });
+
+            document.addEventListener('click', function () {
+                filterPopover.querySelectorAll('.filter-select-options.open').forEach(c => c.classList.remove('open'));
+                filterPopover.querySelectorAll('.filter-select-trigger.focus-active').forEach(t => t.classList.remove('focus-active'));
+            });
+        })();
 
         signatureButton?.addEventListener('keydown', function (event) {
             if ((event.key === 'Enter' || event.key === ' ') && !fields.signature.disabled) {

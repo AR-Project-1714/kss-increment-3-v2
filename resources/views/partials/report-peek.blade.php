@@ -56,7 +56,7 @@
 
         body.dark-mode .report-peek-fab {
             border-color: rgba(147, 197, 253, 0.55);
-            background: rgba(30, 41, 59, 0.88);
+            background: rgba(23, 33, 47, 0.88);
             color: #93C5FD;
             box-shadow: 0 8px 24px rgba(2, 6, 23, 0.3);
         }
@@ -64,7 +64,7 @@
         body.dark-mode .report-peek-fab:hover,
         body.dark-mode .report-peek-fab:focus-visible {
             border-color: #93C5FD;
-            background: rgba(30, 41, 59, 0.96);
+            background: rgba(23, 33, 47, 0.96);
             color: #DBEAFE;
             box-shadow: 0 12px 30px rgba(2, 6, 23, 0.42), 0 0 18px rgba(59, 130, 246, 0.12);
         }

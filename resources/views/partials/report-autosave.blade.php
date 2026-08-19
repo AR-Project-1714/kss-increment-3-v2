@@ -88,7 +88,7 @@
     @keyframes ratLabelIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
 
     body.dark-mode #reportAutosaveToast .rat-pill {
-        background: #1E293B; color: #F1F5F9;
+        background: #17212F; color: #F1F5F9;
         border-color: rgba(255, 255, 255, .08);
         box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
     }

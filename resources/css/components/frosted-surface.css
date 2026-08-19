@@ -48,8 +48,8 @@
 }
 
 body.dark-mode {
-    --kss-frost-surface: rgb(30 41 59 / 68%);
-    --kss-frost-surface-opaque: rgb(30 41 59 / 97%);
+    --kss-frost-surface: rgb(23 33 47 / 68%);
+    --kss-frost-surface-opaque: rgb(23 33 47 / 97%);
 
     --kss-frost-border: rgb(148 163 184 / 24%);
     --kss-frost-edge: rgb(255 255 255 / 9%);

@@ -32,11 +32,15 @@
     .page-breadcrumb__current { color: var(--black-secondary); font-weight: 500; }
 
     /* =============================================
-       TOOLBAR
+       CARD HEADER — judul kartu sebaris dengan pencarian & filter.
+       Anatominya disamakan dengan Kelola Pengguna: aksi utama
+       (Tambah) di page header, pencarian + filter di header kartu.
        ============================================= */
     .archive-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 
-    .archive-toolbar {
+    .master-card-header {
+        position: relative;
+        z-index: 15;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -44,27 +48,59 @@
         flex-wrap: wrap;
     }
 
-    .search-action-group {
+    /* Judul kartu + lencana jumlah data dibaca sebagai satu kesatuan, jadi
+       keduanya dibungkus supaya toolbar tetap terdorong ke ujung kanan. */
+    .master-card-heading {
         display: flex;
         align-items: center;
         gap: 10px;
-        flex: 1 1 540px;
-        max-width: 620px;
         min-width: 0;
+        flex-wrap: wrap;
     }
 
-    .search-box {
+    /* Lencana jumlah — resep yang sama dengan .archive-count pada Arsip
+       Laporan supaya penanda "berapa banyak data" seragam antar halaman. */
+    .master-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        color: var(--blue-main);
+        background-color: var(--blue-main-10);
+        font-size: 10px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .master-count i { position: relative; top: 1px; font-size: 11px; }
+
+    .master-toolbar {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 9px 18px;
-        border: 1px solid var(--smooth-border);
-        border-radius: 50px;
-        background-color: var(--main-bg);
-        flex: 1 1 auto;
-        max-width: none;
-        min-width: 260px;
+        margin-left: auto;
+        min-width: 0;
     }
+
+    .master-toolbar__search { min-width: 0; }
+
+    .search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 34px 0 12px;
+        height: 38px;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        background-color: var(--main-bg);
+        width: 300px;
+        max-width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-box:focus-within { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
 
     .search-box i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
 
@@ -76,9 +112,41 @@
         font-size: 12px;
         color: var(--black);
         width: 100%;
+        min-width: 0;
     }
 
     .search-box input::placeholder { color: var(--muted); }
+
+    .search-box input[type="search"]::-webkit-search-cancel-button,
+    .search-box input[type="search"]::-webkit-search-decoration {
+        display: none;
+        -webkit-appearance: none;
+    }
+
+    /* Tombol bersihkan menempati ruang kanan yang sudah dipesan lewat
+       padding-inline-end, jadi teks tidak pernah berjalan di bawahnya. */
+    .search-clear {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        color: var(--blue-main);
+        background-color: var(--blue-main-10);
+        cursor: pointer;
+        transition: .2s ease-out;
+    }
+
+    .search-clear:hover { background-color: var(--blue-main-25); }
+    .search-clear[hidden] { display: none; }
+    .search-clear i { top: 0; font-size: 11px; }
 
     .btn-tool {
         display: inline-flex;
@@ -96,31 +164,17 @@
         transition: 0.2s ease;
     }
 
-    .btn-tool i { position: relative; top: 1px; }
+    /* Seluruh glyph uicons memusatkan tintanya 0,5em di atas baseline, jadi
+       kotak <i> harus turun 2px supaya tinta ikon benar-benar setinggi
+       tengah tombol. Nilainya sama untuk semua ikon dan semua tinggi
+       tombol karena isinya sudah di-center oleh flex. */
+    .btn-tool i { position: relative; top: 2px; }
     .btn-tool--primary { background-color: var(--blue-main); border-color: var(--blue-main); color: #fff; }
     .btn-tool--primary:hover { background-color: var(--blue-hover); border-color: var(--blue-hover); color: #fff; }
 
-    .search-action-group .btn-tool {
-        height: 44px;
-        flex-shrink: 0;
-        padding: 0 16px;
-    }
-
-    @media (max-width: 640px) {
-        .search-action-group {
-            flex: 1 1 100%;
-            max-width: none;
-        }
-
-        .search-box {
-            min-width: 0;
-        }
-    }
-
     /* =============================================
-       FILTER (pemicu di page header + popover, pola Arsip Laporan)
+       FILTER (pemicu ikon di header kartu + popover, pola Kelola Pengguna)
        ============================================= */
-    .master-toolbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
     .btn-tool:hover { background-color: var(--blue-main-5); border-color: var(--blue-main-25); color: var(--blue-main); }
     .btn-tool--primary:hover { background-color: var(--blue-hover); border-color: var(--blue-hover); color: #fff; }
@@ -147,8 +201,8 @@
     .btn-reset:hover { background-color: var(--red-main-10, rgba(239,68,68,0.08)); }
     .btn-reset.is-hidden { display: none; }
 
-    /* Pemicu filter duduk di ujung kanan page header — anatomi yang sama
-       dengan Arsip Laporan, Log Aktivitas, dan halaman Manajer. */
+    /* Aksi utama (Tambah) duduk di ujung kanan page header — anatomi yang
+       sama dengan Kelola Pengguna. */
     .performance-page-header {
         position: relative;
         z-index: 20;
@@ -165,41 +219,88 @@
         gap: 4px;
     }
 
-    .performance-filter {
-        position: relative;
+    /* Aksi page header berdampingan: Ekspor Excel lalu Tambah. */
+    .performance-page-header__actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         flex: 0 0 auto;
+        flex-wrap: wrap;
     }
 
-    .performance-filter__trigger {
+    .performance-page-header__action {
+        flex: 0 0 auto;
         min-height: 38px;
         padding-inline: 14px;
-        color: #fff;
-        background-color: var(--blue-main);
-        border-color: var(--blue-main);
         box-shadow: 0 5px 14px rgba(37, 99, 235, .18);
     }
 
-    .performance-filter__trigger:hover {
-        color: #fff;
-        background-color: var(--blue-hover);
-        border-color: var(--blue-hover);
+    /* Ekspor bersifat sekunder terhadap Tambah, jadi tampil sebagai tombol
+       bergaris hijau — resep yang sama dengan tombol Ekspor di Arsip Laporan. */
+    .performance-export-button {
+        flex: 0 0 auto;
+        min-height: 38px;
+        padding-inline: 14px;
+        color: var(--success);
+        border-color: var(--success);
+        background-color: var(--success-10);
+        text-decoration: none;
+        box-shadow: none;
     }
+
+    .performance-export-button:hover,
+    .performance-export-button:focus-visible {
+        color: var(--success);
+        border-color: var(--success);
+        background-color: var(--success-10);
+    }
+
+    .performance-filter { position: relative; flex: 0 0 auto; }
+
+    /* Tombol ikon saja: dibuat bujur sangkar 38px agar tingginya persis
+       sama dengan kotak pencarian di sebelahnya. */
+    .performance-filter__trigger {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        justify-content: center;
+        position: relative;
+    }
+
+    /* Glyph "settings-sliders" duduk lebih tinggi dari kotak em-nya sendiri
+       (ruang kosong font berada di bawah, bukan di atas), jadi butuh offset
+       positif ekstra supaya optically center di tombol persegi 38px. */
+    .performance-filter__trigger i { top: 3px; font-size: 14px; }
 
     .performance-filter__trigger[aria-expanded="true"] {
-        box-shadow: 0 0 0 3px var(--blue-main-10), 0 5px 14px rgba(37, 99, 235, .18);
+        background-color: var(--blue-main-10);
+        border-color: var(--blue-main);
+        color: var(--blue-main);
     }
 
+    .performance-filter__trigger--active {
+        background-color: var(--blue-main);
+        border-color: var(--blue-main);
+        color: #fff;
+    }
+
+    .performance-filter__trigger--active:hover {
+        background-color: var(--blue-hover);
+        border-color: var(--blue-hover);
+        color: #fff;
+    }
+
+    /* Titik penanda filter aktif — dipakai bersama ikon supaya tidak perlu
+       label teks di tombol. */
     .performance-filter__status {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 18px;
-        padding: 1px 6px;
-        border-radius: 999px;
-        color: var(--blue-main);
-        background-color: #fff;
-        font-size: 9px;
-        font-weight: 700;
+        position: absolute;
+        top: -3px;
+        right: -3px;
+        width: 9px;
+        height: 9px;
+        border: 2px solid var(--white);
+        border-radius: 50%;
+        background-color: var(--orange-main);
     }
 
     .performance-filter__status.is-hidden { display: none; }
@@ -361,27 +462,40 @@
         font-weight: 500;
     }
 
+    @media (max-width: 720px) {
+        .master-card-header { align-items: stretch; }
+
+        .master-toolbar {
+            width: 100%;
+            margin-left: 0;
+        }
+
+        .master-toolbar__search { flex: 1 1 auto; }
+        .search-box { width: 100%; }
+
+        .master-filter-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
     @media (max-width: 640px) {
-        .master-toolbar-actions { width: 100%; }
         .filter-field { max-width: none; }
 
-        /* Pemicu turun ke bawah judul dan melebar penuh; popover ikut
-           menempel ke tepi kiri supaya tidak menggantung keluar layar. */
         .performance-page-header { flex-direction: column; }
-        .performance-filter { width: 100%; }
-        .performance-filter__trigger { width: 100%; justify-content: center; }
+        .performance-page-header__actions { width: 100%; }
 
-        /* Popover mengikuti lebar pemicunya, bukan lebar viewport dikurangi
-           konstanta — tepi kiri dan kanannya jadi persis segaris. */
-        .performance-filter__popover {
-            left: 0;
-            right: 0;
-            width: auto;
+        .performance-page-header__actions > * {
+            flex: 1 1 0;
+            justify-content: center;
         }
+
+        /* Tetap ditambatkan ke tepi kanan tombol. Membaliknya ke `left: 0`
+           justru membuat panel keluar layar, karena titik acuannya adalah
+           .performance-filter yang sudah berada di ujung kanan kartu. */
+        .performance-filter__popover { width: min(620px, calc(100vw - 48px)); }
 
         .performance-filter__actions > * {
             flex: 1 1 0;
             justify-content: center;
+            text-align: center;
         }
 
         .master-filter-group,
@@ -410,7 +524,11 @@
     .table-responsive-wrapper::-webkit-scrollbar-thumb { background-color: var(--blue-main-25); border-radius: 10px; }
     .table-responsive-wrapper::-webkit-scrollbar-thumb:hover { background-color: var(--blue-main-40); }
 
-    .table-responsive-wrapper table { min-width: 900px; width: 100%; }
+    .table-responsive-wrapper table { min-width: 960px; width: 100%; }
+
+    /* Jumlah min-width seluruh kolom unit: 50+64+150+85+150+110+120+130+110+80+180.
+       Tanpa ini baris meluber keluar kotak <tr> begitu kolom Merk dilebarkan. */
+    .table-responsive-wrapper table.unit-table { min-width: 1229px; }
     .table-responsive-wrapper .employee-table { min-width: 1260px; }
 
     .thead { background-color: var(--blue-main-5); border-radius: 6px; }
@@ -440,9 +558,13 @@
 
     /* Columns */
     .thead th.col-no,       .tbody td.col-no       { width: 50px; flex: none; justify-content: center; padding: 12px 0; color: var(--black-secondary); }
+    .thead th.col-logo,     .tbody td.col-logo     { width: 64px; flex: none; justify-content: center; padding: 8px 0; }
     .thead th.col-name,     .tbody td.col-name     { min-width: 150px; }
     .thead th.col-code,     .tbody td.col-code     { min-width: 85px; }
-    .thead th.col-brand,    .tbody td.col-brand    { min-width: 105px; }
+    /* 150px = teks merek terpanjang ("ISUZU NKR71 HARIMAU", terukur 130px)
+       + padding sel 2x10px. Di bawah itu kolomnya terjepit sampai teks
+       merek pecah jadi dua baris. */
+    .thead th.col-brand,    .tbody td.col-brand    { min-width: 150px; white-space: nowrap; }
     .thead th.col-number,   .tbody td.col-number   { min-width: 110px; }
     .thead th.col-npk,      .tbody td.col-npk      { min-width: 110px; }
     .thead th.col-group,    .tbody td.col-group    { min-width: 100px; }
@@ -462,6 +584,36 @@
     .thead th.col-status,   .tbody td.col-status   { min-width: 110px; }
     .thead th.col-qtyflag,  .tbody td.col-qtyflag  { min-width: 120px; }
     .thead th.col-aksi,     .tbody td.col-aksi     { min-width: 180px; gap: 8px; flex-wrap: nowrap; }
+
+    /* Lencana logo merek unit. Latar putih tetap dipakai di mode gelap karena
+       berkas logo dibuat untuk latar terang — tanpa itu logo berwarna gelap
+       (Komatsu, Yale) hilang di atas permukaan gelap. Rasio asli dijaga lewat
+       object-fit: contain, jadi logo lebar maupun kotak sama-sama utuh. */
+    .brand-logo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 46px;
+        height: 34px;
+        padding: 3px;
+        overflow: hidden;
+        border: 1px solid var(--smooth-border);
+        border-radius: 8px;
+        background-color: #fff;
+    }
+
+    .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .brand-logo [hidden] { display: none; }
+
+    /* Cadangan saat merek tidak punya berkas logo atau gambarnya gagal dimuat. */
+    .brand-logo--fallback {
+        background-color: var(--blue-main-10);
+        border-color: var(--blue-main-25);
+        color: var(--blue-main);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .02em;
+    }
 
     /* Employee table: hierarchy and scan-friendly metadata */
     .employee-table .tbody td {
@@ -690,6 +842,57 @@
 @php
     $filterApplied = $masterFilterActive[$activePane] ?? false;
     $hasFilterPane = in_array($activePane, ['karyawan', 'unit'], true);
+
+    // Jumlah data per pane. Pencarian & filter hanya diterapkan server pada
+    // pane aktif, jadi pane lain menampilkan jumlah seluruh datanya.
+    $masterTotalOf = fn ($rows): int => method_exists($rows, 'total') ? $rows->total() : count($rows);
+    $masterCounts = [
+        'karyawan' => $masterTotalOf($employees),
+        'unit' => $masterTotalOf($units),
+        'truck' => $masterTotalOf($trucks),
+        'inventaris' => $masterTotalOf($inventories),
+        'lingkungan' => $masterTotalOf($environments),
+        'safety_lokasi' => $masterTotalOf($safetyLocations),
+        'safety_item' => $masterTotalOf($safetyItems),
+    ];
+
+    // Satuan yang mengikuti angka. Pane aktif memakai "hasil" saat sedang
+    // disaring, supaya angkanya tidak terbaca sebagai jumlah seluruh data.
+    $masterCountNouns = [
+        'karyawan' => 'karyawan',
+        'unit' => 'unit',
+        'truck' => 'truck',
+        'inventaris' => 'inventaris',
+        'lingkungan' => 'item',
+        'safety_lokasi' => 'lokasi',
+        'safety_item' => 'item',
+    ];
+    $masterIsNarrowed = $masterSearch !== '' || $filterApplied;
+    $masterCountNoun = $masterIsNarrowed ? 'hasil' : ($masterCountNouns[$activePane] ?? 'data');
+
+    // Parameter ekspor = pane + pencarian + filter yang sedang aktif, jadi
+    // berkas Excel berisi tepat baris yang sedang dilihat pengguna.
+    $masterExportQuery = array_filter([
+        'pane' => $activePane,
+        'q' => $masterSearch,
+        'f_group' => $masterFilters['group'] ?? '',
+        'f_division' => $masterFilters['division'] ?? '',
+        'f_position' => $masterFilters['position'] ?? '',
+        'f_type' => $masterFilters['type'] ?? '',
+        'f_category' => $masterFilters['category'] ?? '',
+    ], fn ($value): bool => filled($value));
+    $masterExportUrl = route('admin.datamaster.export', $masterExportQuery);
+
+    // Ikon lencana mengikuti jenis datanya, bukan ikon folder generik.
+    $masterCountIcons = [
+        'karyawan' => 'fi fi-rr-users',
+        'unit' => 'fi fi-rr-truck-side',
+        'truck' => 'fi fi-rr-truck-moving',
+        'inventaris' => 'fi fi-rr-box-open',
+        'lingkungan' => 'fi fi-rr-house-chimney',
+        'safety_lokasi' => 'fi fi-rr-marker',
+        'safety_item' => 'fi fi-rr-checkbox',
+    ];
 @endphp
 
 <div class="page-header performance-page-header">
@@ -702,133 +905,190 @@
         </div>
     </div>
 
-    {{-- Pemicu filter + popover. Bidangnya tetap milik #masterSearchForm lewat
-         atribut form=, jadi pencarian, pane, dan filter berangkat sebagai satu
-         permintaan meski markup-nya kini berada di luar kartu. --}}
-    <div class="performance-filter" data-master-filter>
-        <button type="button"
-                @class(['btn-tool', 'btn-tool--primary', 'performance-filter__trigger', 'is-hidden' => ! $hasFilterPane])
-                id="masterFilterBtn"
-                data-master-filter-trigger
-                aria-expanded="false"
-                aria-controls="master-filter-popover">
-            <i class="fi fi-rr-settings-sliders" aria-hidden="true"></i>
-            <span>Filter</span>
-            <span @class(['performance-filter__status', 'is-hidden' => ! $filterApplied])
-                  id="masterFilterStatus"
-                  aria-label="Filter aktif">Aktif</span>
+    <div class="performance-page-header__actions">
+        {{-- Ekspor mengikuti pane, pencarian, dan filter yang sedang aktif.
+             Tautannya dibangun ulang oleh JS saat pane berpindah. --}}
+        <a href="{{ $masterExportUrl }}"
+           class="btn-tool performance-export-button"
+           id="masterExportBtn"
+           data-export-base="{{ route('admin.datamaster.export') }}"
+           data-confirm
+           data-confirm-redirect="{{ $masterExportUrl }}"
+           data-confirm-tone="success"
+           data-confirm-title="Ekspor master data?"
+           data-confirm-subtitle="Berkas Excel akan diunduh sesuai filter yang sedang aktif."
+           data-confirm-message="Ekspor mengambil seluruh baris yang lolos pencarian dan filter saat ini, bukan hanya halaman yang tampil."
+           data-confirm-summary="Format: Excel (.xlsx)"
+           data-confirm-label="Ekspor Data"
+           data-confirm-download="true"
+           data-confirm-icon="fi fi-rr-cloud-upload-alt">
+            <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
+            <span>Ekspor Excel</span>
+        </a>
+
+        <button type="button" class="btn-tool btn-tool--primary performance-page-header__action" id="masterAddBtn">
+            <i class="{{ $activeMasterUi['icon'] }}" id="masterAddIcon" aria-hidden="true"></i>
+            <span id="masterAddText">{{ $activeMasterUi['add'] }}</span>
         </button>
-
-        <div class="performance-filter__popover"
-             id="master-filter-popover"
-             data-master-filter-popover
-             hidden>
-            <div class="performance-filter__head">
-                <div>
-                    <span class="performance-filter__title">Filter Master Data</span>
-                    <span class="performance-filter__subtitle" id="masterFilterSubtitle">Atur divisi, group, dan jabatan karyawan.</span>
-                </div>
-                <button type="button"
-                        class="performance-filter__close"
-                        data-master-filter-close
-                        aria-label="Tutup filter">
-                    <i class="fi fi-rr-cross-small" aria-hidden="true"></i>
-                </button>
-            </div>
-
-            {{-- Filter Karyawan --}}
-            <div class="master-filter-group" data-filter-pane="karyawan" @style(['display:none' => $activePane !== 'karyawan'])>
-                <div class="filter-field">
-                    <label>Divisi</label>
-                    <div class="filter-select-wrapper">
-                        <select name="f_division" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Divisi">
-                            @foreach ($filterDivisionOptions as $val => $label)
-                                <option value="{{ $val }}" @selected($masterFilters['division'] === $val)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                    </div>
-                </div>
-                <div class="filter-field">
-                    <label>Group</label>
-                    <div class="filter-select-wrapper">
-                        <select name="f_group" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Group">
-                            @foreach ($filterGroupOptions as $val => $label)
-                                <option value="{{ $val }}" @selected($masterFilters['group'] === $val)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                    </div>
-                </div>
-                <div class="filter-field">
-                    <label>Jabatan</label>
-                    <div class="filter-select-wrapper">
-                        <select name="f_position" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Jabatan">
-                            @foreach ($filterPositionOptions as $val => $label)
-                                <option value="{{ $val }}" @selected($masterFilters['position'] === $val)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Filter Unit --}}
-            <div class="master-filter-group" data-filter-pane="unit" @style(['display:none' => $activePane !== 'unit'])>
-                <div class="filter-field">
-                    <label>Tipe Unit</label>
-                    <div class="filter-select-wrapper">
-                        <select name="f_type" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Tipe Unit">
-                            @foreach ($filterTypeOptions as $val => $label)
-                                <option value="{{ $val }}" @selected($masterFilters['type'] === $val)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                    </div>
-                </div>
-                <div class="filter-field">
-                    <label>Kategori</label>
-                    <div class="filter-select-wrapper">
-                        <select name="f_category" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Kategori">
-                            @foreach ($filterCategoryOptions as $val => $label)
-                                <option value="{{ $val }}" @selected($masterFilters['category'] === $val)>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                        <i class="fi fi-rr-angle-small-down select-arrow"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="performance-filter__actions">
-                <button type="submit" form="masterSearchForm" class="btn-tool btn-tool--primary">
-                    <i class="fi fi-rr-check" aria-hidden="true"></i> Terapkan
-                </button>
-            </div>
-        </div>
     </div>
 </div>
 
-@component('admin.layouts.card', ['title' => $activeMasterUi['title'], 'titleId' => 'masterTitle'])
-    <!-- Toolbar -->
-    <form class="archive-toolbar" method="GET" action="{{ route('admin.datamaster') }}" id="masterSearchForm" autocomplete="off">
-        <input type="hidden" name="pane" id="masterPaneInput" value="{{ $activePane ?? 'karyawan' }}">
-        <div class="search-action-group">
-            <div class="search-box">
-                <span><i class="fi fi-rr-search"></i></span>
-                <input type="text" name="q" value="{{ $masterSearch ?? '' }}" placeholder="{{ $activeMasterUi['search'] }}" id="masterSearch" data-search-debounce="650" aria-label="Cari data master">
+@component('admin.layouts.card')
+    <div class="master-card-header">
+        <div class="master-card-heading">
+            <span class="section-card__title" id="masterTitle">{{ $activeMasterUi['title'] }}</span>
+            <span class="master-count" id="masterCount">
+                <i class="{{ $masterCountIcons[$activePane] ?? 'fi fi-rr-folder-open' }}" id="masterCountIcon" aria-hidden="true"></i>
+                <span id="masterCountText">{{ $masterCounts[$activePane] ?? 0 }} {{ $masterCountNoun }}</span>
+            </span>
+        </div>
+
+        <div class="master-toolbar">
+            {{-- Pencarian tanpa tombol: form dikirim otomatis setelah ketikan
+                 berhenti sejenak (debounce di skrip bawah). --}}
+            <form class="master-toolbar__search"
+                  method="GET"
+                  action="{{ route('admin.datamaster') }}"
+                  id="masterSearchForm"
+                  autocomplete="off">
+                <input type="hidden" name="pane" id="masterPaneInput" value="{{ $activePane ?? 'karyawan' }}">
+                <div class="search-box">
+                    <span><i class="fi fi-rr-search" aria-hidden="true"></i></span>
+                    <input type="search"
+                           name="q"
+                           id="masterSearch"
+                           value="{{ $masterSearch ?? '' }}"
+                           data-initial-value="{{ $masterSearch ?? '' }}"
+                           data-search-debounce="650"
+                           placeholder="{{ $activeMasterUi['search'] }}"
+                           aria-label="Cari data master">
+                    <button type="button"
+                            class="search-clear"
+                            id="masterSearchClear"
+                            aria-label="Bersihkan pencarian"
+                            @if (($masterSearch ?? '') === '') hidden @endif>
+                        <i class="fi fi-br-cross-small" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </form>
+
+            {{-- Pemicu filter + popover. Bidangnya tetap milik #masterSearchForm
+                 lewat atribut form=, jadi pencarian, pane, dan filter berangkat
+                 sebagai satu permintaan meski markup-nya di luar elemen form. --}}
+            <div class="performance-filter" data-master-filter>
+                <button type="button"
+                        @class([
+                            'btn-tool',
+                            'performance-filter__trigger',
+                            'performance-filter__trigger--active' => $filterApplied,
+                            'is-hidden' => ! $hasFilterPane,
+                        ])
+                        id="masterFilterBtn"
+                        data-master-filter-trigger
+                        aria-expanded="false"
+                        aria-controls="master-filter-popover"
+                        aria-label="Filter master data"
+                        title="Filter master data">
+                    <i class="fi fi-rr-settings-sliders" aria-hidden="true"></i>
+                    <span @class(['performance-filter__status', 'is-hidden' => ! $filterApplied])
+                          id="masterFilterStatus"
+                          aria-hidden="true"></span>
+                </button>
+
+                <div class="performance-filter__popover"
+                     id="master-filter-popover"
+                     data-master-filter-popover
+                     hidden>
+                    <div class="performance-filter__head">
+                        <div>
+                            <span class="performance-filter__title">Filter Master Data</span>
+                            <span class="performance-filter__subtitle" id="masterFilterSubtitle">Atur divisi, group, dan jabatan karyawan.</span>
+                        </div>
+                        <button type="button"
+                                class="performance-filter__close"
+                                data-master-filter-close
+                                aria-label="Tutup filter">
+                            <i class="fi fi-rr-cross-small" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    {{-- Filter Karyawan --}}
+                    <div class="master-filter-group" data-filter-pane="karyawan" @style(['display:none' => $activePane !== 'karyawan'])>
+                        <div class="filter-field">
+                            <label>Divisi</label>
+                            <div class="filter-select-wrapper">
+                                <select name="f_division" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Divisi">
+                                    @foreach ($filterDivisionOptions as $val => $label)
+                                        <option value="{{ $val }}" @selected($masterFilters['division'] === $val)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                            </div>
+                        </div>
+                        <div class="filter-field">
+                            <label>Group</label>
+                            <div class="filter-select-wrapper">
+                                <select name="f_group" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Group">
+                                    @foreach ($filterGroupOptions as $val => $label)
+                                        <option value="{{ $val }}" @selected($masterFilters['group'] === $val)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                            </div>
+                        </div>
+                        <div class="filter-field">
+                            <label>Jabatan</label>
+                            <div class="filter-select-wrapper">
+                                <select name="f_position" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Jabatan">
+                                    @foreach ($filterPositionOptions as $val => $label)
+                                        <option value="{{ $val }}" @selected($masterFilters['position'] === $val)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Filter Unit --}}
+                    <div class="master-filter-group" data-filter-pane="unit" @style(['display:none' => $activePane !== 'unit'])>
+                        <div class="filter-field">
+                            <label>Tipe Unit</label>
+                            <div class="filter-select-wrapper">
+                                <select name="f_type" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Tipe Unit">
+                                    @foreach ($filterTypeOptions as $val => $label)
+                                        <option value="{{ $val }}" @selected($masterFilters['type'] === $val)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                            </div>
+                        </div>
+                        <div class="filter-field">
+                            <label>Kategori</label>
+                            <div class="filter-select-wrapper">
+                                <select name="f_category" form="masterSearchForm" class="native-select js-master-filter" aria-label="Filter Kategori">
+                                    @foreach ($filterCategoryOptions as $val => $label)
+                                        <option value="{{ $val }}" @selected($masterFilters['category'] === $val)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="performance-filter__actions">
+                        <a href="{{ route('admin.datamaster', ['pane' => $activePane]) }}"
+                           @class(['btn-reset', 'is-hidden' => ! $filterApplied && $masterSearch === ''])
+                           id="masterFilterReset">
+                            <i class="fi fi-rr-refresh"></i> Reset
+                        </a>
+                        <button type="submit" form="masterSearchForm" class="btn-tool btn-tool--primary">
+                            <i class="fi fi-rr-check" aria-hidden="true"></i> Terapkan
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="master-toolbar-actions">
-            <a href="{{ route('admin.datamaster', ['pane' => $activePane]) }}"
-               @class(['btn-reset', 'is-hidden' => ! $filterApplied && $masterSearch === ''])
-               id="masterFilterReset">
-                <i class="fi fi-rr-refresh"></i> Reset
-            </a>
-            <button type="button" class="btn-tool btn-tool--primary" id="masterAddBtn">
-                <i class="{{ $activeMasterUi['icon'] }}" id="masterAddIcon"></i> <span id="masterAddText">{{ $activeMasterUi['add'] }}</span>
-            </button>
-        </div>
-    </form>
+    </div>
 
     <!-- PANE: Master Employees -->
     <div class="master-pane {{ $activePane === 'karyawan' ? 'active' : '' }}" data-pane="karyawan">
@@ -939,9 +1199,10 @@
     <!-- PANE: Master Units -->
     <div class="master-pane {{ $activePane === 'unit' ? 'active' : '' }}" data-pane="unit">
         <div class="table-responsive-wrapper">
-            <table>
+            <table class="unit-table">
                 <tr class="thead d-flex justify-content-between align-items-center">
                     <th class="col-no">No</th>
+                    <th class="col-logo">Logo</th>
                     <th class="col-name">Nama</th>
                     <th class="col-code">Kode</th>
                     <th class="col-brand">Merk</th>
@@ -955,6 +1216,30 @@
                 @forelse ($units as $u)
                     <tr class="tbody d-flex justify-content-between align-items-center" data-update-url="{{ $u['update_url'] ?? '' }}">
                         <td class="col-no">{{ $u['no'] }}</td>
+                        <td class="col-logo">
+                            @php
+                                $unitBrand = trim((string) ($u['brand'] ?? ''));
+                                $unitBrandLogo = $u['brand_logo'] ?? '';
+                                $unitBrandLabel = $unitBrand === '' || $unitBrand === '-' ? 'Tanpa merek' : $unitBrand;
+                                // Inisial dua huruf dari kata pertama merek, mis. "KOBELCO" -> "KO".
+                                $unitBrandInitials = $unitBrand === '' || $unitBrand === '-'
+                                    ? '-'
+                                    : mb_strtoupper(mb_substr(strtok($unitBrand, ' ') ?: $unitBrand, 0, 2));
+                            @endphp
+                            @if ($unitBrandLogo !== '')
+                                <span class="brand-logo" title="{{ $unitBrandLabel }}">
+                                    <img src="{{ $unitBrandLogo }}"
+                                         alt="Logo {{ $unitBrandLabel }}"
+                                         loading="lazy"
+                                         onerror="this.closest('.brand-logo').classList.add('brand-logo--fallback'); this.hidden=true; this.nextElementSibling.hidden=false;">
+                                    <span aria-hidden="true" hidden>{{ $unitBrandInitials }}</span>
+                                </span>
+                            @else
+                                <span class="brand-logo brand-logo--fallback" title="{{ $unitBrandLabel }}" aria-label="Logo {{ $unitBrandLabel }} belum tersedia">
+                                    {{ $unitBrandInitials }}
+                                </span>
+                            @endif
+                        </td>
                         <td class="col-name">{{ $u['name'] }}</td>
                         <td class="col-code">{{ $u['unit_number'] }}</td>
                         <td class="col-brand">{{ $u['brand'] }}</td>
@@ -1350,12 +1635,16 @@
 
         const masterTitle    = document.getElementById('masterTitle');
         const masterCrumb     = document.getElementById('masterCrumb');
+        const masterCountText = document.getElementById('masterCountText');
+        const masterCountIcon = document.getElementById('masterCountIcon');
         const masterSearch    = document.getElementById('masterSearch');
+        const masterSearchClear = document.getElementById('masterSearchClear');
         const masterSearchForm = document.getElementById('masterSearchForm');
         const masterPaneInput = document.getElementById('masterPaneInput');
         const masterAddText   = document.getElementById('masterAddText');
         const masterAddIcon   = document.getElementById('masterAddIcon');
         const masterAddBtn    = document.getElementById('masterAddBtn');
+        const masterExportBtn = document.getElementById('masterExportBtn');
         const masterPanes     = document.querySelectorAll('.master-pane');
         const masterMenuItems = document.querySelectorAll('.sidebar__submenu-item[data-pane]');
         const masterFormModal = document.getElementById('masterFormModal');
@@ -1381,6 +1670,12 @@
             karyawan: 'Atur divisi, group, dan jabatan karyawan.',
             unit: 'Atur tipe dan kategori unit.',
         };
+        const masterCounts = @json($masterCounts);
+        const masterCountNouns = @json($masterCountNouns);
+        const masterCountIcons = @json($masterCountIcons);
+        // Pane yang benar-benar disaring server pada permintaan ini; hanya
+        // pane inilah yang angkanya berarti "hasil", bukan jumlah seluruh data.
+        const masterNarrowedPane = @json($masterIsNarrowed ? $activePane : null);
         const masterActions = @json($masterActions);
         let activeMasterPane = @json($activePane ?? 'karyawan');
         let masterSearchTimer = null;
@@ -1399,7 +1694,39 @@
             if (masterPaneInput) masterPaneInput.value = pane;
             if (masterAddText) masterAddText.textContent = cfg.add;
             if (masterAddIcon) masterAddIcon.className = cfg.icon;
+            if (masterCountText) {
+                const noun = pane === masterNarrowedPane ? 'hasil' : (masterCountNouns[pane] || 'data');
+                masterCountText.textContent = `${masterCounts[pane] ?? 0} ${noun}`;
+            }
+            if (masterCountIcon) {
+                masterCountIcon.className = masterCountIcons[pane] || 'fi fi-rr-folder-open';
+            }
+            syncMasterExportLink(pane);
             syncMasterFilters(pane);
+        }
+
+        // Tautan Ekspor selalu membawa pane, kata kunci, dan filter yang sedang
+        // aktif. Nilai filter dibaca dari select-nya sendiri supaya tetap benar
+        // meski pengguna baru mengubahnya tanpa menekan "Terapkan".
+        function syncMasterExportLink(pane) {
+            if (!masterExportBtn) return;
+
+            const base = masterExportBtn.dataset.exportBase;
+            if (!base) return;
+
+            const url = new URL(base, window.location.origin);
+            url.searchParams.set('pane', pane);
+
+            const keyword = (masterSearch?.value || '').trim();
+            if (keyword !== '') url.searchParams.set('q', keyword);
+
+            document.querySelectorAll('.js-master-filter').forEach(function (select) {
+                if (select.disabled || !select.value) return;
+                url.searchParams.set(select.name, select.value);
+            });
+
+            masterExportBtn.href = url.toString();
+            masterExportBtn.dataset.confirmRedirect = url.toString();
         }
 
         function setMasterFilterOpen(open) {
@@ -1417,8 +1744,14 @@
             if (masterFilterBtn) masterFilterBtn.classList.toggle('is-hidden', !hasFilters);
             if (!hasFilters) setMasterFilterOpen(false);
 
+            const applied = masterFilterApplied[pane] ?? false;
             if (masterFilterStatus) {
-                masterFilterStatus.classList.toggle('is-hidden', !(masterFilterApplied[pane] ?? false));
+                masterFilterStatus.classList.toggle('is-hidden', !applied);
+            }
+            // Tombol ikon tidak punya teks, jadi status filter aktif dibaca dari
+            // warnanya sendiri — bukan hanya dari titik penanda di sudutnya.
+            if (masterFilterBtn) {
+                masterFilterBtn.classList.toggle('performance-filter__trigger--active', applied);
             }
             if (masterFilterSubtitle && masterFilterSubtitles[pane]) {
                 masterFilterSubtitle.textContent = masterFilterSubtitles[pane];
@@ -1676,15 +2009,50 @@
         const initialPane = new URLSearchParams(window.location.search).get('pane') || @json($activePane ?? 'karyawan');
         switchMasterPane(initialPane);
 
+        function syncMasterSearchClear() {
+            if (masterSearchClear) masterSearchClear.hidden = (masterSearch?.value ?? '') === '';
+        }
+
         masterSearch?.addEventListener('input', function () {
+            syncMasterSearchClear();
+            syncMasterExportLink(activeMasterPane);
             scheduleMasterSearchSubmit();
         });
 
+        document.querySelectorAll('.js-master-filter').forEach(function (select) {
+            select.addEventListener('change', function () {
+                syncMasterExportLink(activeMasterPane);
+            });
+        });
+
         masterSearch?.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && masterSearch.value !== '') {
+                event.preventDefault();
+                masterSearch.value = '';
+                syncMasterSearchClear();
+                scheduleMasterSearchSubmit(0);
+                return;
+            }
+
             if (event.key !== 'Enter') return;
             event.preventDefault();
             scheduleMasterSearchSubmit(0);
         });
+
+        masterSearchClear?.addEventListener('click', function () {
+            if (!masterSearch) return;
+            masterSearch.value = '';
+            masterSearch.focus();
+            syncMasterSearchClear();
+            scheduleMasterSearchSubmit(0);
+        });
+
+        // Kursor dikembalikan ke akhir teks setelah halaman dimuat ulang oleh
+        // debounce, supaya mengetik terasa tidak terputus.
+        if (masterSearch && masterSearch.value !== '') {
+            masterSearch.focus();
+            masterSearch.setSelectionRange(masterSearch.value.length, masterSearch.value.length);
+        }
 
         masterSearchForm?.addEventListener('submit', function () {
             window.clearTimeout(masterSearchTimer);

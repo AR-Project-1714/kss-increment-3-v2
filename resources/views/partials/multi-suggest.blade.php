@@ -47,7 +47,7 @@
     .kss-suggest-option.active { background-color: var(--blue-main-10); color: var(--blue-main); }
 
     body.dark-mode .kss-suggest-dropdown {
-        background-color: #1E293B;
+        background-color: #17212F;
         border-color: rgba(255, 255, 255, .12);
         box-shadow: 0 16px 34px rgba(0, 0, 0, .45);
     }

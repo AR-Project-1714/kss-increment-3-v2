@@ -10,10 +10,55 @@
             flex-wrap: wrap;
         }
 
+        /* Baris header kartu: judul + lencana di kiri, pencarian & kontrol
+           daftar di kanan — anatominya sama dengan arsip admin. */
+        .archive-card-header {
+            position: relative;
+            z-index: 15;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .archive-card-heading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .archive-card-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        /* Kotak pencarian mengikuti Kelola Pengguna: sudut 8px, tinggi 38px. */
+        .search-box {
+            padding: 0 12px;
+            height: 38px;
+            border-radius: 8px;
+            width: 340px;
+            max-width: 100%;
+            flex: 0 1 340px;
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--blue-main);
+            box-shadow: 0 0 0 3px var(--blue-main-10);
+        }
+
         .archive-search-box {
             position: relative;
-            padding-right: 44px;
-            max-width: 600px;
+            padding-right: 36px;
         }
 
         .archive-search-box input[type="search"]::-webkit-search-cancel-button,
@@ -24,14 +69,14 @@
 
         .archive-search-clear {
             position: absolute;
-            right: 10px;
+            right: 6px;
             top: 50%;
             transform: translateY(-50%);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 26px;
-            height: 26px;
+            width: 22px;
+            height: 22px;
             border: none;
             border-radius: 50%;
             color: var(--blue-main);
@@ -265,7 +310,7 @@
         }
 
         /* Judul card mengikuti komponen arsip admin pada semua breakpoint. */
-        .archive-body > .section-card__title {
+        .archive-body .section-card__title {
             font-size: 16px;
             font-weight: 600;
             color: var(--black);
@@ -284,13 +329,24 @@
             white-space: nowrap;
         }
 
-        .archive-toolbar__right {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
+        /* Ekspor bergaris hijau — resep yang sama dengan tombol Ekspor di
+           Master Data admin. */
+        .performance-export-button {
+            flex: 0 0 auto;
+            min-height: 38px;
+            padding-inline: 14px;
+            color: var(--success);
+            border-color: var(--success);
+            background-color: var(--success-10);
+            text-decoration: none;
+            box-shadow: none;
+        }
+
+        .performance-export-button:hover,
+        .performance-export-button:focus-visible {
+            color: var(--success);
+            border-color: var(--success);
+            background-color: var(--success-10);
         }
 
         .archive-filters {
@@ -501,11 +557,15 @@
         }
 
         @media (max-width: 920px) {
-            .archive-toolbar__right {
+            .archive-card-header { align-items: stretch; }
+
+            .archive-card-toolbar {
                 width: 100%;
                 margin-left: 0;
                 justify-content: flex-start;
             }
+
+            .search-box { width: 100%; flex: 1 1 240px; }
 
             .archive-filter-fields {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -618,6 +678,7 @@
             <div class="performance-filter performance-filter--with-export" data-archive-filter>
                 <a href="{{ route('manajer.archive.export', request()->except('page')) }}"
                    class="btn-tool performance-export-button"
+                   data-export-download
                    title="Ekspor Excel sesuai filter aktif ({{ $archiveTotal }} laporan)">
                     <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
                     <span>Ekspor Excel</span>
@@ -729,10 +790,18 @@
 
         <div class="section-card">
             <div class="archive-body">
-                <span class="section-card__title">Riwayat Laporan</span>
-
                 <div class="archive-toolbar">
                     <form method="GET" action="{{ route('manajer.archive') }}" id="archive-search-form" autocomplete="off">
+                        <div class="archive-card-header">
+                        <div class="archive-card-heading">
+                            <span class="section-card__title">Riwayat Laporan</span>
+                            <span id="archive-count" class="archive-count" data-total="{{ $archiveTotal }}" data-label="{{ $archiveSearch !== '' || $hasActiveFilter ? 'hasil' : 'laporan' }}">
+                                <i class="fi fi-rr-folder-open"></i>
+                                <span>{{ $archiveTotal }} {{ $archiveSearch !== '' || $hasActiveFilter ? 'hasil' : 'laporan' }}</span>
+                            </span>
+                        </div>
+
+                        <div class="archive-card-toolbar">
                         <div class="search-box archive-search-box">
                             <span><i class="fi fi-rr-search"></i></span>
                             <input
@@ -761,12 +830,6 @@
                             <div id="archive-suggest-dropdown" class="archive-suggest-dropdown" role="listbox" aria-label="Saran pencarian arsip laporan"></div>
                         </div>
 
-                        <div class="archive-toolbar__right">
-                            <span id="archive-count" class="archive-count" data-total="{{ $archiveTotal }}" data-label="{{ $archiveSearch !== '' || $hasActiveFilter ? 'hasil' : 'laporan' }}">
-                                <i class="fi fi-rr-folder-open"></i>
-                                <span>{{ $archiveTotal }} {{ $archiveSearch !== '' || $hasActiveFilter ? 'hasil' : 'laporan' }}</span>
-                            </span>
-
                             <div class="archive-toolbar__actions">
                                 {{-- data-select-pending + skeleton: trigger dropdown
                                      baru dibangun JS, jadi tanpa ini select bawaan
@@ -791,6 +854,7 @@
                                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                                 </div>
                             </div>
+                        </div>
                         </div>
 
                         <input type="hidden" name="tanggal" value="{{ $selectedDate }}">

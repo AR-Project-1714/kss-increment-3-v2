@@ -77,7 +77,7 @@
         }
 
         body.dark-mode .content-header {
-            background-color: #1E293B;
+            background-color: #17212F;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
             border-color: rgba(255, 255, 255, 0.05);
         }
@@ -108,7 +108,7 @@
         }
 
         body.dark-mode .content-header.is-sticky {
-            background-color: rgba(15, 23, 42, 0.65) !important;
+            background-color: rgba(10, 17, 29, 0.72) !important;
             border-color: rgba(255, 255, 255, 0.15);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
         }

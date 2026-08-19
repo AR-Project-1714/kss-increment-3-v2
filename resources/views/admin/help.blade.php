@@ -11,35 +11,11 @@
        report-tab) agar konsisten di seluruh project.
        ========================================================= */
 
-    /* ---- Box putih kartu (samakan dgn layout manajer/index) ---- */
-    .section-card {
-        background-color: var(--white);
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(37,99,235,0.07);
-        transition: background-color 0.3s ease;
-    }
-
-    .section-card__header {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 5px;
-        padding: 15px 20px;
-        background-color: var(--blue-main-3);
-        border-top: 3px solid var(--blue-main);
-        border-top-left-radius: 10px;
-        border-top-right-radius: 10px;
-    }
-
-    .section-card__title { font-size: 16px; font-weight: 600; color: var(--black); }
-    .section-card__subtitle { font-size: 11px; font-weight: 400; color: var(--black-secondary); line-height: 1.5; }
-
-    .section-card__body {
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
+    /* ---- Kartu section memakai resep bersama di
+       components/charts.css — sama persis dengan Pusat Bantuan manajer:
+       tepi hairline penuh, tanpa aksen biru di atas, dan header berlatar
+       transparan yang hanya dipisah garis rambut. Tidak ada override
+       lokal di sini supaya kedua halaman tidak pernah menyimpang lagi. ---- */
 
     /* ---- Header + pencarian (gaya & posisi disamakan dengan
        Pusat Bantuan manajer: kolom kanan, di ujung layar) ---- */

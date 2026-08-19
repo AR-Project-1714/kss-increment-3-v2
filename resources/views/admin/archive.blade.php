@@ -88,20 +88,6 @@
         gap: 8px;
     }
 
-    .performance-export-button {
-        min-height: 38px;
-        color: var(--success);
-        border-color: var(--success);
-        background-color: var(--success-10);
-        text-decoration: none;
-    }
-
-    .performance-export-button:hover {
-        color: var(--success);
-        border-color: var(--success);
-        background-color: var(--success-10);
-    }
-
     .performance-filter__trigger {
         min-height: 38px;
         padding-inline: 14px;
@@ -240,7 +226,11 @@
         font-size: 13px;
     }
 
-    .archive-toolbar {
+    /* Baris header kartu: judul + lencana di kiri, pencarian & kontrol daftar
+       di kanan. Anatominya disamakan dengan Kelola Pengguna. */
+    .archive-card-header {
+        position: relative;
+        z-index: 15;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -248,17 +238,30 @@
         flex-wrap: wrap;
     }
 
+    .archive-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
     .search-box {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 9px 18px;
+        padding: 0 12px;
+        height: 38px;
         border: 1px solid var(--smooth-border);
-        border-radius: 50px;
+        border-radius: 8px;
         background-color: var(--main-bg);
-        flex: 1 1 380px;
-        max-width: 460px;
+        width: 340px;
+        max-width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
+
+    .search-box:focus-within { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
 
     .search-box i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
 
@@ -316,6 +319,26 @@
     .btn-tool--primary:hover { background-color: var(--blue-hover); border-color: var(--blue-hover); color: #fff; }
 
     .btn-tool--active { background-color: var(--blue-main-10); border-color: var(--blue-main); color: var(--blue-main); }
+
+    /* Ekspor bersifat sekunder terhadap Filter, jadi tampil sebagai tombol
+       bergaris hijau — resep yang sama dengan tombol Ekspor di Master Data. */
+    .performance-export-button {
+        flex: 0 0 auto;
+        min-height: 38px;
+        padding-inline: 14px;
+        color: var(--success);
+        border-color: var(--success);
+        background-color: var(--success-10);
+        text-decoration: none;
+        box-shadow: none;
+    }
+
+    .performance-export-button:hover,
+    .performance-export-button:focus-visible {
+        color: var(--success);
+        border-color: var(--success);
+        background-color: var(--success-10);
+    }
 
     .archive-filters {
         display: flex;
@@ -376,14 +399,13 @@
     }
     .btn-reset:hover { background-color: var(--red-main-10); }
 
-    /* Toolbar right cluster + result count badge (match manajer) */
-    .archive-toolbar__right {
-        margin-left: auto;
+    /* Judul kartu + lencana jumlah dibaca sebagai satu kesatuan. */
+    .archive-card-heading {
         display: flex;
         align-items: center;
         gap: 10px;
+        min-width: 0;
         flex-wrap: wrap;
-        justify-content: flex-end;
     }
 
     .archive-count {
@@ -468,16 +490,20 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .archive-toolbar { align-items: stretch; }
+        .archive-card-header { align-items: stretch; }
 
-        .search-box {
-            flex-basis: 100%;
-            max-width: none;
+        .archive-toolbar {
             width: 100%;
+            margin-left: 0;
+            align-items: stretch;
         }
 
-        .archive-toolbar__actions,
-        .archive-toolbar__right {
+        .search-box {
+            width: 100%;
+            flex: 1 1 240px;
+        }
+
+        .archive-toolbar__actions {
             width: 100%;
             justify-content: flex-start;
         }
@@ -742,7 +768,7 @@
     /* =============================================
        LIVE SEARCH + DROPDOWN SARAN (selaras Manajer)
        ============================================= */
-    .archive-search-box { position: relative; padding-right: 44px; }
+    .archive-search-box { position: relative; padding-right: 36px; }
 
     .archive-search-box input[type="search"]::-webkit-search-cancel-button,
     .archive-search-box input[type="search"]::-webkit-search-decoration {
@@ -752,14 +778,14 @@
 
     .archive-search-clear {
         position: absolute;
-        right: 10px;
+        right: 6px;
         top: 50%;
         transform: translateY(-50%);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 26px;
-        height: 26px;
+        width: 22px;
+        height: 22px;
         border: none;
         border-radius: 50%;
         color: var(--blue-main);
@@ -896,6 +922,7 @@
                 data-confirm-message="Ekspor mengambil {{ $archiveTotal }} laporan sesuai pencarian, tanggal, divisi, regu, shift, dan status yang sedang diterapkan pada tabel."
                 data-confirm-summary="Format: Excel (.xlsx), {{ $archiveTotal }} laporan"
                 data-confirm-label="Ekspor Data"
+                data-confirm-download="true"
                 data-confirm-icon="fi fi-rr-cloud-upload-alt">
             <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
             <span>Ekspor Excel</span>
@@ -1018,9 +1045,19 @@
 @include('charts.kpi-row', ['cards' => $stats])
 
 <!-- Riwayat Laporan -->
-@component('admin.layouts.card', ['title' => 'Riwayat Laporan'])
+@component('admin.layouts.card')
     <form method="GET" action="{{ route('admin.archive') }}" id="archive-search-form" autocomplete="off">
-    <!-- Toolbar -->
+    {{-- Judul dirender di sini (bukan lewat parameter komponen) supaya lencana
+         jumlah, pencarian, dan kontrol daftar duduk pada satu baris. --}}
+    <div class="archive-card-header">
+    <div class="archive-card-heading">
+        <span class="section-card__title">Riwayat Laporan</span>
+        <span id="archive-count" class="archive-count" data-total="{{ $archiveTotal }}" data-label="{{ $archiveCountLabel }}">
+            <i class="fi fi-rr-folder-open"></i>
+            <span>{{ $archiveTotal }} {{ $archiveCountLabel }}</span>
+        </span>
+    </div>
+
     <div class="archive-toolbar">
         <div class="search-box archive-search-box">
             <span><i class="fi fi-rr-search"></i></span>
@@ -1049,11 +1086,6 @@
             @endif
             <div id="archive-suggest-dropdown" class="archive-suggest-dropdown" role="listbox" aria-label="Saran pencarian arsip laporan"></div>
         </div>
-        <div class="archive-toolbar__right">
-            <span id="archive-count" class="archive-count" data-total="{{ $archiveTotal }}" data-label="{{ $archiveCountLabel }}">
-                <i class="fi fi-rr-folder-open"></i>
-                <span>{{ $archiveTotal }} {{ $archiveCountLabel }}</span>
-            </span>
             <div class="archive-toolbar__actions">
                 {{-- data-select-pending + skeleton: trigger dropdown baru
                      dibangun JS, jadi tanpa ini select bawaan browser sempat
@@ -1077,7 +1109,7 @@
                     <i class="fi fi-rr-angle-small-down select-arrow"></i>
                 </div>
             </div>
-        </div>
+    </div>
     </div>
 
     <input type="hidden" name="tanggal" value="{{ $selectedDate ?? '' }}">

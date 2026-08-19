@@ -228,7 +228,10 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             document.addEventListener('click', async function (e) {
-                const link = e.target.closest?.('a.btn-act.download');
+                // Tombol unduh PDF per baris DAN tautan Ekspor Excel memakai alur
+                // yang sama: unduh lewat fetch supaya spinner berhenti tepat saat
+                // berkasnya jadi.
+                const link = e.target.closest?.('a.btn-act.download, [data-export-download]');
                 if (!link || link.dataset.loading === 'true') return;
                 e.preventDefault();
 
@@ -246,6 +249,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         credentials: 'same-origin',
                     });
                     if (!response.ok) throw new Error('Gagal mengunduh berkas.');
+
+                    // Ekspor yang ditolak server membalas halaman HTML, bukan
+                    // berkas; tanpa penjagaan ini halaman itu ikut terunduh.
+                    const contentType = response.headers.get('Content-Type') || '';
+                    if (contentType.includes('text/html')) throw new Error('Server tidak mengirim berkas.');
 
                     const blob = await response.blob();
                     const filename = filenameFromDisposition(response.headers.get('Content-Disposition'));

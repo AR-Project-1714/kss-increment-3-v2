@@ -421,6 +421,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                     if (!response.ok) throw new Error('Gagal mengunduh berkas.');
 
+                    // Ekspor yang ditolak server (mis. tidak ada baris pada filter
+                    // aktif) membalas redirect ke halaman HTML, bukan berkas. Tanpa
+                    // penjagaan ini halaman itu ikut terunduh sebagai berkas rusak.
+                    const contentType = response.headers.get('Content-Type') || '';
+                    if (contentType.includes('text/html')) throw new Error('Server tidak mengirim berkas.');
+
                     const blob = await response.blob();
                     const filename = filenameFromDisposition(response.headers.get('Content-Disposition'));
                     const objectUrl = URL.createObjectURL(blob);
@@ -442,15 +448,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (confirmAction) {
                 confirmAction.addEventListener('click', function () {
-                    const redirect = activeConfirmTrigger?.dataset.confirmRedirect;
-                    const submitForm = activeConfirmTrigger?.dataset.confirmSubmit === 'true';
-                    const form = submitForm ? activeConfirmTrigger?.closest('form') : null;
+                    const trigger = activeConfirmTrigger;
+                    const redirect = trigger?.dataset.confirmRedirect;
+                    const submitForm = trigger?.dataset.confirmSubmit === 'true';
+                    const form = submitForm ? trigger?.closest('form') : null;
+                    // Tombol ekspor mengunduh lewat fetch, bukan pindah halaman,
+                    // supaya spinner di tombolnya berhenti tepat saat berkas jadi.
+                    const downloadInPlace = trigger?.dataset.confirmDownload === 'true';
                     closeModal(confirmModal);
                     if (form) {
                         if (typeof form.requestSubmit === 'function') form.requestSubmit();
                         else form.submit();
                     }
-                    if (redirect) window.location.href = redirect;
+                    if (redirect) {
+                        if (downloadInPlace) startAdminDownload(trigger, redirect);
+                        else window.location.href = redirect;
+                    }
                     activeConfirmTrigger = null;
                 });
             }
@@ -462,5 +475,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!button) return;
                 e.preventDefault();
                 startAdminDownload(button, button.dataset.downloadUrl);
+            });
+
+            // Tautan ekspor tanpa dialog konfirmasi: unduh di tempat supaya
+            // ikonnya bisa berganti spinner selama berkas disiapkan.
+            document.addEventListener('click', function (e) {
+                const link = e.target.closest?.('[data-export-download]');
+                if (!link || link.hasAttribute('data-confirm')) return;
+                e.preventDefault();
+                startAdminDownload(link, link.getAttribute('href'));
             });
         });

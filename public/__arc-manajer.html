@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan KSS - Manajer</title>
 
-    <link rel="icon" href="http://localhost:8010/favicon.ico">
+    <link rel="icon" href="http://localhost/favicon.ico">
     <meta name="theme-color" content="#2563EB">
-<link rel="apple-touch-icon" href="http://localhost:8010/assets/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="http://localhost/assets/apple-touch-icon.png">
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
@@ -155,17 +155,17 @@
 </script>
 
     <!-- Google Fonts: Poppins -->
-    <link href="http://localhost:8010/vendor/poppins.css" rel="stylesheet">
+    <link href="http://localhost/vendor/poppins.css" rel="stylesheet">
 
     <!-- Bootstrap 5 CSS -->
-    <link href="http://localhost:8010/vendor/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="http://localhost/vendor/bootstrap/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 
     <!-- Flaticon UICONS -->
-    <link rel="stylesheet" href="http://localhost:8010/vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css">
-    <link rel="stylesheet" href="http://localhost:8010/vendor/uicons/uicons-bold-rounded/css/uicons-bold-rounded.css">
-    <link rel="stylesheet" href="http://localhost:8010/vendor/uicons/uicons-solid-rounded/css/uicons-solid-rounded.css">
+    <link rel="stylesheet" href="http://localhost/vendor/uicons/uicons-regular-rounded/css/uicons-regular-rounded.css">
+    <link rel="stylesheet" href="http://localhost/vendor/uicons/uicons-bold-rounded/css/uicons-bold-rounded.css">
+    <link rel="stylesheet" href="http://localhost/vendor/uicons/uicons-solid-rounded/css/uicons-solid-rounded.css">
 
-    <link rel="preload" as="style" href="http://localhost:8010/build/assets/manajer-DdqVOY_p.css" /><link rel="stylesheet" href="http://localhost:8010/build/assets/manajer-DdqVOY_p.css" />    <style>
+    <link rel="preload" as="style" href="http://localhost/build/assets/manajer-B-QJpvIZ.css" /><link rel="stylesheet" href="http://localhost/build/assets/manajer-B-QJpvIZ.css" />    <style>
     .kss-date-native {
         position: absolute !important;
         width: 1px !important;
@@ -504,8 +504,8 @@
     body.dark-mode .kss-date-nav,
     body.dark-mode .kss-date-action,
     body.dark-mode .kss-date-trigger {
-        background: var(--white, #1e293b);
-        border-color: var(--smooth-border, #334155);
+        background: var(--white, #17212f);
+        border-color: var(--smooth-border, #2C3A4E);
     }
 
     @media (max-width: 520px) {
@@ -1292,10 +1292,55 @@
             flex-wrap: wrap;
         }
 
+        /* Baris header kartu: judul + lencana di kiri, pencarian & kontrol
+           daftar di kanan — anatominya sama dengan arsip admin. */
+        .archive-card-header {
+            position: relative;
+            z-index: 15;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .archive-card-heading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .archive-card-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        /* Kotak pencarian mengikuti Kelola Pengguna: sudut 8px, tinggi 38px. */
+        .search-box {
+            padding: 0 12px;
+            height: 38px;
+            border-radius: 8px;
+            width: 340px;
+            max-width: 100%;
+            flex: 0 1 340px;
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--blue-main);
+            box-shadow: 0 0 0 3px var(--blue-main-10);
+        }
+
         .archive-search-box {
             position: relative;
-            padding-right: 44px;
-            max-width: 600px;
+            padding-right: 36px;
         }
 
         .archive-search-box input[type="search"]::-webkit-search-cancel-button,
@@ -1306,14 +1351,14 @@
 
         .archive-search-clear {
             position: absolute;
-            right: 10px;
+            right: 6px;
             top: 50%;
             transform: translateY(-50%);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 26px;
-            height: 26px;
+            width: 22px;
+            height: 22px;
             border: none;
             border-radius: 50%;
             color: var(--blue-main);
@@ -1447,10 +1492,8 @@
             min-width: 1150px;
         }
 
-        /* Kotak centang menempati kolomnya sendiri di depan No: selama keduanya
-           berbagi satu sel, posisi centang ikut bergeser mengikuti lebar teks di
-           sampingnya, sehingga centang pilih-semua tidak pernah sejajar dengan
-           centang barisnya. */
+        /* Struktur tabel mengikuti arsip admin: setiap kolom memakai track yang
+           sama agar header, checkbox, nomor, dan informasi dokumen sejajar. */
         .archive-body .thead,
         .archive-body .tbody {
             display: grid !important;
@@ -1469,9 +1512,35 @@
 
         .archive-body .thead th,
         .archive-body .tbody td {
+            display: flex;
+            align-items: center;
+            width: auto !important;
+            min-width: 0 !important;
             padding-left: 6px;
             padding-right: 6px;
             flex: 0 0 auto;
+        }
+
+        .archive-body .thead {
+            background-color: var(--blue-main-5);
+            border-radius: 6px;
+        }
+
+        .archive-body .thead th {
+            padding-top: 10px;
+            padding-bottom: 10px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--black-secondary);
+        }
+
+        .archive-body .tbody {
+            border-bottom: 1px solid var(--smooth-border);
+            transition: background-color .15s ease-in-out;
+        }
+
+        .archive-body .tbody:hover {
+            background-color: var(--blue-main-3);
         }
 
         .archive-body .tbody.d-none {
@@ -1500,10 +1569,33 @@
         .archive-body .thead th.nomor,
         .archive-body .tbody td.nomor {
             justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
         }
 
-        .archive-body .tbody td.column-2 > span:first-child {
+        .archive-body .tbody td.column-2 {
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .archive-doc-title {
+            color: var(--black);
+            font-weight: 600;
+            line-height: 1.25;
             white-space: nowrap;
+        }
+
+        .archive-doc-id {
+            line-height: 1.25;
+        }
+
+        /* Judul card mengikuti komponen arsip admin pada semua breakpoint. */
+        .archive-body .section-card__title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--black);
         }
 
         .archive-count {
@@ -1519,13 +1611,24 @@
             white-space: nowrap;
         }
 
-        .archive-toolbar__right {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
+        /* Ekspor bergaris hijau — resep yang sama dengan tombol Ekspor di
+           Master Data admin. */
+        .performance-export-button {
+            flex: 0 0 auto;
+            min-height: 38px;
+            padding-inline: 14px;
+            color: var(--success);
+            border-color: var(--success);
+            background-color: var(--success-10);
+            text-decoration: none;
+            box-shadow: none;
+        }
+
+        .performance-export-button:hover,
+        .performance-export-button:focus-visible {
+            color: var(--success);
+            border-color: var(--success);
+            background-color: var(--success-10);
         }
 
         .archive-filters {
@@ -1711,6 +1814,21 @@
             gap: 6px;
         }
 
+        /* Header dan badge Shift/Status memakai satu garis awal yang sama.
+           Kelas khusus ini juga menahan override alignment dari layout global. */
+        .archive-body .archive-col-shift,
+        .archive-body .archive-col-status {
+            justify-content: flex-start;
+            justify-self: stretch;
+        }
+
+        .archive-body .tbody td.archive-col-shift,
+        .archive-body .tbody td.archive-col-status {
+            flex-direction: row;
+            align-items: center;
+            gap: 0;
+        }
+
         .archive-body .tbody td.aksi {
             gap: 6px;
         }
@@ -1721,11 +1839,15 @@
         }
 
         @media (max-width: 920px) {
-            .archive-toolbar__right {
+            .archive-card-header { align-items: stretch; }
+
+            .archive-card-toolbar {
                 width: 100%;
                 margin-left: 0;
                 justify-content: flex-start;
             }
+
+            .search-box { width: 100%; flex: 1 1 240px; }
 
             .archive-filter-fields {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1866,7 +1988,7 @@
         <span class="kss-loader__spinner" aria-hidden="true"></span>
         <img
             class="kss-loader__logo"
-            src="http://localhost:8010/assets/loading-state.webp"
+            src="http://localhost/assets/loading-state.webp"
             alt=""
             width="96"
             height="96"
@@ -2105,10 +2227,10 @@
     <aside class="sidebar" id="sidebar">
 
         <!-- Logo -->
-        <div>
+        <div class="sidebar__main">
             <div class="sidebar__logo">
-                <img src="http://localhost:8010/assets/Logo.png" alt="" style="width: 32px;">
-                <img src="http://localhost:8010/assets/KSS-text.png" alt="" style="width: 56px;">
+                <img src="http://localhost/assets/Logo.png" alt="" style="width: 32px;">
+                <img src="http://localhost/assets/KSS-text.png" alt="" style="width: 56px;">
             </div>
 
             <!-- Nav -->
@@ -2118,12 +2240,12 @@
                 <div class="sidebar__section" data-sidebar-section="main">
                     <span class="sidebar__section-label">Menu Utama</span>
 
-                    <a href="http://localhost:8010/manajer" class="sidebar__nav-item " data-tooltip="Dashboard">
+                    <a href="http://localhost/manajer" class="sidebar__nav-item " data-tooltip="Dashboard">
                         <span class="nav-icon"><i class="fi fi-sr-apps"></i></span>
                         <span class="nav-label">Dashboard</span>
                     </a>
 
-                    <a href="http://localhost:8010/manajer/archive" class="sidebar__nav-item active" data-tooltip="Arsip Laporan">
+                    <a href="http://localhost/manajer/archive" class="sidebar__nav-item active" data-tooltip="Arsip Laporan">
                         <span class="nav-icon"><i class="fi fi-sr-folder"></i></span>
                         <span class="nav-label">Arsip Laporan</span>
                     </a>
@@ -2133,12 +2255,12 @@
                 <div class="sidebar__section" data-sidebar-section="operational-analytics">
                     <span class="sidebar__section-label">Analitik Operasi</span>
 
-                    <a href="http://localhost:8010/manajer/performa" class="sidebar__nav-item " data-tooltip="Kinerja Divisi Operasi">
+                    <a href="http://localhost/manajer/performa" class="sidebar__nav-item " data-tooltip="Kinerja Divisi Operasi">
                         <span class="nav-icon"><i class="fi fi-sr-chart-histogram"></i></span>
                         <span class="nav-label">Kinerja Operasi</span>
                     </a>
 
-                    <a href="http://localhost:8010/manajer/kegiatan" class="sidebar__nav-item " data-tooltip="Rincian per Jenis Kegiatan">
+                    <a href="http://localhost/manajer/kegiatan" class="sidebar__nav-item " data-tooltip="Rincian per Jenis Kegiatan">
                         <span class="nav-icon"><i class="fi fi-sr-boxes"></i></span>
                         <span class="nav-label">Rincian Kegiatan</span>
                     </a>
@@ -2148,7 +2270,7 @@
                 <div class="sidebar__section" data-sidebar-section="system">
                     <span class="sidebar__section-label">Sistem</span>
 
-                    <a href="http://localhost:8010/manajer/bantuan" class="sidebar__nav-item " data-tooltip="Pusat Bantuan">
+                    <a href="http://localhost/manajer/bantuan" class="sidebar__nav-item " data-tooltip="Pusat Bantuan">
                         <span class="nav-icon"><i class="fi fi-sr-interrogation"></i></span>
                         <span class="nav-label">Pusat Bantuan</span>
                     </a>
@@ -2159,8 +2281,8 @@
 
         <!-- Logout -->
         <div class="sidebar__footer">
-            <form action="http://localhost:8010/logout" method="POST">
-                <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                <button type="submit" class="sidebar__logout border-0 w-100" data-tooltip="Logout">
+            <form action="http://localhost/logout" method="POST">
+                <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                <button type="submit" class="sidebar__logout border-0 w-100" data-tooltip="Logout">
                     <span class="nav-icon"><i class="fi fi-br-sign-out-alt"></i></span>
                     <span class="nav-label">Logout</span>
                 </button>
@@ -2182,7 +2304,7 @@
                     <i class="fi fi-sr-angle-double-small-left" id="sidebarToggleIcon"></i>
                 </button>
                 <div class="greeting">
-                    <div class="navbar-top__user-name">Selamat Malam, Manajer 987597</div>
+                    <div class="navbar-top__user-name">Selamat Siang, Manajer 270991</div>
                     <div class="navbar-top__user-role">Manajer</div>
                 </div>
             </div>
@@ -2190,10 +2312,10 @@
                 <div
     class="kss-notification-center"
     data-notification-root
-    data-index-url="http://localhost:8010/notifications"
-    data-read-url-template="http://localhost:8010/notifications/__ID__/read"
-    data-read-all-url="http://localhost:8010/notifications/read-all"
-    data-csrf-token="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE"
+    data-index-url="http://localhost/notifications"
+    data-read-url-template="http://localhost/notifications/__ID__/read"
+    data-read-all-url="http://localhost/notifications/read-all"
+    data-csrf-token="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp"
 >
     <button
         type="button"
@@ -2239,7 +2361,7 @@
     <span class="kss-notification-center__live" data-notification-live aria-live="polite"></span>
 </div>
 
-    <script src="http://localhost:8010/js/components/notification-center.js?v=1786777913"></script>
+    <script src="http://localhost/js/components/notification-center.js?v=1786777913"></script>
                 <div class="kss-account-toolbar">
                     <div class="kss-account" data-account-root>
     <button
@@ -2248,7 +2370,7 @@
         data-account-trigger
         aria-haspopup="dialog"
         aria-expanded="false"
-        aria-label="Buka pengaturan akun Manajer 987597"
+        aria-label="Buka pengaturan akun Manajer 270991"
     >
         <span class="kss-account__trigger-avatar" aria-hidden="true">
             <img
@@ -2257,7 +2379,7 @@
                 data-account-avatar-image
                  hidden                 onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
             >
-            <span data-account-avatar-fallback >M9</span>
+            <span data-account-avatar-fallback >M2</span>
         </span>
         <span class="kss-account__presence" aria-hidden="true"></span>
     </button>
@@ -2276,7 +2398,7 @@
                 class="kss-account__profile-card"
                 data-account-photo-open
                 data-account-initial-focus
-                aria-label="Buka profil dan atur foto Manajer 987597"
+                aria-label="Buka profil dan atur foto Manajer 270991"
             >
                 <span class="kss-account__avatar kss-account__avatar--profile" aria-hidden="true">
                     <img
@@ -2285,11 +2407,11 @@
                         data-account-avatar-image
                          hidden                         onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
                     >
-                    <span data-account-avatar-fallback >M9</span>
+                    <span data-account-avatar-fallback >M2</span>
                 </span>
                 <span class="kss-account__summary-copy">
-                    <strong>Manajer 987597</strong>
-                    <small>@manajer-29602</small>
+                    <strong>Manajer 270991</strong>
+                    <small>@manajer-664190</small>
                     <span>Manajer</span>
                 </span>
                 <span class="kss-account__profile-action" aria-hidden="true">
@@ -2372,8 +2494,9 @@
             </div>
 
             <div class="performance-filter performance-filter--with-export" data-archive-filter>
-                <a href="http://localhost:8010/manajer/archive/export"
+                <a href="http://localhost/manajer/archive/export"
                    class="btn-tool performance-export-button"
+                   data-export-download
                    title="Ekspor Excel sesuai filter aktif (10 laporan)">
                     <i class="fi fi-rr-cloud-upload-alt" aria-hidden="true"></i>
                     <span>Ekspor Excel</span>
@@ -2405,7 +2528,7 @@
                         </button>
                     </div>
 
-                    <form method="GET" action="http://localhost:8010/manajer/archive" id="archive-filter-form" autocomplete="off">
+                    <form method="GET" action="http://localhost/manajer/archive" id="archive-filter-form" autocomplete="off">
                         <input type="hidden" name="q" value="">
                         <input type="hidden" name="sort" value="newest">
                         <input type="hidden" name="per_page" value="10">
@@ -2563,10 +2686,18 @@
 
         <div class="section-card">
             <div class="archive-body">
-                <span class="section-card__title">Riwayat Laporan</span>
-
                 <div class="archive-toolbar">
-                    <form method="GET" action="http://localhost:8010/manajer/archive" id="archive-search-form" autocomplete="off">
+                    <form method="GET" action="http://localhost/manajer/archive" id="archive-search-form" autocomplete="off">
+                        <div class="archive-card-header">
+                        <div class="archive-card-heading">
+                            <span class="section-card__title">Riwayat Laporan</span>
+                            <span id="archive-count" class="archive-count" data-total="10" data-label="laporan">
+                                <i class="fi fi-rr-folder-open"></i>
+                                <span>10 laporan</span>
+                            </span>
+                        </div>
+
+                        <div class="archive-card-toolbar">
                         <div class="search-box archive-search-box">
                             <span><i class="fi fi-rr-search"></i></span>
                             <input
@@ -2577,7 +2708,7 @@
                                 value=""
                                 data-initial-value=""
                                 data-page-start="1"
-                                data-suggest-url="http://localhost:8010/manajer/archive/suggestions"
+                                data-suggest-url="http://localhost/manajer/archive/suggestions"
                                 autocomplete="off"
                                 role="combobox"
                                 aria-expanded="false"
@@ -2588,12 +2719,6 @@
                                 </button>
                                                         <div id="archive-suggest-dropdown" class="archive-suggest-dropdown" role="listbox" aria-label="Saran pencarian arsip laporan"></div>
                         </div>
-
-                        <div class="archive-toolbar__right">
-                            <span id="archive-count" class="archive-count" data-total="10" data-label="laporan">
-                                <i class="fi fi-rr-folder-open"></i>
-                                <span>10 laporan</span>
-                            </span>
 
                             <div class="archive-toolbar__actions">
                                 
@@ -2616,6 +2741,7 @@
                                 </div>
                             </div>
                         </div>
+                        </div>
 
                         <input type="hidden" name="tanggal" value="">
                         <input type="hidden" name="divisi" value="all">
@@ -2626,7 +2752,7 @@
                 </div>
 
                 <form method="POST"
-      action="http://localhost:8010/manajer/archive/bulk-download"
+      action="http://localhost/manajer/archive/bulk-download"
       id="archive-bulk-form"
       class="is-empty"
       data-bulk-form
@@ -2634,8 +2760,8 @@
       data-filter-total="10"
       data-instant-limit="50"
       data-bundle-limit="1000"
-      data-bundle-url="http://localhost:8010/manajer/archive/bundles">
-    <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">    <input type="hidden" name="all" value="0" data-bulk-all>
+      data-bundle-url="http://localhost/manajer/archive/bundles">
+    <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">    <input type="hidden" name="all" value="0" data-bulk-all>
     
     <input type="hidden" name="q" value="">
     <input type="hidden" name="tanggal" value="">
@@ -2711,15 +2837,15 @@
                             <th class="column-1">Tanggal Laporan</th>
                             <th>Divisi</th>
                             <th>Regu</th>
-                            <th>Shift</th>
-                            <th>Status</th>
+                            <th class="archive-col-shift">Shift</th>
+                            <th class="archive-col-status">Status</th>
                             <th class="aksi">Aksi</th>
                         </tr>
 
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-010 2026-08-10 10 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 10 user id 3 created by 3 report date 2026-08-09t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-010 2026-08-10 10 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 10 user id 3 created by 3 report date 2026-08-09t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -2730,8 +2856,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>1</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-010</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-010</span>
                                 </td>
                                 <td class="column-1">
                                     <span>10 Agustus 2026</span>
@@ -2748,23 +2874,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift sore">
                                         <span class="icon-shift"><i class="fi fi-rr-sun"></i></span>
                                         <span class="text">Shift Sore</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/10/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/10/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/10" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/10" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-10" title="Hapus">
@@ -2775,7 +2901,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-009 2026-08-09 09 agustus 2026 shift pagi diarsipkan regu a regu b operasional 370925 manajer 987597 id 9 user id 3 created by 3 report date 2026-08-08t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-009 2026-08-09 09 agustus 2026 shift pagi diarsipkan regu a regu b operasional 970661 manajer 270991 id 9 user id 3 created by 3 report date 2026-08-08t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -2786,8 +2912,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>2</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-009</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-009</span>
                                 </td>
                                 <td class="column-1">
                                     <span>09 Agustus 2026</span>
@@ -2804,23 +2930,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift pagi">
                                         <span class="icon-shift"><i class="fi fi-rr-sunrise"></i></span>
                                         <span class="text">Shift Pagi</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/9/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/9/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/9" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/9" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-9" title="Hapus">
@@ -2831,7 +2957,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-008 2026-08-08 08 agustus 2026 shift malam diarsipkan regu a regu b operasional 370925 manajer 987597 id 8 user id 3 created by 3 report date 2026-08-07t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-008 2026-08-08 08 agustus 2026 shift malam diarsipkan regu a regu b operasional 970661 manajer 270991 id 8 user id 3 created by 3 report date 2026-08-07t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -2842,8 +2968,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>3</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-008</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-008</span>
                                 </td>
                                 <td class="column-1">
                                     <span>08 Agustus 2026</span>
@@ -2860,23 +2986,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift malam">
                                         <span class="icon-shift"><i class="fi fi-rr-moon-stars"></i></span>
                                         <span class="text">Shift Malam</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/8/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/8/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/8" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/8" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-8" title="Hapus">
@@ -2887,7 +3013,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-007 2026-08-07 07 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 7 user id 3 created by 3 report date 2026-08-06t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-007 2026-08-07 07 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 7 user id 3 created by 3 report date 2026-08-06t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -2898,8 +3024,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>4</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-007</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-007</span>
                                 </td>
                                 <td class="column-1">
                                     <span>07 Agustus 2026</span>
@@ -2916,23 +3042,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift sore">
                                         <span class="icon-shift"><i class="fi fi-rr-sun"></i></span>
                                         <span class="text">Shift Sore</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/7/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/7/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/7" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/7" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-7" title="Hapus">
@@ -2943,7 +3069,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-006 2026-08-06 06 agustus 2026 shift pagi diarsipkan regu a regu b operasional 370925 manajer 987597 id 6 user id 3 created by 3 report date 2026-08-05t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-006 2026-08-06 06 agustus 2026 shift pagi diarsipkan regu a regu b operasional 970661 manajer 270991 id 6 user id 3 created by 3 report date 2026-08-05t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -2954,8 +3080,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>5</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-006</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-006</span>
                                 </td>
                                 <td class="column-1">
                                     <span>06 Agustus 2026</span>
@@ -2972,23 +3098,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift pagi">
                                         <span class="icon-shift"><i class="fi fi-rr-sunrise"></i></span>
                                         <span class="text">Shift Pagi</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/6/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/6/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/6" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/6" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-6" title="Hapus">
@@ -2999,7 +3125,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-005 2026-08-05 05 agustus 2026 shift malam diarsipkan regu a regu b operasional 370925 manajer 987597 id 5 user id 3 created by 3 report date 2026-08-04t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-005 2026-08-05 05 agustus 2026 shift malam diarsipkan regu a regu b operasional 970661 manajer 270991 id 5 user id 3 created by 3 report date 2026-08-04t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -3010,8 +3136,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>6</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-005</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-005</span>
                                 </td>
                                 <td class="column-1">
                                     <span>05 Agustus 2026</span>
@@ -3028,23 +3154,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift malam">
                                         <span class="icon-shift"><i class="fi fi-rr-moon-stars"></i></span>
                                         <span class="text">Shift Malam</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/5/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/5/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/5" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/5" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-5" title="Hapus">
@@ -3055,7 +3181,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-004 2026-08-04 04 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 4 user id 3 created by 3 report date 2026-08-03t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-004 2026-08-04 04 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 4 user id 3 created by 3 report date 2026-08-03t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -3066,8 +3192,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>7</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-004</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-004</span>
                                 </td>
                                 <td class="column-1">
                                     <span>04 Agustus 2026</span>
@@ -3084,23 +3210,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift sore">
                                         <span class="icon-shift"><i class="fi fi-rr-sun"></i></span>
                                         <span class="text">Shift Sore</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/4/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/4/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/4" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/4" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-4" title="Hapus">
@@ -3111,7 +3237,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-003 2026-08-03 03 agustus 2026 shift pagi diarsipkan regu a regu b operasional 370925 manajer 987597 id 3 user id 3 created by 3 report date 2026-08-02t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-003 2026-08-03 03 agustus 2026 shift pagi diarsipkan regu a regu b operasional 970661 manajer 270991 id 3 user id 3 created by 3 report date 2026-08-02t16:00:00.000000z shift pagi group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -3122,8 +3248,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>8</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-003</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-003</span>
                                 </td>
                                 <td class="column-1">
                                     <span>03 Agustus 2026</span>
@@ -3140,23 +3266,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift pagi">
                                         <span class="icon-shift"><i class="fi fi-rr-sunrise"></i></span>
                                         <span class="text">Shift Pagi</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/3/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/3/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/3" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/3" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-3" title="Hapus">
@@ -3167,7 +3293,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-002 2026-08-02 02 agustus 2026 shift malam diarsipkan regu a regu b operasional 370925 manajer 987597 id 2 user id 3 created by 3 report date 2026-08-01t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-002 2026-08-02 02 agustus 2026 shift malam diarsipkan regu a regu b operasional 970661 manajer 270991 id 2 user id 3 created by 3 report date 2026-08-01t16:00:00.000000z shift malam group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -3178,8 +3304,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>9</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-002</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-002</span>
                                 </td>
                                 <td class="column-1">
                                     <span>02 Agustus 2026</span>
@@ -3196,23 +3322,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift malam">
                                         <span class="icon-shift"><i class="fi fi-rr-moon-stars"></i></span>
                                         <span class="text">Shift Malam</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/2/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/2/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/2" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/2" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-2" title="Hapus">
@@ -3223,7 +3349,7 @@
                                                                                 <tr
                                 class="tbody d-flex justify-content-between align-items-center"
                                 data-history-row
-                                data-history-search="operasional laporan operasi harian #ops-2026-001 2026-08-01 01 agustus 2026 shift sore diarsipkan regu a regu b operasional 370925 manajer 987597 id 1 user id 3 created by 3 report date 2026-07-31t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-18t15:38:43.000000z updated at 2026-08-18t15:38:43.000000z creator id 3 name operasional 370925 username karu.a-522253 group a approver id 2 name manajer 987597"
+                                data-history-search="operasional laporan operasi harian #ops-2026-001 2026-08-01 01 agustus 2026 shift sore diarsipkan regu a regu b operasional 970661 manajer 270991 id 1 user id 3 created by 3 report date 2026-07-31t16:00:00.000000z shift sore group name a received by group b received by user id received at time range 07:00 - 15:00 status approved approved by 2 approved at 2026-05-21t08:00:00.000000z payload created at 2026-08-19t05:56:26.000000z updated at 2026-08-19t05:56:26.000000z creator id 3 name operasional 970661 username karu.a-207320 group a approver id 2 name manajer 270991"
                             >
                                 <td class="pilih">
                                     <input type="checkbox"
@@ -3234,8 +3360,8 @@
                                 </td>
                                 <td class="nomor"><span data-row-number>10</span></td>
                                 <td class="column-2">
-                                    <span>Laporan Operasi Harian</span>
-                                    <span class="fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-001</span>
+                                    <span class="archive-doc-title">Laporan Operasi Harian</span>
+                                    <span class="archive-doc-id fsize-10 fw-400 text-muted-custom">ID: #OPS-2026-001</span>
                                 </td>
                                 <td class="column-1">
                                     <span>01 Agustus 2026</span>
@@ -3252,23 +3378,23 @@
                                         <span class="text fsize-10 fw-600">Regu A</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-shift">
                                     <div class="shift sore">
                                         <span class="icon-shift"><i class="fi fi-rr-sun"></i></span>
                                         <span class="text">Shift Sore</span>
                                     </div>
                                 </td>
-                                <td class="column-3">
+                                <td class="column-3 archive-col-status">
                                     <div class="status archive">
                                         <span class="status-dot"></span>
                                         <span class="text">Diarsipkan</span>
                                     </div>
                                 </td>
                                 <td class="aksi">
-                                    <a href="http://localhost:8010/manajer/reports/1/download" class="btn-act download">
+                                    <a href="http://localhost/manajer/reports/1/download" class="btn-act download">
                                         <i class="fi fi-rr-download"></i> Download
                                     </a>
-                                    <a href="http://localhost:8010/manajer/reports/1" class="btn-act view" title="Lihat">
+                                    <a href="http://localhost/manajer/reports/1" class="btn-act view" title="Lihat">
                                         <i class="fi fi-rr-eye"></i>
                                     </a>
                                     <button type="button" class="btn-act delete js-open-modal" data-modal="delete-report-modal-ops-1" title="Hapus">
@@ -4045,8 +4171,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-10">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/10" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/10" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4077,8 +4203,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-9">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/9" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/9" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4109,8 +4235,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-8">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/8" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/8" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4141,8 +4267,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-7">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/7" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/7" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4173,8 +4299,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-6">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/6" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/6" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4205,8 +4331,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-5">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/5" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/5" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4237,8 +4363,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-4">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/4" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/4" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4269,8 +4395,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-3">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/3" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/3" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4301,8 +4427,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-2">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/2" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/2" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4333,8 +4459,8 @@
 
                 <div class="modal-box__footer">
                     <button type="button" class="btn-modal btn-modal--cancel js-close-modal" data-modal="delete-report-modal-ops-1">Batal</button>
-                    <form action="http://localhost:8010/manajer/reports/1" method="POST">
-                        <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
+                    <form action="http://localhost/manajer/reports/1" method="POST">
+                        <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">                        <input type="hidden" name="_method" value="DELETE">                        <button type="submit" class="btn-modal" style="background-color: var(--red-main); color: #fff;">
                             <i class="fi fi-rr-trash"></i> Hapus
                         </button>
                     </form>
@@ -4365,14 +4491,14 @@
         </div>
 
         <form
-            action="http://localhost:8010/account/profile-photo"
+            action="http://localhost/account/profile-photo"
             method="POST"
             enctype="multipart/form-data"
             data-account-photo-form
-            data-account-photo-delete-url="http://localhost:8010/account/profile-photo"
+            data-account-photo-delete-url="http://localhost/account/profile-photo"
             novalidate
         >
-            <input type="hidden" name="_token" value="pIUVT6Joa1srCTLpdsDfhr8iDsQqenzKpr71LLcE" autocomplete="off">            <input type="hidden" name="_method" value="PATCH">
+            <input type="hidden" name="_token" value="a7P9yIaLTk3l41hNmS9QdJgN8KgjQ9XLKX3sJuCp" autocomplete="off">            <input type="hidden" name="_method" value="PATCH">
             <div class="kss-account-modal__body kss-account-photo__body">
                 <div class="kss-account-modal__alert" data-account-photo-alert role="alert" aria-live="assertive" hidden></div>
 
@@ -4384,7 +4510,7 @@
                             data-account-photo-preview
                              hidden                         >
                         <span data-account-photo-preview-fallback >
-                            M9
+                            M2
                         </span>
                     </span>
                     <span class="kss-account-photo__preview-copy">
@@ -4510,11 +4636,11 @@
             <dl class="kss-account-help__identity" aria-label="Identitas akun untuk disampaikan kepada admin">
                 <div>
                     <dt>Nama</dt>
-                    <dd>Manajer 987597</dd>
+                    <dd>Manajer 270991</dd>
                 </div>
                 <div>
                     <dt>Username</dt>
-                    <dd>@manajer-29602</dd>
+                    <dd>@manajer-664190</dd>
                 </div>
                 <div>
                     <dt>Role</dt>
@@ -4546,12 +4672,12 @@
     </div>
 </div>
 
-<script src="http://localhost:8010/js/components/account-settings.js?v=1786784787"></script>
+<script src="http://localhost/js/components/account-settings.js?v=1786784787"></script>
 
     <!-- Bootstrap JS -->
-    <script src="http://localhost:8010/vendor/bootstrap/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="http://localhost/vendor/bootstrap/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
-    <script src="http://localhost:8010/js/layouts/manajer.js?v=1786491211"></script>
+    <script src="http://localhost/js/layouts/manajer.js?v=1787118825"></script>
         <script>
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('archive-search-form');
