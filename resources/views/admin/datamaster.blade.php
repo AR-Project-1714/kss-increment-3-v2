@@ -529,7 +529,10 @@
     /* Jumlah min-width seluruh kolom unit: 50+64+150+85+150+110+120+130+110+80+180.
        Tanpa ini baris meluber keluar kotak <tr> begitu kolom Merk dilebarkan. */
     .table-responsive-wrapper table.unit-table { min-width: 1229px; }
-    .table-responsive-wrapper .employee-table { min-width: 1260px; }
+    /* Kolom identitas dibuat rapat supaya NPK dan Nama terbaca sebagai satu
+       kelompok. Detail operasional di kanan memakai fr yang berbeda agar ruang
+       lebar tidak lagi terbagi rata ke semua kolom. */
+    .table-responsive-wrapper .employee-table { min-width: 1330px; }
 
     .thead { background-color: var(--blue-main-5); border-radius: 6px; }
 
@@ -585,10 +588,52 @@
     .thead th.col-qtyflag,  .tbody td.col-qtyflag  { min-width: 120px; }
     .thead th.col-aksi,     .tbody td.col-aksi     { min-width: 180px; gap: 8px; flex-wrap: nowrap; }
 
-    /* Lencana logo merek unit. Latar putih tetap dipakai di mode gelap karena
-       berkas logo dibuat untuk latar terang — tanpa itu logo berwarna gelap
-       (Komatsu, Yale) hilang di atas permukaan gelap. Rasio asli dijaga lewat
-       object-fit: contain, jadi logo lebar maupun kotak sama-sama utuh. */
+    /* Master karyawan: NPK dan nama adalah identitas utama, sedangkan regu,
+       jabatan, divisi, jam kerja, dan penugasan memakai ruang sesuai tingkat
+       detailnya. `!important` menimpa utilitas Bootstrap `.d-flex` pada baris. */
+    .employee-table .thead,
+    .employee-table .tbody {
+        display: grid !important;
+        grid-template-columns:
+            50px
+            140px
+            225px
+            minmax(115px, 0.7fr)
+            minmax(175px, 1.2fr)
+            minmax(160px, 1.15fr)
+            minmax(110px, 0.75fr)
+            minmax(175px, 1.3fr)
+            180px;
+        justify-content: initial;
+        align-items: center;
+    }
+
+    .employee-table .thead th,
+    .employee-table .tbody td {
+        min-width: 0;
+    }
+
+    .employee-table .thead .col-npk,
+    .employee-table .tbody .col-npk,
+    .employee-table .thead .col-name,
+    .employee-table .tbody .col-name,
+    .employee-table .thead .col-group,
+    .employee-table .tbody .col-group,
+    .employee-table .thead .col-position,
+    .employee-table .tbody .col-position,
+    .employee-table .thead .col-division,
+    .employee-table .tbody .col-division,
+    .employee-table .thead .col-worktime,
+    .employee-table .tbody .col-worktime,
+    .employee-table .thead .col-shiftgroup,
+    .employee-table .tbody .col-shiftgroup {
+        width: auto;
+        flex: initial;
+    }
+
+    /* Logo merek unit tampil tanpa bingkai dan tanpa latar pada tema terang.
+       Tema gelap memakai alas putih hanya untuk logo asli agar merek berwarna
+       gelap (Komatsu, Yale) tetap terbaca. */
     .brand-logo {
         display: inline-flex;
         align-items: center;
@@ -597,11 +642,12 @@
         height: 34px;
         padding: 3px;
         overflow: hidden;
-        border: 1px solid var(--smooth-border);
+        border: 0;
         border-radius: 8px;
-        background-color: #fff;
+        background-color: transparent;
     }
 
+    body.dark-mode .brand-logo:not(.brand-logo--fallback) { background-color: var(--white-pure); }
     .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
     .brand-logo [hidden] { display: none; }
 

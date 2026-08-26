@@ -28,16 +28,44 @@
         gap: 16px;
     }
 
-    .backup-toolbar {
+    /* Aksi utama berada di header halaman supaya tetap terlihat sebelum
+       pengguna masuk ke daftar backup. */
+    .backup-page-header {
+        position: relative;
+        z-index: 20;
+        flex-direction: row;
+        align-items: flex-start;
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        gap: 12px;
+        gap: 16px;
         flex-wrap: wrap;
-        margin-bottom: 16px;
     }
 
-    .backup-toolbar__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .backup-page-header__heading {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .backup-page-header__actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+        flex-wrap: wrap;
+    }
+
+    .backup-page-header__actions form { margin: 0; }
+
+    .backup-page-header__action {
+        min-height: 38px;
+        padding-inline: 14px;
+    }
+
+    .backup-page-header__action.btn-tool--primary {
+        box-shadow: 0 5px 14px rgba(37, 99, 235, .18);
+    }
 
     .btn-tool {
         display: inline-flex;
@@ -266,9 +294,10 @@
 
     @media (max-width: 560px) {
         .backup-health { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .backup-toolbar { flex-direction: column; align-items: stretch; }
-        .backup-toolbar__actions { width: 100%; }
-        .backup-toolbar__actions .btn-tool { flex: 1 1 auto; justify-content: center; }
+        .backup-page-header { flex-direction: column; }
+        .backup-page-header__actions { width: 100%; }
+        .backup-page-header__actions > * { flex: 1 1 0; }
+        .backup-page-header__actions .btn-tool { width: 100%; justify-content: center; }
     }
 </style>
 @endpush
@@ -310,50 +339,53 @@
     ];
 @endphp
 
-<div class="page-header">
-    <span class="page-title">Manajemen Backup</span>
-    <span class="page-subtitle">Pantau cadangan sistem, retensi file, dan status pencadangan aplikasi.</span>
+<div class="page-header backup-page-header">
+    <div class="backup-page-header__heading">
+        <span class="page-title">Manajemen Backup</span>
+        <span class="page-subtitle">Pantau cadangan sistem, retensi file, dan status pencadangan aplikasi.</span>
+    </div>
+
+    <div class="backup-page-header__actions">
+        <button type="button" class="btn-tool backup-page-header__action" data-modal-target="backupScheduleModal">
+            <i class="fi fi-rr-calendar-clock" aria-hidden="true"></i>
+            <span>Atur Jadwal</span>
+        </button>
+        <form method="POST" action="{{ route('admin.backup.generate') }}">
+            @csrf
+            <button type="submit"
+                    class="btn-tool btn-tool--primary backup-page-header__action"
+                    data-confirm
+                    data-confirm-submit="true"
+                    data-confirm-tone="warning"
+                    data-confirm-title="Generate backup manual?"
+                    data-confirm-subtitle="Cadangan sistem akan dibuat dari kondisi data saat ini."
+                    data-confirm-message="Proses backup manual disiapkan untuk database, laporan, dan master data."
+                    data-confirm-summary="Output: file backup .json"
+                    data-confirm-label="Generate Backup"
+                    data-confirm-icon="fi fi-rr-rotate-right">
+                <i class="fi fi-rr-rotate-right" aria-hidden="true"></i>
+                <span>Generate Backup</span>
+            </button>
+        </form>
+    </div>
 </div>
 
 @include('charts.kpi-row', ['cards' => $stats])
 
 <div class="backup-layout">
     @component('admin.layouts.card', ['title' => 'Daftar Backup'])
-        <div class="backup-toolbar">
-            <div class="backup-health">
-                <div class="health-item">
-                    <div class="health-item__label">Status Scheduler</div>
-                    <div class="health-item__value success">Aktif</div>
-                </div>
-                <div class="health-item">
-                    <div class="health-item__label">Backup Berikutnya</div>
-                    <div class="health-item__value">22 Mei, 02:00</div>
-                </div>
-                <div class="health-item">
-                    <div class="health-item__label">Pemeriksaan Integritas</div>
-                    <div class="health-item__value warning">Mingguan</div>
-                </div>
+        <div class="backup-health">
+            <div class="health-item">
+                <div class="health-item__label">Status Scheduler</div>
+                <div class="health-item__value success">Aktif</div>
             </div>
-            <div class="backup-toolbar__actions">
-                <button type="button" class="btn-tool" data-modal-target="backupScheduleModal">
-                    <i class="fi fi-rr-calendar-clock"></i> Atur Jadwal
-                </button>
-                <form method="POST" action="{{ route('admin.backup.generate') }}">
-                    @csrf
-                    <button type="submit"
-                            class="btn-tool btn-tool--primary"
-                            data-confirm
-                            data-confirm-submit="true"
-                            data-confirm-tone="warning"
-                            data-confirm-title="Generate backup manual?"
-                            data-confirm-subtitle="Cadangan sistem akan dibuat dari kondisi data saat ini."
-                            data-confirm-message="Proses backup manual disiapkan untuk database, laporan, dan master data."
-                            data-confirm-summary="Output: file backup .json"
-                            data-confirm-label="Generate Backup"
-                            data-confirm-icon="fi fi-rr-rotate-right">
-                        <i class="fi fi-rr-rotate-right"></i> Generate Backup
-                    </button>
-                </form>
+            <div class="health-item">
+                <div class="health-item__label">Backup Berikutnya</div>
+                <div class="health-item__value">22 Mei, 02:00</div>
+            </div>
+            <div class="health-item">
+                <div class="health-item__label">Pemeriksaan Integritas</div>
+                <div class="health-item__value warning">Mingguan</div>
             </div>
         </div>
 

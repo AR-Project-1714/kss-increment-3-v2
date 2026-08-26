@@ -199,7 +199,9 @@
         font-size: 13px;
     }
 
-    .archive-toolbar {
+    /* Header kartu mengikuti pola Arsip Laporan dan Data Master: judul di kiri,
+       kontrol pencarian serta urutan data berada pada satu garis di kanan. */
+    .log-card-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -207,17 +209,32 @@
         flex-wrap: wrap;
     }
 
+    .log-card-heading { min-width: 0; }
+
+    .archive-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
     .search-box {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 9px 18px;
+        padding: 0 12px;
+        height: 38px;
         border: 1px solid var(--smooth-border);
-        border-radius: 50px;
+        border-radius: 8px;
         background-color: var(--main-bg);
-        flex: 1 1 380px;
-        max-width: 460px;
+        width: 340px;
+        max-width: 100%;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
+
+    .search-box:focus-within { border-color: var(--blue-main); box-shadow: 0 0 0 3px var(--blue-main-10); }
 
     .search-box i { color: var(--muted); font-size: 13px; position: relative; top: 1px; }
 
@@ -350,6 +367,7 @@
 
     @media (max-width: 920px) {
         .performance-page-header { align-items: stretch; }
+        .log-card-header { align-items: stretch; }
         .archive-toolbar { align-items: stretch; }
 
         .search-box {
@@ -628,21 +646,27 @@
 @include('charts.kpi-row', ['cards' => $stats])
 
 <!-- Riwayat Aktivitas Sistem -->
-@component('admin.layouts.card', ['title' => 'Riwayat Aktivitas Sistem'])
+@component('admin.layouts.card')
     <form method="GET" action="{{ route('admin.log') }}" id="log-search-form" autocomplete="off">
-    <!-- Toolbar -->
-    <div class="archive-toolbar">
-        <div class="search-box">
-            <span><i class="fi fi-rr-search"></i></span>
-            <input type="search" name="q" value="{{ $activitySearch ?? '' }}" placeholder="Pencarian aktivitas">
+    <div class="log-card-header">
+        <div class="log-card-heading">
+            <span class="section-card__title">Riwayat Aktivitas Sistem</span>
         </div>
-        <div class="archive-toolbar__actions">
-            <div class="filter-select-wrapper toolbar-sort-wrapper">
-                <select class="native-select" name="sort" data-autosubmit-filter>
-                    <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
-                    <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
-                </select>
-                <i class="fi fi-rr-angle-small-down select-arrow"></i>
+
+        <!-- Toolbar -->
+        <div class="archive-toolbar">
+            <div class="search-box">
+                <span><i class="fi fi-rr-search" aria-hidden="true"></i></span>
+                <input type="search" name="q" value="{{ $activitySearch ?? '' }}" placeholder="Pencarian aktivitas" aria-label="Cari aktivitas">
+            </div>
+            <div class="archive-toolbar__actions">
+                <div class="filter-select-wrapper toolbar-sort-wrapper">
+                    <select class="native-select" name="sort" data-autosubmit-filter aria-label="Urutkan aktivitas">
+                        <option value="newest" @selected(($sort ?? 'newest') === 'newest')>Terbaru</option>
+                        <option value="oldest" @selected(($sort ?? 'newest') === 'oldest')>Terlama</option>
+                    </select>
+                    <i class="fi fi-rr-angle-small-down select-arrow" aria-hidden="true"></i>
+                </div>
             </div>
         </div>
     </div>
