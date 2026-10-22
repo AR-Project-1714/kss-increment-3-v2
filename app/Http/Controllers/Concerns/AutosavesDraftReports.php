@@ -58,7 +58,26 @@ trait AutosavesDraftReports
 
         $blankDrafts->each(fn (Model $surplus) => $surplus->delete());
 
-        return $reserved ?? $modelClass::create($attributes);
+        return $reserved ? $this->freshenBlankDraft($reserved) : $modelClass::create($attributes);
+    }
+
+    /**
+     * Draft kosong belum berisi apa pun, jadi laporannya baru dimulai saat
+     * formnya dibuka — bukan saat form itu pernah dibuka lalu ditinggal.
+     *
+     * created_at dibaca sebagai "kapan petugas mulai mengisi": penentuan
+     * tanggal dinas shift Malam, dan serah terima kapal (laporan yang formnya
+     * dibuka sebelum serah terimanya terkirim tidak dianggap melepas kapal).
+     * Draft kosong sisa kemarin yang dipakai ulang tanpa penyegaran ini
+     * membuat kapal yang dihapus petugas muncul sekali lagi di shift berikutnya.
+     */
+    protected function freshenBlankDraft(Model $report): Model
+    {
+        if ($report->isBlankDraft()) {
+            $report->forceFill([$report->getCreatedAtColumn() => $report->freshTimestamp()])->save();
+        }
+
+        return $report;
     }
 
     /**

@@ -78,6 +78,29 @@ final class ShipNameNormalizer
     }
 
     /**
+     * Kunci kanonik tanpa nomor lambung di ujung nama:
+     * "KM. Dolphin Nusantara 2" menjadi "DOLPHIN NUSANTARA".
+     *
+     * Hanya untuk pencocokan yang kandidatnya sudah dipersempit ke satu
+     * pelayaran — operasi yang diserahterimakan ke regu yang sama, atau nomor
+     * WO yang sama. Di luar itu angka di belakang nama justru membedakan dua
+     * kapal kembar (lihat isTruncationOf()).
+     */
+    public static function baseKey(?string $name): string
+    {
+        $tokens = array_values(array_filter(
+            explode(' ', self::key($name)),
+            static fn (string $token): bool => $token !== '',
+        ));
+
+        while (count($tokens) > 1 && self::isNumeric(end($tokens))) {
+            array_pop($tokens);
+        }
+
+        return implode(' ', $tokens);
+    }
+
+    /**
      * Huruf awal tiap kata pada kunci kanonik — pembanding untuk singkatan
      * seperti "SUK" bagi "SUMBER UTAMA KELUARGA".
      */

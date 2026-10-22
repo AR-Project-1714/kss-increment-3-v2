@@ -17,6 +17,7 @@ use App\Models\ShipOperation;
 use App\Models\ShipOperationDecision;
 use App\Models\UnitCheckLog;
 use App\Services\BulkTonnageService;
+use App\Services\ShipHandoverService;
 use App\Services\SystemNotificationService;
 use App\Support\ContainerStatusNormalizer;
 use App\Support\MaterialPackaging;
@@ -438,6 +439,7 @@ class ReportOpsController extends Controller
 
                 $this->storeDetails($report, $request);
                 $this->reconcileShipOperations($this->shipOperationIdsForReport($report));
+                $this->releaseAbandonedHandovers($report);
                 app(BulkTonnageService::class)->recalculateForReport($report->id);
             });
         } catch (Throwable $exception) {
@@ -493,6 +495,10 @@ class ReportOpsController extends Controller
                 ->route('report-ops.index', ['tab' => 'draft'])
                 ->with('error', 'Draft sudah melewati 3 hari tanpa dilanjutkan, sehingga data draft tersebut dihapus otomatis.');
         }
+
+        // Draft kosong yang dibuka dari tab Draft menerima kapal serah terima
+        // saat ini juga, sama seperti form baru.
+        $this->freshenBlankDraft($report);
 
         return view('report-ops.edit', array_merge($this->masterData($report), [
             'report' => $this->loadReport($report),
@@ -556,7 +562,13 @@ class ReportOpsController extends Controller
                     'payload' => $payload,
                 ]);
 
-                $report->operationDecisions()->delete();
+                // Keputusan "dilepas" (lihat ShipHandoverService) dipertahankan:
+                // operasinya memang tidak tercantum di laporan ini, jadi tidak
+                // ada baris yang akan menuliskannya ulang. Bila kapalnya kini
+                // dicantumkan, keputusan baris itu menimpanya.
+                $report->operationDecisions()
+                    ->where('status', '!=', ShipOperation::STATUS_INACTIVE)
+                    ->delete();
                 $this->deleteDetails($report);
                 $this->storeDetails($report, $request);
 
@@ -564,6 +576,7 @@ class ReportOpsController extends Controller
                 $touchedOperationIds = array_values(array_unique(array_merge($oldOperationIds, $newOperationIds)));
 
                 $this->reconcileShipOperations($touchedOperationIds);
+                $this->releaseAbandonedHandovers($report);
                 app(BulkTonnageService::class)->recalculateForOperationIds($touchedOperationIds);
                 app(BulkTonnageService::class)->recalculateForReport($report->id);
             });
@@ -2292,6 +2305,16 @@ class ReportOpsController extends Controller
             $report->report_date ? Carbon::parse($report->report_date) : null,
         );
 
+        // Nama kapal bawaan serah terima dikoreksi petugas (mis. menambahkan
+        // nomor lambung). Tanpa langkah ini terbentuk operasi kembar, sementara
+        // operasi asalnya tertinggal dan terus dibawa ke shift berikutnya.
+        $operation ??= app(ShipHandoverService::class)->correctedHandover(
+            $report,
+            $type,
+            $shipName,
+            $this->string($data['wo_number'] ?? null),
+        );
+
         $requestedStatus = $hasExplicitStatus
             ? $statusInput
             : ($operation?->status ?? ShipOperation::STATUS_ACTIVE);
@@ -2372,6 +2395,9 @@ class ReportOpsController extends Controller
         }
 
         $this->pruneStaleShipOperations();
+        // Operasi yang sudah dilepas regu ini pada laporan sebelumnya tidak
+        // boleh disisipkan lagi — termasuk sisa data sebelum aturan ini ada.
+        app(ShipHandoverService::class)->releaseAbandoned();
 
         return ShipOperation::query()
             ->with('lastReport:id,report_date,shift,group_name,received_by_group,status')
@@ -2405,6 +2431,20 @@ class ReportOpsController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * Laporan terkirim adalah keputusan regu penulisnya atas semua operasi
+     * yang diserahkan kepadanya. Operasi yang tidak dicantumkan berarti tidak
+     * dilanjutkan, dan harus berhenti dibawa ke form regu ini berikutnya.
+     */
+    private function releaseAbandonedHandovers(DailyReport $report): void
+    {
+        if ($report->status === ReportStatus::Draft) {
+            return;
+        }
+
+        app(ShipHandoverService::class)->releaseAbandoned();
     }
 
     /** @return array<int, int> */
@@ -2478,8 +2518,34 @@ class ReportOpsController extends Controller
                     : null;
             }
 
+            // Regu penerima sudah melepas operasi ini pada laporan yang lebih
+            // baru. Mengedit laporan serah terima lama tidak boleh
+            // menghidupkannya kembali ke form regu tersebut.
+            if ($this->releasedAfter($operationId, $latestReport)) {
+                $updates['status'] = ShipOperation::STATUS_INACTIVE;
+                $updates['completed_at'] = null;
+                $updates['completed_by'] = null;
+            }
+
             $operation->update($updates);
         }
+    }
+
+    private function releasedAfter(int $operationId, DailyReport $latestReport): bool
+    {
+        return ShipOperationDecision::query()
+            ->with('dailyReport')
+            ->where('ship_operation_id', $operationId)
+            ->where('status', ShipOperation::STATUS_INACTIVE)
+            ->where('daily_report_id', '!=', $latestReport->id)
+            ->get()
+            ->contains(fn (ShipOperationDecision $release): bool => $release->dailyReport
+                && in_array($release->dailyReport->status, [
+                    ReportStatus::Submitted,
+                    ReportStatus::Acknowledged,
+                    ReportStatus::Approved,
+                ], true)
+                && ShipHandoverService::isBefore($latestReport, $release->dailyReport));
     }
 
     private function latestLinkedReportForOperation(int $operationId): ?DailyReport

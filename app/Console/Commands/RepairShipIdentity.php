@@ -208,7 +208,8 @@ class RepairShipIdentity extends Command
                 $target = null;
 
                 foreach ($clusters as $index => $cluster) {
-                    if (! ShipNameNormalizer::isSameShip($cluster['key'], $key)) {
+                    if (! ShipNameNormalizer::isSameShip($cluster['key'], $key)
+                        && ! $this->sameWorkOrderVoyage($cluster['keeper'], $operation)) {
                         continue;
                     }
 
@@ -290,24 +291,31 @@ class RepairShipIdentity extends Command
             return true;
         }
 
-        $left = $this->workOrderNumbers($keeper->wo_number);
-        $right = $this->workOrderNumbers($candidate->wo_number);
-
-        if ($left === [] || $right === []) {
-            return true;
-        }
-
-        return array_intersect($left, $right) !== [];
+        return ! ShipOperation::workOrdersConflict($keeper->wo_number, $candidate->wo_number);
     }
 
     /**
-     * @return array<int, string>
+     * Muat kantong dengan nomor WO yang sama dan nama yang hanya berbeda nomor
+     * lambung ("KLM.Dolphin Nusantara" dan "KM. Dolphin Nusantara 2") adalah
+     * satu pelayaran yang namanya dikoreksi di tengah jalan.
+     *
+     * Tanpa WO yang sama, beda nomor lambung tetap dianggap dua kapal kembar.
      */
-    private function workOrderNumbers(?string $value): array
+    private function sameWorkOrderVoyage(ShipOperation $keeper, ShipOperation $candidate): bool
     {
-        preg_match_all('/\d{6,}/', (string) $value, $matches);
+        if ($keeper->type !== ShipOperation::TYPE_BAG_LOADING || $candidate->type !== ShipOperation::TYPE_BAG_LOADING) {
+            return false;
+        }
 
-        return array_values(array_unique($matches[0]));
+        $left = ShipOperation::workOrderNumbers($keeper->wo_number);
+        $right = ShipOperation::workOrderNumbers($candidate->wo_number);
+
+        return $left !== []
+            && array_intersect($left, $right) !== []
+            && ShipNameNormalizer::isSameShip(
+                ShipNameNormalizer::baseKey($keeper->ship_name),
+                ShipNameNormalizer::baseKey($candidate->ship_name),
+            );
     }
 
     /**
@@ -320,6 +328,8 @@ class RepairShipIdentity extends Command
             foreach (self::ACTIVITY_TABLES as $table) {
                 DB::table($table)->where('ship_operation_id', $from)->update(['ship_operation_id' => $to]);
             }
+
+            $this->repointDecisions($from, $to);
 
             $keeper = ShipOperation::find($to);
             $loser = ShipOperation::find($from);
@@ -342,6 +352,12 @@ class RepairShipIdentity extends Command
                     $keeper->last_report_date = $loser->last_report_date;
                     $keeper->last_report_id = $loser->last_report_id;
                     $keeper->ship_name = $loser->ship_name;
+                    // Status ikut laporan terbaru: cabang lama yang sudah
+                    // dilepas tidak boleh mengarsipkan pelayaran yang masih
+                    // berjalan di cabang barunya.
+                    $keeper->status = $loser->status;
+                    $keeper->completed_at = $loser->completed_at;
+                    $keeper->completed_by = $loser->completed_by;
                 }
 
                 if ($loser->status === ShipOperation::STATUS_COMPLETED) {
@@ -356,6 +372,40 @@ class RepairShipIdentity extends Command
 
             ShipOperation::whereKey($from)->delete();
         });
+    }
+
+    /**
+     * Histori keputusan per laporan ikut pindah; tanpa ini keputusan milik
+     * operasi kembar terhapus bersama operasinya (cascade).
+     *
+     * Bila keduanya punya keputusan pada laporan yang sama, keputusan
+     * "dilepas" milik operasi yang dipertahankan gugur: setelah disatukan,
+     * laporan itu justru melanjutkan pelayarannya.
+     */
+    private function repointDecisions(int $from, int $to): void
+    {
+        $keeperDecisions = DB::table('ship_operation_decisions')
+            ->where('ship_operation_id', $to)
+            ->pluck('status', 'daily_report_id');
+
+        foreach (DB::table('ship_operation_decisions')->where('ship_operation_id', $from)->get() as $decision) {
+            $existing = $keeperDecisions[$decision->daily_report_id] ?? null;
+
+            if ($existing !== null && $existing !== ShipOperation::STATUS_INACTIVE) {
+                continue;
+            }
+
+            if ($existing !== null) {
+                DB::table('ship_operation_decisions')
+                    ->where('ship_operation_id', $to)
+                    ->where('daily_report_id', $decision->daily_report_id)
+                    ->delete();
+            }
+
+            DB::table('ship_operation_decisions')
+                ->where('id', $decision->id)
+                ->update(['ship_operation_id' => $to]);
+        }
     }
 
     /**

@@ -67,12 +67,42 @@ class ShipOperation extends Model
         };
     }
 
+    /**
+     * Nomor-nomor WO di dalam satu isian. Petugas kadang menulis beberapa WO
+     * sekaligus ("5320074413, 5320074414") saat WO kedua ditambahkan di tengah
+     * pemuatan.
+     *
+     * @return array<int, string>
+     */
+    public static function workOrderNumbers(?string $value): array
+    {
+        preg_match_all('/\d{6,}/', (string) $value, $matches);
+
+        return array_values(array_unique($matches[0]));
+    }
+
+    /**
+     * Dua isian WO yang sama-sama terisi tetapi tidak berbagi satu nomor pun
+     * menandai dua pekerjaan muat yang berbeda.
+     */
+    public static function workOrdersConflict(?string $left, ?string $right): bool
+    {
+        $leftNumbers = self::workOrderNumbers($left);
+        $rightNumbers = self::workOrderNumbers($right);
+
+        return $leftNumbers !== []
+            && $rightNumbers !== []
+            && array_intersect($leftNumbers, $rightNumbers) === [];
+    }
+
     protected $guarded = ['id'];
 
     /**
      * Arsipkan (bukan hapus) saran operasi lama yang belum memiliki histori
      * keputusan. Operasi yang sudah dikonfirmasi tetap aktif sampai petugas
-     * menandainya selesai, termasuk saat ada jeda cuaca atau antrean.
+     * menandainya selesai atau regu penerimanya tidak melanjutkannya (lihat
+     * ShipHandoverService::releaseAbandoned), termasuk saat ada jeda cuaca
+     * atau antrean.
      */
     public static function pruneStaleActiveSuggestions(): int
     {
